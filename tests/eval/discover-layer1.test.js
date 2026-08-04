@@ -40,6 +40,7 @@ process.env.DATABASE_URL =
   process.env.DATABASE_URL || "sqlite://./test-discover-layer1.sqlite3";
 process.env.DB_CLIENT = process.env.DB_CLIENT || "sqlite3";
 process.env.DISCOVER_ENGINE = "launch";
+process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = "true";
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || "pholio-secret";
 delete process.env.OPENAI_API_KEY; // no soft scoring — grouping asserted alone
 

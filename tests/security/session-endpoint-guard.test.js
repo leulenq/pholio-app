@@ -33,8 +33,13 @@ function createGuardedApp() {
 
 describe("session endpoint CSRF guard", () => {
   const app = createGuardedApp();
+  const protectedPaths = [
+    "/api/login",
+    "/api/logout",
+    "/api/auth/password-reset",
+  ];
 
-  test.each(["/api/login", "/api/logout"])(
+  test.each(protectedPaths)(
     "rejects a headerless POST to %s (an HTML form cannot set the header)",
     async (path) => {
       const response = await request(app).post(path).send({});
@@ -49,7 +54,7 @@ describe("session endpoint CSRF guard", () => {
     },
   );
 
-  test.each(["/api/login", "/api/logout"])(
+  test.each(protectedPaths)(
     "rejects a headerless cross-site form POST to %s carrying an attacker origin",
     async (path) => {
       const response = await request(app)
@@ -62,7 +67,7 @@ describe("session endpoint CSRF guard", () => {
     },
   );
 
-  test.each(["/api/login", "/api/logout"])(
+  test.each(protectedPaths)(
     "rejects %s when the header is present but the origin is untrusted",
     async (path) => {
       const response = await request(app)
@@ -76,7 +81,7 @@ describe("session endpoint CSRF guard", () => {
     },
   );
 
-  test.each(["/api/login", "/api/logout"])(
+  test.each(protectedPaths)(
     "allows %s from the app origin with the header",
     async (path) => {
       const response = await request(app)
@@ -89,7 +94,7 @@ describe("session endpoint CSRF guard", () => {
     },
   );
 
-  test.each(["/api/login", "/api/logout"])(
+  test.each(protectedPaths)(
     "allows %s from the marketing origin with the header",
     async (path) => {
       const response = await request(app)
@@ -102,7 +107,7 @@ describe("session endpoint CSRF guard", () => {
     },
   );
 
-  test.each(["/api/login", "/api/logout"])(
+  test.each(protectedPaths)(
     "allows %s with the header and no Origin (proxy hop may drop it)",
     async (path) => {
       const response = await request(app)

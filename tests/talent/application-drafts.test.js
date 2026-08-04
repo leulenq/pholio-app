@@ -70,6 +70,7 @@ describe("application drafts", () => {
       email: `application-draft-${userId}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
       // Talent API routes sit behind the legal gate; without this the fixture
       // 403s before reaching the draft logic under test.
       ...acceptedLegal(),

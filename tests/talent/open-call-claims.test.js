@@ -112,6 +112,7 @@ describe("agency open call claims", () => {
         email: `open-call-${userId}@example.com`,
         password_hash: "x",
         role: "TALENT",
+        email_verified: true,
         // Talent API routes sit behind the legal gate.
         ...acceptedLegal(),
       },

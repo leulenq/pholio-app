@@ -218,11 +218,22 @@ async function persistImageSignals(db, imageId, classification) {
  * @param {object} [input.imageIntel]
  * @param {object} [input.imageRow]
  * @param {import('knex').Knex} [input.db] - knex instance for signal persistence
+ * @param {boolean} [input.persistResult=true] - false when the caller owns an
+ *   atomic, post-provider eligibility check and persistence transaction
+ * @param {() => Promise<boolean>} [input.beforeProviderCall] - authoritative
+ *   just-in-time provider gate
+ * @param {() => Promise<boolean>} [input.beforePersist] - optional final gate
+ *   for callers that use this helper's built-in signal persistence
  * @returns {Promise<object|null>}
  */
 async function classifyPortfolioImage(input) {
   const result = await classifyPortfolioImageCore(input || {});
-  if (result && input?.imageRow?.id) {
+  if (
+    result &&
+    input?.imageRow?.id &&
+    input?.persistResult !== false &&
+    (!input?.beforePersist || (await input.beforePersist()))
+  ) {
     await persistImageSignals(input.db || null, input.imageRow.id, result);
   }
   return result;
@@ -233,6 +244,7 @@ async function classifyPortfolioImageCore({
   heuristicDraft,
   imageIntel,
   imageRow = null,
+  beforeProviderCall = null,
 }) {
   const groq = getGroq();
   const forensicsSummary = summarizeForensics(imageIntel);
@@ -256,6 +268,14 @@ async function classifyPortfolioImageCore({
     needsGroqVision(imageRow);
 
   try {
+    // Callers that handle sensitive user data can provide an authoritative,
+    // just-in-time consent/feature-flag check. It intentionally sits beside
+    // the external call rather than relying on state captured when a job was
+    // queued.
+    if (beforeProviderCall && !(await beforeProviderCall())) {
+      return mergeClassification(heuristicDraft, null);
+    }
+
     const mime = detectImageMime(imageBuffer);
     const base64Image = imageBuffer.toString("base64");
     const completion = await Promise.race([

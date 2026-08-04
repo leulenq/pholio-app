@@ -373,6 +373,58 @@ function requireActiveAccount() {
   };
 }
 
+/**
+ * An authenticated talent session is not, by itself, dashboard authorization.
+ * Email verification and completed onboarding are persisted server-side and
+ * must both be present before any talent dashboard route is allowed through.
+ */
+function requireTalentDashboardEligibility() {
+  return async (req, res, next) => {
+    if (!req.session?.userId || req.session.role !== "TALENT") {
+      return next();
+    }
+
+    try {
+      const [user, profile] = await Promise.all([
+        knex("users")
+          .where({ id: req.session.userId })
+          .select("email_verified")
+          .first(),
+        knex("profiles")
+          .where({ user_id: req.session.userId })
+          .select("onboarding_completed_at")
+          .first(),
+      ]);
+
+      const verificationRequired = !Boolean(user?.email_verified);
+      const onboardingRequired = !profile?.onboarding_completed_at;
+      if (!verificationRequired && !onboardingRequired) {
+        return next();
+      }
+
+      const redirect = verificationRequired
+        ? "/onboarding?verification=required"
+        : "/onboarding";
+      if (isApiRequest(req)) {
+        return res.status(403).json({
+          success: false,
+          error: verificationRequired
+            ? "EMAIL_VERIFICATION_REQUIRED"
+            : "ONBOARDING_REQUIRED",
+          message: verificationRequired
+            ? "Verify your email address before accessing the talent dashboard."
+            : "Finish onboarding before accessing the talent dashboard.",
+          redirect,
+        });
+      }
+
+      return res.redirect(redirect);
+    } catch (error) {
+      return next(error);
+    }
+  };
+}
+
 function enforceAgencyRoutePermissions() {
   return async (req, res, next) => {
     if (!req.session || req.session.role !== "AGENCY") {
@@ -462,4 +514,5 @@ module.exports = {
   requireAgencyPermission,
   enforceAgencyRoutePermissions,
   requireActiveAccount,
+  requireTalentDashboardEligibility,
 };

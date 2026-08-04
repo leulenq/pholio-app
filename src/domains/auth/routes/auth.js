@@ -7,7 +7,6 @@ const knex = require("../../../shared/db/knex");
 const {
   loginSchema,
 } = require("../../../shared/lib/validation");
-const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const { clearCookieOptions } = require("../../../shared/lib/cookie-domain");
 const {
   verifyIdToken,
@@ -72,6 +71,34 @@ function safeNext(input) {
   if (!input.startsWith("/")) return null;
   if (input.startsWith("//")) return null;
   return input;
+}
+
+function safeLoginValues(body) {
+  if (!body || typeof body !== "object") return {};
+
+  return {
+    email: typeof body.email === "string" ? body.email : undefined,
+    next: safeNext(body.next) || undefined,
+  };
+}
+
+async function talentPostLoginRedirect(userId, emailVerified) {
+  if (!emailVerified) return "/onboarding?verification=required";
+
+  const profile = await knex("profiles").where({ user_id: userId }).first();
+  return profile?.onboarding_completed_at ? "/dashboard/talent" : "/onboarding";
+}
+
+async function redirectForAuthenticatedSession(session) {
+  if (session?.role !== "TALENT" || !session.userId) {
+    return redirectForSession(session);
+  }
+
+  const user = await knex("users")
+    .where({ id: session.userId })
+    .select("email_verified")
+    .first();
+  return talentPostLoginRedirect(session.userId, Boolean(user?.email_verified));
 }
 
 function isAgencySetupComplete(session) {
@@ -158,7 +185,7 @@ router.post("/api/auth/password-reset", async (req, res, next) => {
 
     return res.json({ success: true });
   } catch (error) {
-    console.error("[Password Reset] SMTP reset email failed:", error.message);
+    console.error("[Password Reset] SMTP reset delivery failed");
     return next(error);
   }
 });
@@ -264,7 +291,7 @@ router.post("/api/dev/login", async (req, res, next) => {
       redirectUrl = sessionRedirect;
     }
 
-    console.log(`[DevLogin] Signed in as ${email} (${req.session.role})`);
+    console.log("[DevLogin] Session established");
     return res.json({ success: true, redirect: redirectUrl });
   } catch (error) {
     return next(error);
@@ -301,7 +328,7 @@ router.get("/login", async (req, res) => {
   if (!forceLogin && req.session && req.session.userId) {
     // If user is logged in, redirect to their dashboard
     // Dashboard routes handle empty states internally (no need to check for profile here)
-    return res.redirect(redirectForSession(req.session));
+    return res.redirect(await redirectForAuthenticatedSession(req.session));
   }
   // Production: React SPA handles /login (served by app.js). Dev: Vite on :5173.
   if (process.env.NODE_ENV === "production") {
@@ -368,37 +395,12 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     nextPath = safeNext(req.body.next);
   }
 
-  console.log("[Login] ===== POST /login route hit =====");
-  console.log("[Login] Checking for Firebase token:", {
-    hasBody: !!req.body,
-    bodyKeys: req.body ? Object.keys(req.body).slice(0, 10) : [],
-    hasBodyToken: !!(req.body && req.body.firebase_token),
-    bodyTokenLength:
-      req.body && req.body.firebase_token ? req.body.firebase_token.length : 0,
-    extractedToken: !!extractIdToken(req),
-    idToken: !!idToken,
-    idTokenLength: idToken ? idToken.length : 0,
-    requestUrl: req.url,
-    requestMethod: req.method,
-    hasEmail: !!(req.body && req.body.email),
-    hasPassword: !!(req.body && req.body.password),
-  });
-
   // If Firebase token is provided, skip email/password validation and proceed with token auth
   if (!idToken) {
     // No Firebase token - this should not happen if client-side auth is working correctly
     // The client should authenticate with Firebase first (either Google or email/password),
     // then send the Firebase token to the backend
-    console.log("[Login] ⚠️ No Firebase token provided");
-    // Never log the raw body here — it can carry a plaintext password. The key
-    // names and presence flags are enough to diagnose a malformed login POST.
-    console.log("[Login] Request body contents:", {
-      hasEmail: !!(req.body && req.body.email),
-      hasPassword: !!(req.body && req.body.password),
-      hasNext: !!(req.body && req.body.next),
-      bodyKeys: req.body ? Object.keys(req.body) : [],
-      contentType: req.headers["content-type"],
-    });
+    console.warn("[Login] Authentication token missing");
 
     // If request is JSON or Accept header requests JSON, return JSON error response
     const contentType = req.headers["content-type"] || "";
@@ -422,7 +424,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     res.locals.currentPage = "login";
     return res.status(401).render("auth/login", {
       title: "Sign in",
-      values: req.body || {},
+      values: safeLoginValues(req.body),
       errors: {
         firebase: [
           "Authentication failed. Please sign in with Google or enter your email and password.",
@@ -432,10 +434,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       currentPage: "login",
     });
   }
-
-  console.log(
-    "[Login] ✅ Firebase token found, proceeding with token authentication",
-  );
 
   try {
     // Verify Firebase ID token
@@ -458,7 +456,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     const isInstagramAuth = isInstagramUid(firebaseUid);
 
     if (!firebaseUid || (!email && !isInstagramAuth)) {
-      console.log("[Login] Invalid token data:", { firebaseUid, email });
+      console.warn("[Login] Authentication token did not contain an identity");
 
       // If request is JSON or Accept header requests JSON, return JSON error response
       const contentType = req.headers["content-type"] || "";
@@ -476,14 +474,12 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       res.locals.currentPage = "login";
       return res.status(401).render("auth/login", {
         title: "Sign in",
-        values: req.body,
+        values: safeLoginValues(req.body),
         errors: { email: ["Invalid authentication token."] },
         layout: "layout",
         currentPage: "login",
       });
     }
-
-    console.log("[Login] Firebase token verified for:", { firebaseUid, email });
 
     let pendingTeamInvitation = null;
     let teamInvitationAccepted = false;
@@ -517,13 +513,21 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
 
     // If user exists but doesn't have firebase_uid, update it and update profile with Google data
     if (user && !user.firebase_uid) {
-      await knex("users")
+      const boundIdentity = await knex("users")
         .where({ id: user.id })
+        .whereNull("firebase_uid")
         .update({ firebase_uid: firebaseUid });
-      console.log("[Login] Updated user with Firebase UID:", {
-        userId: user.id,
-        firebaseUid,
-      });
+      if (boundIdentity !== 1) {
+        const latestUser = await knex("users").where({ id: user.id }).first();
+        if (latestUser?.firebase_uid !== firebaseUid) {
+          return res.status(409).json({
+            success: false,
+            error: "ACCOUNT_IDENTITY_CONFLICT",
+            message: "This account is already linked to a different sign-in method.",
+          });
+        }
+      }
+      user.firebase_uid = firebaseUid;
 
       // Update existing profile with Google name/picture and IP geolocation if available
       if (firstName && user.role === "TALENT") {
@@ -577,12 +581,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
                     );
                   }
                 }
-              } catch (geoError) {
+              } catch {
                 // Non-critical - continue without geolocation
-                console.warn(
-                  "[Login] Error fetching IP geolocation for existing profile:",
-                  geoError.message,
-                );
+                console.warn("[Login] Geolocation lookup unavailable");
               }
             }
           }
@@ -591,10 +592,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             await knex("profiles")
               .where({ id: existingProfile.id })
               .update(updateData);
-            console.log(
-              "[Login] Updated existing profile with Google data:",
-              updateData,
-            );
           }
 
           // Store geo/OAuth data in onboarding_signals
@@ -626,10 +623,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               }
               await knex("onboarding_signals").insert(insertData);
             }
-            console.log(
-              "[Login] Stored geolocation data in onboarding_signals:",
-              geoData,
-            );
           }
         }
       }
@@ -638,48 +631,8 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // No Pholio account yet. Talent must complete /onboarding — login never
     // auto-provisions talent. Agency invites still provision into the workspace.
     if (!user) {
-      console.log(
-        "[Login] User not found in database for Firebase UID:",
-        firebaseUid,
-      );
-
-      // Diagnostic only (no behavior change): a report of "I already had an
-      // account but got sent to signup" is otherwise unreproducible after the
-      // fact. If a row exists for this email under a DIFFERENT firebase_uid (or
-      // the same uid didn't match for some other reason), log it so the
-      // uid/email mismatch is visible in logs instead of only in the user's
-      // description.
-      if (email) {
-        try {
-          const possibleMatch = await knex("users")
-            .whereRaw("LOWER(email) = ?", [email.toLowerCase().trim()])
-            .first();
-          if (possibleMatch) {
-            console.warn(
-              "[Login] Existing account found by email but did not match — treating as a new signup:",
-              {
-                incomingFirebaseUid: firebaseUid,
-                incomingEmailVerified: emailVerified,
-                existingUserId: possibleMatch.id,
-                existingFirebaseUid: possibleMatch.firebase_uid,
-                existingRole: possibleMatch.role,
-              },
-            );
-          }
-        } catch (diagError) {
-          console.warn(
-            "[Login] Account-match diagnostic lookup failed:",
-            diagError.message,
-          );
-        }
-      }
-
       if (!pendingTeamInvitation) {
         const onboardingRedirect = "/onboarding";
-        console.log(
-          "[Login] No Pholio account — directing to onboarding:",
-          onboardingRedirect,
-        );
         return isJsonRequest
           ? res.status(404).json({
               success: false,
@@ -721,13 +674,11 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           user = await trx("users").where({ id: userId }).first();
         });
 
-        console.log("[Login] Agency invitee auto-created successfully:", {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        });
+        console.log("[Login] Agency invitee provisioned");
       } catch (createError) {
-        console.error("[Login] Error auto-creating invitee:", createError);
+        console.error("[Login] Agency invitation provisioning failed", {
+          code: createError.code || "unknown",
+        });
 
         // Race condition: another request created the user between our lookup and insert
         if (
@@ -737,16 +688,13 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           createError.message?.includes("unique") ||
           createError.message?.includes("UNIQUE")
         ) {
-          console.log(
-            "[Login] Unique constraint hit — looking up existing user...",
-          );
           user = await knex("users")
             .where({ firebase_uid: firebaseUid })
             .first();
 
           if (!user && email) {
             user = await knex("users")
-              .where({ email: email.toLowerCase().trim() })
+              .whereRaw("LOWER(email) = ?", [email.toLowerCase().trim()])
               .first();
           }
 
@@ -757,7 +705,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
               ? res.status(409).json({ success: false, error: msg })
               : res.status(409).render("auth/login", {
                   title: "Sign in",
-                  values: req.body,
+                  values: safeLoginValues(req.body),
                   errors: { email: [msg] },
                   layout: "layout",
                   currentPage: "login",
@@ -771,7 +719,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             ? res.status(500).json({ success: false, error: msg })
             : res.status(500).render("auth/login", {
                 title: "Sign in",
-                values: req.body,
+                values: safeLoginValues(req.body),
                 errors: { email: [msg] },
                 layout: "layout",
                 currentPage: "login",
@@ -806,42 +754,15 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       }
     }
 
-    // Ensure TALENT users always have a profile row and onboarding_completed_at stamp.
-    // This covers accounts from outside the onboarding flow and existing users
-    // whose profiles pre-date this fix.
+    // Login may refresh names on an existing profile, but it must never create
+    // a profile or mark onboarding complete. Those writes belong exclusively
+    // to the onboarding state machine and its adult-eligibility checks.
     if (user && user.role === "TALENT") {
       try {
         const existingProfile = await knex("profiles")
           .where({ user_id: user.id })
           .first();
-        if (!existingProfile) {
-          console.log(
-            "[Login] Existing TALENT user has no profile — creating one now...",
-          );
-          const safeFirst = firstName || "User";
-          const safeLast = lastName || null;
-          const slug = await ensureUniqueSlug(
-            knex,
-            "profiles",
-            `${safeFirst}-${safeLast}`,
-          );
-          await knex("profiles").insert({
-            id: uuidv4(),
-            user_id: user.id,
-            slug,
-            first_name: safeFirst,
-            last_name: safeLast,
-            bio_raw: "",
-            bio_curated: "",
-            city: "TBD",
-            height_cm: 0,
-            is_pro: false,
-            onboarding_completed_at: knex.fn.now(),
-            created_at: knex.fn.now(),
-            updated_at: knex.fn.now(),
-          });
-          console.log("[Login] Profile created for existing user");
-        } else {
+        if (existingProfile) {
           const profileNameBackfill = {};
           const resolvedFirst =
             firstName || user.first_name || null;
@@ -862,22 +783,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
             await knex("profiles")
               .where({ id: existingProfile.id })
               .update(profileNameBackfill);
-            console.log(
-              "[Login] Backfilled profile name from account/provider:",
-              profileNameBackfill,
-            );
-          }
-
-          if (!existingProfile.onboarding_completed_at) {
-            // Profile exists but onboarding gate was never cleared — stamp it now.
-            // This backfills accounts created before the Firebase-only auth fix.
-            await knex("profiles")
-              .where({ id: existingProfile.id })
-              .update({ onboarding_completed_at: knex.fn.now() });
-            console.log(
-              "[Login] Backfilled onboarding_completed_at for existing profile:",
-              existingProfile.id,
-            );
           }
         }
 
@@ -897,12 +802,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           await knex("users").where({ id: user.id }).update(userNameBackfill);
           Object.assign(user, userNameBackfill);
         }
-      } catch (profileError) {
+      } catch {
         // Non-critical — log but continue
-        console.warn(
-          "[Login] Error ensuring profile for existing user:",
-          profileError.message,
-        );
+        console.warn("[Login] Account name synchronization unavailable");
       }
     }
 
@@ -929,31 +831,21 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           user.auth_provider = authProvider;
         }
       }
-    } catch (providerError) {
+    } catch {
       // Non-critical — settings falls back to the neutral representation.
-      console.warn(
-        "[Login] Error recording auth provider:",
-        providerError.message,
-      );
+      console.warn("[Login] Auth-provider synchronization unavailable");
     }
 
     // Account avatar layer only — never write provider pictures into images/book.
     if (user.role === "TALENT" && providerUser.picture) {
       try {
         await syncProviderAccountAvatar(knex, user.id, providerUser.picture);
-      } catch (avatarError) {
-        console.warn(
-          "[Login] Error syncing account avatar:",
-          avatarError.message,
-        );
+      } catch {
+        console.warn("[Login] Account avatar synchronization unavailable");
       }
     }
 
-    console.log("[Login] Login successful for user:", {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    console.log("[Login] Identity authenticated");
 
     // Regenerate the session id before establishing the authenticated session
     // (SEC-0.7: session-fixation gap). Must happen before any identity fields
@@ -961,19 +853,12 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // empty session, so fields have to be (re-)assigned after this point.
     // Preserve any pre-auth onboarding prefill if present.
     const preAuthOnboardingData = req.session.onboardingData;
-    const preRegenerateSessionId = req.sessionID;
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => (err ? reject(err) : resolve()));
     });
     if (preAuthOnboardingData) {
       req.session.onboardingData = preAuthOnboardingData;
     }
-    console.log("[Login] Session regenerated:", {
-      preRegenerateSessionId,
-      postRegenerateSessionId: req.sessionID,
-      userId: user.id,
-    });
-
     if (user.role === "AGENCY") {
       const agencyContext = await resolveAgencyContextForMemberUser(user.id);
       if (!agencyContext || !agencyContext.agency) {
@@ -985,7 +870,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
         res.locals.currentPage = "login";
         return res.status(403).render("auth/login", {
           title: "Sign in",
-          values: req.body,
+          values: safeLoginValues(req.body),
           errors: { email: [msg] },
           layout: "layout",
           currentPage: "login",
@@ -1019,14 +904,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
         if (err) {
-          console.error("[Login] Error saving session:", err);
+          console.error("[Login] Session persistence failed");
           reject(err);
         } else {
-          console.log("[Login] Session saved successfully:", {
-            sessionId: req.sessionID,
-            userId: req.session.userId,
-            role: req.session.role,
-          });
           resolve();
         }
       });
@@ -1043,8 +923,15 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       fingerprint: deviceStamp?.fingerprint,
     });
 
-    const sessionRedirect = redirectForSession(req.session);
-    let redirectUrl = nextPath || sessionRedirect;
+    const sessionRedirect =
+      req.session.role === "TALENT"
+        ? await talentPostLoginRedirect(user.id, Boolean(user.email_verified))
+        : redirectForSession(req.session);
+    const talentEligibilityRequired =
+      req.session.role === "TALENT" && sessionRedirect !== "/dashboard/talent";
+    let redirectUrl = talentEligibilityRequired
+      ? sessionRedirect
+      : nextPath || sessionRedirect;
     if (req.session.role === "AGENCY" && !req.session.agencyOnboardingCompletedAt) {
       if (nextPath && !isAllowedAgencySetupNext(nextPath)) {
         req.session.agencySetupReturnTo = nextPath;
@@ -1052,16 +939,12 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           await knex("agencies")
             .where({ id: req.session.agencyId })
             .update({ setup_return_to: nextPath, updated_at: knex.fn.now() });
-        } catch (returnToError) {
-          console.warn(
-            "[Login] Failed to persist agency setup return path:",
-            returnToError.message,
-          );
+        } catch {
+          console.warn("[Login] Failed to persist agency setup return path");
         }
       }
       redirectUrl = sessionRedirect;
     }
-    console.log("[Login] Redirecting to:", redirectUrl);
 
     // The session above is now fully established — this really was a
     // successful re-authentication, not just a completed Firebase action —
@@ -1077,11 +960,8 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           firstName: user.first_name,
           supportUrl: "mailto:support@pholio.studio",
         });
-      } catch (notifyError) {
-        console.warn(
-          "[Login] Password-changed confirmation email failed:",
-          notifyError.message,
-        );
+      } catch {
+        console.warn("[Login] Password-changed confirmation email failed");
       }
     }
 
@@ -1092,10 +972,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       contentType.includes("application/json") ||
       acceptHeader.includes("application/json")
     ) {
-      console.log(
-        "[Login] Returning JSON response with redirect:",
-        redirectUrl,
-      );
       return res.json({
         success: true,
         redirect: redirectUrl,
@@ -1105,10 +981,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     // Otherwise, redirect normally
     return res.redirect(redirectUrl);
   } catch (error) {
-    console.error("[Login Route] Error:", {
-      message: error.message,
-      code: error.code,
-      name: error.name,
+    console.error("[Login Route] Authentication failed", {
+      code: error.code || "unknown",
+      name: error.name || "Error",
     });
 
     // Handle Firebase-specific errors
@@ -1134,7 +1009,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       res.locals.currentPage = "login";
       return res.status(401).render("auth/login", {
         title: "Sign in",
-        values: req.body,
+        values: safeLoginValues(req.body),
         errors: { email: ["Your session has expired. Please sign in again."] },
         layout: "layout",
         currentPage: "login",
@@ -1157,7 +1032,7 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       res.locals.currentPage = "login";
       return res.status(401).render("auth/login", {
         title: "Sign in",
-        values: req.body,
+        values: safeLoginValues(req.body),
         errors: { email: ["Invalid authentication token. Please try again."] },
         layout: "layout",
         currentPage: "login",
@@ -1170,9 +1045,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
 });
 
 // GET /signup - Redirect to /onboarding for talent
-router.get("/signup", (req, res) => {
+router.get("/signup", async (req, res) => {
   if (req.session && req.session.userId) {
-    return res.redirect(redirectForRole(req.session.role));
+    return res.redirect(await redirectForAuthenticatedSession(req.session));
   }
   // Redirect talent signups to /onboarding and preserve query parameters (e.g., ?plan=studio)
   const queryString = req.url.includes("?")
@@ -1244,8 +1119,8 @@ async function revokeFirebaseForSession(session) {
       .first();
 
     await revokeRefreshTokens(user?.firebase_uid);
-  } catch (error) {
-    console.warn("[Logout] Firebase revocation skipped:", error.message);
+  } catch {
+    console.warn("[Logout] Firebase revocation skipped");
   }
 }
 
@@ -1268,7 +1143,7 @@ router.post(["/logout", "/api/logout"], async (req, res) => {
 
   req.session.destroy((err) => {
     if (err) {
-      console.error("[Logout] Error destroying session:", err);
+      console.error("[Logout] Failed to destroy session");
     }
 
     // Clear with the same attribute set the session cookie was created with
@@ -1307,14 +1182,14 @@ router.get("/api/session", async (req, res) => {
       : null,
     agencyOnboardingCompletedAt:
       req.session.agencyOnboardingCompletedAt || null,
-    redirect: redirectForSession(req.session),
+    redirect: await redirectForAuthenticatedSession(req.session),
   };
 
   if (req.session.role === "AGENCY") {
     try {
       payload.permissions = await loadPermissionsArrayForSession(req.session);
-    } catch (error) {
-      console.error("[Session] Failed to load agency permissions:", error);
+    } catch {
+      console.error("[Session] Failed to load agency permissions");
       payload.permissions = [];
     }
   }

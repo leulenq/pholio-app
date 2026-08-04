@@ -138,10 +138,11 @@ export function recency(value, now = Date.now()) {
 export function calendarDate(value, now = Date.now()) {
   const d = parseDate(value);
   if (!d) return null;
-  const sameYear = d.getFullYear() === new Date(now).getFullYear();
+  const sameYear = d.getUTCFullYear() === new Date(now).getUTCFullYear();
   return d.toLocaleDateString(LOCALE, {
     day: 'numeric',
     month: 'short',
+    timeZone: 'UTC',
     ...(sameYear ? {} : { year: 'numeric' }),
   });
 }

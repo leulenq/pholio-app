@@ -5,6 +5,7 @@ process.env.DATABASE_URL =
   process.env.DATABASE_URL || "sqlite://./test-discover-search.sqlite3";
 process.env.DB_CLIENT = process.env.DB_CLIENT || "sqlite3";
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "test-key";
+process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = "true";
 process.env.DISCOVER_HYBRID = "true";
 process.env.DISCOVER_RERANK_PROVIDER = "none";
 
@@ -152,7 +153,11 @@ jest.mock("../../src/domains/agency/services/query-understanding", () => {
 });
 
 const knex = require("../../src/shared/db/knex");
-const { embed, isPostgresKnex } = require("../../src/domains/ai/embeddings");
+const {
+  embed,
+  isPostgresKnex,
+  embeddingStorageSource,
+} = require("../../src/domains/ai/embeddings");
 const {
   parseIntentToFilters,
   decomposeQueryFallback,
@@ -269,6 +274,7 @@ async function createSchema() {
       t.integer("playing_age_min").nullable();
       t.integer("playing_age_max").nullable();
       t.boolean("is_discoverable").defaultTo(false);
+      t.boolean("embedding_processing_consent").notNullable().defaultTo(true);
       t.string("profile_status", 50).nullable();
       t.timestamp("created_at").defaultTo(knex.fn.now());
     });
@@ -301,6 +307,18 @@ async function createSchema() {
     if (!(await knex.schema.hasColumn("profiles", "tattoos"))) {
       await knex.schema.alterTable("profiles", (t) => {
         t.text("tattoos").nullable();
+      });
+    }
+    if (
+      !(await knex.schema.hasColumn(
+        "profiles",
+        "embedding_processing_consent",
+      ))
+    ) {
+      await knex.schema.alterTable("profiles", (t) => {
+        t.boolean("embedding_processing_consent")
+          .notNullable()
+          .defaultTo(true);
       });
     }
     if (!(await knex.schema.hasColumn("profiles", "piercings"))) {
@@ -478,7 +496,9 @@ async function seedDiscoverProfiles() {
       ...p,
       user_id: uuidv4(),
       slug: `${p.first_name}-${p.last_name}`.toLowerCase(),
+      date_of_birth: "1990-01-01",
       is_discoverable: true,
+      embedding_processing_consent: true,
       profile_status: "active",
       created_at: new Date(),
     });
@@ -505,13 +525,13 @@ async function seedHybridEmbeddings() {
     },
     {
       profile_id: PROFILE_IDS.Editorial,
-      source: "casting",
+      source: embeddingStorageSource("casting"),
       embedding_json: JSON.stringify(mockCastingVector),
       source_text: "editorial sharp",
     },
     {
       profile_id: PROFILE_IDS.Editorial,
-      source: "market",
+      source: embeddingStorageSource("market"),
       embedding_json: JSON.stringify(mockMarketVector),
       source_text: "editorial luxury",
     },
@@ -525,19 +545,19 @@ async function seedHybridEmbeddings() {
     },
     {
       profile_id: PROFILE_IDS.Refined,
-      source: "casting",
+      source: embeddingStorageSource("casting"),
       embedding_json: JSON.stringify(mockCastingVector),
       source_text: "refined editorial",
     },
     {
       profile_id: PROFILE_IDS.Refined,
-      source: "market",
+      source: embeddingStorageSource("market"),
       embedding_json: JSON.stringify(mockMarketVector),
       source_text: "luxury refined expensive",
     },
     {
       profile_id: PROFILE_IDS.Refined,
-      source: "discover_index",
+      source: embeddingStorageSource("discover_index"),
       embedding_json: JSON.stringify(mockCastingVector),
       source_text: "refined luxury",
     },
@@ -549,13 +569,13 @@ async function seedHybridEmbeddings() {
     },
     {
       profile_id: PROFILE_IDS.Heritage,
-      source: "casting",
+      source: embeddingStorageSource("casting"),
       embedding_json: JSON.stringify(mockFarVector),
       source_text: "commercial male",
     },
     {
       profile_id: PROFILE_IDS.Runway,
-      source: "discover_index",
+      source: embeddingStorageSource("discover_index"),
       embedding_json: JSON.stringify(mockFarVector),
       source_text: "runway tall",
     },
@@ -627,6 +647,27 @@ describe("hybrid discover search (SQLite)", () => {
     expect(isDiscoverHybridEnabled()).toBe(true);
   });
 
+  test("embedding feature-off makes no provider call and preserves browse fallback", async () => {
+    const previousFlag = process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS;
+    const callsBefore = embed.mock.calls.length;
+    process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = "false";
+
+    try {
+      const result = await searchDiscoverableTalent(knex, {
+        agencyId: AGENCY_ID,
+        q: "sharp jawline editorial",
+        limit: "20",
+      });
+
+      expect(embed).toHaveBeenCalledTimes(callsBefore);
+      expect(result.meta.semantic_search).toBe(false);
+      expect(result.meta.semantic_unavailable_reason).toBe("feature_disabled");
+      expect(result.profiles).toHaveLength(5);
+    } finally {
+      process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = previousFlag;
+    }
+  });
+
   test("returns discoverable profiles alphabetically when q is empty", async () => {
     const prev = process.env.DISCOVER_HYBRID;
     process.env.DISCOVER_HYBRID = "false";
@@ -655,7 +696,10 @@ describe("hybrid discover search (SQLite)", () => {
     expect(result.meta.query_understanding).toBeDefined();
     expect(result.meta.fusion).toBe("rrf");
     expect(result.profiles.length).toBeGreaterThan(0);
-    expect(result.profiles[0].last_name).toBe("Editorial");
+    expect(result.profiles.map((profile) => profile.last_name)).toContain(
+      "Editorial",
+    );
+    expect(result.meta.retrieval.legs_used).not.toContain("dense_visual");
     expect(result.profiles[0].match_score).toBeGreaterThan(0);
     expect(result.profiles[0].match_breakdown).toBeDefined();
   });
@@ -855,7 +899,7 @@ describe("legacy semantic search (SQLite)", () => {
     await knex("talent_embedding_cache").del();
     await knex("talent_embedding_cache").insert({
       profile_id: PROFILE_IDS.Editorial,
-      source: "discover_index",
+      source: embeddingStorageSource("discover_index"),
       embedding_json: JSON.stringify(mockUnitVector),
       source_text: "sharp jawline angular",
     });
@@ -922,8 +966,13 @@ describePostgres("searchDiscoverableTalent semantic mode (Postgres)", () => {
     const near = toVectorLiteral(mockUnitVector);
     await knex.raw(
       `INSERT INTO talent_text_embeddings (id, profile_id, source, source_text, embedding, embedded_at)
-       VALUES (?, ?, 'discover_index', 'editorial sharp', ?::vector, NOW())`,
-      [uuidv4(), PROFILE_IDS.Editorial, near],
+       VALUES (?, ?, ?, 'editorial sharp', ?::vector, NOW())`,
+      [
+        uuidv4(),
+        PROFILE_IDS.Editorial,
+        embeddingStorageSource("discover_index"),
+        near,
+      ],
     );
   });
 

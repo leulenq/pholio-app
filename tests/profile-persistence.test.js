@@ -146,6 +146,7 @@ describe("Profile Persistence Test Suite", () => {
       email: "persistence.test@example.com",
       password_hash: passwordHash,
       role: "TALENT",
+      email_verified: true,
     });
 
     // Create a mock session directly in the database

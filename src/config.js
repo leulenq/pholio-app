@@ -2,7 +2,9 @@ const path = require("path");
 const os = require("os");
 
 const ROOT_DIR = path.join(__dirname, "..");
-require("dotenv").config({ path: path.join(ROOT_DIR, ".env") });
+if (process.env.PHOLIO_SAFE_TEST_RUNNER !== "1") {
+  require("dotenv").config({ path: path.join(ROOT_DIR, ".env") });
+}
 
 const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || "0.25");
 const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || "25");

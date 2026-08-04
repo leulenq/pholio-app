@@ -7,7 +7,7 @@
  *
  * Public API:
  *   embed(text)                                  → float[]
- *   upsertImageEmbedding(knex, profileId, text)  → void  (Postgres-only)
+ *   upsertImageEmbedding(knex, profileId, text)  → false (retired at launch)
  *   upsertTextEmbedding(knex, profileId, src, text) → void
  *   upsertDiscoverIndexEmbedding(knex, profileId, profile, extras) → void
  *   upsertLexicalDocument(knex, profileId, profile, extras) → void
@@ -23,9 +23,131 @@
 "use strict";
 
 const crypto = require("crypto");
+const {
+  hasRecordedDateOfBirth,
+  isMinorProfile,
+} = require("../../shared/lib/talent-age");
+const {
+  normalizeBookingLaneList,
+  BOOKING_LANES,
+} = require("../../shared/constants/booking-lanes");
 
 const EMBEDDING_MODEL = "text-embedding-3-small";
 const EMBEDDING_DIMENSIONS = 512;
+
+// Selection embeddings are not part of the launch by default. This is a
+// deliberately narrow, separate consent from image analysis: neither a broad
+// privacy setting nor a missing value is permission to send profile data to an
+// embedding provider or retain a local search derivative.
+const SAFE_SELECTION_LANE_SLUGS = new Set([
+  "commercial",
+  "ecomm",
+  "editorial",
+  "runway",
+  "lifestyle",
+  "beauty",
+  "promotional",
+  "creator_ugc",
+]);
+const BOOKING_LANE_LABEL_BY_SLUG = new Map(
+  BOOKING_LANES.map((lane) => [lane.slug, lane.label]),
+);
+const SAFE_EXPERIENCE_LEVELS = new Map([
+  ["emerging", "Emerging"],
+  ["new face", "New face"],
+  ["new_face", "New face"],
+  ["developing", "Developing"],
+  ["professional", "Professional"],
+  ["experienced", "Experienced"],
+  ["established", "Established"],
+]);
+const SAFE_EMBEDDING_STORAGE_SOURCES = Object.freeze({
+  bio: "consented_v1_bio",
+  full_profile: "consented_v1_full_profile",
+  discover_index: "consented_v1_discover_index",
+  casting: "consented_v1_casting",
+  market: "consented_v1_market",
+});
+const SAFE_EMBEDDING_LOGICAL_SOURCES = new Map(
+  Object.entries(SAFE_EMBEDDING_STORAGE_SOURCES).map(([logical, stored]) => [
+    stored,
+    logical,
+  ]),
+);
+const SAFE_LEXICAL_DOCUMENT_PREFIX = "consent_corpus_v1";
+
+function profileEmbeddingFeatureEnabled(env = process.env) {
+  return env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS === "true";
+}
+
+function adultDateOfBirthUpperBoundExclusive(referenceDate = new Date()) {
+  const cutoff = new Date(
+    Date.UTC(
+      referenceDate.getUTCFullYear() - 18,
+      referenceDate.getUTCMonth(),
+      referenceDate.getUTCDate(),
+    ),
+  );
+  cutoff.setUTCDate(cutoff.getUTCDate() + 1);
+  return cutoff.toISOString().slice(0, 10);
+}
+
+function hasExplicitConsent(value) {
+  // PostgreSQL returns booleans while SQLite commonly returns 0/1.
+  return value === true || value === 1;
+}
+
+/**
+ * Embeddings and local selection indexes are permitted only for an adult who
+ * has affirmatively enabled this separate processing purpose, and only when
+ * the feature is explicitly enabled by the deploy environment. Unknown DOB,
+ * null/false consent, and all minors fail closed.
+ */
+function isProfileEmbeddingAllowed(profile, env = process.env) {
+  return (
+    profileEmbeddingFeatureEnabled(env) &&
+    hasExplicitConsent(profile?.embedding_processing_consent) &&
+    hasRecordedDateOfBirth(profile) &&
+    !isMinorProfile(profile)
+  );
+}
+
+async function loadEmbeddingEligibleProfile(knex, profileId) {
+  // Never trust a profile captured by a request or background job. Withdrawal,
+  // DOB changes, and deployment flags must be observed from authoritative state
+  // immediately beside every provider or derivative boundary.
+  if (!profileEmbeddingFeatureEnabled()) return null;
+  const profile = await knex("profiles").where({ id: profileId }).first();
+  return isProfileEmbeddingAllowed(profile) ? profile : null;
+}
+
+function safeExperienceLevel(profile) {
+  const raw = String(profile?.experience_level || "")
+    .trim()
+    .toLowerCase();
+  return SAFE_EXPERIENCE_LEVELS.get(raw) || "";
+}
+
+function embeddingStorageSource(source) {
+  return SAFE_EMBEDDING_STORAGE_SOURCES[source] || null;
+}
+
+function safeBookingLanes(profile) {
+  const values = [
+    ...parseJsonArray(profile?.modeling_categories),
+    ...parseJsonArray(profile?.booking_lanes),
+  ];
+  return normalizeBookingLaneList(values).filter((slug) =>
+    SAFE_SELECTION_LANE_SLUGS.has(slug),
+  );
+}
+
+function selectionLaneText(profile) {
+  const labels = safeBookingLanes(profile)
+    .map((slug) => BOOKING_LANE_LABEL_BY_SLUG.get(slug))
+    .filter(Boolean);
+  return labels.length ? `Booking lanes: ${labels.join(", ")}` : "";
+}
 
 // ─── Core embed call ────────────────────────────────────────────────────────
 
@@ -35,6 +157,9 @@ const EMBEDDING_DIMENSIONS = 512;
  * @returns {Promise<number[]>}
  */
 async function embed(text) {
+  if (!profileEmbeddingFeatureEnabled()) {
+    throw new Error("[embeddings] profile embedding feature is disabled");
+  }
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error(
@@ -92,6 +217,7 @@ function hashEmbedText(text) {
  * @returns {Promise<number[]|null>}
  */
 async function cachedEmbed(knex, text, opts = {}) {
+  if (!profileEmbeddingFeatureEnabled()) return null;
   const embedFn = opts.embedFn || embed;
   const trimmed = String(text || "").trim();
   if (!trimmed) return null;
@@ -225,7 +351,7 @@ async function upsertEmbeddingCache(
 }
 
 /** Dense channel sources for hybrid Discover retrieval. */
-const DENSE_CHANNEL_SOURCES = ["visual", "casting", "market", "discover_index"];
+const DENSE_CHANNEL_SOURCES = ["casting", "market", "discover_index"];
 
 /**
  * Load cached embeddings for a set of profile IDs.
@@ -233,22 +359,50 @@ const DENSE_CHANNEL_SOURCES = ["visual", "casting", "market", "discover_index"];
  */
 async function loadEmbeddingCacheMap(knex, profileIds) {
   const map = new Map();
-  if (!profileIds.length) return map;
+  if (!profileEmbeddingFeatureEnabled() || !profileIds.length) return map;
 
   const hasTable = await knex.schema.hasTable("talent_embedding_cache");
   if (!hasTable) return map;
 
-  const rows = await knex("talent_embedding_cache")
-    .whereIn("profile_id", profileIds)
-    .select("profile_id", "source", "embedding_json");
+  let rows;
+  try {
+    rows = await knex("talent_embedding_cache as tec")
+      .join("profiles as p", "p.id", "tec.profile_id")
+      .whereIn("tec.profile_id", profileIds)
+      .whereIn(
+        "tec.source",
+        Object.values(SAFE_EMBEDDING_STORAGE_SOURCES),
+      )
+      .where("p.embedding_processing_consent", true)
+      .whereNotNull("p.date_of_birth")
+      .where(
+        "p.date_of_birth",
+        "<",
+        adultDateOfBirthUpperBoundExclusive(),
+      )
+      .select(
+        "tec.profile_id",
+        "tec.source",
+        "tec.embedding_json",
+        "p.date_of_birth",
+        "p.embedding_processing_consent",
+      );
+  } catch {
+    // A pre-migration or partially migrated schema must fail closed rather than
+    // exposing legacy derivatives.
+    return map;
+  }
 
   for (const row of rows) {
+    if (!isProfileEmbeddingAllowed(row)) continue;
+    const logicalSource = SAFE_EMBEDDING_LOGICAL_SOURCES.get(row.source);
+    if (!logicalSource) continue;
     if (!map.has(row.profile_id)) {
       map.set(row.profile_id, {});
     }
     try {
       const vec = JSON.parse(row.embedding_json);
-      map.get(row.profile_id)[row.source] = vec;
+      map.get(row.profile_id)[logicalSource] = vec;
     } catch {
       // skip corrupt row
     }
@@ -259,35 +413,24 @@ async function loadEmbeddingCacheMap(knex, profileIds) {
 // ─── Upsert helpers ─────────────────────────────────────────────────────────
 
 /**
- * Compute and upsert an image embedding for a profile.
- * Source text = Scout's face_structure + body_impression + vibe_tags.
+ * Legacy image-embedding entry point.
+ *
+ * Image-derived vectors are prohibited from launch selection, so this remains
+ * a defensive no-op until a separately reviewed product policy replaces it.
  *
  * @param {import('knex').Knex} knex
  * @param {string} profileId
  * @param {string} sourceText  — Scout description text
  */
-async function upsertImageEmbedding(knex, profileId, sourceText) {
-  if (!sourceText?.trim()) return;
-
-  const embedding = await embed(sourceText);
-
-  if (isPostgresKnex(knex)) {
-    const vectorLiteral = toVectorLiteral(embedding);
-    await knex.raw(
-      `INSERT INTO talent_image_embeddings
-       (profile_id, source_text, embedding, embedded_at, updated_at)
-     VALUES (?, ?, ?::vector, NOW(), NOW())
-     ON CONFLICT (profile_id) DO UPDATE SET
-       source_text  = EXCLUDED.source_text,
-       embedding    = EXCLUDED.embedding,
-       embedded_at  = NOW(),
-       updated_at   = NOW()`,
-      [profileId, sourceText, vectorLiteral],
-    );
-    return;
-  }
-
-  await upsertEmbeddingCache(knex, profileId, "image", sourceText, embedding);
+async function upsertImageEmbedding(knex, profileId, sourceText, opts = {}) {
+  // Image-derived vectors are not an allowed launch selection signal. Keep a
+  // defensive no-op at this legacy API boundary because older background
+  // callers (for example the casting pipeline) still invoke it directly.
+  void knex;
+  void profileId;
+  void sourceText;
+  void opts;
+  return false;
 }
 
 /**
@@ -298,28 +441,62 @@ async function upsertImageEmbedding(knex, profileId, sourceText) {
  * @param {'bio'|'full_profile'|'discover_index'|'visual'|'casting'|'market'} source
  * @param {string} sourceText  — concatenated profile text to embed
  */
-async function upsertTextEmbedding(knex, profileId, source, sourceText) {
-  if (!sourceText?.trim()) return;
+async function upsertTextEmbedding(
+  knex,
+  profileId,
+  source,
+  sourceText,
+  opts = {},
+) {
+  void sourceText;
+  void opts.profile;
 
-  const embedding = await embed(sourceText);
+  // Fresh authoritative read immediately before the provider boundary. The
+  // corpus is rebuilt here too, so callers cannot smuggle arbitrary profile
+  // text through a nominally safe source name.
+  const profile = await loadEmbeddingEligibleProfile(knex, profileId);
+  if (!profile) return false;
+  const storageSource = embeddingStorageSource(source);
+  if (!storageSource) return false;
+  const safeSourceText = buildSafeEmbeddingText(source, profile);
+  if (!safeSourceText) return false;
 
-  if (isPostgresKnex(knex)) {
-    const vectorLiteral = toVectorLiteral(embedding);
-    await knex.raw(
-      `INSERT INTO talent_text_embeddings
-       (profile_id, source, source_text, embedding, embedded_at, updated_at)
-     VALUES (?, ?, ?, ?::vector, NOW(), NOW())
-     ON CONFLICT (profile_id, source) DO UPDATE SET
-       source_text  = EXCLUDED.source_text,
-       embedding    = EXCLUDED.embedding,
-       embedded_at  = NOW(),
-       updated_at   = NOW()`,
-      [profileId, source, sourceText, vectorLiteral],
+  const embedding = await (opts.embedFn || embed)(safeSourceText);
+
+  // Re-check and lock current consent before persistence. If consent/DOB or the
+  // bounded corpus changed while the provider was running, discard the result.
+  return knex.transaction(async (trx) => {
+    let currentQuery = trx("profiles").where({ id: profileId });
+    if (isPostgresKnex(trx)) currentQuery = currentQuery.forUpdate();
+    const current = await currentQuery.first();
+    if (!isProfileEmbeddingAllowed(current)) return false;
+    if (buildSafeEmbeddingText(source, current) !== safeSourceText) return false;
+
+    if (isPostgresKnex(trx)) {
+      const vectorLiteral = toVectorLiteral(embedding);
+      await trx.raw(
+        `INSERT INTO talent_text_embeddings
+         (profile_id, source, source_text, embedding, embedded_at, updated_at)
+       VALUES (?, ?, ?, ?::vector, NOW(), NOW())
+       ON CONFLICT (profile_id, source) DO UPDATE SET
+         source_text  = EXCLUDED.source_text,
+         embedding    = EXCLUDED.embedding,
+         embedded_at  = NOW(),
+         updated_at   = NOW()`,
+        [profileId, storageSource, safeSourceText, vectorLiteral],
+      );
+      return true;
+    }
+
+    await upsertEmbeddingCache(
+      trx,
+      profileId,
+      storageSource,
+      safeSourceText,
+      embedding,
     );
-    return;
-  }
-
-  await upsertEmbeddingCache(knex, profileId, source, sourceText, embedding);
+    return true;
+  });
 }
 
 // ─── Text builders ───────────────────────────────────────────────────────────
@@ -334,42 +511,13 @@ async function upsertTextEmbedding(knex, profileId, source, sourceText) {
 function buildProfileText(profile) {
   const parts = [];
 
-  if (profile.first_name || profile.last_name) {
-    parts.push(`${profile.first_name || ""} ${profile.last_name || ""}`.trim());
-  }
-  if (profile.city) parts.push(`Based in ${profile.city}`);
-  if (profile.gender) parts.push(`Gender: ${profile.gender}`);
-  if (profile.experience_level)
-    parts.push(`Experience: ${profile.experience_level}`);
-
-  const bio = profile.bio_curated || profile.bio_raw || "";
-  if (bio) parts.push(bio);
-
-  const training = profile.training || "";
-  if (training) parts.push(training);
-
-  // JSON array fields — parse safely
-  const parseJsonArray = (v) => {
-    if (!v) return [];
-    try {
-      return typeof v === "string" ? JSON.parse(v) : Array.isArray(v) ? v : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const specialties = parseJsonArray(profile.specialties);
-  if (specialties.length) parts.push(`Specialties: ${specialties.join(", ")}`);
-
-  const languages = parseJsonArray(profile.languages);
-  if (languages.length) parts.push(`Languages: ${languages.join(", ")}`);
-
-  const ethnicity = parseJsonArray(profile.ethnicity);
-  if (ethnicity.length) parts.push(`Heritage: ${ethnicity.join(", ")}`);
-
-  if (profile.body_type) parts.push(`Build: ${profile.body_type}`);
-  if (profile.hair_color) parts.push(`Hair: ${profile.hair_color}`);
-  if (profile.eye_color) parts.push(`Eyes: ${profile.eye_color}`);
+  // Selection inputs must be narrowly bounded. Names, city, gender, heritage,
+  // language, free text, physical traits, and image outputs can all encode a
+  // protected trait or a close proxy, so none belong in an embedding corpus.
+  const experience = safeExperienceLevel(profile);
+  if (experience) parts.push(`Experience: ${experience}`);
+  const lanes = selectionLaneText(profile);
+  if (lanes) parts.push(lanes);
 
   return parts.join(". ");
 }
@@ -381,13 +529,9 @@ function buildProfileText(profile) {
  * @returns {string}
  */
 function buildScoutText(scout) {
-  const parts = [];
-  if (scout.face_structure) parts.push(scout.face_structure);
-  if (scout.body_impression) parts.push(scout.body_impression);
-  if (Array.isArray(scout.vibe_tags) && scout.vibe_tags.length) {
-    parts.push(scout.vibe_tags.join(", "));
-  }
-  return parts.join(". ");
+  // Scout is image-derived inference and is never a selection/index input.
+  void scout;
+  return "";
 }
 
 // ─── Discover index helpers ──────────────────────────────────────────────────
@@ -400,7 +544,6 @@ const parseJsonArray = (v) => {
     return [];
   }
 };
-
 const parseJsonObject = (v) => {
   if (!v) return null;
   try {
@@ -454,22 +597,12 @@ function deriveAgeBand(dateOfBirth, referenceDate = new Date()) {
  * @returns {string}
  */
 function flattenImageAnalysis(imageAnalysis) {
-  const obj = parseJsonObject(imageAnalysis);
-  if (!obj) return "";
-
-  const parts = [];
-  if (obj.boneStructure) parts.push(`Bone structure: ${obj.boneStructure}`);
-  if (obj.featureContrast)
-    parts.push(`Feature contrast: ${obj.featureContrast}`);
-  if (obj.lookType) parts.push(`Look type: ${obj.lookType}`);
-  if (obj.castingNotes) parts.push(obj.castingNotes);
-  if (Array.isArray(obj.marketSignals) && obj.marketSignals.length) {
-    parts.push(`Market signals: ${obj.marketSignals.join(", ")}`);
-  }
-  if (Array.isArray(obj.bookingStrengths) && obj.bookingStrengths.length) {
-    parts.push(`Booking strengths: ${obj.bookingStrengths.join(", ")}`);
-  }
-  return parts.join(". ");
+  // Model-produced appearance and "market" assessments are image-derived
+  // selection signals. They remain excluded even when an adult has opted into
+  // profile embedding; consent does not turn a prohibited signal into an
+  // allowed one.
+  void imageAnalysis;
+  return "";
 }
 
 /**
@@ -483,73 +616,13 @@ function flattenImageAnalysis(imageAnalysis) {
 function buildDiscoverIndexText(profile, extras = {}) {
   const parts = [];
 
-  if (profile.first_name || profile.last_name) {
-    parts.push(`${profile.first_name || ""} ${profile.last_name || ""}`.trim());
-  }
+  const experience = safeExperienceLevel(profile);
+  if (experience) parts.push(`Experience: ${experience}`);
+  const lanes = selectionLaneText(profile);
+  if (lanes) parts.push(lanes);
 
-  // Compliance (WS2): heritage/ethnicity and skin tone are protected traits
-  // and must never be emitted into any Discover index text or embedding.
-  // Exact age is also excluded — only a coarse DOB-derived band is indexed.
-
-  if (profile.city) parts.push(`Based in ${profile.city}`);
-  if (profile.gender) parts.push(`Gender: ${profile.gender}`);
-  const ageBand = deriveAgeBand(profile.date_of_birth);
-  if (ageBand) parts.push(`Age band: ${ageBand}`);
-  if (profile.height_cm) parts.push(`Height: ${profile.height_cm} cm`);
-  if (profile.body_type) parts.push(`Build: ${profile.body_type}`);
-
-  if (profile.hair_color) parts.push(`Hair: ${profile.hair_color}`);
-  if (profile.eye_color) parts.push(`Eyes: ${profile.eye_color}`);
-
-  if (profile.experience_level) {
-    parts.push(`Experience: ${profile.experience_level}`);
-  }
-  if (profile.archetype) parts.push(`Archetype: ${profile.archetype}`);
-
-  const specialties = parseJsonArray(profile.specialties);
-  if (specialties.length) parts.push(`Specialties: ${specialties.join(", ")}`);
-
-  const modelingCategories = parseJsonArray(profile.modeling_categories);
-  if (modelingCategories.length) {
-    parts.push(`Booking lanes: ${modelingCategories.join(", ")}`);
-  }
-
-  const fitScores = [];
-  if (profile.fit_score_runway != null)
-    fitScores.push(`runway ${profile.fit_score_runway}`);
-  if (profile.fit_score_editorial != null) {
-    fitScores.push(`editorial ${profile.fit_score_editorial}`);
-  }
-  if (profile.fit_score_commercial != null) {
-    fitScores.push(`commercial ${profile.fit_score_commercial}`);
-  }
-  if (profile.fit_score_lifestyle != null) {
-    fitScores.push(`lifestyle ${profile.fit_score_lifestyle}`);
-  }
-  if (profile.fit_score_overall != null) {
-    fitScores.push(`overall ${profile.fit_score_overall}`);
-  }
-  if (fitScores.length) parts.push(`Fit scores: ${fitScores.join(", ")}`);
-
-  if (profile.look_descriptor) parts.push(profile.look_descriptor);
-
-  const analysisText = flattenImageAnalysis(profile.image_analysis);
-  if (analysisText) parts.push(analysisText);
-
-  const scout = extras.scout;
-  if (scout) {
-    const scoutText = buildScoutText(scout);
-    if (scoutText) parts.push(`Scout: ${scoutText}`);
-  }
-
-  const bio = profile.bio_curated || profile.bio_raw || "";
-  if (bio) parts.push(bio);
-
-  const training = profile.training || "";
-  if (training) parts.push(training);
-
-  const languages = parseJsonArray(profile.languages);
-  if (languages.length) parts.push(`Languages: ${languages.join(", ")}`);
+  // `extras` currently contains Scout output. It is intentionally ignored.
+  void extras;
 
   return parts.filter(Boolean).join(". ");
 }
@@ -561,20 +634,11 @@ function buildDiscoverIndexText(profile, extras = {}) {
  * @returns {string}
  */
 function buildVisualIndexText(profile, extras = {}) {
-  const parts = [];
-
-  if (profile.look_descriptor) parts.push(profile.look_descriptor);
-
-  const analysisText = flattenImageAnalysis(profile.image_analysis);
-  if (analysisText) parts.push(analysisText);
-
-  const scout = extras.scout;
-  if (scout) {
-    if (scout.face_structure) parts.push(scout.face_structure);
-    if (scout.body_impression) parts.push(scout.body_impression);
-  }
-
-  return parts.filter(Boolean).join(". ");
+  // All visual channels are appearance/image-derived, therefore unavailable
+  // for launch selection indexing.
+  void profile;
+  void extras;
+  return "";
 }
 
 /**
@@ -584,28 +648,10 @@ function buildVisualIndexText(profile, extras = {}) {
  */
 function buildCastingIndexText(profile) {
   const parts = [];
-
-  const bio = profile.bio_curated || profile.bio_raw || "";
-  if (bio) parts.push(bio);
-
-  if (profile.archetype) parts.push(`Archetype: ${profile.archetype}`);
-  if (profile.experience_level) {
-    parts.push(`Experience: ${profile.experience_level}`);
-  }
-
-  const training = profile.training || "";
-  if (training) parts.push(training);
-
-  const languages = parseJsonArray(profile.languages);
-  if (languages.length) parts.push(`Languages: ${languages.join(", ")}`);
-
-  if (profile.height_cm) parts.push(`Height: ${profile.height_cm} cm`);
-  if (profile.body_type) parts.push(`Build: ${profile.body_type}`);
-  if (profile.hair_color) parts.push(`Hair: ${profile.hair_color}`);
-  if (profile.eye_color) parts.push(`Eyes: ${profile.eye_color}`);
-  if (profile.gender) parts.push(`Gender: ${profile.gender}`);
-
-  // Compliance (WS2): heritage/ethnicity is protected and never indexed.
+  const experience = safeExperienceLevel(profile);
+  if (experience) parts.push(`Experience: ${experience}`);
+  const lanes = selectionLaneText(profile);
+  if (lanes) parts.push(lanes);
 
   return parts.filter(Boolean).join(". ");
 }
@@ -618,53 +664,9 @@ function buildCastingIndexText(profile) {
  */
 function buildMarketIndexText(profile, extras = {}) {
   const parts = [];
-
-  const fitScores = [];
-  if (profile.fit_score_runway != null)
-    fitScores.push(`runway ${profile.fit_score_runway}`);
-  if (profile.fit_score_editorial != null) {
-    fitScores.push(`editorial ${profile.fit_score_editorial}`);
-  }
-  if (profile.fit_score_commercial != null) {
-    fitScores.push(`commercial ${profile.fit_score_commercial}`);
-  }
-  if (profile.fit_score_lifestyle != null) {
-    fitScores.push(`lifestyle ${profile.fit_score_lifestyle}`);
-  }
-  if (profile.fit_score_overall != null) {
-    fitScores.push(`overall ${profile.fit_score_overall}`);
-  }
-  if (fitScores.length) parts.push(`Fit scores: ${fitScores.join(", ")}`);
-
-  const analysis = parseJsonObject(profile.image_analysis);
-  if (analysis) {
-    if (
-      Array.isArray(analysis.marketSignals) &&
-      analysis.marketSignals.length
-    ) {
-      parts.push(`Market signals: ${analysis.marketSignals.join(", ")}`);
-    }
-    if (
-      Array.isArray(analysis.bookingStrengths) &&
-      analysis.bookingStrengths.length
-    ) {
-      parts.push(`Booking strengths: ${analysis.bookingStrengths.join(", ")}`);
-    }
-    if (analysis.castingNotes) parts.push(analysis.castingNotes);
-  }
-
-  const specialties = parseJsonArray(profile.specialties);
-  if (specialties.length) parts.push(`Specialties: ${specialties.join(", ")}`);
-
-  const modelingCategories = parseJsonArray(profile.modeling_categories);
-  if (modelingCategories.length) {
-    parts.push(`Booking lanes: ${modelingCategories.join(", ")}`);
-  }
-
-  const scout = extras.scout;
-  if (scout && Array.isArray(scout.vibe_tags) && scout.vibe_tags.length) {
-    parts.push(`Vibe: ${scout.vibe_tags.join(", ")}`);
-  }
+  const lanes = selectionLaneText(profile);
+  if (lanes) parts.push(lanes);
+  void extras;
 
   return parts.filter(Boolean).join(". ");
 }
@@ -685,25 +687,11 @@ function buildLexicalDocument(profile, extras = {}) {
     .join(" ");
 
   const tokens = [];
-  if (profile.gender)
-    tokens.push(`gender:${String(profile.gender).toLowerCase()}`);
-  // Compliance (WS2): no heritage:/ethnicity/skin-tone tokens — protected
-  // traits must never be lexically searchable.
-  if (profile.hair_color) {
-    tokens.push(`hair:${String(profile.hair_color).toLowerCase()}`);
-  }
-  if (profile.eye_color) {
-    tokens.push(`eyes:${String(profile.eye_color).toLowerCase()}`);
-  }
-  if (profile.height_cm) tokens.push(`height:${profile.height_cm}cm`);
-  if (profile.body_type) {
-    tokens.push(`build:${String(profile.body_type).toLowerCase()}`);
-  }
-  if (profile.archetype) {
-    tokens.push(`archetype:${String(profile.archetype).toLowerCase()}`);
+  for (const lane of safeBookingLanes(profile)) {
+    tokens.push(`booking_lane:${lane}`);
   }
 
-  return `${prose} ${tokens.join(" ")}`
+  return `${SAFE_LEXICAL_DOCUMENT_PREFIX} ${prose} ${tokens.join(" ")}`
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();
@@ -716,14 +704,27 @@ function buildLexicalDocument(profile, extras = {}) {
  * @returns {string}
  */
 function buildImageSourceText(profile, scout) {
-  const scoutText = scout ? buildScoutText(scout) : "";
-  if (scoutText?.trim()) return scoutText;
+  void profile;
+  void scout;
+  return "";
+}
 
-  const parts = [];
-  if (profile.look_descriptor) parts.push(profile.look_descriptor);
-  const analysisText = flattenImageAnalysis(profile.image_analysis);
-  if (analysisText) parts.push(analysisText);
-  return parts.filter(Boolean).join(". ");
+function buildSafeEmbeddingText(source, profile) {
+  switch (source) {
+    case "bio":
+    case "full_profile":
+      return buildProfileText(profile);
+    case "discover_index":
+      return buildDiscoverIndexText(profile);
+    case "casting":
+      return buildCastingIndexText(profile);
+    case "market":
+      return buildMarketIndexText(profile);
+    // Image/appearance-derived vectors are not allowed launch inputs.
+    case "visual":
+    default:
+      return "";
+  }
 }
 
 /**
@@ -735,30 +736,39 @@ function buildImageSourceText(profile, scout) {
  * @param {Object} [extras]
  */
 async function upsertLexicalDocument(knex, profileId, profile, extras = {}) {
-  const document = buildLexicalDocument(profile, extras);
-  if (!document?.trim()) return;
+  void profile;
+  return knex.transaction(async (trx) => {
+    let currentQuery = trx("profiles").where({ id: profileId });
+    if (isPostgresKnex(trx)) currentQuery = currentQuery.forUpdate();
+    const current = await currentQuery.first();
+    if (!isProfileEmbeddingAllowed(current)) return false;
 
-  await knex("profiles")
-    .where({ id: profileId })
-    .update({ search_document: document });
+    const document = buildLexicalDocument(current, extras);
+    if (!document?.trim()) return false;
 
-  if (isPostgresKnex(knex)) {
-    await knex.raw(
-      `UPDATE profiles
-       SET search_vector = to_tsvector('english', ?)
-       WHERE id = ?`,
-      [document, profileId],
-    );
-    return;
-  }
+    await trx("profiles")
+      .where({ id: profileId })
+      .update({ search_document: document });
 
-  const hasFts = await knex.schema.hasTable("profiles_fts");
-  if (!hasFts) return;
+    if (isPostgresKnex(trx)) {
+      await trx.raw(
+        `UPDATE profiles
+         SET search_vector = to_tsvector('english', ?)
+         WHERE id = ?`,
+        [document, profileId],
+      );
+      return true;
+    }
 
-  await knex("profiles_fts").where({ profile_id: profileId }).del();
-  await knex("profiles_fts").insert({
-    profile_id: profileId,
-    document,
+    const hasFts = await trx.schema.hasTable("profiles_fts");
+    if (!hasFts) return false;
+
+    await trx("profiles_fts").where({ profile_id: profileId }).del();
+    await trx("profiles_fts").insert({
+      profile_id: profileId,
+      document,
+    });
+    return true;
   });
 }
 
@@ -776,9 +786,9 @@ async function upsertDiscoverIndexEmbedding(
   profile,
   extras = {},
 ) {
-  const indexText = buildDiscoverIndexText(profile, extras);
-  if (!indexText?.trim()) return;
-  await upsertTextEmbedding(knex, profileId, "discover_index", indexText);
+  void profile;
+  void extras;
+  return upsertTextEmbedding(knex, profileId, "discover_index", "", {});
 }
 
 /**
@@ -795,7 +805,7 @@ function buildVisualTextFromProfile(profile) {
 
 async function reindexDiscoverChannels(knex, profileId, extras = {}) {
   const profile = await knex("profiles").where({ id: profileId }).first();
-  if (!profile) return;
+  if (!profile || !isProfileEmbeddingAllowed(profile)) return false;
 
   let scout = extras.scout;
   if (!scout) {
@@ -812,17 +822,23 @@ async function reindexDiscoverChannels(knex, profileId, extras = {}) {
 
   const visualText = buildVisualIndexText(profile, indexExtras);
   if (visualText?.trim()) {
-    await upsertTextEmbedding(knex, profileId, "visual", visualText);
+    await upsertTextEmbedding(knex, profileId, "visual", visualText, {
+      profile,
+    });
   }
 
   const castingText = buildCastingIndexText(profile);
   if (castingText?.trim()) {
-    await upsertTextEmbedding(knex, profileId, "casting", castingText);
+    await upsertTextEmbedding(knex, profileId, "casting", castingText, {
+      profile,
+    });
   }
 
   const marketText = buildMarketIndexText(profile, indexExtras);
   if (marketText?.trim()) {
-    await upsertTextEmbedding(knex, profileId, "market", marketText);
+    await upsertTextEmbedding(knex, profileId, "market", marketText, {
+      profile,
+    });
   }
 
   await upsertDiscoverIndexEmbedding(knex, profileId, profile, indexExtras);
@@ -830,12 +846,97 @@ async function reindexDiscoverChannels(knex, profileId, extras = {}) {
 
   const imageText = buildImageSourceText(profile, scout);
   if (imageText?.trim()) {
-    await upsertImageEmbedding(knex, profileId, imageText);
+    await upsertImageEmbedding(knex, profileId, imageText, { profile });
   }
+  return true;
 }
 
 async function reindexDiscoverProfile(knex, profileId, extras = {}) {
-  await reindexDiscoverChannels(knex, profileId, extras);
+  return reindexDiscoverChannels(knex, profileId, extras);
+}
+
+/**
+ * Remove every Pholio-held embedding and search-index derivative for one
+ * profile. This deliberately does not represent a deletion request to any
+ * provider: when an embedding was already sent, provider retention follows the
+ * vendor agreement and the account's separate deletion workflow.
+ */
+async function purgeProfileEmbeddingDerivatives(knex, profileId) {
+  const hasTable = async (name) => {
+    try {
+      return await knex.schema.hasTable(name);
+    } catch {
+      return false;
+    }
+  };
+  const hasColumn = async (table, column) => {
+    try {
+      return await knex.schema.hasColumn(table, column);
+    } catch {
+      return false;
+    }
+  };
+
+  const [hasProfiles, hasText, hasImage, hasCache, hasFts] = await Promise.all([
+    hasTable("profiles"),
+    hasTable("talent_text_embeddings"),
+    hasTable("talent_image_embeddings"),
+    hasTable("talent_embedding_cache"),
+    hasTable("profiles_fts"),
+  ]);
+
+  if (hasText) {
+    await knex("talent_text_embeddings").where({ profile_id: profileId }).del();
+  }
+  if (hasImage) {
+    await knex("talent_image_embeddings").where({ profile_id: profileId }).del();
+  }
+  if (hasCache) {
+    await knex("talent_embedding_cache").where({ profile_id: profileId }).del();
+  }
+  if (hasFts) {
+    await knex("profiles_fts").where({ profile_id: profileId }).del();
+  }
+  if (hasProfiles) {
+    const profileUpdate = {};
+    if (await hasColumn("profiles", "search_document")) {
+      profileUpdate.search_document = null;
+    }
+    if (await hasColumn("profiles", "search_vector")) {
+      profileUpdate.search_vector = null;
+    }
+    if (Object.keys(profileUpdate).length) {
+      profileUpdate.updated_at = knex.fn.now();
+      await knex("profiles").where({ id: profileId }).update(profileUpdate);
+    }
+  }
+}
+
+/** Remove only image/visual embedding derivatives for an image-processing opt-out. */
+async function purgeImageEmbeddingDerivatives(knex, profileId) {
+  const hasTable = async (name) => {
+    try {
+      return await knex.schema.hasTable(name);
+    } catch {
+      return false;
+    }
+  };
+
+  if (await hasTable("talent_image_embeddings")) {
+    await knex("talent_image_embeddings").where({ profile_id: profileId }).del();
+  }
+  if (await hasTable("talent_embedding_cache")) {
+    await knex("talent_embedding_cache")
+      .where({ profile_id: profileId })
+      .whereIn("source", ["image", "visual"])
+      .del();
+  }
+  if (await hasTable("talent_text_embeddings")) {
+    await knex("talent_text_embeddings")
+      .where({ profile_id: profileId })
+      .where("source", "visual")
+      .del();
+  }
 }
 
 module.exports = {
@@ -864,6 +965,16 @@ module.exports = {
   buildScoutText,
   flattenImageAnalysis,
   deriveAgeBand,
+  isProfileEmbeddingAllowed,
+  profileEmbeddingFeatureEnabled,
+  adultDateOfBirthUpperBoundExclusive,
+  safeExperienceLevel,
+  embeddingStorageSource,
+  SAFE_LEXICAL_DOCUMENT_PREFIX,
+  buildSafeEmbeddingText,
+  safeBookingLanes,
+  purgeProfileEmbeddingDerivatives,
+  purgeImageEmbeddingDerivatives,
   DENSE_CHANNEL_SOURCES,
   EMBEDDING_MODEL,
   EMBEDDING_DIMENSIONS,

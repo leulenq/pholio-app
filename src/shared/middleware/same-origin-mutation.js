@@ -20,7 +20,11 @@ const PROTECTED_API_PREFIXES = [
 // set one without a preflight that our CORS allowlist rejects. Origin/Referer
 // is checked as defense in depth when present, and a request that presents
 // neither is allowed through on the strength of the header alone.
-const HEADER_ONLY_API_PATHS = ["/api/login", "/api/logout"];
+const HEADER_ONLY_API_PATHS = [
+  "/api/login",
+  "/api/logout",
+  "/api/auth/password-reset",
+];
 
 const REQUEST_HEADER = "x-pholio-request";
 const REQUEST_HEADER_VALUE = "same-origin";

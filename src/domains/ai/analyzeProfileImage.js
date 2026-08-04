@@ -29,6 +29,10 @@ const Groq = require("groq-sdk");
 const config = require("../../config");
 const { scoreFromImageAnalysis, buildDescriptorPrompt } = require("./scoring");
 const { reindexDiscoverProfile } = require("./embeddings");
+const {
+  hasRecordedDateOfBirth,
+  isMinorProfile,
+} = require("../../shared/lib/talent-age");
 
 // ─── Groq client (lazy init) ────────────────────────────────────────────────
 
@@ -79,6 +83,49 @@ Return exactly this structure, no other text:
 
 const TEXT_MODEL = "llama-3.3-70b-versatile";
 
+function imageAiProcessingAllowed(profile, env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" &&
+    (profile?.ai_processing_consent === true ||
+      profile?.ai_processing_consent === 1) &&
+    hasRecordedDateOfBirth(profile) &&
+    !isMinorProfile(profile)
+  );
+}
+
+async function loadImageAiProfile(knex, profileId, { forUpdate = false } = {}) {
+  let query = knex("profiles")
+    .where({ id: profileId })
+    .select("id", "date_of_birth", "ai_processing_consent");
+  if (
+    forUpdate &&
+    ["pg", "postgres", "postgresql"].includes(knex.client?.config?.client)
+  ) {
+    query = query.forUpdate();
+  }
+  return query.first();
+}
+
+async function currentImageAiProcessingAllowed(knex, profileId) {
+  const profile = await loadImageAiProfile(knex, profileId);
+  return imageAiProcessingAllowed(profile);
+}
+
+async function persistProfileImageAiUpdate(knex, profileId, updates) {
+  let updated = false;
+  await knex.transaction(async (trx) => {
+    const profile = await loadImageAiProfile(trx, profileId, {
+      forUpdate: true,
+    });
+    if (!imageAiProcessingAllowed(profile)) return;
+    await trx("profiles")
+      .where({ id: profileId })
+      .update({ ...updates, updated_at: trx.fn.now() });
+    updated = true;
+  });
+  return updated;
+}
+
 /**
  * Analyze a profile's primary photo with Groq Vision from a raw buffer.
  *
@@ -109,6 +156,11 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
     return null;
   }
 
+  // Upload requests and queued work can outlive the consent state they began
+  // with. Use the profile row and feature flag as they exist at the exact
+  // provider boundary; never trust a route-captured profile object.
+  if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
+
   try {
     // Single vision call — returns the casting analysis
     const visionResponse = await groq.chat.completions.create({
@@ -131,6 +183,10 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
       max_completion_tokens: 1500,
     });
 
+    // Consent may be withdrawn while the provider is working. Drop the result
+    // before parsing, cleanup, or persistence when that happens.
+    if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
+
     let content = visionResponse.choices[0]?.message?.content || "{}";
     content = content.replace(/```json\n?|\n?```/g, "").trim();
 
@@ -149,24 +205,34 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
     }
 
     // Store casting analysis on profile
-    await knex("profiles")
-      .where({ id: profileId })
-      .update({
-        image_analysis: JSON.stringify(castingAnalysis),
-        image_analyzed_at: knex.fn.now(),
-        image_analysis_model: VISION_MODEL,
-        updated_at: knex.fn.now(),
-      });
+    const analysisStored = await persistProfileImageAiUpdate(knex, profileId, {
+      image_analysis: JSON.stringify(castingAnalysis),
+      image_analyzed_at: knex.fn.now(),
+      image_analysis_model: VISION_MODEL,
+    });
+    if (!analysisStored) return null;
 
     // Generate look descriptor from casting analysis (Call 2)
-    const descriptor = await generateLookDescriptor(castingAnalysis, profileId);
+    const descriptor = await generateLookDescriptor(
+      castingAnalysis,
+      profileId,
+      knex,
+    );
     if (descriptor) {
-      await knex("profiles").where({ id: profileId }).update({
-        look_descriptor: descriptor,
-        look_descriptor_generated_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
-      });
+      const descriptorStored = await persistProfileImageAiUpdate(
+        knex,
+        profileId,
+        {
+          look_descriptor: descriptor,
+          look_descriptor_generated_at: knex.fn.now(),
+        },
+      );
+      if (!descriptorStored) return null;
     }
+
+    // Do not perform downstream writes after a withdrawal that happened while
+    // descriptor generation was in flight.
+    if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
 
     console.log(`[MasterVision] ✓ Profile ${profileId} analyzed:`, {
       boneStructure: castingAnalysis.boneStructure,
@@ -191,7 +257,14 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
       `[MasterVision] Failed for profile ${profileId}:`,
       error.message,
     );
-    await clearAnalysis(knex, profileId);
+    try {
+      if (await currentImageAiProcessingAllowed(knex, profileId)) {
+        await clearAnalysis(knex, profileId);
+      }
+    } catch {
+      // Preserve the provider's fail-soft contract when the eligibility
+      // re-read itself fails.
+    }
     return null;
   }
 }
@@ -199,7 +272,7 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
 /**
  * Given a casting analysis block, calculate scores and hit Llama 3 for a one-line description.
  */
-async function generateLookDescriptor(castingAnalysis, profileId) {
+async function generateLookDescriptor(castingAnalysis, profileId, knex) {
   const groq = getGroq();
   if (!groq) return null;
 
@@ -225,12 +298,16 @@ async function generateLookDescriptor(castingAnalysis, profileId) {
       overallScore,
     );
 
+    if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
+
     const descCompletion = await groq.chat.completions.create({
       model: TEXT_MODEL,
       messages: [{ role: "user", content: descriptorPrompt }],
       temperature: 0.4,
       max_completion_tokens: 100,
     });
+
+    if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
 
     let lookDescriptor =
       descCompletion.choices[0]?.message?.content?.trim() || null;
@@ -281,9 +358,8 @@ function stripSensitiveVisionFields(castingAnalysis) {
 
 async function clearAnalysis(knex, profileId) {
   try {
-    await knex("profiles").where({ id: profileId }).update({
+    await persistProfileImageAiUpdate(knex, profileId, {
       image_analysis: null,
-      updated_at: knex.fn.now(),
     });
   } catch (e) {
     // Silent — this is a cleanup path
@@ -292,6 +368,8 @@ async function clearAnalysis(knex, profileId) {
 
 module.exports = {
   masterVisionAnalysis,
+  imageAiProcessingAllowed,
+  currentImageAiProcessingAllowed,
   stripSensitiveVisionFields,
   SENSITIVE_VISION_KEYS,
 };

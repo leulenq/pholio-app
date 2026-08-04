@@ -36,7 +36,7 @@ async function ensureRosterMembershipForApplication(
     agency_id: application.agency_id,
     profile_id: application.profile_id,
     talent_record_id: null,
-    board_id: boardId,
+    board_id: boardId || application.board_id || null,
     stage,
     status: "active",
     source_application_id: application.id,

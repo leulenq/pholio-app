@@ -1074,8 +1074,9 @@ function SecurityMovement({ settings, isLoading }) {
 function PrivacyMovement({ settings, isLoading }) {
   const queryClient = useQueryClient();
   const [exporting, setExporting] = useState(false);
-  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Cookie preference saved') });
+  const mutation = useSettingsMutation({ onSuccess: () => toast.success('Setting saved') });
   const cookies = settings?.cookies || {};
+  const ai = settings?.ai || {};
   const lastExport = formatDate(settings?.data?.exportRequestedAt);
 
   const exportData = async () => {
@@ -1110,6 +1111,31 @@ function PrivacyMovement({ settings, isLoading }) {
     mutation.mutate({ cookies: next });
   };
 
+  const toggleAiProcessing = (key, currentlyEnabled) => {
+    const next = !currentlyEnabled;
+    if (next && !ai.canEnable) {
+      toast.error('A valid adult date of birth is required before this processing can be enabled.');
+      return;
+    }
+    mutation.mutate({
+      [key]: next,
+      ...(next && ai.disclosureVersion
+        ? { aiConsentDisclosureVersion: ai.disclosureVersion }
+        : {}),
+    });
+  };
+
+  const imageDisclosure = ai.imageProcessingDisclosure
+    || 'Allow Pholio to send portfolio images to its image-analysis provider for shot classification and profile insights.';
+  const embeddingDisclosure = ai.profileEmbeddingDisclosure
+    || 'Allow Pholio to send a limited profile summary to its embedding provider so vetted agency searches can find relevant talent.';
+  const imageProcessingDescription = ai.imageProcessingAvailable
+    ? `${imageDisclosure} Turning this off prevents future provider calls and clears Pholio’s stored image-analysis results.`
+    : `${imageDisclosure} The service is disabled in this environment, so saving permission will not send an image unless it is enabled later.`;
+  const embeddingDescription = ai.profileEmbeddingAvailable
+    ? `${embeddingDisclosure} Turning this off clears Pholio’s stored search derivatives.`
+    : `${embeddingDisclosure} The service is disabled in this environment, so saving permission will not send profile data unless it is enabled later.`;
+
   return (
     <Movement
       id="privacy"
@@ -1122,6 +1148,35 @@ function PrivacyMovement({ settings, isLoading }) {
             {exporting ? 'Preparing…' : 'Request export'}
           </PholioButton>
         </Row>
+      </div>
+
+      <div className="set-card">
+        <div className="set-card__head">
+          <div>
+            <h3 className="set-card__title">Optional processing</h3>
+            <p className="set-card__sub">These permissions are separate from cookies. They are off by default and available only to adults with a valid date of birth.</p>
+          </div>
+        </div>
+        {isLoading ? <SkeletonRows count={2} /> : (
+          <>
+            <Row title="Image analysis" description={imageProcessingDescription}>
+              <Toggle
+                label="Allow image analysis"
+                checked={ai.imageProcessing ?? false}
+                disabled={mutation.isPending || (!ai.canEnable && !(ai.imageProcessing ?? false))}
+                onChange={() => toggleAiProcessing('aiProcessingConsent', ai.imageProcessing ?? false)}
+              />
+            </Row>
+            <Row title="Agency search matching" description={embeddingDescription} muted>
+              <Toggle
+                label="Allow agency search matching"
+                checked={ai.profileEmbedding ?? false}
+                disabled={mutation.isPending || (!ai.canEnable && !(ai.profileEmbedding ?? false))}
+                onChange={() => toggleAiProcessing('embeddingProcessingConsent', ai.profileEmbedding ?? false)}
+              />
+            </Row>
+          </>
+        )}
       </div>
 
       <div className="set-card">

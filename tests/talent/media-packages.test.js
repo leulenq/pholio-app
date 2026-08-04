@@ -21,6 +21,7 @@ describe("talent media submission packages endpoint", () => {
       email: `media-pkg-${userId}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
     });
     await knex("profiles").insert({
       id: profileId,

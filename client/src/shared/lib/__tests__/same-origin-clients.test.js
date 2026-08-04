@@ -6,6 +6,7 @@ import {
 import { saveSetupProfile } from '../../../domains/agency/api/setup';
 import { sendReplyMessage } from '../../../domains/messaging/api/reply';
 import { talentApi } from '../../../domains/talent/api/talent';
+import { syncFirebaseSession } from '../pholio-auth/session-api';
 import {
   SAME_ORIGIN_REQUEST_HEADER,
   SAME_ORIGIN_REQUEST_VALUE,
@@ -16,6 +17,13 @@ function successfulResponse() {
     ok: true,
     status: 200,
     statusText: 'OK',
+    headers: {
+      get: vi.fn((name) => (
+        String(name).toLowerCase() === 'content-type'
+          ? 'application/json; charset=utf-8'
+          : null
+      )),
+    },
     json: vi.fn().mockResolvedValue({ success: true, data: {} }),
   };
 }
@@ -35,6 +43,7 @@ describe('protected API clients', () => {
     ['agency messages', () => markAllMessagesAsRead()],
     ['agency setup', () => saveSetupProfile({ name: 'Marilyn Agency' })],
     ['magic-link reply', () => sendReplyMessage('token', 'Following up.')],
+    ['Firebase session sync', () => syncFirebaseSession('firebase-id-token')],
   ])('%s writes send the same-origin request header', async (_label, mutate) => {
     await mutate();
 

@@ -30,6 +30,7 @@ async function createTalent(label) {
     email: `${label}-${userId}@example.com`,
     password_hash: "test-only",
     role: "TALENT",
+    email_verified: true,
   });
   await knex("profiles").insert({
     id: profileId,

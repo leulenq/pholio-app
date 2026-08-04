@@ -23,6 +23,7 @@ async function createTalent({ dateOfBirth, guardianConsentAt = null }) {
     email: `field-vis-${userId}@example.com`,
     password_hash: "x",
     role: "TALENT",
+    email_verified: true,
   });
 
   await knex("profiles").insert({

@@ -14,6 +14,7 @@ process.env.DATABASE_URL =
   process.env.DATABASE_URL || "sqlite://./test-discover-launch.sqlite3";
 process.env.DB_CLIENT = process.env.DB_CLIENT || "sqlite3";
 process.env.DISCOVER_ENGINE = "launch";
+process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = "true";
 delete process.env.OPENAI_API_KEY; // disable soft scoring (grouping-only test)
 
 const fs = require("fs");
@@ -23,6 +24,7 @@ const { v4: uuidv4 } = require("uuid");
 // Deterministic contract per brief — the engine's parse dependency.
 const CONTRACTS = {};
 jest.mock("../../src/domains/agency/services/discover/parse", () => ({
+  ...jest.requireActual("../../src/domains/agency/services/discover/parse"),
   parseBrief: jest.fn(async (text) => {
     const key = String(text || "").trim();
     const built = CONTRACTS[key] || {
@@ -42,6 +44,9 @@ const { isPostgresKnex } = require("../../src/domains/ai/embeddings");
 const {
   launchModeSearch,
 } = require("../../src/domains/agency/services/discover/engine");
+const {
+  parseBrief,
+} = require("../../src/domains/agency/services/discover/parse");
 
 const isPostgres = isPostgresKnex(knex);
 const TEST_DB_PATH = path.resolve(__dirname, "../../test-discover-launch.sqlite3");
@@ -232,6 +237,29 @@ const HARD_SHOOT = {
 };
 
 describe("launch-mode grouping", () => {
+  test("embedding feature-off keeps launch parsing local and preserves structured results", async () => {
+    const previousFlag = process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS;
+    process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = "false";
+    parseBrief.mockClear();
+
+    try {
+      const res = await launchModeSearch({
+        knex,
+        briefText: "female editorial talent",
+        limit: 30,
+        includeOutsideSpec: false,
+        agencyUserId: AGENCY_ID,
+        now: new Date("2026-07-01"),
+      });
+
+      expect(parseBrief).not.toHaveBeenCalled();
+      expect(res.meta.semantic_search).toBe(false);
+      expect(res.discover_v2.pool.eligible).toBeGreaterThan(0);
+    } finally {
+      process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = previousFlag;
+    }
+  });
+
   test("splits exact / near, excludes client-gate + gender-gate misses", async () => {
     CONTRACTS[SHOOT_BRIEF] = contract(HARD_SHOOT);
 

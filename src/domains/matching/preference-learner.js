@@ -26,6 +26,18 @@ const crypto = require("crypto");
 const POSITIVE = new Set(["advance", "shortlist", "book"]);
 const NEGATIVE = new Set(["pass", "release"]);
 
+/**
+ * Learned preferences are unavailable in the manual-launch mode. Both flags
+ * must be intentionally enabled: enabling only a matching experiment or only
+ * a preference experiment must not create or apply a learned model.
+ */
+function isLearnedPreferencesEnabled(env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_AUTOMATED_MATCHING === "true" &&
+    env.PHOLIO_ENABLE_LEARNED_PREFERENCES === "true"
+  );
+}
+
 function normalize(map) {
   const total = Object.values(map).reduce((a, b) => a + (b > 0 ? b : 0), 0);
   const out = {};
@@ -139,6 +151,7 @@ function labelOf(decision) {
  * there are no labeled decisions yet.
  */
 async function learnAgencyPreferences(knex, { agencyId, scopeType, scopeId, priorImportance = {} }) {
+  if (!isLearnedPreferencesEnabled()) return null;
   const decisions = await knex("match_decisions").where({
     agency_id: agencyId,
     scope_type: scopeType,
@@ -244,4 +257,5 @@ module.exports = {
   learnAgencyPreferences,
   auditFairness,
   labelOf,
+  isLearnedPreferencesEnabled,
 };

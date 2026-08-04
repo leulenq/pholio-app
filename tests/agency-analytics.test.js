@@ -288,7 +288,8 @@ describe('GET /api/agency/analytics — data correctness', () => {
     })
     // Applied -> Shortlisted after 10 days
     await logStatusChange(app1, AGENCY_ID, 'submitted', 'shortlisted', daysAgo(10))
-    // Shortlisted -> Offered (accepted) after another 5 days
+    // Accepted is the represented outcome; there is no separately evidenced
+    // offer transition in this legacy fixture.
     await logStatusChange(app1, AGENCY_ID, 'shortlisted', 'accepted', daysAgo(5))
 
     // App 2: still sitting at submitted (Applied stage), no transitions
@@ -320,10 +321,11 @@ describe('GET /api/agency/analytics — data correctness', () => {
 
     const { funnel } = res.body.analytics
     const byStage = Object.fromEntries(funnel.stages.map((s) => [s.stage, s.count]))
-    // app1 is now "accepted" -> Offered stage; app2 is "submitted" -> Applied stage.
+    // app1 is now "accepted" -> Represented; app2 is "submitted" -> Applied.
     // app3 (120 days old) falls outside the 90-day window.
     expect(byStage.Applied).toBe(1)
-    expect(byStage.Offered).toBe(1)
+    expect(byStage.Offered).toBe(0)
+    expect(byStage.Represented).toBe(1)
     expect(byStage.Shortlisted).toBe(0)
   })
 
@@ -361,8 +363,8 @@ describe('GET /api/agency/analytics — data correctness', () => {
     const shortlistedToOffered = velocity.find(
       (v) => v.from === 'Shortlisted' && v.to === 'Offered',
     )
-    expect(shortlistedToOffered.sampleSize).toBe(1)
-    expect(shortlistedToOffered.medianDays).toBeCloseTo(5, 0)
+    expect(shortlistedToOffered.sampleSize).toBe(0)
+    expect(shortlistedToOffered.medianDays).toBeNull()
 
     // No represented transitions were ever logged — must be null, not fabricated.
     const offeredToRepresented = velocity.find(

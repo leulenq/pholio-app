@@ -1,15 +1,85 @@
 "use strict";
 
 const { classifyShotHeuristic } = require("../../ai/heuristic-shot-classifier");
-const { classifyPortfolioImage } = require("../../ai/classify-portfolio-image");
+const {
+  classifyPortfolioImage,
+  persistImageSignals,
+} = require("../../ai/classify-portfolio-image");
 const { reindexDiscoverProfile } = require("../../ai/embeddings");
 const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
+const {
+  hasRecordedDateOfBirth,
+  isMinorProfile,
+} = require("../../../shared/lib/talent-age");
 const {
   applyClassificationPolicy,
 } = require("./image-classification-policy");
 
 const DISCOVER_REINDEX_DEBOUNCE_MS = 5000;
 const discoverReindexTimers = new Map();
+
+function imageAiProcessingAllowed(profile, env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" &&
+    (profile?.ai_processing_consent === true ||
+      profile?.ai_processing_consent === 1) &&
+    hasRecordedDateOfBirth(profile) &&
+    !isMinorProfile(profile)
+  );
+}
+
+async function loadAuthoritativeProfile(
+  knex,
+  profileId,
+  { forUpdate = false } = {},
+) {
+  if (!profileId) return null;
+  let query = knex("profiles")
+    .where({ id: profileId })
+    .select(
+      "id",
+      "date_of_birth",
+      "guardian_consent_at",
+      "ai_processing_consent",
+    );
+  if (
+    forUpdate &&
+    ["pg", "postgres", "postgresql"].includes(knex.client?.config?.client)
+  ) {
+    query = query.forUpdate();
+  }
+  return query.first();
+}
+
+function disabledClassificationMetadata(rawMetadata) {
+  const metadata = parseMetadata(rawMetadata);
+  const existing = metadata.ai?.classification || {};
+  if (existing.band !== "pending") return null;
+  return {
+    ...metadata,
+    ai: {
+      ...(metadata.ai || {}),
+      classification: {
+        ...existing,
+        band: "disabled",
+        source: "disabled",
+        confirmed: false,
+        reason: "image_processing_disabled",
+      },
+    },
+  };
+}
+
+async function markClassificationDisabled(knex, imageId) {
+  await knex.transaction(async (trx) => {
+    const image = await trx("images").where({ id: imageId }).first();
+    const metadata = disabledClassificationMetadata(image?.metadata);
+    if (!metadata) return;
+    await trx("images")
+      .where({ id: imageId })
+      .update({ metadata: JSON.stringify(metadata) });
+  });
+}
 
 function parseMetadata(raw) {
   if (!raw) return {};
@@ -81,15 +151,6 @@ async function runImageClassification(knex, imageId) {
     const imageRow = await knex("images").where({ id: imageId }).first();
     if (!imageRow) return;
 
-    // Age/consent authority for the minor-image safety lock (audit P0-8). The
-    // policy re-evaluates exclusion from this and forces it if needed.
-    const profile = imageRow.profile_id
-      ? await knex("profiles")
-          .where({ id: imageRow.profile_id })
-          .select("id", "date_of_birth", "guardian_consent_at")
-          .first()
-      : null;
-
     const metadata = parseMetadata(imageRow.metadata);
     const imageIntel = extractImageIntel(metadata);
     const buffer = await readImageBuffer(imageRow);
@@ -101,49 +162,98 @@ async function runImageClassification(knex, imageId) {
       faces,
     });
 
+    // Jobs can wait in the queue while the talent changes consent or DOB.
+    // Read the authoritative profile only after local preparation, immediately
+    // before the provider boundary. The classifier repeats this callback beside
+    // the actual Groq invocation.
+    const currentProfile = await loadAuthoritativeProfile(
+      knex,
+      imageRow.profile_id,
+    );
+    if (!imageAiProcessingAllowed(currentProfile)) {
+      await markClassificationDisabled(knex, imageId);
+      return;
+    }
+
     const classification = await classifyPortfolioImage({
       imageBuffer: buffer,
       heuristicDraft,
       imageIntel,
       imageRow,
+      db: knex,
+      persistResult: false,
+      beforeProviderCall: async () => {
+        const providerProfile = await loadAuthoritativeProfile(
+          knex,
+          imageRow.profile_id,
+        );
+        return imageAiProcessingAllowed(providerProfile);
+      },
     });
 
     if (!classification) return;
 
-    const { band, columnUpdates, metadataPatch } = applyClassificationPolicy({
-      imageRow,
-      classification,
-      profile,
-    });
-
-    const mergedMetadata = {
-      ...metadata,
-      ...metadataPatch,
-      ...(metadataPatch.ai
-        ? {
-            ai: {
-              ...(metadata.ai || {}),
-              ...metadataPatch.ai,
-            },
-          }
-        : {}),
-    };
-
-    const updatePayload = {
-      metadata: JSON.stringify(mergedMetadata),
-      ...columnUpdates,
-    };
-
-    // Atomic write: the classification tags AND any forced minor/sensitive
-    // exclusion land in the SAME UPDATE, wrapped in a transaction, so there is
-    // never a window where the image is tagged sensitive yet still exposed.
+    let persisted = false;
     await knex.transaction(async (trx) => {
-      await trx("images").where({ id: imageId }).update(updatePayload);
+      // Locking the profile on PostgreSQL serializes this write with consent
+      // withdrawal. If withdrawal won the race, the provider result is dropped;
+      // if this lock won, withdrawal follows and performs its cleanup after us.
+      const profile = await loadAuthoritativeProfile(trx, imageRow.profile_id, {
+        forUpdate: true,
+      });
+      const freshImage = await trx("images").where({ id: imageId }).first();
+      if (!freshImage) return;
+      if (!imageAiProcessingAllowed(profile)) {
+        const disabledMetadata = disabledClassificationMetadata(
+          freshImage.metadata,
+        );
+        if (disabledMetadata) {
+          await trx("images")
+            .where({ id: imageId })
+            .update({ metadata: JSON.stringify(disabledMetadata) });
+        }
+        return;
+      }
+
+      const freshMetadata = parseMetadata(freshImage.metadata);
+      const { columnUpdates, metadataPatch } = applyClassificationPolicy({
+        imageRow: freshImage,
+        classification,
+        profile,
+      });
+      const mergedMetadata = {
+        ...freshMetadata,
+        ...metadataPatch,
+        ...(metadataPatch.ai
+          ? {
+              ai: {
+                ...(freshMetadata.ai || {}),
+                ...metadataPatch.ai,
+              },
+            }
+          : {}),
+      };
+
+      // Classification tags, the minor/sensitive safety lock, and structured
+      // signals commit together only while current consent remains valid.
+      await trx("images")
+        .where({ id: imageId })
+        .update({
+          metadata: JSON.stringify(mergedMetadata),
+          ...columnUpdates,
+        });
+      await persistImageSignals(trx, imageId, classification);
+      persisted = true;
     });
-    scheduleDiscoverReindex(knex, imageRow.profile_id);
+    if (persisted) scheduleDiscoverReindex(knex, imageRow.profile_id);
   } catch (err) {
     console.warn("[PITS] runImageClassification failed:", imageId, err.message);
   }
 }
 
-module.exports = { runImageClassification };
+module.exports = {
+  runImageClassification,
+  imageAiProcessingAllowed,
+  loadAuthoritativeProfile,
+  disabledClassificationMetadata,
+};

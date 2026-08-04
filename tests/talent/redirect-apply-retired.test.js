@@ -21,6 +21,7 @@ describe("retired redirect-apply endpoint", () => {
       email: `redirect-retired-${userId}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
     });
     await knex("profiles").insert({
       id: profileId,

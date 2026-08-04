@@ -15,6 +15,9 @@ const {
   fusedDistance,
   loadEmbeddingCacheMap,
   cosineDistance,
+  profileEmbeddingFeatureEnabled,
+  embeddingStorageSource,
+  adultDateOfBirthUpperBoundExclusive,
 } = require("../../ai/embeddings");
 const { parseIntentToFilters } = require("../lib/intent-parser");
 const { understandQuery } = require("./query-understanding");
@@ -101,9 +104,10 @@ function discoverCorpusThreshold() {
     2500
   );
 }
-const TEXT_WEIGHT = parseFloat(process.env.DISCOVER_FUSION_TEXT_WEIGHT) || 0.6;
-const IMAGE_WEIGHT =
-  parseFloat(process.env.DISCOVER_FUSION_IMAGE_WEIGHT) || 0.4;
+// Launch selection is text-only. Image/appearance vectors are deliberately
+// retired, so the public metadata must not imply that they influence ranking.
+const TEXT_WEIGHT = 1;
+const IMAGE_WEIGHT = 0;
 const MAX_DISTANCE = parseFloat(process.env.DISCOVER_MAX_DISTANCE) || 0.55;
 
 /**
@@ -346,7 +350,12 @@ async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) 
 }
 
 function canUseSemanticSearch(_knex, q) {
-  return !!(q && q.trim() && process.env.OPENAI_API_KEY);
+  return !!(
+    profileEmbeddingFeatureEnabled() &&
+    q &&
+    q.trim() &&
+    process.env.OPENAI_API_KEY
+  );
 }
 
 /** Relaxed threshold when intent-derived demographic filters already narrowed SQL results. */
@@ -359,32 +368,9 @@ function effectiveMaxDistance(filters) {
 
 function semanticUnavailableReason(_knex, q) {
   if (!q || !q.trim()) return null;
+  if (!profileEmbeddingFeatureEnabled()) return "feature_disabled";
   if (!process.env.OPENAI_API_KEY) return "missing_api_key";
   return null;
-}
-
-/**
- * Build fusion distance SQL expression and bindings.
- */
-function fusionDistanceSql(vectorLiteral) {
-  const expr = `CASE
-    WHEN tte.embedding IS NOT NULL AND tie.embedding IS NOT NULL
-      THEN ? * (tte.embedding <=> ?::vector) + ? * (tie.embedding <=> ?::vector)
-    WHEN tte.embedding IS NOT NULL THEN (tte.embedding <=> ?::vector)
-    WHEN tie.embedding IS NOT NULL THEN (tie.embedding <=> ?::vector)
-    ELSE NULL
-  END`;
-
-  const bindings = [
-    TEXT_WEIGHT,
-    vectorLiteral,
-    IMAGE_WEIGHT,
-    vectorLiteral,
-    vectorLiteral,
-    vectorLiteral,
-  ];
-
-  return { expr, bindings };
 }
 
 async function browseSearch(knex, ctx) {
@@ -458,8 +444,11 @@ function buildSemanticWhereClause(filters) {
     "profiles.is_discoverable = true",
     "profiles.profile_status = 'active'",
     "profiles.bio_curated IS NOT NULL",
+    "profiles.embedding_processing_consent = true",
+    "profiles.date_of_birth IS NOT NULL",
+    "profiles.date_of_birth < ?",
   ];
-  const bindings = [];
+  const bindings = [adultDateOfBirthUpperBoundExclusive()];
 
   if (filters.city) {
     clauses.push("profiles.city ILIKE ?");
@@ -542,6 +531,7 @@ function extractCount(result) {
 }
 
 async function semanticSearch(knex, ctx) {
+  if (!profileEmbeddingFeatureEnabled()) return browseSearch(knex, ctx);
   const { q, intent, filters, pageNum, limitNum, offset, applicationMap, agencyId } =
     ctx;
   const maxDistance = effectiveMaxDistance(filters);
@@ -549,8 +539,6 @@ async function semanticSearch(knex, ctx) {
   const softQuery = intent.softQuery || q;
   const queryEmbedding = await embed(softQuery);
   const vectorLiteral = toVectorLiteral(queryEmbedding);
-  const { expr: fusionExpr, bindings: fusionBindings } =
-    fusionDistanceSql(vectorLiteral);
   const { sql: whereSql, bindings: whereBindings } =
     buildSemanticWhereClause(filters);
 
@@ -558,19 +546,18 @@ async function semanticSearch(knex, ctx) {
     SELECT
       profiles.id,
       (tte.embedding <=> ?::vector) AS text_dist,
-      (tie.embedding <=> ?::vector) AS image_dist,
-      ${fusionExpr} AS fused_distance
+      NULL::double precision AS image_dist,
+      (tte.embedding <=> ?::vector) AS fused_distance
     FROM profiles
-    LEFT JOIN talent_text_embeddings tte
-      ON tte.profile_id = profiles.id AND tte.source = 'discover_index'
-    LEFT JOIN talent_image_embeddings tie ON tie.profile_id = profiles.id
+    JOIN talent_text_embeddings tte
+      ON tte.profile_id = profiles.id AND tte.source = ?
     WHERE ${whereSql}
   `;
 
   const cteBindings = [
     vectorLiteral,
     vectorLiteral,
-    ...fusionBindings,
+    embeddingStorageSource("discover_index"),
     ...whereBindings,
   ];
 
@@ -643,6 +630,7 @@ async function semanticSearch(knex, ctx) {
 }
 
 async function hybridSearch(knex, ctx) {
+  if (!profileEmbeddingFeatureEnabled()) return browseSearch(knex, ctx);
   const {
     q,
     intent,
@@ -729,6 +717,7 @@ async function hybridSearch(knex, ctx) {
 }
 
 async function semanticSearchSqlite(knex, ctx) {
+  if (!profileEmbeddingFeatureEnabled()) return browseSearch(knex, ctx);
   const { q, intent, filters, pageNum, limitNum, offset, applicationMap, agencyId } =
     ctx;
   const maxDistance = effectiveMaxDistance(filters);
@@ -751,7 +740,7 @@ async function semanticSearchSqlite(knex, ctx) {
   for (const profile of candidates) {
     const cached = cacheMap.get(profile.id) || {};
     const textVec = cached.discover_index || null;
-    const imageVec = cached.image || null;
+    const imageVec = null;
     const fused = fusedDistance(
       queryEmbedding,
       textVec,

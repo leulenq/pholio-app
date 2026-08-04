@@ -3,6 +3,10 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import ResetPasswordPage from '../ResetPasswordPage';
+import {
+  SAME_ORIGIN_REQUEST_HEADER,
+  SAME_ORIGIN_REQUEST_VALUE,
+} from '../../../../../shared/lib/same-origin-request';
 
 const {
   verifyPasswordResetCode,
@@ -139,6 +143,9 @@ describe('ResetPasswordPage', () => {
         firebase_token: 'fresh-id-token',
         password_just_reset: true,
       });
+      expect(options.headers[SAME_ORIGIN_REQUEST_HEADER]).toBe(
+        SAME_ORIGIN_REQUEST_VALUE,
+      );
     });
 
     expect(await screen.findByText('Dashboard landed')).toBeInTheDocument();

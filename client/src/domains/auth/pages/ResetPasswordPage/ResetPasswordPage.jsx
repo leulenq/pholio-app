@@ -9,6 +9,7 @@ import {
 import { Loader2, AlertCircle, Eye, EyeOff, KeyRound, CheckCircle2 } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
+import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
 import { goToDestination } from '../../lib/spa-navigation';
 // Reuses LoginPage's stylesheet, same as ForgotPasswordPage — one visual
 // language across the whole auth flow, not a third design.
@@ -110,7 +111,11 @@ export default function ResetPasswordPage() {
       const idToken = await credential.user.getIdToken();
       const response = await fetch('/api/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...sameOriginMutationHeaders('POST'),
+        },
         body: JSON.stringify({ firebase_token: idToken, password_just_reset: true }),
       });
       const data = await response.json().catch(() => ({}));

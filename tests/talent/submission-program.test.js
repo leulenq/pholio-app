@@ -29,6 +29,7 @@ describe("submission program acknowledgment", () => {
       email: `submission-program-${TALENT_ID}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
     });
     await knex("profiles").insert({
       id: PROFILE_ID,

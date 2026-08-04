@@ -4,6 +4,7 @@ const { requireRole } = require("../../auth/middleware/require-auth");
 const { v4: uuidv4 } = require("uuid");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const logActivity = require("./agency-log-activity");
+const { getSessionAgencyId } = require("../services/context");
 const {
   notifyAgencyInterviewScheduled,
 } = require("../../../shared/services/agency-notifications");
@@ -33,7 +34,7 @@ router.post(
         meeting_url,
         notes,
       } = req.body;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Validate required fields
       if (!proposed_datetime || !interview_type) {
@@ -43,12 +44,19 @@ router.post(
       }
 
       // Verify application belongs to this agency
-      const application = await knex("applications")
-        .where({ id: applicationId, agency_id: agencyId })
+      const application = await knex("applications as a")
+        .leftJoin("profiles as p", "p.id", "a.profile_id")
+        .where({ "a.id": applicationId, "a.agency_id": agencyId })
+        .select("a.*", "p.user_id as talent_user_id")
         .first();
 
       if (!application) {
         return res.status(404).json({ error: "Application not found" });
+      }
+      if (!application.talent_user_id) {
+        return res.status(422).json({
+          error: "Application is not linked to a talent account",
+        });
       }
 
       const interviewId = uuidv4();
@@ -57,7 +65,7 @@ router.post(
         id: interviewId,
         application_id: applicationId,
         agency_id: agencyId,
-        talent_id: application.talent_id,
+        talent_id: application.talent_user_id,
         proposed_datetime,
         duration_minutes,
         interview_type,
@@ -135,7 +143,7 @@ router.get(
   requireRole("AGENCY"),
   async (req, res, next) => {
     try {
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
       const { status, upcoming } = req.query;
 
       let query = knex("interviews")
@@ -191,7 +199,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { applicationId } = req.params;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Verify application belongs to this agency
       const application = await knex("applications")
@@ -236,7 +244,7 @@ router.patch(
         notes,
         status,
       } = req.body;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Verify interview belongs to this agency
       const interview = await knex("interviews")
@@ -315,7 +323,7 @@ router.delete(
   async (req, res, next) => {
     try {
       const { interviewId } = req.params;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Verify interview belongs to this agency
       const interview = await knex("interviews")

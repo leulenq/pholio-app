@@ -1,6 +1,8 @@
 // The dev email/password login is hard-gated behind this flag (see
 // isDevLoginEnabled in domains/auth/routes/auth.js) and is the only way to
 // establish a session without a real Firebase token. Set before src/app loads.
+const PREVIOUS_AUTH_PASSTHROUGH_ENABLED =
+  process.env.AUTH_PASSTHROUGH_ENABLED;
 process.env.AUTH_PASSTHROUGH_ENABLED = "1";
 
 const request = require("supertest");
@@ -28,6 +30,11 @@ beforeAll(async () => {
 afterAll(async () => {
   await knex.destroy();
   dropIsolatedDatabase(DB_FILE);
+  if (PREVIOUS_AUTH_PASSTHROUGH_ENABLED === undefined) {
+    delete process.env.AUTH_PASSTHROUGH_ENABLED;
+  } else {
+    process.env.AUTH_PASSTHROUGH_ENABLED = PREVIOUS_AUTH_PASSTHROUGH_ENABLED;
+  }
 });
 
 describe("ZipSite application", () => {

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, AlertCircle, Mail, Lock } from 'lucide-react';
+import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
 // Reuses LoginPage's stylesheet rather than forking one: same inputs, alerts,
 // and submit button, so this reads as the same form continued on its own
 // screen, not a redesign. CSS Modules scope by file path, so importing it
@@ -50,7 +51,11 @@ export default function ForgotPasswordPage() {
     try {
       const response = await fetch('/api/auth/password-reset', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          ...sameOriginMutationHeaders('POST'),
+        },
         body: JSON.stringify({ email }),
       });
       if (!response.ok) {

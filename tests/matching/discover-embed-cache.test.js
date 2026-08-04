@@ -11,6 +11,8 @@ const path = require("path");
 const knexLib = require("knex");
 const { cachedEmbed } = require("../../src/domains/ai/embeddings");
 
+process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS = "true";
+
 const DB_PATH = path.resolve(__dirname, "../../test-embed-cache.sqlite3");
 
 let db;

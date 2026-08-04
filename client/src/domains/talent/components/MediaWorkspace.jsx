@@ -684,7 +684,10 @@ export default function MediaWorkspace() {
         for (const img of localImages) {
           if (getClassificationState(img).status === 'pending') {
             const match = imagesStatus.find((si) => si.id === img.id);
-            if (match && match.classification_status === 'ready') {
+            if (
+              match
+              && ['ready', 'not_requested', 'disabled'].includes(match.classification_status)
+            ) {
               anyReady = true;
             }
           }

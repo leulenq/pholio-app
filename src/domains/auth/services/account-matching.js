@@ -27,7 +27,12 @@ async function findUserByFirebaseIdentity(knex, { firebaseUid, email, emailVerif
 
   if (!user && email && emailVerified) {
     const normalizedEmail = email.toLowerCase().trim();
-    user = await knex("users").where({ email: normalizedEmail }).first();
+    // Legacy/imported rows were not always normalized before persistence.
+    // Keep the verified-claim requirement above, but match those rows without
+    // allowing casing differences to create a duplicate account.
+    user = await knex("users")
+      .whereRaw("LOWER(email) = ?", [normalizedEmail])
+      .first();
   }
 
   return user || null;

@@ -12,9 +12,21 @@ const request = require("supertest");
 const cookieSig = require("cookie-signature");
 const { v4: uuidv4 } = require("uuid");
 
+const {
+  useIsolatedDatabase,
+  migrate,
+  dropIsolatedDatabase,
+} = require("../setup/isolated-db");
+
+const TEST_DB_FILE = useIsolatedDatabase("talent-settings-contract");
+
 const knex = require("../../src/shared/db/knex");
 const app = require("../../src/app");
 const SESSION_SECRET = require("../../src/config").sessionSecret;
+const {
+  finishWithdrawal,
+  recordAiConsentEvent,
+} = require("../../src/domains/talent/routes/settings").__testables;
 
 jest.setTimeout(60000);
 
@@ -29,6 +41,8 @@ describe("talent settings contract", () => {
   const sessionIds = [];
 
   beforeAll(async () => {
+    await migrate(knex);
+
     const now = new Date().toISOString();
     // Legal acceptance is a hard gate on settings writes. Acceptance must both
     // exist and match the current version, so record the version too — otherwise
@@ -49,6 +63,7 @@ describe("talent settings contract", () => {
         email: `settings-${TALENT_ID}@example.com`,
         password_hash: "x",
         role: "TALENT",
+        email_verified: true,
         ...legal,
       },
       {
@@ -56,6 +71,7 @@ describe("talent settings contract", () => {
         email: `settings-other-${OTHER_ID}@example.com`,
         password_hash: "x",
         role: "TALENT",
+        email_verified: true,
         ...legal,
       },
     ]);
@@ -100,6 +116,7 @@ describe("talent settings contract", () => {
     await knex("profiles").whereIn("id", [PROFILE_ID, OTHER_PROFILE_ID]).delete();
     await knex("users").whereIn("id", [TALENT_ID, OTHER_ID]).delete();
     await knex.destroy();
+    dropIsolatedDatabase(TEST_DB_FILE);
   });
 
   async function withSession(userId = TALENT_ID, userAgent = IPHONE) {
@@ -184,6 +201,22 @@ describe("talent settings contract", () => {
       expect(settings.user).toHaveProperty("canResetPassword");
     });
 
+    it("returns the canonical optional-processing disclosures and evidence hashes", async () => {
+      const settings = await read(await withSession());
+
+      expect(settings.ai).toMatchObject({
+        imageProcessing: false,
+        profileEmbedding: false,
+        disclosureVersion: "2026-08-04",
+        imageProcessingDisclosure: expect.any(String),
+        profileEmbeddingDisclosure: expect.any(String),
+        disclosureHashes: {
+          imageProcessing: expect.stringMatching(/^[a-f0-9]{64}$/),
+          profileEmbedding: expect.stringMatching(/^[a-f0-9]{64}$/),
+        },
+      });
+    });
+
     it("marks a Google account as Google and withholds password reset", async () => {
       await knex("users").where({ id: TALENT_ID }).update({ auth_provider: "google" });
       const auth = await withSession();
@@ -264,6 +297,200 @@ describe("talent settings contract", () => {
 
       await write(await withSession(), { cookies: { analytics: false } });
       expect((await read(await withSession())).cookies.analytics).toBe(false);
+    });
+
+    it("requires the current disclosure for grants and records withdrawal before a complete purge", async () => {
+      const auth = await withSession();
+      const initial = await read(auth);
+
+      const missingDisclosure = await write(auth, {
+        aiProcessingConsent: true,
+      });
+      expect(missingDisclosure.status).toBe(409);
+
+      const staleDisclosure = await write(auth, {
+        embeddingProcessingConsent: true,
+        aiConsentDisclosureVersion: "stale-version",
+      });
+      expect(staleDisclosure.status).toBe(409);
+
+      const granted = await write(auth, {
+        aiProcessingConsent: true,
+        embeddingProcessingConsent: true,
+        aiConsentDisclosureVersion: initial.ai.disclosureVersion,
+      });
+      expect(granted.status).toBe(200);
+      expect(granted.body.settings.ai).toMatchObject({
+        imageProcessing: true,
+        profileEmbedding: true,
+      });
+
+      const userImageId = uuidv4();
+      const autoImageId = uuidv4();
+      await knex("profiles").where({ id: PROFILE_ID }).update({
+        archetype: "Provider archetype",
+        fit_score_editorial: 97,
+      });
+      await knex("images").insert([
+        {
+          id: userImageId,
+          profile_id: PROFILE_ID,
+          path: `/tmp/${userImageId}.jpg`,
+          shot_type: "headshot",
+          style_type: "editorial",
+          image_type: "portfolio",
+          metadata: JSON.stringify({
+            matte: { mask: "keep" },
+            ai: {
+              classification: {
+                source: "user",
+                confirmed: true,
+                model: "provider-model",
+                signals: { expression: "neutral" },
+              },
+            },
+          }),
+        },
+        {
+          id: autoImageId,
+          profile_id: PROFILE_ID,
+          path: `/tmp/${autoImageId}.jpg`,
+          shot_type: "full_length",
+          style_type: "commercial",
+          image_type: "digital",
+          metadata: JSON.stringify({
+            matte: { mask: "keep-auto" },
+            ai: { classification: { source: "auto", model: "provider-model" } },
+          }),
+        },
+      ]);
+      await knex("talent_embedding_cache").insert({
+        profile_id: PROFILE_ID,
+        source: "full_profile",
+        embedding_json: JSON.stringify([0.1, 0.2]),
+        source_text: "provider derivative",
+      });
+
+      // No disclosure version is required to withdraw. The preferences and a
+      // pending event commit before derivative deletion starts.
+      const withdrawn = await write(auth, {
+        aiProcessingConsent: false,
+        embeddingProcessingConsent: false,
+      });
+      expect(withdrawn.status).toBe(200);
+      expect(withdrawn.body.settings.ai).toMatchObject({
+        imageProcessing: false,
+        profileEmbedding: false,
+        imageProcessingDeletionState: "complete",
+        profileEmbeddingDeletionState: "complete",
+      });
+
+      const profile = await knex("profiles").where({ id: PROFILE_ID }).first();
+      expect(Boolean(profile.ai_processing_consent)).toBe(false);
+      expect(Boolean(profile.embedding_processing_consent)).toBe(false);
+      expect(profile.archetype).toBeNull();
+      expect(profile.fit_score_editorial).toBeNull();
+      expect(
+        await knex("talent_embedding_cache").where({ profile_id: PROFILE_ID }),
+      ).toHaveLength(0);
+
+      const userImage = await knex("images").where({ id: userImageId }).first();
+      const userMetadata = JSON.parse(userImage.metadata);
+      expect(userMetadata.matte).toEqual({ mask: "keep" });
+      expect(userMetadata.ai.classification).toMatchObject({
+        source: "user",
+        shot_type: { value: "headshot", source: "user" },
+      });
+      expect(userMetadata.ai.classification.model).toBeUndefined();
+      expect(userImage.shot_type).toBe("headshot");
+
+      const autoImage = await knex("images").where({ id: autoImageId }).first();
+      expect(JSON.parse(autoImage.metadata)).toEqual({
+        matte: { mask: "keep-auto" },
+      });
+      expect(autoImage.shot_type).toBeNull();
+      expect(autoImage.style_type).toBeNull();
+      expect(autoImage.image_type).toBeNull();
+
+      const events = await knex("ai_processing_consent_events")
+        .where({ profile_id: PROFILE_ID })
+        .orderBy("sequence");
+      expect(events.map((event) => event.event_type)).toEqual([
+        "granted",
+        "granted",
+        "withdrawn",
+        "withdrawn",
+        "deletion_complete",
+        "deletion_complete",
+      ]);
+      expect(events.filter((event) => event.event_type === "withdrawn"))
+        .toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              deletion_state: "pending",
+              actor_user_id: TALENT_ID,
+              actor_type: "talent",
+              user_agent: IPHONE,
+            }),
+          ]),
+        );
+      expect(events[0].disclosure_hash).toBe(
+        initial.ai.disclosureHashes.imageProcessing,
+      );
+      await expect(
+        knex("ai_processing_consent_events")
+          .where({ id: events[0].id })
+          .update({ deletion_state: "failed" }),
+      ).rejects.toThrow(/immutable/);
+
+      await knex("images").whereIn("id", [userImageId, autoImageId]).delete();
+    });
+
+    it("appends failed deletion evidence without undoing a withdrawal", async () => {
+      const evidence = {
+        actorUserId: TALENT_ID,
+        actorType: "talent",
+        requestIp: "127.0.0.1",
+        userAgent: IPHONE,
+      };
+      const eventId = await recordAiConsentEvent(knex, {
+        ...evidence,
+        profileId: PROFILE_ID,
+        purpose: "image_analysis",
+        granted: false,
+        eventType: "withdrawn",
+        deletionState: "pending",
+      });
+
+      const state = await finishWithdrawal(
+        knex,
+        {
+          profileId: PROFILE_ID,
+          purpose: "image_analysis",
+          eventId,
+          evidence,
+        },
+        async () => {
+          const error = new Error("simulated local purge failure");
+          error.code = "SIMULATED_PURGE_FAILURE";
+          throw error;
+        },
+      );
+
+      expect(state).toBe("failed");
+      const events = await knex("ai_processing_consent_events")
+        .where({ related_event_id: eventId });
+      expect(events).toEqual([
+        expect.objectContaining({
+          event_type: "deletion_failed",
+          granted: 0,
+          deletion_state: "failed",
+          deletion_error: "SIMULATED_PURGE_FAILURE",
+        }),
+      ]);
+      const settings = await read(await withSession());
+      expect(settings.ai.imageProcessing).toBe(false);
+      expect(settings.ai.imageProcessingDeletionState).toBe("failed");
     });
 
     it("scopes every preference to the account that set it", async () => {

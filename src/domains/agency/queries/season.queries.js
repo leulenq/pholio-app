@@ -32,7 +32,6 @@ const EXIT_STAGE = "Passed";
 const ALLOWED_RANGES = [30, 90, 365, 730];
 const DEFAULT_RANGE = 90;
 const DEFAULT_TIME_ZONE = "UTC";
-const PACKAGE_BOARD_TYPE = "package";
 const CLOSED_STAGES = new Set(["Passed", "Kept on file", "Withdrawn"]);
 const CLOSED_APPLICATION_STATUSES = [
   "passed",
@@ -53,10 +52,11 @@ const FIT_SCORE_COLUMNS = [
 const REPRESENTED_STATUSES = ["accepted", "booked", "represented"];
 
 class AnalyticsInputError extends Error {
-  constructor(message) {
+  constructor(message, code = "ANALYTICS_INVALID_BOARD") {
     super(message);
     this.name = "AnalyticsInputError";
-    this.code = "ANALYTICS_INVALID_BOARD";
+    this.code = code;
+    this.statusCode = 400;
   }
 }
 
@@ -101,8 +101,19 @@ function share(part, whole) {
 
 function toDate(value) {
   if (!value) return null;
-  const date = value instanceof Date ? value : new Date(value);
+  // SQLite CURRENT_TIMESTAMP is UTC but is returned without a zone suffix.
+  // Node otherwise interprets it in the server's local timezone.
+  const normalized =
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(value)
+      ? `${value.replace(" ", "T")}Z`
+      : value;
+  const date = value instanceof Date ? value : new Date(normalized);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function dbBoolean(value) {
+  return value === true || value === 1 || value === "1";
 }
 
 function earliestDate(...values) {
@@ -116,6 +127,13 @@ function latestDate(...values) {
   return values
     .map(toDate)
     .filter(Boolean)
+    .sort((a, b) => b - a)[0] || null;
+}
+
+function latestDateAtOrBefore(cutoff, ...values) {
+  return values
+    .map(toDate)
+    .filter((date) => date && date <= cutoff)
     .sort((a, b) => b - a)[0] || null;
 }
 
@@ -137,6 +155,18 @@ function validTimeZone(value) {
   } catch {
     return null;
   }
+}
+
+function resolveTimeZoneInput(value, label) {
+  if (value == null || value === "") return null;
+  const resolved = validTimeZone(value);
+  if (!resolved) {
+    throw new AnalyticsInputError(
+      `${label} must be a valid IANA timezone`,
+      "ANALYTICS_INVALID_TIMEZONE",
+    );
+  }
+  return resolved;
 }
 
 function zonedParts(date, timeZone) {
@@ -184,8 +214,15 @@ function localDowAndHour(date, timeZone) {
 // ---------------------------------------------------------------------------
 
 function resolveRange(requested) {
-  const parsed = parseInt(requested, 10);
-  return ALLOWED_RANGES.includes(parsed) ? parsed : DEFAULT_RANGE;
+  if (requested == null || requested === "") return DEFAULT_RANGE;
+  const parsed = Number(requested);
+  if (!Number.isInteger(parsed) || !ALLOWED_RANGES.includes(parsed)) {
+    throw new AnalyticsInputError(
+      "range must be one of 30, 90, 365, or 730",
+      "ANALYTICS_INVALID_RANGE",
+    );
+  }
+  return parsed;
 }
 
 /**
@@ -260,7 +297,7 @@ function exitKey(stage) {
  * Applications with no activity rows still yield a journey from their current
  * status — we just cannot time it, which is what `dwell: []` means.
  */
-function replayJourney(application, activities) {
+function replayJourney(application, activities, agencyActorIds = null) {
   const createdAt = toDate(application.created_at);
   const currentStage = analyticsStageForStatus(application.status);
   const journey = {
@@ -287,6 +324,12 @@ function replayJourney(application, activities) {
   let enteredAt = createdAt;
 
   for (const activity of activities) {
+    if (
+      agencyActorIds &&
+      (!activity.user_id || !agencyActorIds.has(activity.user_id))
+    ) {
+      continue;
+    }
     const at = toDate(activity.created_at);
     if (!at) continue;
     if (!journey.firstTouchAt || at < journey.firstTouchAt) {
@@ -364,8 +407,9 @@ function journeyOutcome(journey) {
   return ["applied", "shortlisted", "offered", "signed"][journey.reachedIndex] || "applied";
 }
 
-function firstResponseAt(application, journey) {
-  return earliestDate(journey.firstTouchAt, application.viewed_at);
+function firstResponseAt(application, journey, cutoff = null) {
+  const touch = earliestDate(journey.firstTouchAt, application.viewed_at);
+  return touch && (!cutoff || touch < cutoff) ? touch : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -388,6 +432,37 @@ async function columnExists(knex, table, column) {
   }
 }
 
+function compareTimestamp(
+  query,
+  knex,
+  column,
+  operator,
+  value,
+  { or = false } = {},
+) {
+  if (knex.client.config.client === "sqlite3") {
+    const method = or ? "orWhereRaw" : "whereRaw";
+    return query[method](`datetime(??) ${operator} datetime(?)`, [column, value]);
+  }
+  const method = or ? "orWhere" : "where";
+  return query[method](column, operator, value);
+}
+
+/**
+ * Mirrors the signing/package vocabulary on schemas that predate board_type.
+ * Client metadata or a slot target identifies a casting package; `kind` is the
+ * older discriminator and remains a fallback for partially migrated installs.
+ */
+function resolveBoardType(board) {
+  if (!board) return null;
+  if (board.board_type === "division" || board.board_type === "package") {
+    return board.board_type;
+  }
+  if (board.client_name || board.target_slots) return "package";
+  if (board.kind && board.kind !== "division") return "package";
+  return "division";
+}
+
 const schemaCapabilitiesByClient = new WeakMap();
 
 async function loadSchemaCapabilities(knex) {
@@ -398,6 +473,8 @@ async function loadSchemaCapabilities(knex) {
     const [
       hasRosterTable,
       hasStandingsTable,
+      hasApplicationsBoardId,
+      hasBoardKind,
       hasBoardType,
       hasMinorAtSubmission,
       hasMinorRevokedAt,
@@ -408,10 +485,13 @@ async function loadSchemaCapabilities(knex) {
       talentRecordIsMinor,
       talentRecordConsentStatus,
       talentRecordConsentExpiry,
+      remindersHaveSnoozedUntil,
       fitScoreLocations,
     ] = await Promise.all([
       tableExists(knex, "roster_memberships"),
       tableExists(knex, "roster_board_standings"),
+      columnExists(knex, "applications", "board_id"),
+      columnExists(knex, "boards", "kind"),
       columnExists(knex, "boards", "board_type"),
       columnExists(knex, "applications", "minor_at_submission"),
       columnExists(knex, "applications", "minor_access_revoked_at"),
@@ -422,6 +502,7 @@ async function loadSchemaCapabilities(knex) {
       columnExists(knex, "talent_records", "is_minor"),
       columnExists(knex, "talent_records", "minor_consent_status"),
       columnExists(knex, "talent_records", "minor_consent_expires_at"),
+      columnExists(knex, "reminders", "snoozed_until"),
       Promise.all(
         FIT_SCORE_COLUMNS.map(async (column) => ({
           column,
@@ -434,6 +515,8 @@ async function loadSchemaCapabilities(knex) {
     return {
       hasRosterTable,
       hasStandingsTable,
+      hasApplicationsBoardId,
+      hasBoardKind,
       hasBoardType,
       hasMinorColumns:
         hasMinorAtSubmission && hasMinorRevokedAt && hasMinorExpiry,
@@ -445,6 +528,7 @@ async function loadSchemaCapabilities(knex) {
         talentRecordIsMinor &&
         talentRecordConsentStatus &&
         talentRecordConsentExpiry,
+      remindersHaveSnoozedUntil,
       fitScoreLocations,
     };
   })();
@@ -476,43 +560,72 @@ async function loadRows(
   const {
     hasRosterTable,
     hasStandingsTable,
+    hasApplicationsBoardId,
+    hasBoardKind,
     hasBoardType,
     hasMinorColumns,
     hasSetupSteps,
     rosterHasSourceApplication,
     hasTalentRecords,
     talentRecordHasMinorColumns,
+    remindersHaveSnoozedUntil,
     fitScoreLocations,
   } = await loadSchemaCapabilities(knex);
   const windowStartValue = windowStart.toISOString();
+  const nowValue = now.toISOString();
 
   let applicationsQuery = knex("applications as a")
     .where("a.agency_id", agencyId)
     .andWhere((scope) => {
-      scope
-        .where("a.created_at", ">=", windowStartValue)
-        .orWhere("a.accepted_at", ">=", windowStartValue)
-        .orWhere("a.declined_at", ">=", windowStartValue)
-        .orWhereNull("a.status")
-        .orWhereNotIn("a.status", [
-          ...CLOSED_APPLICATION_STATUSES,
-          ...REPRESENTED_STATUSES,
-        ]);
+      compareTimestamp(
+        scope,
+        knex,
+        "a.created_at",
+        ">=",
+        windowStartValue,
+      );
+      compareTimestamp(
+        scope,
+        knex,
+        "a.accepted_at",
+        ">=",
+        windowStartValue,
+        { or: true },
+      );
+      compareTimestamp(
+        scope,
+        knex,
+        "a.declined_at",
+        ">=",
+        windowStartValue,
+        { or: true },
+      );
+      scope.orWhereNull("a.status").orWhereNotIn("a.status", [
+        ...CLOSED_APPLICATION_STATUSES,
+        ...REPRESENTED_STATUSES,
+      ]);
       // A deployment without the canonical roster table still needs historic
       // represented applications to derive its legacy roster.
       if (!hasRosterTable) scope.orWhereIn("a.status", REPRESENTED_STATUSES);
-    })
-    .select(
-      "a.id",
-      "a.profile_id",
-      "a.status",
-      "a.match_score",
-      "a.created_at",
-      "a.updated_at",
-      "a.viewed_at",
-      "a.accepted_at",
-      "a.declined_at",
-    );
+    });
+  applicationsQuery = compareTimestamp(
+    applicationsQuery,
+    knex,
+    "a.created_at",
+    "<",
+    nowValue,
+  ).select(
+    "a.id",
+    "a.profile_id",
+    "a.status",
+    ...(hasApplicationsBoardId ? ["a.board_id"] : []),
+    "a.match_score",
+    "a.created_at",
+    "a.updated_at",
+    "a.viewed_at",
+    "a.accepted_at",
+    "a.declined_at",
+  );
   applicationsQuery = applyAnalyticsMinorFilter(
     applicationsQuery,
     "a",
@@ -521,7 +634,14 @@ async function loadRows(
   );
 
   let allTimeCountQuery = knex("applications as a")
-    .where("a.agency_id", agencyId)
+    .where("a.agency_id", agencyId);
+  allTimeCountQuery = compareTimestamp(
+    allTimeCountQuery,
+    knex,
+    "a.created_at",
+    "<",
+    nowValue,
+  )
     .count({ count: "a.id" })
     .first();
   allTimeCountQuery = applyAnalyticsMinorFilter(
@@ -535,6 +655,7 @@ async function loadRows(
     .where({ agency_id: agencyId })
     .select("id", "name", "client_name", "target_slots", "is_active", "closes_at")
     .modify((query) => {
+      if (hasBoardKind) query.select("kind");
       if (hasBoardType) query.select("board_type");
     });
 
@@ -626,7 +747,7 @@ async function loadRows(
         id: `derived:${application.id}`,
         profile_id: application.profile_id,
         talent_record_id: null,
-        board_id: null,
+        board_id: application.board_id || null,
         stage: "main",
         status: "active",
         joined_at:
@@ -657,10 +778,11 @@ async function loadRows(
     .filter(Boolean);
   const profileIds = [...new Set([...rosterProfileIds, ...applicantProfileIds])];
 
-  let profiles = [];
-  if (profileIds.length) {
+  const profiles = [];
+  // Stay below SQLite's bind-variable ceiling and avoid enormous PG IN lists.
+  for (let index = 0; index < profileIds.length; index += 500) {
     let profilesQuery = knex("profiles as p")
-      .whereIn("p.id", profileIds)
+      .whereIn("p.id", profileIds.slice(index, index + 500))
       .select(
         "p.id",
         "p.city",
@@ -687,10 +809,28 @@ async function loadRows(
         profilesQuery.select(knex.raw("NULL as ??", [column]));
       }
     });
-    profiles = await profilesQuery;
+    // eslint-disable-next-line no-await-in-loop
+    profiles.push(...(await profilesQuery));
   }
 
   const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+  const talentRecordIds = [
+    ...new Set(roster.map((row) => row.talent_record_id).filter(Boolean)),
+  ];
+  const talentRecords = [];
+  if (hasTalentRecords) {
+    for (let index = 0; index < talentRecordIds.length; index += 500) {
+      // eslint-disable-next-line no-await-in-loop
+      const records = await knex("talent_records")
+        .where({ agency_id: agencyId })
+        .whereIn("id", talentRecordIds.slice(index, index + 500))
+        .select("id", "market", "height_cm", "date_of_birth", "gender");
+      talentRecords.push(...records);
+    }
+  }
+  const talentRecordById = new Map(
+    talentRecords.map((record) => [record.id, record]),
+  );
   const rosterVisible = roster.filter((row) => {
     const sourceGrantCurrent =
       !row.source_is_minor ||
@@ -703,9 +843,14 @@ async function loadRows(
     const profileAge = row.profile_id
       ? ageFromDob(profileById.get(row.profile_id)?.date_of_birth, now)
       : null;
-    const profileIsMinor = profileAge != null && profileAge < 18;
+    const recordAge = row.talent_record_id
+      ? ageFromDob(talentRecordById.get(row.talent_record_id)?.date_of_birth, now)
+      : null;
+    const subjectIsMinor =
+      (profileAge != null && profileAge < 18) ||
+      (recordAge != null && recordAge < 18);
     if (!allowMinorSubmissions) {
-      return !row.source_is_minor && !row.record_is_minor && !profileIsMinor;
+      return !row.source_is_minor && !row.record_is_minor && !subjectIsMinor;
     }
     return sourceGrantCurrent && recordGrantCurrent;
   });
@@ -726,8 +871,13 @@ async function loadRows(
         "ba.application_id",
       ),
       forVisibleApplications(
-        knex("application_activities")
-          .where({ agency_id: agencyId })
+        compareTimestamp(
+          knex("application_activities").where({ agency_id: agencyId }),
+          knex,
+          "created_at",
+          "<",
+          nowValue,
+        )
           .select(
             "application_id",
             "user_id",
@@ -740,11 +890,23 @@ async function loadRows(
       forVisibleApplications(
         knex("interviews")
           .where({ agency_id: agencyId })
-          .andWhere((scope) =>
-            scope
-              .where("created_at", ">=", windowStartValue)
-              .orWhere("proposed_datetime", ">=", windowStartValue),
-          )
+          .andWhere((scope) => {
+            compareTimestamp(
+              scope,
+              knex,
+              "created_at",
+              ">=",
+              windowStartValue,
+            );
+            compareTimestamp(
+              scope,
+              knex,
+              "proposed_datetime",
+              ">=",
+              windowStartValue,
+              { or: true },
+            );
+          })
           .select(
             "application_id",
             "status",
@@ -757,16 +919,23 @@ async function loadRows(
       forVisibleApplications(
         knex("reminders")
           .where({ agency_id: agencyId })
-          .andWhere((scope) =>
-            scope
-              .where("status", "pending")
-              .orWhere("completed_at", ">=", windowStartValue),
-          )
+          .andWhere((scope) => {
+            scope.whereIn("status", ["pending", "snoozed"]);
+            compareTimestamp(
+              scope,
+              knex,
+              "completed_at",
+              ">=",
+              windowStartValue,
+              { or: true },
+            );
+          })
           .select(
             "application_id",
             "status",
             "priority",
             "reminder_date",
+            ...(remindersHaveSnoozedUntil ? ["snoozed_until"] : []),
             "completed_at",
             "created_at",
           ),
@@ -784,10 +953,12 @@ async function loadRows(
     roster: rosterVisible,
     rosterStandings: visibleRosterStandings,
     profiles,
+    talentRecords,
     rosterIsDerived: !hasRosterTable,
     allTimeSubmissionCount: Number(allTimeCountRow?.count || 0),
     configuredTimeZone: validTimeZone(parseJson(setupDefaults?.data).timezone),
     hasBoardType,
+    hasApplicationsBoardId,
     hasStandingsTable,
     hasMinorColumns,
   };
@@ -1041,20 +1212,27 @@ function buildBoardPerformance(boards, journeys, boardsForApplication, now) {
     .sort((a, b) => b.submissions - a.submissions);
 }
 
-function buildCohorts(journeys, timeZone, monthsBack = 12) {
+function buildCohorts(journeys, timeZone, now, monthsBack = 12) {
   const index = new Map();
+  const currentMonth = new Date(
+    `${localMonthKey(now, timeZone)}-01T12:00:00.000Z`,
+  );
+  for (let offset = monthsBack - 1; offset >= 0; offset -= 1) {
+    const anchor = new Date(currentMonth.getTime());
+    anchor.setUTCMonth(anchor.getUTCMonth() - offset);
+    const month = anchor.toISOString().slice(0, 7);
+    index.set(month, {
+      month,
+      size: 0,
+      reached: FORWARD_STAGES.map(() => 0),
+      passed: 0,
+    });
+  }
   journeys.forEach(({ application, journey }) => {
     const createdAt = toDate(application.created_at);
     if (!createdAt) return;
     const key = localMonthKey(createdAt, timeZone);
-    if (!index.has(key)) {
-      index.set(key, {
-        month: key,
-        size: 0,
-        reached: FORWARD_STAGES.map(() => 0),
-        passed: 0,
-      });
-    }
+    if (!index.has(key)) return;
     const row = index.get(key);
     row.size += 1;
     journey.reachedStages.forEach((didReach, index) => {
@@ -1072,7 +1250,7 @@ function buildCohorts(journeys, timeZone, monthsBack = 12) {
       stages: FORWARD_STAGES.map((stage, i) => ({
         stage,
         count: row.reached[i],
-        rate: share(row.reached[i], row.size),
+        rate: row.size ? share(row.reached[i], row.size) : null,
       })),
       passed: row.passed,
     }));
@@ -1120,7 +1298,7 @@ function buildDesk(context) {
   const latencyHours = [];
   journeysById.forEach(({ application, journey, createdAt }) => {
     if (!createdAt || createdAt < windowStart) return;
-    const touch = firstResponseAt(application, journey);
+    const touch = firstResponseAt(application, journey, now);
     if (!touch) return;
     const hours = (touch.getTime() - createdAt.getTime()) / HOUR_MS;
     if (hours >= 0) latencyHours.push(hours);
@@ -1199,17 +1377,26 @@ function buildDesk(context) {
     .filter((v) => v != null && v >= 0);
 
   // --- reminders -----------------------------------------------------------
-  const openReminders = reminders.filter((r) => r.status === "pending");
+  const openReminders = reminders.filter((r) => {
+    const createdAt = toDate(r.created_at);
+    return (
+      ["pending", "snoozed"].includes(r.status) &&
+      (!createdAt || createdAt < now)
+    );
+  });
   const overdue = openReminders.filter((r) => {
-    const due = toDate(r.reminder_date);
+    const due =
+      r.status === "snoozed"
+        ? toDate(r.snoozed_until) || toDate(r.reminder_date)
+        : toDate(r.reminder_date);
     return due && due < now;
   });
   const completedInWindow = reminders.filter((r) => {
     const at = toDate(r.completed_at);
-    return r.status === "completed" && at && at >= windowStart;
+    return r.status === "completed" && at && at >= windowStart && at < now;
   });
   const onTime = completedInWindow.filter((r) => {
-    const due = toDate(r.reminder_date);
+    const due = toDate(r.snoozed_until) || toDate(r.reminder_date);
     const done = toDate(r.completed_at);
     return due && done && done <= due;
   });
@@ -1298,6 +1485,7 @@ function buildRoster(context) {
     roster,
     rosterStandings,
     profiles,
+    talentRecords,
     boards,
     now,
     timeZone,
@@ -1305,6 +1493,9 @@ function buildRoster(context) {
   } = context;
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
+  const talentRecordById = new Map(
+    (talentRecords || []).map((record) => [record.id, record]),
+  );
   const boardById = new Map(
     boards.filter((board) => board.kind === "division").map((board) => [board.id, board]),
   );
@@ -1389,7 +1580,9 @@ function buildRoster(context) {
     const joined = toDate(r.joined_at);
     if (joined) tenureMonths.push((now.getTime() - joined.getTime()) / (30.44 * DAY_MS));
 
-    const profile = r.profile_id ? profileById.get(r.profile_id) : null;
+    const profile = r.profile_id
+      ? profileById.get(r.profile_id)
+      : talentRecordById.get(r.talent_record_id);
     if (!profile) return;
 
     const market = profile.market;
@@ -1577,7 +1770,7 @@ function windowSummary(journeys, windowStart, windowEnd) {
   );
   const firstResponse = inWindow
     .map(({ application, journey, createdAt }) => {
-      const touch = firstResponseAt(application, journey);
+      const touch = firstResponseAt(application, journey, windowEnd);
       if (!touch || !createdAt) return null;
       const hours = (touch.getTime() - createdAt.getTime()) / HOUR_MS;
       return hours >= 0 ? hours : null;
@@ -1631,22 +1824,39 @@ async function buildSeasonAnalytics(knex, options) {
   } = options;
 
   const rangeDays = resolveRange(range);
+  const resolvedExplicitTimeZone = resolveTimeZoneInput(
+    explicitTimeZone,
+    "timeZone",
+  );
+  const resolvedRequestedTimeZone = resolveTimeZoneInput(
+    requestedTimeZone,
+    "timezone",
+  );
   const windowStart = new Date(now.getTime() - rangeDays * DAY_MS);
   const previousStart = new Date(now.getTime() - 2 * rangeDays * DAY_MS);
+  // Fetch enough history for the fixed twelve-calendar-month cohort grid even
+  // when the selected comparison window is only 30 or 90 days. Starting one
+  // extra UTC month early safely covers the agency's local month boundary.
+  const cohortDataStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 12, 1),
+  );
+  const dataStart = new Date(
+    Math.min(previousStart.getTime(), cohortDataStart.getTime()),
+  );
 
-  const rows = await loadRows(knex, agencyId, previousStart, {
+  const rows = await loadRows(knex, agencyId, dataStart, {
     allowMinorSubmissions,
     now,
   });
   const timeZone =
-    validTimeZone(explicitTimeZone) ||
+    resolvedExplicitTimeZone ||
     rows.configuredTimeZone ||
-    validTimeZone(requestedTimeZone) ||
+    resolvedRequestedTimeZone ||
     DEFAULT_TIME_ZONE;
 
   const boards = rows.boards.map((board) => ({
     ...board,
-    kind: board.board_type === PACKAGE_BOARD_TYPE ? "package" : "division",
+    kind: resolveBoardType(board),
   }));
   const activeBoard = boardId
     ? boards.find((board) => board.id === boardId)
@@ -1667,7 +1877,15 @@ async function buildSeasonAnalytics(knex, options) {
     });
   });
   const boardsForApplication = (application) => {
-    return boardLinks.get(application.id) || [];
+    const links = boardLinks.get(application.id) || [];
+    if (links.length || !application.board_id) return links;
+    return [{
+      boardId: application.board_id,
+      score:
+        application.match_score == null
+          ? null
+          : Number(application.match_score),
+    }];
   };
   const scoreForApplication = (application) => {
     if (activeScope === "package") {
@@ -1683,11 +1901,15 @@ async function buildSeasonAnalytics(knex, options) {
     return round(mean(scores), 1);
   };
 
+  const reportableApplications = rows.applications.filter((application) => {
+    const createdAt = toDate(application.created_at);
+    return createdAt && createdAt < now;
+  });
   const scopedApplications = activeScope === "package"
-    ? rows.applications.filter((a) =>
+    ? reportableApplications.filter((a) =>
         boardsForApplication(a).some((l) => l.boardId === activeBoardId),
       )
-    : rows.applications;
+    : reportableApplications;
 
   // --- journeys ------------------------------------------------------------
   const activitiesByApplication = new Map();
@@ -1698,24 +1920,46 @@ async function buildSeasonAnalytics(knex, options) {
     activitiesByApplication.get(activity.application_id).push(activity);
   });
 
+  const agencyActorIds = new Set(
+    rows.memberships
+      .filter(
+        (membership) =>
+          String(membership.status || "").toLowerCase() === "active",
+      )
+      .map((membership) => membership.user_id)
+      .filter(Boolean),
+  );
+  // Legacy owner-only agencies can predate agency_memberships. Their agency
+  // account is the only defensible actor fallback; an empty set must never
+  // make talent-originated activity count as desk work.
+  if (agencyActorIds.size === 0) agencyActorIds.add(agencyId);
+
   const allJourneys = scopedApplications.map((application) => ({
     application,
     createdAt: toDate(application.created_at),
     journey: replayJourney(
       application,
       activitiesByApplication.get(application.id) || [],
+      agencyActorIds,
     ),
     lastTouchAt: (() => {
-      const list = activitiesByApplication.get(application.id);
+      const list = (activitiesByApplication.get(application.id) || []).filter(
+        (activity) =>
+          activity.user_id && agencyActorIds.has(activity.user_id),
+      );
       const lastActivityAt = list?.length
         ? list[list.length - 1].created_at
         : null;
-      return latestDate(lastActivityAt, application.viewed_at);
+      return latestDateAtOrBefore(
+        now,
+        lastActivityAt,
+        application.viewed_at,
+      );
     })(),
   }));
 
   const windowJourneys = allJourneys.filter(
-    ({ createdAt }) => createdAt && createdAt >= windowStart,
+    ({ createdAt }) => createdAt && createdAt >= windowStart && createdAt < now,
   );
 
   // Open work is a live queue — it is never bounded by the reporting window,
@@ -1736,6 +1980,10 @@ async function buildSeasonAnalytics(knex, options) {
   const scopedActivities = activeScope === "package"
     ? rows.activities.filter((a) => scopedActivityIds.has(a.application_id))
     : rows.activities;
+  const deskActivities = scopedActivities.filter(
+    (activity) =>
+      activity.user_id && agencyActorIds.has(activity.user_id),
+  );
   const scopedInterviews = activeScope === "package"
     ? rows.interviews.filter((row) => scopedActivityIds.has(row.application_id))
     : rows.interviews;
@@ -1768,10 +2016,23 @@ async function buildSeasonAnalytics(knex, options) {
 
   let allTimeSubmissions = rows.allTimeSubmissionCount;
   if (activeScope === "package") {
-    let countQuery = knex("board_applications as ba")
-      .join("applications as a", "a.id", "ba.application_id")
-      .where({ "a.agency_id": agencyId, "ba.board_id": activeBoardId })
-      .count({ count: "ba.application_id" })
+    let countQuery = knex("applications as a")
+      .leftJoin("board_applications as ba", "a.id", "ba.application_id")
+      .where("a.agency_id", agencyId);
+    countQuery = compareTimestamp(
+      countQuery,
+      knex,
+      "a.created_at",
+      "<",
+      now.toISOString(),
+    )
+      .andWhere((scope) => {
+        scope.where("ba.board_id", activeBoardId);
+        if (rows.hasApplicationsBoardId) {
+          scope.orWhere("a.board_id", activeBoardId);
+        }
+      })
+      .countDistinct({ count: "a.id" })
       .first();
     countQuery = applyAnalyticsMinorFilter(
       countQuery,
@@ -1802,7 +2063,7 @@ async function buildSeasonAnalytics(knex, options) {
           id: b.id,
           name: b.name,
           clientName: b.client_name || null,
-          isActive: b.is_active !== false,
+          isActive: b.is_active == null ? true : dbBoolean(b.is_active),
           kind: b.kind,
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
@@ -1837,11 +2098,12 @@ async function buildSeasonAnalytics(knex, options) {
       now,
     ),
     cohorts: buildCohorts(
-      allJourneys.filter(({ createdAt }) => createdAt && createdAt >= previousStart),
+      allJourneys,
       timeZone,
+      now,
     ),
     desk: buildDesk({
-      activities: scopedActivities,
+      activities: deskActivities,
       windowStart,
       now,
       timeZone,
@@ -1854,6 +2116,7 @@ async function buildSeasonAnalytics(knex, options) {
       roster: scopedRoster,
       rosterStandings: scopedRosterStandings,
       profiles: rows.profiles,
+      talentRecords: rows.talentRecords,
       boards,
       now,
       timeZone,
@@ -1862,7 +2125,7 @@ async function buildSeasonAnalytics(knex, options) {
     totals: {
       allTimeSubmissions,
       windowSubmissions: windowJourneys.length,
-      activitiesObserved: scopedActivities.length,
+      activitiesObserved: deskActivities.length,
       scoredSubmissions: windowJourneys.filter(
         ({ application }) => scoreForApplication(application) != null,
       ).length,

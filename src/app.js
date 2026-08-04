@@ -22,7 +22,10 @@ const {
 const cookieParser = require("cookie-parser");
 const { baseCookieOptions } = require("./shared/lib/cookie-domain");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
-const { requireActiveAccount } = require("./domains/auth/middleware/require-auth");
+const {
+  requireActiveAccount,
+  requireTalentDashboardEligibility,
+} = require("./domains/auth/middleware/require-auth");
 
 // +++ 1. ADD THIS LINE +++
 const ejs = require("ejs");
@@ -395,19 +398,14 @@ const sessionStoreConfig = {
   // Test suites own their schema lifecycle. Disabling the store's background
   // create avoids racing migrations and teardown on short-lived SQLite files.
   createtable: process.env.NODE_ENV !== "test",
+  // connect-session-knex@3 uses this boolean; `cleanupInterval = 0` is not a
+  // supported option and leaves the cleanup timer running.
+  disableDbCleanup: config.isServerless || process.env.NODE_ENV === "test",
 };
 
-// In serverless environments, disable automatic cleanup to prevent connection errors
-// Automatic cleanup runs on a timer and can execute after connections are closed
-// In serverless, functions are short-lived and connections can terminate unexpectedly
-if (config.isServerless) {
-  // Disable automatic cleanup in serverless to prevent connection errors
-  // In connect-session-knex, cleanupInterval defaults to 15 minutes (900000 ms)
-  // Setting it to 0 explicitly disables the cleanup interval
-  sessionStoreConfig.cleanupInterval = 0; // 0 = disabled (no cleanup)
-
+if (sessionStoreConfig.disableDbCleanup) {
   console.log(
-    "[Session Store] Automatic cleanup disabled for serverless environment (cleanupInterval: 0)",
+    "[Session Store] Automatic cleanup disabled for this ephemeral runtime",
   );
 }
 
@@ -641,7 +639,18 @@ const talentAiWriterLimiter = createTalentAiWriterRateLimit({
 // handlers (see domains/auth/routes/auth.js) and do NOT match the "/login" /
 // "/logout" mount prefixes — they must be listed explicitly or the marketing
 // site's session endpoints go unthrottled.
-app.use(["/login", "/signup", "/api/login", "/api/logout"], authLimiter);
+app.use(
+  [
+    "/login",
+    "/signup",
+    "/api/login",
+    "/api/logout",
+    "/api/auth/password-reset",
+    "/api/dev/login",
+    "/api/dev/bootstrap",
+  ],
+  authLimiter,
+);
 app.use(["/onboarding/entry", "/casting/entry"], onboardingLimiter);
 app.use("/api/public/open-call", authLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
@@ -838,7 +847,13 @@ app.use("/", portfolioRoutes);
 // Dashboard routes (protected by onboarding middleware).
 // requireProfileUnlocked is not applied here: it only redirects HTML and would block
 // /api/talent/* needed to complete essentials; comp card / PDF locking stays per-route in domain routers.
-app.use("/", requireOnboardingComplete, requireActiveAccount(), dashboardTalentRoutes);
+app.use(
+  "/",
+  requireOnboardingComplete,
+  requireActiveAccount(),
+  requireTalentDashboardEligibility(),
+  dashboardTalentRoutes,
+);
 // Agency dashboard routes handled by agencyDomainRoutes above
 
 // PDF generation routes (public viewing routes don't need unlock check)

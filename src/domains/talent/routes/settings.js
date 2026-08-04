@@ -1,4 +1,5 @@
 const express = require("express");
+const crypto = require("crypto");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
@@ -38,7 +39,36 @@ const {
 const { v4: uuidv4 } = require("uuid");
 const {
   minorPublicExposureAllowed,
+  hasRecordedDateOfBirth,
+  isMinorProfile,
 } = require("../../../shared/lib/talent-age");
+const {
+  purgeProfileEmbeddingDerivatives,
+  purgeImageEmbeddingDerivatives,
+} = require("../../ai/embeddings");
+
+const AI_CONSENT_DISCLOSURE_VERSION = "2026-08-04";
+const AI_CONSENT_PURPOSES = {
+  image_analysis: {
+    column: "ai_processing_consent",
+    disclosure:
+      "Allow Pholio to send portfolio images to its image-analysis provider for shot classification and profile insights.",
+  },
+  agency_search_matching: {
+    column: "embedding_processing_consent",
+    disclosure:
+      "Allow Pholio to send a limited profile summary to its embedding provider so vetted agency searches can find relevant talent.",
+  },
+};
+
+function consentDisclosureHash(purpose) {
+  const disclosure = AI_CONSENT_PURPOSES[purpose]?.disclosure;
+  if (!disclosure) throw new Error(`Unknown AI consent purpose: ${purpose}`);
+  return crypto
+    .createHash("sha256")
+    .update(`${AI_CONSENT_DISCLOSURE_VERSION}\n${disclosure}`, "utf8")
+    .digest("hex");
+}
 
 // Only the two categories `shared/services/notifications.js` actually consults.
 // This used to also carry `emailFrequency` (immediate/daily/weekly — no digest
@@ -94,6 +124,271 @@ function jsonForDb(value) {
 
 function cleanBoolean(value, fallback = false) {
   return value === undefined ? fallback : !!value;
+}
+
+function hasExplicitConsent(value) {
+  return value === true || value === 1;
+}
+
+function isExplicitAdultAiEligible(profile) {
+  return hasRecordedDateOfBirth(profile) && !isMinorProfile(profile);
+}
+
+async function hasColumn(db, table, column) {
+  try {
+    return await db.schema.hasColumn(table, column);
+  } catch {
+    return false;
+  }
+}
+
+async function hasTable(db, table) {
+  try {
+    return await db.schema.hasTable(table);
+  } catch {
+    return false;
+  }
+}
+
+function removeImageMetadataDerivatives(rawMetadata, image = {}) {
+  const metadata = parseJson(rawMetadata, {});
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return { changed: false, metadata: rawMetadata, columnUpdates: {} };
+  }
+  const next = { ...metadata };
+  const classification = next.ai?.classification;
+  const userAuthored = classification?.source === "user";
+  if (userAuthored) {
+    const preserved = {
+      source: "user",
+      confirmed: classification.confirmed === true,
+      band: classification.band || "ask",
+    };
+    if (classification.review_deferred === true) {
+      preserved.review_deferred = true;
+    }
+    for (const field of ["shot_type", "style_type", "image_type"]) {
+      if (image[field] != null && String(image[field]).trim()) {
+        preserved[field] = { value: image[field], source: "user" };
+      }
+    }
+    next.ai = { classification: preserved };
+  } else {
+    delete next.ai;
+  }
+
+  const columnUpdates = {};
+  if (classification && !userAuthored) {
+    for (const field of ["shot_type", "style_type", "image_type"]) {
+      columnUpdates[field] = null;
+    }
+  }
+  return {
+    changed: Object.hasOwn(metadata, "ai"),
+    metadata: JSON.stringify(next),
+    columnUpdates,
+  };
+}
+
+/** Remove Pholio-held results derived from provider-backed image processing. */
+async function purgeLocalImageDerivatives(db, profileId) {
+  const profileColumns = [
+    "image_analysis",
+    "image_analyzed_at",
+    "image_analysis_model",
+    "look_descriptor",
+    "look_descriptor_generated_at",
+    "archetype",
+    "fit_score_runway",
+    "fit_score_editorial",
+    "fit_score_commercial",
+    "fit_score_lifestyle",
+    "fit_score_swim_fitness",
+    "fit_score_overall",
+    "fit_scores_calculated_at",
+    "photo_embedding",
+    "vector_summary",
+    "vector_summary_text",
+    "visual_intel",
+    "onboarding_predictions",
+    "librarian_synthesis",
+    "market_fit_rankings",
+    "vibe_score",
+    "predicted_height_cm",
+    "predicted_weight_lbs",
+    "predicted_bust",
+    "predicted_waist",
+    "predicted_hips",
+    "predicted_hair_color",
+    "predicted_eye_color",
+    "predicted_skin_tone",
+  ];
+
+  const profileUpdate = {};
+  for (const column of profileColumns) {
+    if (await hasColumn(db, "profiles", column)) profileUpdate[column] = null;
+  }
+  if (await hasColumn(db, "profiles", "is_unicorn")) {
+    profileUpdate.is_unicorn = false;
+  }
+  if (Object.keys(profileUpdate).length) {
+    profileUpdate.updated_at = db.fn.now();
+    await db("profiles").where({ id: profileId }).update(profileUpdate);
+  }
+
+  if (await hasTable(db, "images")) {
+    const images = await db("images")
+      .where({ profile_id: profileId })
+      .select("id", "metadata", "shot_type", "style_type", "image_type");
+    for (const image of images) {
+      const next = removeImageMetadataDerivatives(image.metadata, image);
+      if (next.changed) {
+        await db("images").where({ id: image.id }).update({
+          metadata:
+            db.client.config.client === "pg" ||
+            db.client.config.client === "postgresql"
+              ? JSON.parse(next.metadata)
+              : next.metadata,
+          ...next.columnUpdates,
+        });
+      }
+    }
+
+    if (await hasColumn(db, "images", "embedding")) {
+      await db("images").where({ profile_id: profileId }).update({ embedding: null });
+    }
+  }
+
+  if (await hasTable(db, "image_signals")) {
+    await db("image_signals")
+      .whereIn("image_id", db("images").where({ profile_id: profileId }).select("id"))
+      .del();
+  }
+  if (await hasTable(db, "image_classification_feedback")) {
+    await db("image_classification_feedback").where({ profile_id: profileId }).del();
+  }
+
+  if (await hasTable(db, "onboarding_signals")) {
+    const columns = [
+      "ai_results",
+      "archetype_runway_pct",
+      "archetype_editorial_pct",
+      "archetype_lifestyle_pct",
+      "archetype_commercial_pct",
+      "archetype_label",
+      "casting_verdict",
+    ];
+    const update = {};
+    for (const column of columns) {
+      if (await hasColumn(db, "onboarding_signals", column)) update[column] = null;
+    }
+    if (Object.keys(update).length) {
+      await db("onboarding_signals").where({ profile_id: profileId }).update(update);
+    }
+  }
+
+  if (
+    (await hasTable(db, "ai_profile_analysis")) &&
+    (await hasColumn(db, "ai_profile_analysis", "profile_id"))
+  ) {
+    await db("ai_profile_analysis").where({ profile_id: profileId }).del();
+  }
+}
+
+function requestEvidence(req) {
+  return {
+    actorUserId: req.session?.userId || null,
+    actorType: "talent",
+    requestIp: req.ip ? String(req.ip).slice(0, 64) : null,
+    userAgent: req.get?.("user-agent")
+      ? String(req.get("user-agent")).slice(0, 2048)
+      : null,
+  };
+}
+
+async function recordAiConsentEvent(db, {
+  profileId,
+  purpose,
+  granted,
+  eventType,
+  deletionState,
+  deletionError = null,
+  relatedEventId = null,
+  actorUserId = null,
+  actorType = "system",
+  requestIp = null,
+  userAgent = null,
+}) {
+  if (!(await hasTable(db, "ai_processing_consent_events"))) return null;
+
+  const id = uuidv4();
+  await db("ai_processing_consent_events").insert({
+    id,
+    profile_id: profileId,
+    actor_user_id: actorUserId,
+    purpose,
+    event_type: eventType,
+    granted: !!granted,
+    disclosure_version: AI_CONSENT_DISCLOSURE_VERSION,
+    disclosure_hash: consentDisclosureHash(purpose),
+    actor_type: actorType,
+    request_ip: requestIp,
+    user_agent: userAgent,
+    deletion_state: deletionState,
+    deletion_error: deletionError,
+    related_event_id: relatedEventId,
+    occurred_at: db.fn.now(),
+  });
+  return id;
+}
+
+async function latestDeletionStates(db, profileId) {
+  const defaults = {
+    image_analysis: "not_requested",
+    agency_search_matching: "not_requested",
+  };
+  if (!(await hasTable(db, "ai_processing_consent_events"))) return defaults;
+
+  const rows = await db("ai_processing_consent_events")
+    .where({ profile_id: profileId })
+    .whereIn("purpose", Object.keys(AI_CONSENT_PURPOSES))
+    .orderBy("sequence", "desc");
+  const states = { ...defaults };
+  const seen = new Set();
+  for (const row of rows) {
+    if (seen.has(row.purpose)) continue;
+    states[row.purpose] = row.deletion_state;
+    seen.add(row.purpose);
+  }
+  return states;
+}
+
+async function finishWithdrawal(db, pending, purge) {
+  let deletionState = "complete";
+  let deletionError = null;
+  try {
+    await purge();
+  } catch (error) {
+    deletionState = "failed";
+    deletionError = String(error?.code || error?.name || "purge_failed").slice(0, 255);
+    console.error("[AI consent] Local derivative purge failed", {
+      purpose: pending.purpose,
+      code: deletionError,
+    });
+  }
+
+  await recordAiConsentEvent(db, {
+    ...pending.evidence,
+    profileId: pending.profileId,
+    purpose: pending.purpose,
+    granted: false,
+    eventType:
+      deletionState === "complete" ? "deletion_complete" : "deletion_failed",
+    deletionState,
+    deletionError,
+    relatedEventId: pending.eventId,
+  });
+  return deletionState;
 }
 
 function cleanStringArray(value, max = 25) {
@@ -267,6 +562,17 @@ async function buildSettingsPayload(userId, currentSid = null) {
     ...DEFAULT_COOKIES,
     ...parseJson(settingsRow?.cookie_preferences, {}),
   });
+  const [hasImageConsentColumn, hasEmbeddingConsentColumn] = await Promise.all([
+    hasColumn(knex, "profiles", "ai_processing_consent"),
+    hasColumn(knex, "profiles", "embedding_processing_consent"),
+  ]);
+  const adultEligible = isExplicitAdultAiEligible(profile);
+  const deletionStates = profile
+    ? await latestDeletionStates(knex, profile.id)
+    : {
+        image_analysis: "not_requested",
+        agency_search_matching: "not_requested",
+      };
 
   const provider = await resolveProvider(user);
 
@@ -277,6 +583,32 @@ async function buildSettingsPayload(userId, currentSid = null) {
     notifications,
     blockedAgencies: privacy.blockedAgencies,
     cookies,
+    ai: {
+      imageProcessing: hasImageConsentColumn
+        ? hasExplicitConsent(profile?.ai_processing_consent)
+        : false,
+      profileEmbedding: hasEmbeddingConsentColumn
+        ? hasExplicitConsent(profile?.embedding_processing_consent)
+        : false,
+      imageProcessingDeletionState: deletionStates.image_analysis,
+      profileEmbeddingDeletionState:
+        deletionStates.agency_search_matching,
+      disclosureVersion: AI_CONSENT_DISCLOSURE_VERSION,
+      imageProcessingDisclosure:
+        AI_CONSENT_PURPOSES.image_analysis.disclosure,
+      profileEmbeddingDisclosure:
+        AI_CONSENT_PURPOSES.agency_search_matching.disclosure,
+      disclosureHashes: {
+        imageProcessing: consentDisclosureHash("image_analysis"),
+        profileEmbedding: consentDisclosureHash("agency_search_matching"),
+      },
+      canEnable:
+        adultEligible && hasImageConsentColumn && hasEmbeddingConsentColumn,
+      imageProcessingAvailable:
+        process.env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true",
+      profileEmbeddingAvailable:
+        process.env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS === "true",
+    },
     data: {
       exportRequestedAt: formatDate(settingsRow?.data_export_requested_at),
     },
@@ -353,6 +685,9 @@ router.put(
       blockedAgencies,
       notifications,
       cookies,
+      aiProcessingConsent,
+      embeddingProcessingConsent,
+      aiConsentDisclosureVersion,
     } = req.body || {};
 
     const profile = await knex("profiles").where({ user_id: userId }).first();
@@ -360,7 +695,60 @@ router.put(
       return apiResponse.notFound(res, "Profile not found");
     }
 
+    const requestedAiConsents = [
+      aiProcessingConsent,
+      embeddingProcessingConsent,
+    ].filter((value) => value !== undefined);
+    if (requestedAiConsents.some((value) => typeof value !== "boolean")) {
+      return apiResponse.error(
+        res,
+        "AI processing preferences must be true or false.",
+        400,
+      );
+    }
+    if (
+      requestedAiConsents.some((value) => value === true) &&
+      !isExplicitAdultAiEligible(profile)
+    ) {
+      return apiResponse.error(
+        res,
+        "Image analysis and profile indexing are available only to adults with a valid date of birth on file.",
+        403,
+      );
+    }
+    if (
+      requestedAiConsents.some((value) => value === true) &&
+      aiConsentDisclosureVersion !== AI_CONSENT_DISCLOSURE_VERSION
+    ) {
+      return apiResponse.error(
+        res,
+        "Review the current optional-processing disclosure before granting permission.",
+        409,
+      );
+    }
+    if (requestedAiConsents.length) {
+      const [hasImageConsentColumn, hasEmbeddingConsentColumn] =
+        await Promise.all([
+          hasColumn(knex, "profiles", "ai_processing_consent"),
+          hasColumn(knex, "profiles", "embedding_processing_consent"),
+        ]);
+      if (!hasImageConsentColumn || !hasEmbeddingConsentColumn) {
+        return apiResponse.error(
+          res,
+          "AI processing settings are not available until the current database migration is applied.",
+          503,
+        );
+      }
+    }
+
     const profileUpdate = { updated_at: knex.fn.now() };
+
+    if (aiProcessingConsent !== undefined) {
+      profileUpdate.ai_processing_consent = aiProcessingConsent;
+    }
+    if (embeddingProcessingConsent !== undefined) {
+      profileUpdate.embedding_processing_consent = embeddingProcessingConsent;
+    }
 
     if (slug !== undefined) {
       const cleanSlug = String(slug)
@@ -390,8 +778,71 @@ router.put(
       profileUpdate.is_discoverable = !!isDiscoverable;
     }
 
-    if (Object.keys(profileUpdate).length > 1) {
-      await knex("profiles").where({ id: profile.id }).update(profileUpdate);
+    const evidence = requestEvidence(req);
+    const requestedPurposes = [
+      ["image_analysis", aiProcessingConsent],
+      ["agency_search_matching", embeddingProcessingConsent],
+    ].filter(([, value]) => value !== undefined);
+    const pendingWithdrawals = [];
+
+    if (Object.keys(profileUpdate).length > 1 || requestedPurposes.length) {
+      await knex.transaction(async (trx) => {
+        if (Object.keys(profileUpdate).length > 1) {
+          await trx("profiles").where({ id: profile.id }).update(profileUpdate);
+        }
+
+        for (const [purpose, granted] of requestedPurposes) {
+          const currentGranted = hasExplicitConsent(
+            profile[AI_CONSENT_PURPOSES[purpose].column],
+          );
+          if (granted === true) {
+            if (!currentGranted) {
+              await recordAiConsentEvent(trx, {
+                ...evidence,
+                profileId: profile.id,
+                purpose,
+                granted: true,
+                eventType: "granted",
+                deletionState: "not_requested",
+              });
+            }
+            continue;
+          }
+
+          // Persist the withdrawal and its pending deletion evidence in the
+          // same transaction before any purge work starts. Repeating `false`
+          // intentionally retries a prior failed/pending deletion.
+          const eventId = await recordAiConsentEvent(trx, {
+            ...evidence,
+            profileId: profile.id,
+            purpose,
+            granted: false,
+            eventType: "withdrawn",
+            deletionState: "pending",
+          });
+          pendingWithdrawals.push({
+            profileId: profile.id,
+            purpose,
+            eventId,
+            evidence,
+          });
+        }
+      });
+    }
+
+    // Provider-side retention remains governed by the vendor agreement. These
+    // states describe deletion of every derivative Pholio itself stores.
+    for (const pending of pendingWithdrawals) {
+      if (pending.purpose === "image_analysis") {
+        await finishWithdrawal(knex, pending, async () => {
+          await purgeLocalImageDerivatives(knex, profile.id);
+          await purgeImageEmbeddingDerivatives(knex, profile.id);
+        });
+      } else {
+        await finishWithdrawal(knex, pending, () =>
+          purgeProfileEmbeddingDerivatives(knex, profile.id),
+        );
+      }
     }
 
     const row = await ensureSettingsRow(userId);
@@ -601,3 +1052,19 @@ router.delete(
 );
 
 module.exports = router;
+module.exports.aiConsent = {
+  purgeLocalImageDerivatives,
+  recordAiConsentEvent,
+  finishWithdrawal,
+};
+module.exports.__testables = {
+  AI_CONSENT_DISCLOSURE_VERSION,
+  AI_CONSENT_PURPOSES,
+  consentDisclosureHash,
+  hasExplicitConsent,
+  isExplicitAdultAiEligible,
+  removeImageMetadataDerivatives,
+  purgeLocalImageDerivatives,
+  recordAiConsentEvent,
+  finishWithdrawal,
+};

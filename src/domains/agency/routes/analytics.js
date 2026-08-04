@@ -56,6 +56,19 @@ router.get(
           code: error.code,
         });
       }
+      if (
+        error?.statusCode === 400 &&
+        [
+          "ANALYTICS_INVALID_RANGE",
+          "ANALYTICS_INVALID_TIMEZONE",
+        ].includes(error.code)
+      ) {
+        return res.status(400).json({
+          success: false,
+          error: "The analytics request is invalid.",
+          code: error.code,
+        });
+      }
       console.error("[AgencySeasonAnalytics] Error:", error);
       return res.status(500).json({
         success: false,

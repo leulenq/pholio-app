@@ -33,7 +33,15 @@ const {
   upsertTextEmbedding,
   buildProfileText,
   reindexDiscoverProfile,
+  isProfileEmbeddingAllowed,
+  purgeProfileEmbeddingDerivatives,
+  purgeImageEmbeddingDerivatives,
 } = require("../../ai/embeddings");
+const {
+  purgeLocalImageDerivatives,
+  recordAiConsentEvent,
+  finishWithdrawal,
+} = require("./settings").aiConsent;
 const {
   normalizeProfileLanguages,
 } = require("../../../shared/lib/language-reference");
@@ -856,6 +864,28 @@ router.put(
         updateData.date_of_birth = d.toISOString().split("T")[0];
       }
     }
+    const previousDob = normalizeDobString(profile.date_of_birth);
+    const nextDob = Object.hasOwn(updateData, "date_of_birth")
+      ? normalizeDobString(updateData.date_of_birth)
+      : previousDob;
+    const dobActuallyChanged =
+      Object.hasOwn(updateData, "date_of_birth") && previousDob !== nextDob;
+    const profileAfterDob = { ...profile, date_of_birth: nextDob };
+    const dobRequiresAiRevocation =
+      dobActuallyChanged &&
+      (!hasRecordedDateOfBirth(profileAfterDob) || isMinorProfile(profileAfterDob));
+
+    // Optional AI purposes are adult-only. The canonical profile mutation and
+    // both revocations land together; local derivative deletion follows after
+    // commit, with immutable pending/completion evidence around it.
+    if (dobRequiresAiRevocation) {
+      const [hasImageConsent, hasEmbeddingConsent] = await Promise.all([
+        knex.schema.hasColumn("profiles", "ai_processing_consent"),
+        knex.schema.hasColumn("profiles", "embedding_processing_consent"),
+      ]);
+      if (hasImageConsent) updateData.ai_processing_consent = false;
+      if (hasEmbeddingConsent) updateData.embedding_processing_consent = false;
+    }
     mapField("dress_size");
     mapField("hair_length");
     mapField("hair_type");
@@ -975,8 +1005,6 @@ router.put(
     // changes. Combined with the fail-closed gate above, self-editing DOB can never
     // silently keep or unlock exposure.
     if (Object.hasOwn(updateData, "date_of_birth")) {
-      const previousDob = normalizeDobString(profile.date_of_birth);
-      const nextDob = normalizeDobString(updateData.date_of_birth);
       if (previousDob !== nextDob) {
         updateData.is_public = false;
         updateData.is_discoverable = false;
@@ -1253,6 +1281,15 @@ router.put(
     const hasProfileFieldChanges = Object.keys(updateData).some(
       (key) => key !== "updated_at",
     );
+    const dobRevocationEvidence = {
+      actorUserId: userId,
+      actorType: "system_age_policy",
+      requestIp: req.ip ? String(req.ip).slice(0, 64) : null,
+      userAgent: req.get("user-agent")
+        ? String(req.get("user-agent")).slice(0, 2048)
+        : null,
+    };
+    const pendingDobWithdrawals = [];
 
     // P1-1: ONE transaction covering the canonical profile mutation set (profile row,
     // booking-lane join rows, and structured representation), guarded by optimistic
@@ -1294,6 +1331,28 @@ router.put(
           }
         }
 
+        if (dobRequiresAiRevocation) {
+          for (const purpose of [
+            "image_analysis",
+            "agency_search_matching",
+          ]) {
+            const eventId = await recordAiConsentEvent(trx, {
+              ...dobRevocationEvidence,
+              profileId: profile.id,
+              purpose,
+              granted: false,
+              eventType: "system_revoked",
+              deletionState: "pending",
+            });
+            pendingDobWithdrawals.push({
+              profileId: profile.id,
+              purpose,
+              eventId,
+              evidence: dobRevocationEvidence,
+            });
+          }
+        }
+
         if (Object.keys(accountNameUpdate).length > 0) {
           await trx("users").where({ id: userId }).update(accountNameUpdate);
         }
@@ -1308,6 +1367,19 @@ router.put(
         });
       }
       throw txError;
+    }
+
+    for (const pending of pendingDobWithdrawals) {
+      if (pending.purpose === "image_analysis") {
+        await finishWithdrawal(knex, pending, async () => {
+          await purgeLocalImageDerivatives(knex, profile.id);
+          await purgeImageEmbeddingDerivatives(knex, profile.id);
+        });
+      } else {
+        await finishWithdrawal(knex, pending, () =>
+          purgeProfileEmbeddingDerivatives(knex, profile.id),
+        );
+      }
     }
 
     // Activity logging is non-critical — run it after commit and never block the
@@ -1335,6 +1407,7 @@ router.put(
     setImmediate(() => {
       (async () => {
         try {
+          if (!isProfileEmbeddingAllowed(updatedProfile)) return;
           const profileText = buildProfileText(updatedProfile);
           if (profileText) {
             await upsertTextEmbedding(
@@ -1342,6 +1415,7 @@ router.put(
               profile.id,
               "full_profile",
               profileText,
+              { profile: updatedProfile },
             );
           }
           await reindexDiscoverProfile(knex, profile.id);

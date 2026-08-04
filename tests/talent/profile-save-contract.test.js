@@ -50,6 +50,7 @@ describe("Profile save remediation contract", () => {
       email: `save-contract-${userId}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
     });
 
     await knex("profiles").insert({
@@ -195,6 +196,104 @@ describe("Profile save remediation contract", () => {
     const row = await knex("profiles").where({ id: profileId }).first();
     expect(!!row.is_public).toBe(false);
     expect(!!row.is_discoverable).toBe(false);
+  });
+
+  test("DOB becoming a minor revokes both AI purposes before purging derivatives", async () => {
+    const imageId = uuidv4();
+    await knex("profiles").where({ id: profileId }).update({
+      date_of_birth: "1990-01-01",
+      ai_processing_consent: true,
+      embedding_processing_consent: true,
+      archetype: "Provider archetype",
+    });
+    await knex("images").insert({
+      id: imageId,
+      profile_id: profileId,
+      path: `/tmp/${imageId}.jpg`,
+      shot_type: "full_length",
+      style_type: "commercial",
+      image_type: "digital",
+      metadata: JSON.stringify({
+        matte: { mask: "keep" },
+        ai: { classification: { source: "auto", model: "provider-model" } },
+      }),
+    });
+    await knex("talent_embedding_cache").insert({
+      profile_id: profileId,
+      source: "full_profile",
+      embedding_json: JSON.stringify([0.2, 0.4]),
+      source_text: "provider derivative",
+    });
+
+    const res = await put({ date_of_birth: "2012-06-15" });
+    expect(res.status).toBe(200);
+
+    const row = await knex("profiles").where({ id: profileId }).first();
+    expect(Boolean(row.ai_processing_consent)).toBe(false);
+    expect(Boolean(row.embedding_processing_consent)).toBe(false);
+    expect(row.archetype).toBeNull();
+    expect(
+      await knex("talent_embedding_cache").where({ profile_id: profileId }),
+    ).toHaveLength(0);
+
+    const image = await knex("images").where({ id: imageId }).first();
+    expect(JSON.parse(image.metadata)).toEqual({ matte: { mask: "keep" } });
+    expect(image.shot_type).toBeNull();
+    expect(image.style_type).toBeNull();
+    expect(image.image_type).toBeNull();
+
+    const events = await knex("ai_processing_consent_events")
+      .where({ profile_id: profileId })
+      .orderBy("sequence");
+    expect(events.map((event) => event.event_type)).toEqual([
+      "system_revoked",
+      "system_revoked",
+      "deletion_complete",
+      "deletion_complete",
+    ]);
+    expect(events.slice(0, 2)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          granted: 0,
+          deletion_state: "pending",
+          actor_type: "system_age_policy",
+          actor_user_id: userId,
+        }),
+      ]),
+    );
+
+    await knex("images").where({ id: imageId }).delete();
+  });
+
+  test("clearing DOB also fails closed and revokes both AI purposes", async () => {
+    await knex("profiles").where({ id: profileId }).update({
+      date_of_birth: "1990-01-01",
+      ai_processing_consent: true,
+      embedding_processing_consent: true,
+    });
+
+    const beforeSequence = await knex("ai_processing_consent_events")
+      .where({ profile_id: profileId })
+      .max("sequence as sequence")
+      .first();
+    const res = await put({ date_of_birth: null });
+    expect(res.status).toBe(200);
+
+    const row = await knex("profiles").where({ id: profileId }).first();
+    expect(row.date_of_birth).toBeNull();
+    expect(Boolean(row.ai_processing_consent)).toBe(false);
+    expect(Boolean(row.embedding_processing_consent)).toBe(false);
+
+    const events = await knex("ai_processing_consent_events")
+      .where({ profile_id: profileId })
+      .where("sequence", ">", beforeSequence?.sequence || 0)
+      .orderBy("sequence");
+    expect(events.map((event) => event.event_type)).toEqual([
+      "system_revoked",
+      "system_revoked",
+      "deletion_complete",
+      "deletion_complete",
+    ]);
   });
 
   test("identity name save persists on profile and users, and GET falls back", async () => {

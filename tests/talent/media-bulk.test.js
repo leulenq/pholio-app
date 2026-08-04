@@ -29,6 +29,7 @@ describe("talent media bulk operations and classification status", () => {
       email: `media-bulk-adult-${adultUserId}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
     });
     await knex("profiles").insert({
       id: adultProfileId,
@@ -52,6 +53,7 @@ describe("talent media bulk operations and classification status", () => {
       email: `media-bulk-minor-${minorUserId}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
     });
     await knex("profiles").insert({
       id: minorProfileId,

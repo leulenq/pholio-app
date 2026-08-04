@@ -14,10 +14,9 @@ const {
 } = require("../../src/domains/ai/analyzeProfileImage");
 
 // Compliance guardrail (Discover WS2 / council review LB-7.2): protected
-// traits — skin tone, ethnicity/heritage — and AI-estimated body measurements
-// must never reach any Discover index text, embedding source, or lexical
-// document. Exact age is also excluded; only a coarse DOB-derived band may
-// appear. See tasks/discover-search-implementation-plan.md §WS2.
+// Selection corpora are deliberately narrower than display/filter fields.
+// Names, location, demographics, appearance, free text, image-derived output,
+// and physical stats must never reach an embedding or lexical document.
 
 // DOB computed relative to "now" so the derived band is stable over time
 // (~27 years old, comfortably inside the "late twenties" band).
@@ -41,6 +40,7 @@ const fixtureProfile = {
   body_type: "Athletic",
   archetype: "Editorial Icon",
   experience_level: "New face",
+  modeling_categories: JSON.stringify(["editorial", "curve"]),
   bio_curated: "A commanding presence on set.",
   look_descriptor: "Angular editorial face with commercial warmth.",
   image_analysis: JSON.stringify({
@@ -130,18 +130,16 @@ describe("vision/index compliance :: no protected traits or AI measurements in i
     });
   }
 
-  it("builders still emit legitimate casting content", () => {
+  it("builders emit only the approved selection vocabulary", () => {
     const text = buildDiscoverIndexText(fixtureProfile, scoutExtras);
-    expect(text).toContain("Bone structure: high cheekbones");
-    expect(text).toContain("Height: 175 cm");
-    expect(text).toContain("Gender: Female");
-    expect(text).toContain("Market signals: editorial, runway");
+    expect(text).toContain("Experience: New face");
+    expect(text).toContain("Booking lanes: Editorial");
+    expect(text).not.toMatch(/bone structure|height|gender|market signals/i);
   });
 
-  it("indexes a coarse age band instead of exact age", () => {
+  it("does not index age, even as a coarse band", () => {
     const text = buildDiscoverIndexText(fixtureProfile, scoutExtras);
-    expect(text).toContain("Age band: late twenties");
-    expect(text).not.toMatch(/\bAge: \d/);
+    expect(text).not.toMatch(/\bage(?: band)?:/i);
   });
 });
 

@@ -4,6 +4,7 @@ const { requireRole } = require("../../auth/middleware/require-auth");
 const { v4: uuidv4 } = require("uuid");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const logActivity = require("./agency-log-activity");
+const { getSessionAgencyId } = require("../services/context");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
@@ -26,7 +27,7 @@ router.post(
         notes,
         priority = "normal",
       } = req.body;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Validate required fields
       if (!reminder_type || !reminder_date || !title) {
@@ -97,7 +98,7 @@ router.get(
   requireRole("AGENCY"),
   async (req, res, next) => {
     try {
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
       const { status, due, priority } = req.query;
 
       let query = knex("reminders")
@@ -150,7 +151,7 @@ router.get(
   requireRole("AGENCY"),
   async (req, res, next) => {
     try {
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       const result = await knex("reminders")
         .where({ agency_id: agencyId, status: "pending" })
@@ -181,7 +182,7 @@ router.get(
   async (req, res, next) => {
     try {
       const { applicationId } = req.params;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Verify application belongs to this agency
       const application = await knex("applications")
@@ -219,7 +220,7 @@ router.patch(
       const { reminderId } = req.params;
       const { reminder_type, reminder_date, title, notes, priority, status } =
         req.body;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Verify reminder belongs to this agency
       const reminder = await knex("reminders")
@@ -267,7 +268,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { reminderId } = req.params;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Verify reminder belongs to this agency
       const reminder = await knex("reminders")
@@ -317,7 +318,7 @@ router.post(
     try {
       const { reminderId } = req.params;
       const { snooze_until } = req.body;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       if (!snooze_until) {
         return res.status(400).json({ error: "Snooze until date is required" });
@@ -356,7 +357,7 @@ router.delete(
   async (req, res, next) => {
     try {
       const { reminderId } = req.params;
-      const agencyId = req.session.userId;
+      const agencyId = getSessionAgencyId(req.session);
 
       // Verify reminder belongs to this agency
       const reminder = await knex("reminders")

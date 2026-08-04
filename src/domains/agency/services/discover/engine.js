@@ -25,8 +25,13 @@ const {
   cosineDistance,
   isPostgresKnex,
   loadEmbeddingCacheMap,
+  isProfileEmbeddingAllowed,
+  profileEmbeddingFeatureEnabled,
+  embeddingStorageSource,
+  adultDateOfBirthUpperBoundExclusive,
 } = require("../../../ai/embeddings");
-const { parseBrief } = require("./parse");
+const { parseBrief, fallbackContract } = require("./parse");
+const { validateContract } = require("./validate-contract");
 const { evaluateProfile, appliedConstraintFields } = require("./constraint-eval");
 const { GENDER_DB_MAP } = require("./field-whitelist");
 const {
@@ -132,14 +137,30 @@ async function loadBookoutsByProfile(knex, ids) {
 /** Load discover_index embeddings for the pool (dual-dialect). */
 async function loadDiscoverEmbeddings(knex, ids) {
   const map = new Map();
-  if (!ids.length) return map;
+  if (!profileEmbeddingFeatureEnabled() || !ids.length) return map;
   if (isPostgresKnex(knex)) {
     try {
-      const rows = await knex("talent_text_embeddings")
-        .where({ source: "discover_index" })
-        .whereIn("profile_id", ids)
-        .select("profile_id", "embedding");
+      const rows = await knex("talent_text_embeddings as tte")
+        .join("profiles as p", "p.id", "tte.profile_id")
+        .where({
+          "tte.source": embeddingStorageSource("discover_index"),
+          "p.embedding_processing_consent": true,
+        })
+        .whereIn("tte.profile_id", ids)
+        .whereNotNull("p.date_of_birth")
+        .where(
+          "p.date_of_birth",
+          "<",
+          adultDateOfBirthUpperBoundExclusive(),
+        )
+        .select(
+          "tte.profile_id",
+          "tte.embedding",
+          "p.date_of_birth",
+          "p.embedding_processing_consent",
+        );
       for (const r of rows) {
+        if (!isProfileEmbeddingAllowed(r)) continue;
         if (r.embedding == null) continue;
         try {
           const vec =
@@ -256,7 +277,20 @@ async function launchModeSearch(args) {
   const { attachImagesAndInvites, fetchApplicationMap } = require("../discover-search");
 
   const tStart = Date.now();
-  const parsed = await parseBrief(briefText, { knex, now });
+  let parsed;
+  if (profileEmbeddingFeatureEnabled()) {
+    parsed = await parseBrief(briefText, { knex, now });
+  } else {
+    // The embedding kill switch also keeps Discover query processing local.
+    // Preserve deterministic/manual constraint evaluation without Groq, query
+    // embeddings, parse-cache reads, or any talent derivative consumption.
+    const validated = validateContract(fallbackContract(briefText), { now });
+    parsed = {
+      ...validated,
+      credential_gate: Boolean(validated.contract.credential_gate),
+      source: "fallback_feature_disabled",
+    };
+  }
   const parseMs = Date.now() - tStart;
 
   const contract = parsed.contract || { roles: [], set_aside: [] };
@@ -322,7 +356,11 @@ async function launchModeSearch(args) {
   let queryVec = null;
   let embMap = new Map();
   const softQuery = (role.soft_query || "").trim();
-  if (softQuery && process.env.OPENAI_API_KEY) {
+  if (
+    softQuery &&
+    profileEmbeddingFeatureEnabled() &&
+    process.env.OPENAI_API_KEY
+  ) {
     const tEmbed = Date.now();
     try {
       queryVec = await cachedEmbed(knex, softQuery, { embedFn: embed });
@@ -529,7 +567,7 @@ function assemble(ctx) {
     },
     meta: {
       engine: "launch",
-      semantic_search: true,
+      semantic_search: profileEmbeddingFeatureEnabled(),
       query: briefText || null,
       // query_understanding kept for the legacy chip rack until the frontend PR;
       // the authoritative understanding lives under discover_v2.

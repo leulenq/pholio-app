@@ -29,12 +29,21 @@ const hoursAgo = (n) => new Date(NOW.getTime() - n * HOUR_MS).toISOString();
 
 let db;
 
-async function createSchema(knex, { fitScoreTable = "analysis" } = {}) {
+async function createSchema(
+  knex,
+  {
+    fitScoreTable = "analysis",
+    includeApplicationBoardId = false,
+    includeBoardKind = false,
+    includeBoardType = true,
+  } = {},
+) {
   await knex.schema.createTable("applications", (t) => {
     t.string("id").primary();
     t.string("profile_id");
     t.string("agency_id");
     t.string("status");
+    if (includeApplicationBoardId) t.string("board_id");
     t.integer("match_score");
     t.boolean("minor_at_submission").notNullable().defaultTo(false);
     t.string("minor_access_revoked_at");
@@ -53,7 +62,8 @@ async function createSchema(knex, { fitScoreTable = "analysis" } = {}) {
     t.integer("target_slots");
     t.boolean("is_active");
     t.string("closes_at");
-    t.string("board_type");
+    if (includeBoardKind) t.string("kind");
+    if (includeBoardType) t.string("board_type");
   });
   await knex.schema.createTable("board_applications", (t) => {
     t.string("id").primary();
@@ -87,6 +97,7 @@ async function createSchema(knex, { fitScoreTable = "analysis" } = {}) {
     t.string("status");
     t.string("priority");
     t.string("reminder_date");
+    t.string("snoozed_until");
     t.string("completed_at");
     t.string("created_at");
   });
@@ -113,6 +124,7 @@ async function createSchema(knex, { fitScoreTable = "analysis" } = {}) {
     t.string("status");
     t.string("joined_at");
     t.string("left_at");
+    t.string("source_application_id");
   });
   await knex.schema.createTable("roster_board_standings", (t) => {
     t.string("id").primary();
@@ -126,6 +138,17 @@ async function createSchema(knex, { fitScoreTable = "analysis" } = {}) {
     t.string("agency_id");
     t.string("step_key");
     t.text("data");
+  });
+  await knex.schema.createTable("talent_records", (t) => {
+    t.string("id").primary();
+    t.string("agency_id");
+    t.string("market");
+    t.integer("height_cm");
+    t.string("date_of_birth");
+    t.string("gender");
+    t.boolean("is_minor").notNullable().defaultTo(false);
+    t.string("minor_consent_status").notNullable().defaultTo("not_required");
+    t.string("minor_consent_expires_at");
   });
   await knex.schema.createTable("profiles", (t) => {
     t.string("id").primary();
@@ -461,7 +484,7 @@ async function seed(knex, { fitScoreTable = "analysis" } = {}) {
         ...scores,
       })),
     );
-  } else {
+  } else if (fitScoreTable === "profile") {
     await Promise.all(
       fitScores.map(({ profile_id: profileId, ...values }) =>
         knex("profiles").where({ id: profileId }).update(values),
@@ -750,17 +773,20 @@ describe("buildSeasonAnalytics", () => {
   });
 
   it("excludes submissions outside the window from the flow cohort", () => {
-    expect(result.flow.cohort).toBe(3); // app-old is 300 days back
-    expect(result.flow.signed).toBe(1);
+    // app-old is outside the window; app-signed skips the Offered hand-off and
+    // is truthfully disclosed outside the sequential ribbon cohort.
+    expect(result.flow.totalCohort).toBe(3);
+    expect(result.flow.cohort).toBe(2);
+    expect(result.flow.signed).toBe(0);
     expect(result.flow.exited).toBe(1);
   });
 
   it("times the pipeline from real transitions", () => {
     const applied = result.flow.stages[0];
-    expect(applied.reached).toBe(3);
-    expect(applied.advanced).toBe(2);
-    expect(applied.conversion).toBe(67);
-    expect(applied.medianDwellDays).toBeCloseTo(1.5, 1);
+    expect(applied.reached).toBe(2);
+    expect(applied.advanced).toBe(1);
+    expect(applied.conversion).toBe(50);
+    expect(applied.medianDwellDays).toBe(1);
   });
 
   it("keeps stale open work in the queue even though it predates the window", () => {
@@ -812,6 +838,63 @@ describe("buildSeasonAnalytics", () => {
     expect(result.desk.latency.medianHours).toBe(12);
   });
 
+  it("does not count talent-originated activity as agency desk work", async () => {
+    await db("application_activities").insert({
+      id: "talent-originated-activity",
+      application_id: "app-open",
+      agency_id: AGENCY,
+      user_id: "talent-user",
+      activity_type: "note_added",
+      metadata: "{}",
+      created_at: daysAgo(1),
+    });
+    try {
+      const scoped = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(scoped.desk.punchTotal).toBe(6);
+      expect(scoped.desk.latency.sample).toBe(2);
+      expect(scoped.totals.activitiesObserved).toBe(6);
+    } finally {
+      await db("application_activities")
+        .where({ id: "talent-originated-activity" })
+        .delete();
+    }
+  });
+
+  it("uses historical IANA offsets when bucketing work across DST", async () => {
+    await db("application_activities").insert({
+      id: "pre-dst-activity",
+      application_id: "app-signed",
+      agency_id: AGENCY,
+      user_id: "user-booker",
+      activity_type: "note_added",
+      metadata: "{}",
+      // 04:30 UTC was 23:30 Saturday in New York before the 2026 spring shift.
+      created_at: "2026-03-08 04:30:00",
+    });
+    try {
+      const scoped = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 365,
+        timeZone: "America/New_York",
+        now: NOW,
+      });
+      expect(
+        scoped.desk.punchcard.find(
+          (cell) => cell.dow === 5 && cell.hour === 23,
+        ).count,
+      ).toBe(1);
+    } finally {
+      await db("application_activities")
+        .where({ id: "pre-dst-activity" })
+        .delete();
+    }
+  });
+
   it("counts an interview by its proposed date when it was created earlier", async () => {
     await db("interviews").insert({
       id: "i-proposed-in-window",
@@ -837,11 +920,114 @@ describe("buildSeasonAnalytics", () => {
     }
   });
 
+  it("excludes future submissions and operational timestamps", async () => {
+    await db("applications").insert({
+      id: "app-future",
+      profile_id: null,
+      agency_id: AGENCY,
+      status: "submitted",
+      minor_at_submission: false,
+      created_at: "2026-07-27 13:00:00",
+    });
+    await db("application_activities").insert({
+      id: "future-agency-activity",
+      application_id: "app-signed",
+      agency_id: AGENCY,
+      user_id: "user-booker",
+      activity_type: "note_added",
+      metadata: "{}",
+      created_at: "2026-07-27 13:00:00",
+    });
+    await db("interviews").insert({
+      id: "future-interview",
+      application_id: "app-signed",
+      agency_id: AGENCY,
+      status: "pending",
+      interview_type: "video_call",
+      proposed_datetime: "2026-07-27 14:00:00",
+      responded_at: null,
+      created_at: "2026-07-27 13:00:00",
+    });
+    await db("reminders").insert({
+      id: "future-completion",
+      application_id: "app-signed",
+      agency_id: AGENCY,
+      status: "completed",
+      priority: "normal",
+      reminder_date: "2026-07-27 14:00:00",
+      completed_at: "2026-07-27 13:00:00",
+      created_at: daysAgo(2),
+    });
+    try {
+      const scoped = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(scoped.flow.totalCohort).toBe(3);
+      expect(scoped.totals.windowSubmissions).toBe(3);
+      expect(scoped.desk.punchTotal).toBe(6);
+      expect(scoped.desk.interviews.total).toBe(2);
+      expect(scoped.desk.reminders.completedInWindow).toBe(1);
+    } finally {
+      await db("reminders").where({ id: "future-completion" }).delete();
+      await db("interviews").where({ id: "future-interview" }).delete();
+      await db("application_activities")
+        .where({ id: "future-agency-activity" })
+        .delete();
+      await db("applications").where({ id: "app-future" }).delete();
+    }
+  });
+
   it("summarises interview and reminder operations", () => {
     expect(result.desk.interviews.total).toBe(2);
     expect(result.desk.interviews.acceptRate).toBe(50);
     expect(result.desk.reminders.open).toBe(1);
     expect(result.desk.reminders.overdue).toBe(1);
+  });
+
+  it("uses the snoozed deadline for open and completed reminders", async () => {
+    await db("reminders").insert([
+      {
+        id: "r-snoozed-open",
+        agency_id: AGENCY,
+        application_id: "app-open",
+        status: "snoozed",
+        priority: "normal",
+        reminder_date: daysAgo(10),
+        snoozed_until: new Date(NOW.getTime() + DAY_MS).toISOString(),
+        completed_at: null,
+        created_at: daysAgo(12),
+      },
+      {
+        id: "r-snoozed-complete",
+        agency_id: AGENCY,
+        application_id: "app-signed",
+        status: "completed",
+        priority: "normal",
+        reminder_date: daysAgo(10),
+        snoozed_until: daysAgo(2),
+        completed_at: daysAgo(3),
+        created_at: daysAgo(12),
+      },
+    ]);
+    try {
+      const scoped = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(scoped.desk.reminders.open).toBe(2);
+      expect(scoped.desk.reminders.overdue).toBe(1);
+      expect(scoped.desk.reminders.completedInWindow).toBe(2);
+      expect(scoped.desk.reminders.onTimeRate).toBe(100);
+    } finally {
+      await db("reminders")
+        .whereIn("id", ["r-snoozed-open", "r-snoozed-complete"])
+        .delete();
+    }
   });
 
   it("reads the roster from memberships, including departures", () => {
@@ -859,6 +1045,68 @@ describe("buildSeasonAnalytics", () => {
     ]);
   });
 
+  it("includes agency-private off-platform talent in roster composition", async () => {
+    await db("talent_records").insert({
+      id: "tr-private",
+      agency_id: AGENCY,
+      market: "london",
+      height_cm: 176,
+      date_of_birth: "1999-03-04",
+      gender: "female",
+      is_minor: false,
+      minor_consent_status: "not_required",
+    });
+    await db("roster_memberships").insert({
+      id: "rm-private",
+      agency_id: AGENCY,
+      profile_id: null,
+      talent_record_id: "tr-private",
+      board_id: "division-main",
+      stage: "main",
+      status: "active",
+      joined_at: daysAgo(15),
+      left_at: null,
+    });
+    try {
+      const scoped = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(scoped.roster.size).toBe(3);
+      expect(scoped.roster.markets).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ market: "london", count: 1 }),
+        ]),
+      );
+      expect(scoped.roster.coverage.heights).toBe(3);
+    } finally {
+      await db("roster_memberships").where({ id: "rm-private" }).delete();
+      await db("talent_records").where({ id: "tr-private" }).delete();
+    }
+  });
+
+  it("preserves a legitimate empty canonical roster", async () => {
+    const memberships = await db("roster_memberships");
+    const standings = await db("roster_board_standings");
+    await db("roster_board_standings").delete();
+    await db("roster_memberships").delete();
+    try {
+      const scoped = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(scoped.roster.size).toBe(0);
+      expect(scoped.meta.rosterIsDerived).toBe(false);
+    } finally {
+      await db("roster_memberships").insert(memberships);
+      await db("roster_board_standings").insert(standings);
+    }
+  });
+
   it("compares roster fit against the incoming pipeline on the same axes", () => {
     const runway = result.roster.fit.find((f) => f.axis === "Runway");
     expect(runway.roster).toBe(85); // (80 + 90) / 2
@@ -866,6 +1114,54 @@ describe("buildSeasonAnalytics", () => {
     // only p-signed in the window carries fit scores
     expect(runway.pipeline).toBe(80);
     expect(runway.pipelineSample).toBe(1);
+  });
+
+  it("returns twelve calendar cohorts independent of the selected range", async () => {
+    const scoped = await buildSeasonAnalytics(db, {
+      agencyId: AGENCY,
+      range: 30,
+      timeZone: "UTC",
+      now: NOW,
+    });
+    expect(scoped.cohorts).toHaveLength(12);
+    expect(scoped.cohorts[0].month).toBe("2025-08");
+    expect(scoped.cohorts[11].month).toBe("2026-07");
+  });
+
+  it("chunks profile coverage loading for large applicant sets", async () => {
+    const profiles = Array.from({ length: 1100 }, (_, index) => ({
+      id: `scale-profile-${index}`,
+      market: "london",
+      height_cm: 175,
+    }));
+    const applications = profiles.map((profile, index) => ({
+      id: `scale-app-${index}`,
+      profile_id: profile.id,
+      agency_id: AGENCY,
+      status: "submitted",
+      minor_at_submission: false,
+      created_at: daysAgo(1),
+    }));
+    for (let index = 0; index < profiles.length; index += 200) {
+      // eslint-disable-next-line no-await-in-loop
+      await db("profiles").insert(profiles.slice(index, index + 200));
+      // eslint-disable-next-line no-await-in-loop
+      await db("applications").insert(applications.slice(index, index + 200));
+    }
+    try {
+      const scoped = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 30,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(scoped.totals.windowSubmissions).toBe(1101);
+      expect(scoped.roster.coverage.pipelineSize).toBe(1101);
+      expect(scoped.roster.coverage.pipelineHeights).toBe(1101);
+    } finally {
+      await db("applications").where("id", "like", "scale-app-%").delete();
+      await db("profiles").where("id", "like", "scale-profile-%").delete();
+    }
   });
 
   it("scopes pipeline and linked desk records to a package", async () => {
@@ -892,7 +1188,7 @@ describe("buildSeasonAnalytics", () => {
       now: NOW,
     });
     expect(scoped.meta.boardScope).toBe("division");
-    expect(scoped.flow.cohort).toBe(3);
+    expect(scoped.flow.cohort).toBe(2);
     expect(scoped.roster.size).toBe(1);
     expect(scoped.roster.boardMix).toEqual([
       { board: "Main", count: 1, share: 100 },
@@ -963,13 +1259,100 @@ describe("buildSeasonAnalytics", () => {
     }
   });
 
-  it("falls back to the default range for an unsupported value", async () => {
-    const scoped = await buildSeasonAnalytics(db, {
+  it("rejects an unsupported range instead of silently changing the request", async () => {
+    await expect(buildSeasonAnalytics(db, {
       agencyId: AGENCY,
       range: 7,
       now: NOW,
+    })).rejects.toMatchObject({
+      statusCode: 400,
+      code: "ANALYTICS_INVALID_RANGE",
     });
-    expect(scoped.meta.range).toBe(90);
+  });
+
+  it("rejects invalid explicit and browser-fallback timezones", async () => {
+    await expect(buildSeasonAnalytics(db, {
+      agencyId: AGENCY,
+      range: 90,
+      timeZone: "Not/A_Real_Zone",
+      now: NOW,
+    })).rejects.toMatchObject({
+      statusCode: 400,
+      code: "ANALYTICS_INVALID_TIMEZONE",
+    });
+    await expect(buildSeasonAnalytics(db, {
+      agencyId: AGENCY,
+      range: 90,
+      requestedTimeZone: "240junk",
+      now: NOW,
+    })).rejects.toMatchObject({
+      statusCode: 400,
+      code: "ANALYTICS_INVALID_TIMEZONE",
+    });
+  });
+
+  it("infers package scope and application board links on legacy schemas", async () => {
+    const legacyDb = knexFactory({
+      client: "sqlite3",
+      connection: { filename: ":memory:" },
+      useNullAsDefault: true,
+    });
+    try {
+      await createSchema(legacyDb, {
+        fitScoreTable: "none",
+        includeApplicationBoardId: true,
+        includeBoardKind: true,
+        includeBoardType: false,
+      });
+      await legacyDb("boards").insert({
+        id: "legacy-package",
+        agency_id: AGENCY,
+        name: "Legacy Client Intake",
+        client_name: "Client",
+        target_slots: 4,
+        is_active: true,
+        kind: "division",
+      });
+      await legacyDb("applications").insert({
+        id: "legacy-app",
+        profile_id: null,
+        agency_id: AGENCY,
+        board_id: "legacy-package",
+        status: "submitted",
+        match_score: 73,
+        minor_at_submission: false,
+        created_at: daysAgo(2),
+      });
+      await legacyDb("users").insert({
+        id: AGENCY,
+        first_name: "Legacy",
+        last_name: "Owner",
+        email: "legacy@test.local",
+      });
+      await legacyDb("agency_memberships").insert({
+        id: "legacy-membership",
+        agency_id: AGENCY,
+        user_id: AGENCY,
+        membership_role: "OWNER",
+        status: "active",
+      });
+
+      const scoped = await buildSeasonAnalytics(legacyDb, {
+        agencyId: AGENCY,
+        range: 90,
+        boardId: "legacy-package",
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(scoped.meta.boardScope).toBe("package");
+      expect(scoped.meta.boards).toEqual([
+        expect.objectContaining({ id: "legacy-package", kind: "package" }),
+      ]);
+      expect(scoped.flow.totalCohort).toBe(1);
+      expect(scoped.totals.allTimeSubmissions).toBe(1);
+    } finally {
+      await legacyDb.destroy();
+    }
   });
 
   it("reads fit scores from the fresh-migration profile layout too", async () => {
@@ -992,6 +1375,39 @@ describe("buildSeasonAnalytics", () => {
       expect(runway.pipeline).toBe(80);
     } finally {
       await freshDb.destroy();
+    }
+  });
+
+  it("returns empty fit coverage when neither fit-score layout is present", async () => {
+    const fitlessDb = knexFactory({
+      client: "sqlite3",
+      connection: { filename: ":memory:" },
+      useNullAsDefault: true,
+    });
+    try {
+      await createSchema(fitlessDb, { fitScoreTable: "none" });
+      await seed(fitlessDb, { fitScoreTable: "none" });
+      const fitless = await buildSeasonAnalytics(fitlessDb, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(fitless.roster.fit).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            axis: "Runway",
+            roster: null,
+            pipeline: null,
+            rosterSample: 0,
+            pipelineSample: 0,
+          }),
+        ]),
+      );
+      expect(fitless.roster.coverage.fit).toBe(0);
+      expect(fitless.roster.coverage.pipelineFit).toBe(0);
+    } finally {
+      await fitlessDb.destroy();
     }
   });
 });

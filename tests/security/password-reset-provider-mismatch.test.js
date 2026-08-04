@@ -28,6 +28,12 @@ jest.mock("../../src/domains/auth/services/firebase-admin", () => ({
   getUserByEmail: jest.fn(),
   generatePasswordResetLink: jest.fn(async () => "https://app.pholio.studio/login?reset=1"),
 }));
+jest.mock("../../src/shared/lib/email", () => ({
+  sendEmailVerificationEmail: jest.fn().mockResolvedValue({ ok: true }),
+  sendPasswordResetEmail: jest.fn().mockResolvedValue({ ok: true }),
+  sendSignInMethodNoticeEmail: jest.fn().mockResolvedValue({ ok: true }),
+  sendPasswordChangedEmail: jest.fn().mockResolvedValue({ ok: true }),
+}));
 
 const TEST_DB_PATH = path.resolve(
   __dirname,

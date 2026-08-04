@@ -22,6 +22,7 @@ const {
   recordDecision,
   learnAgencyPreferences,
   auditFairness,
+  isLearnedPreferencesEnabled,
 } = require("../../matching/preference-learner");
 const {
   applyMinorSubmissionFilter,
@@ -36,10 +37,7 @@ mountAgencyApiGuard(router);
  * unavailable unless both server launch flags are explicitly enabled.
  */
 function isAutomatedMatchingEnabled(env = process.env) {
-  return (
-    env.PHOLIO_ENABLE_AUTOMATED_MATCHING === "true" &&
-    env.PHOLIO_ENABLE_LEARNED_PREFERENCES === "true"
-  );
+  return isLearnedPreferencesEnabled(env);
 }
 
 function manualBoardResponse(scope, rows = []) {
@@ -195,19 +193,24 @@ router.post(
         notes: req.body?.notes || null,
       });
 
-      // Update the learned model + refresh the fairness snapshot (monitoring only).
-      const priorImportance = await scopePriorImportance(owned.scope);
-      const learned = await learnAgencyPreferences(knex, {
-        agencyId,
-        scopeType: owned.scope.type,
-        scopeId: owned.scope.id,
-        priorImportance,
-      });
-      const fairness = await auditFairness(knex, {
-        agencyId,
-        scopeType: owned.scope.type,
-        scopeId: owned.scope.id,
-      }).catch(() => null);
+      // A human decision can be recorded in manual mode, but it must not
+      // silently become training data or produce a model/fairness artifact.
+      let learned = null;
+      let fairness = null;
+      if (isAutomatedMatchingEnabled()) {
+        const priorImportance = await scopePriorImportance(owned.scope);
+        learned = await learnAgencyPreferences(knex, {
+          agencyId,
+          scopeType: owned.scope.type,
+          scopeId: owned.scope.id,
+          priorImportance,
+        });
+        fairness = await auditFairness(knex, {
+          agencyId,
+          scopeType: owned.scope.type,
+          scopeId: owned.scope.id,
+        }).catch(() => null);
+      }
 
       return res.json({
         ok: true,

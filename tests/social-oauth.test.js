@@ -38,6 +38,7 @@ describe("Social OAuth & Verification Tests", () => {
       email: "oauth.test@example.com",
       password_hash: passwordHash,
       role: "TALENT",
+      email_verified: true,
     });
 
     // Create session
@@ -76,6 +77,7 @@ describe("Social OAuth & Verification Tests", () => {
       height_cm: 175,
       bio_raw: "",
       bio_curated: "",
+      onboarding_completed_at: knex.fn.now(),
     });
   });
 

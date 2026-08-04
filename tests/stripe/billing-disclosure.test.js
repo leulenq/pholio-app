@@ -57,6 +57,7 @@ describe("POST /stripe/create-checkout-session billing disclosure", () => {
       email: `billing-${TALENT_ID}@example.com`,
       password_hash: "x",
       role: "TALENT",
+      email_verified: true,
       // Unrelated precondition: talent API routes sit behind the legal gate,
       // so a fixture user without acceptance 403s before reaching the handler
       // under test.

@@ -10,6 +10,11 @@ const {
   isPostgresKnex,
   cosineDistance,
   loadEmbeddingCacheMap,
+  isProfileEmbeddingAllowed,
+  profileEmbeddingFeatureEnabled,
+  embeddingStorageSource,
+  SAFE_LEXICAL_DOCUMENT_PREFIX,
+  adultDateOfBirthUpperBoundExclusive,
 } = require("../../ai/embeddings");
 const { ageFilterDobCutoffs } = require("./discover-age");
 
@@ -18,22 +23,45 @@ const RETRIEVAL_TOP_K =
 const RRF_K = parseInt(process.env.DISCOVER_RRF_K, 10) || 60;
 
 const DENSE_LEGS = [
-  { leg: "dense_visual", source: "visual", channelKey: "visual" },
-  { leg: "dense_casting", source: "casting", channelKey: "casting" },
-  { leg: "dense_market", source: "market", channelKey: "market" },
+  {
+    leg: "dense_casting",
+    source: embeddingStorageSource("casting"),
+    channelKey: "casting",
+  },
+  {
+    leg: "dense_market",
+    source: embeddingStorageSource("market"),
+    channelKey: "market",
+  },
 ];
 
 /**
  * Eligible discoverable profile IDs (prefilter).
  */
-async function loadEligibleProfileIds(knex, explicitFilters) {
+async function loadEligibleProfileIds(
+  knex,
+  explicitFilters,
+  { requireEmbeddingConsent = false } = {},
+) {
+  if (requireEmbeddingConsent && !profileEmbeddingFeatureEnabled()) {
+    return new Set();
+  }
   let query = knex("profiles")
     .where({
       is_discoverable: true,
       profile_status: "active",
     })
-    .whereNotNull("bio_curated")
-    .select("profiles.id");
+    .whereNotNull("bio_curated");
+
+  if (requireEmbeddingConsent) {
+    query.select(
+      "profiles.id",
+      "profiles.date_of_birth",
+      "profiles.embedding_processing_consent",
+    );
+  } else {
+    query.select("profiles.id");
+  }
 
   if (explicitFilters.city) {
     query.whereILike("profiles.city", `%${explicitFilters.city}%`);
@@ -100,7 +128,18 @@ async function loadEligibleProfileIds(knex, explicitFilters) {
     query.where("profiles.experience_level", explicitFilters.experience_level);
   }
 
-  const rows = await query;
+  let rows;
+  try {
+    rows = await query;
+  } catch (error) {
+    if (requireEmbeddingConsent) return new Set();
+    throw error;
+  }
+  if (requireEmbeddingConsent) {
+    return new Set(
+      rows.filter((row) => isProfileEmbeddingAllowed(row)).map((row) => row.id),
+    );
+  }
   return new Set(rows.map((r) => r.id));
 }
 
@@ -117,9 +156,18 @@ async function denseLegPostgres(knex, source, queryVec, eligibleIds, topK) {
        AND p.is_discoverable = true
        AND p.profile_status = 'active'
        AND p.bio_curated IS NOT NULL
+       AND p.embedding_processing_consent = true
+       AND p.date_of_birth IS NOT NULL
+       AND p.date_of_birth < ?
      ORDER BY tte.embedding <=> ?::vector
      LIMIT ?`,
-    [vectorLiteral, source, vectorLiteral, topK * 2],
+    [
+      vectorLiteral,
+      source,
+      adultDateOfBirthUpperBoundExclusive(),
+      vectorLiteral,
+      topK * 2,
+    ],
   );
 
   const rows = result?.rows || [];
@@ -129,7 +177,10 @@ async function denseLegPostgres(knex, source, queryVec, eligibleIds, topK) {
     hits.push({
       profileId: row.profile_id,
       score: 1 - Number(row.distance),
-      leg: `dense_${source === "visual" ? "visual" : source === "casting" ? "casting" : "market"}`,
+      leg:
+        source === embeddingStorageSource("casting")
+          ? "dense_casting"
+          : "dense_market",
     });
     if (hits.length >= topK) break;
   }
@@ -139,6 +190,7 @@ async function denseLegPostgres(knex, source, queryVec, eligibleIds, topK) {
 async function denseLegSqlite(knex, source, queryVec, eligibleIds, topK, leg) {
   const cacheRows = await knex("talent_embedding_cache")
     .where({ source })
+    .whereIn("profile_id", [...eligibleIds])
     .select("profile_id", "embedding_json");
 
   const scored = [];
@@ -172,9 +224,19 @@ async function lexicalLegPostgres(knex, lexicalQuery, eligibleIds, topK) {
        AND p.is_discoverable = true
        AND p.profile_status = 'active'
        AND p.bio_curated IS NOT NULL
+       AND p.embedding_processing_consent = true
+       AND p.date_of_birth IS NOT NULL
+       AND p.date_of_birth < ?
+       AND p.search_document LIKE ?
      ORDER BY score DESC
      LIMIT ?`,
-    [lexicalQuery, lexicalQuery, topK * 2],
+    [
+      lexicalQuery,
+      lexicalQuery,
+      adultDateOfBirthUpperBoundExclusive(),
+      `${SAFE_LEXICAL_DOCUMENT_PREFIX} %`,
+      topK * 2,
+    ],
   );
 
   const rows = result?.rows || [];
@@ -208,12 +270,22 @@ async function lexicalLegSqlite(knex, lexicalQuery, eligibleIds, topK) {
 
   try {
     const rows = await knex.raw(
-      `SELECT profile_id, bm25(profiles_fts) AS bm
+      `SELECT profiles_fts.profile_id, bm25(profiles_fts) AS bm
        FROM profiles_fts
+       JOIN profiles p ON p.id = profiles_fts.profile_id
        WHERE profiles_fts MATCH ?
+         AND document LIKE ?
+         AND p.embedding_processing_consent = 1
+         AND p.date_of_birth IS NOT NULL
+         AND p.date_of_birth < ?
        ORDER BY bm
        LIMIT ?`,
-      [matchQuery, topK * 2],
+      [
+        matchQuery,
+        `${SAFE_LEXICAL_DOCUMENT_PREFIX} %`,
+        adultDateOfBirthUpperBoundExclusive(),
+        topK * 2,
+      ],
     );
 
     const resultRows = rows || [];
@@ -355,53 +427,72 @@ async function retrieveAndFuse(knex, understanding, explicitFilters = {}) {
   const topK = RETRIEVAL_TOP_K;
   const channelQueries = understanding.channel_queries || {};
   const eligibleIds = await loadEligibleProfileIds(knex, explicitFilters);
+  const embeddingsEnabled = profileEmbeddingFeatureEnabled();
+  const embeddingEligibleIds = embeddingsEnabled
+    ? await loadEligibleProfileIds(knex, explicitFilters, {
+        requireEmbeddingConsent: true,
+      })
+    : new Set();
 
   const legsUsed = [];
   const legResults = [];
 
-  const denseEmbeds = {};
-  for (const { leg, source, channelKey } of DENSE_LEGS) {
-    const qText = channelQueries[channelKey] || understanding.residual_query;
-    if (!qText?.trim()) continue;
+  if (embeddingsEnabled && embeddingEligibleIds.size) {
+    for (const { leg, source, channelKey } of DENSE_LEGS) {
+      const qText = channelQueries[channelKey] || understanding.residual_query;
+      if (!qText?.trim()) continue;
 
-    const queryVec = await embed(qText);
-    denseEmbeds[leg] = queryVec;
+      const queryVec = await embed(qText);
 
-    let hits;
+      let hits;
+      if (isPostgresKnex(knex)) {
+        hits = await denseLegPostgres(
+          knex,
+          source,
+          queryVec,
+          embeddingEligibleIds,
+          topK,
+        );
+      } else {
+        hits = await denseLegSqlite(
+          knex,
+          source,
+          queryVec,
+          embeddingEligibleIds,
+          topK,
+          leg,
+        );
+      }
+
+      if (hits.length) {
+        legsUsed.push(leg);
+        legResults.push(hits);
+      }
+    }
+  }
+
+  if (embeddingsEnabled && embeddingEligibleIds.size) {
+    const lexicalQuery = channelQueries.lexical || understanding.residual_query;
+    let lexicalHits;
     if (isPostgresKnex(knex)) {
-      hits = await denseLegPostgres(knex, source, queryVec, eligibleIds, topK);
-    } else {
-      hits = await denseLegSqlite(
+      lexicalHits = await lexicalLegPostgres(
         knex,
-        source,
-        queryVec,
-        eligibleIds,
+        lexicalQuery,
+        embeddingEligibleIds,
         topK,
-        leg,
+      );
+    } else {
+      lexicalHits = await lexicalLegSqlite(
+        knex,
+        lexicalQuery,
+        embeddingEligibleIds,
+        topK,
       );
     }
-
-    if (hits.length) {
-      legsUsed.push(leg);
-      legResults.push(hits);
+    if (lexicalHits.length) {
+      legsUsed.push("lexical");
+      legResults.push(lexicalHits);
     }
-  }
-
-  const lexicalQuery = channelQueries.lexical || understanding.residual_query;
-  let lexicalHits;
-  if (isPostgresKnex(knex)) {
-    lexicalHits = await lexicalLegPostgres(
-      knex,
-      lexicalQuery,
-      eligibleIds,
-      topK,
-    );
-  } else {
-    lexicalHits = await lexicalLegSqlite(knex, lexicalQuery, eligibleIds, topK);
-  }
-  if (lexicalHits.length) {
-    legsUsed.push("lexical");
-    legResults.push(lexicalHits);
   }
 
   const structuredHits = await structuredLeg(

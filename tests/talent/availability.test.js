@@ -36,6 +36,7 @@ async function makeProfile({
     email: `avail-${userId}@example.com`,
     password_hash: "x",
     role,
+    email_verified: true,
     terms_accepted_at: knex.fn.now(),
     terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: knex.fn.now(),

@@ -33,7 +33,9 @@ const MINOR_WITH_CONSENT = {
   guardian_consent_at: "2026-01-01T00:00:00.000Z",
 };
 const ADULT = { id: "p-adult", date_of_birth: "1990-06-01" };
+const ADULT_WITH_CONSENT = { ...ADULT, ai_processing_consent: true };
 const NO_DOB = { id: "p-unknown" };
+const IMAGE_AI_ENABLED = { PHOLIO_ENABLE_IMAGE_ANALYSIS: "true" };
 
 // A classification result whose client-declared framing looks like a safe
 // headshot — the exact "client lies about metadata" scenario from P0-8.
@@ -144,12 +146,21 @@ describe("(c) sensitive image AI consent gate", () => {
     expect(sensitiveImageAiAllowed(NO_DOB)).toBe(false);
   });
 
-  test("runs for a minor with guardian authorization", () => {
-    expect(sensitiveImageAiAllowed(MINOR_WITH_CONSENT)).toBe(true);
+  test("does NOT run for a minor with guardian authorization", () => {
+    expect(
+      sensitiveImageAiAllowed(
+        { ...MINOR_WITH_CONSENT, ai_processing_consent: true },
+        IMAGE_AI_ENABLED,
+      ),
+    ).toBe(false);
   });
 
-  test("runs for a normal adult", () => {
-    expect(sensitiveImageAiAllowed(ADULT)).toBe(true);
+  test("runs only for an adult with explicit consent and the feature flag", () => {
+    expect(sensitiveImageAiAllowed(ADULT, IMAGE_AI_ENABLED)).toBe(false);
+    expect(sensitiveImageAiAllowed(ADULT_WITH_CONSENT, {})).toBe(false);
+    expect(
+      sensitiveImageAiAllowed(ADULT_WITH_CONSENT, IMAGE_AI_ENABLED),
+    ).toBe(true);
   });
 });
 
