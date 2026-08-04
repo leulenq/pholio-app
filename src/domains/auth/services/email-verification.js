@@ -17,7 +17,9 @@ const {
 const {
   sendEmailVerificationEmail,
   sendPasswordResetEmail,
+  sendSignInMethodNoticeEmail,
 } = require("../../../shared/lib/email");
+const { normalizeProviderId } = require("./auth-provider");
 const config = require("../../../config");
 
 /**
@@ -56,13 +58,53 @@ async function sendPasswordResetViaSmtp({ email, firstName }) {
     throw new Error("email is required to send a password reset email");
   }
 
+  // handleCodeInApp: true points the link straight at ResetPasswordPage
+  // (client/src/domains/auth/pages/ResetPasswordPage) instead of Firebase's
+  // own generic hosted action page — the oobCode arrives as a query param on
+  // our own branded screen, which calls confirmPasswordReset itself.
   const resetUrl = await generatePasswordResetLink(email, {
-    url: `${config.appUrl}/login`,
-    handleCodeInApp: false,
+    url: `${config.appUrl}/reset-password`,
+    handleCodeInApp: true,
   });
 
   await sendPasswordResetEmail({ to: email, firstName, resetUrl });
   return { ok: true };
 }
 
-module.exports = { sendVerificationEmailViaSmtp, sendPasswordResetViaSmtp };
+/**
+ * Sent in place of a reset link when the account has no `password` entry in
+ * Firebase's `providerData` — it signed in through Google, Instagram, or
+ * another provider only. `generatePasswordResetLink` has no such account to
+ * reset and Firebase refuses the request, so the caller (the password-reset
+ * route) must check `providerData` and branch here *before* ever asking
+ * Firebase for a link, not react to the failure after the fact.
+ *
+ * @param {Object} args
+ * @param {string} args.email
+ * @param {string} [args.firstName]
+ * @param {string[]} args.providerIds - Raw `providerData[].providerId` values
+ *   for the account (e.g. `["google.com"]`). The first recognized one names
+ *   the provider in the email; Pholio accounts only ever carry one non-
+ *   password provider in practice.
+ */
+async function sendSignInMethodNoticeViaSmtp({ email, firstName, providerIds }) {
+  if (!email) {
+    throw new Error("email is required to send a sign-in method notice");
+  }
+
+  const normalized = (providerIds || [])
+    .map(normalizeProviderId)
+    .find(Boolean);
+  const providerLabel = normalized
+    ? normalized.charAt(0).toUpperCase() + normalized.slice(1)
+    : null;
+
+  await sendSignInMethodNoticeEmail({ to: email, firstName, providerLabel });
+  return { ok: true };
+}
+
+module.exports = {
+  sendVerificationEmailViaSmtp,
+  sendPasswordResetViaSmtp,
+  sendSignInMethodNoticeViaSmtp,
+};

@@ -425,6 +425,51 @@
   color: rgba(26, 24, 21, 0.25);
 }
 
+/* ── Forgot Password screen (ForgotPasswordPage) ───────────────────── */
+/* "Back to sign in" itself lives in AuthLayout's header now, not here — see
+   AuthLayout.module.css's .headerBack. */
+
+/* Shared by both states (the plain form and the sent confirmation) — a
+   focused, single-purpose screen earns a lead icon the way login's fuller
+   form doesn't need one. */
+.forgotIcon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 28px;
+  border-radius: 50%;
+  background: rgba(201, 165, 90, 0.12);
+  color: var(--ag-gold, #c9a55a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.forgotResend {
+  display: block;
+  margin: 4px auto 0;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ag-text-2, #6b6560);
+  cursor: pointer;
+  font-family: var(--ag-font-sans, 'Inter', sans-serif);
+  text-align: center;
+  transition: color 0.2s ease;
+}
+
+.forgotResend:hover {
+  color: var(--ag-gold-hover, #b8956a);
+}
+
+.forgotResend:focus-visible {
+  outline: none;
+  color: var(--ag-gold, #c9a55a);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .submitButton,
   .socialBtn,

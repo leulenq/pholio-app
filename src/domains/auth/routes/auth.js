@@ -36,7 +36,11 @@ const {
   createVerifiedLocationIntel,
 } = require("../../../shared/lib/geolocation");
 const { syncProviderAccountAvatar } = require("../../../shared/lib/account-avatar");
-const { sendPasswordResetViaSmtp } = require("../services/email-verification");
+const {
+  sendPasswordResetViaSmtp,
+  sendSignInMethodNoticeViaSmtp,
+} = require("../services/email-verification");
+const { sendPasswordChangedEmail } = require("../../../shared/lib/email");
 const {
   acceptTeamInvitation,
   loadTeamInvitation,
@@ -105,6 +109,15 @@ function agencyRequestAccessUrl() {
 // POST /api/auth/password-reset — deliver Firebase password-reset action links
 // through Pholio SMTP instead of Firebase's stock email sender. Always returns
 // success for syntactically valid email so account existence is not exposed.
+//
+// Firebase refuses to generate a reset link for an account with no `password`
+// entry in its `providerData` — a Google- or Instagram-only account has
+// nothing to reset. Asking anyway is what produced "Failed to send reset
+// email" for those users: `generatePasswordResetLink` threw, and the only
+// response the client had was a generic failure. So the account's actual
+// sign-in methods are checked here first, and an account with no password
+// provider gets an email naming how it *does* sign in instead of a reset link
+// Firebase was never going to issue.
 router.post("/api/auth/password-reset", async (req, res, next) => {
   try {
     const email = String(req.body?.email || "").trim().toLowerCase();
@@ -118,10 +131,29 @@ router.post("/api/auth/password-reset", async (req, res, next) => {
 
     const user = await knex("users").whereRaw("LOWER(email) = ?", [email]).first();
     if (user?.email) {
-      await sendPasswordResetViaSmtp({
-        email: user.email,
-        firstName: user.first_name,
-      });
+      const firebaseUser = await getUserByEmail(user.email);
+      const providerIds = firebaseUser
+        ? firebaseUser.providerData.map((provider) => provider.providerId)
+        : [];
+      const hasPasswordProvider = providerIds.includes("password");
+
+      if (!firebaseUser) {
+        // DB row with no matching Firebase identity (data drift, a
+        // dev-seeded row, …). Nothing we can email a link for — and saying so
+        // would confirm the DB row exists, so this falls through to the same
+        // generic success response as everything else.
+      } else if (hasPasswordProvider) {
+        await sendPasswordResetViaSmtp({
+          email: user.email,
+          firstName: user.first_name,
+        });
+      } else {
+        await sendSignInMethodNoticeViaSmtp({
+          email: user.email,
+          firstName: user.first_name,
+          providerIds,
+        });
+      }
     }
 
     return res.json({ success: true });
@@ -304,6 +336,10 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     typeof req.body?.invite_token === "string"
       ? req.body.invite_token.trim()
       : "";
+  // Set by ResetPasswordPage's post-reset sign-in only — conditions the
+  // "your password was changed" confirmation email below on an ordinary
+  // login never sending it.
+  const passwordJustReset = req.body?.password_just_reset === true;
 
   // Declared at handler scope because several exit paths need it — notably the
   // existing-user "AGENCY login not assigned to an organization" branch, which
@@ -1026,6 +1062,28 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       redirectUrl = sessionRedirect;
     }
     console.log("[Login] Redirecting to:", redirectUrl);
+
+    // The session above is now fully established — this really was a
+    // successful re-authentication, not just a completed Firebase action —
+    // so this is the right place to confirm the change, not ResetPasswordPage
+    // itself (which only knows Firebase accepted a new password, not that
+    // Pholio verified the caller and logged them in on it). Never blocks the
+    // response: a stalled SMTP send must not turn a real, successful login
+    // into a failure.
+    if (passwordJustReset) {
+      try {
+        await sendPasswordChangedEmail({
+          to: user.email,
+          firstName: user.first_name,
+          supportUrl: "mailto:support@pholio.studio",
+        });
+      } catch (notifyError) {
+        console.warn(
+          "[Login] Password-changed confirmation email failed:",
+          notifyError.message,
+        );
+      }
+    }
 
     // If request is JSON or Accept header requests JSON, return JSON response with redirect URL
     const contentType = req.headers["content-type"] || "";
