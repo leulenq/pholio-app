@@ -32,16 +32,16 @@ export default function CookieConsentBanner() {
         >
           <div className="app-cookie-inner">
             <p className="app-cookie-text">
-              We use cookies to keep Pholio secure and remember your preferences.
-              Read our{' '}
+              We use cookies to keep Pholio secure, remember your preferences, and
+              understand how the platform is used. Read our{' '}
               <a href={`${MARKETING_SITE_URL}/cookies`} target="_blank" rel="noopener noreferrer">
                 Cookie Policy
               </a>{' '}
               and{' '}
               <a href={`${MARKETING_SITE_URL}/privacy`} target="_blank" rel="noopener noreferrer">
                 Privacy Policy
-              </a>
-              .
+              </a>{' '}
+              for details.
             </p>
             <div className="app-cookie-actions">
               <PholioButton type="button" variant="primary" className="app-cookie-btn app-cookie-btn-primary" onClick={() => dismiss(true)}>
@@ -50,7 +50,9 @@ export default function CookieConsentBanner() {
               <PholioButton type="button" variant="secondary" className="app-cookie-btn" onClick={() => dismiss(false)}>
                 Necessary only
               </PholioButton>
-              <PholioButton as="a" variant="meta" className="app-cookie-link" href={`${MARKETING_SITE_URL}/cookies`} target="_blank" rel="noopener noreferrer">
+              {/* Jumps straight to the "Change your choice" control on
+                  /cookies, not just the top of the policy page above it. */}
+              <PholioButton as="a" variant="meta" className="app-cookie-link" href={`${MARKETING_SITE_URL}/cookies#preferences`} target="_blank" rel="noopener noreferrer">
                 Manage
               </PholioButton>
             </div>
