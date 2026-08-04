@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Mail } from 'lucide-react';
 import { markAllMessagesAsRead } from '../../api/agency';
+import { Moment } from '../meta';
 import './MessagesDropdown.css';
 
 /** Returns initials from a full name, e.g. "Maya Torres" → "MT" */
@@ -17,19 +18,6 @@ function getInitials(name = '') {
 }
 
 /** Formats an ISO timestamp as a relative string: "2h ago", "1d ago", etc. */
-function relativeTime(isoString) {
-  const diff = Date.now() - new Date(isoString).getTime();
-  const secs = Math.floor(diff / 1000);
-  if (secs < 60) return 'Just now';
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return 'Yesterday';
-  return `${days}d ago`;
-}
-
 export default function MessagesDropdown({
   isOpen,
   onClose,
@@ -126,7 +114,7 @@ export default function MessagesDropdown({
               <div className="md-thread-body">
                 <div className="md-thread-top">
                   <span className="md-sender">{thread.senderName}</span>
-                  <span className="md-timestamp">{relativeTime(thread.timestamp)}</span>
+                  <Moment value={thread.timestamp} size="sm" className="md-timestamp" />
                 </div>
                 <p className="md-context">{thread.applicationLabel}</p>
                 <p className="md-preview">{thread.preview}</p>

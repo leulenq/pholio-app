@@ -4,7 +4,11 @@
   bottom: 0;
   z-index: 1200;
   border-top: 1px solid var(--ag-border, #ede8dd);
-  background: var(--ag-surface-1, #fff);
+  /* Matches pholio-landing's banner exactly (#FAF7F2), not the agency-scoped
+     --ag-surface-1 token (#fff) this used to fall back to — this banner
+     mounts over both the talent and agency dashboards, and the two banners
+     are meant to be the same control wearing the same paper. */
+  background: #faf7f2;
   box-shadow: 0 -12px 40px -20px rgba(15, 23, 42, 0.18);
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
@@ -43,7 +47,14 @@
 
 .app-cookie-actions {
   display: flex;
-  flex-wrap: wrap;
+  /* Not wrap: at >640px this sits beside a text column that can be up to
+     48rem wide inside a 72rem banner, and Accept all + Necessary only +
+     Manage together are wider than what's left over — wrap was dropping
+     Manage onto its own row well before the banner ran out of room. Below
+     640px the grid layout further down takes over anyway, so nowrap only
+     ever governs the range where the three controls actually fit on one
+     line; the text column shrinks (and wraps its own text) to make room. */
+  flex-wrap: nowrap;
   align-items: center;
   gap: 10px;
 }

@@ -8,6 +8,7 @@ import {
   representationRead,
   titleCase,
 } from './dossierModel';
+import { MatchFigure } from '../meta';
 import './dossier.css';
 
 /**
@@ -161,8 +162,11 @@ export function PositionRecord({ position, talent, board, matchScore }) {
         />
         <Fact
           label="Match"
-          value={matchScore != null ? `${matchScore} / 100` : null}
-          mono
+          value={
+            matchScore != null ? (
+              <MatchFigure score={matchScore} size="sm" showTier />
+            ) : null
+          }
         />
         <Fact
           label="Height rank"

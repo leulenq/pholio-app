@@ -1,0 +1,430 @@
+/* ============================================================
+   Agency metadata system
+
+   Three tiers, and the tier is chosen by what KIND of thing the value is —
+   not by how important the surface feels.
+
+     MARK      a bounded entity you hold standing in. Only boards qualify.
+               Has a container, because it is a thing you belong to.
+               → DivisionMark / division-marks.css
+
+     FIGURE    a measured value: height, measurements, age, match, counts.
+               Mono tabular numerals, tracked Inter unit. NO container —
+               a number in a box reads as a badge, which is banned and is
+               also wrong: a height is a fact about a person, not a state
+               they are in.
+
+     NOTATION  quiet context: location, recency, provenance, notes.
+               Small Inter, muted ink, no container, semantic colour only
+               where the value is genuinely actionable.
+
+   Scanning weight then matches booking priority: a board outranks a
+   measurement, which outranks when the record was touched.
+
+   The label treatment (.mf__key, .mk) is deliberately the same 10.5px /
+   0.14em tracked Inter as `.dvt--airy` in the division system, so the two
+   families read as one system rather than two neighbouring ones.
+   ============================================================ */
+
+/* ============================================================
+   FIGURE
+   ============================================================ */
+
+.mf {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+/* Ledger key. Same setting as .dvt--airy — see header. */
+.mf__key,
+.mk {
+  font-family: var(--ag-font-body);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--ag-text-3);
+  white-space: nowrap;
+}
+
+.mf__fig {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mf__val {
+  font-family: var(--ag-font-mono);
+  /* Tabular so a column of heights aligns on the digit. Proportional
+     numerals rag against each other and make a roster look untidy at a
+     glance without it being obvious why. */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.005em;
+  color: var(--ag-text-0);
+  white-space: nowrap;
+}
+
+/* The unit is not the figure. It stays smaller, quieter, and in Inter so it
+   never competes with the number for the same reading. */
+.mf__unit {
+  font-family: var(--ag-font-body);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: var(--ag-text-3);
+  white-space: nowrap;
+}
+
+.mf__sub {
+  font-family: var(--ag-font-body);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--ag-text-3);
+  white-space: nowrap;
+}
+
+/* Inline: one baseline, for use inside a MetaLine. */
+.mf--inline {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0;
+}
+.mf--inline .mf__val {
+  font-size: 12px;
+}
+
+.mf--sm .mf__val {
+  font-size: 12.5px;
+}
+.mf--sm .mf__unit,
+.mf--sm .mf__sub {
+  font-size: 10px;
+}
+
+.mf--lg .mf__val {
+  font-size: 21px;
+  letter-spacing: -0.01em;
+}
+.mf--lg .mf__unit {
+  font-size: 11.5px;
+}
+.mf--lg .mf__sub {
+  font-size: 12px;
+}
+
+/* Match tiers. Colour is an accelerant on an already-legible number, never
+   the carrier of the meaning — the figure and its aria-label both say it. */
+.mf--exceptional .mf__val {
+  color: var(--ag-gold-deep);
+}
+.mf--strong .mf__val {
+  color: var(--ag-text-0);
+}
+.mf--fair .mf__val {
+  color: var(--ag-text-2);
+}
+.mf--low .mf__val {
+  color: var(--ag-text-3);
+}
+
+/* ---- FigureGroup: the comp-card band ---- */
+
+.mf-group {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+/* A hairline gutter rather than a gap alone. It is what makes the band read
+   as a printed comp card instead of three loose stats, and it is a 1px rule
+   — not a colored side-stripe, which the system bans. */
+.mf-group > * + * {
+  margin-left: 20px;
+  padding-left: 20px;
+  border-left: 1px solid var(--ag-border);
+}
+
+.mf-group--sm > * + * {
+  margin-left: 14px;
+  padding-left: 14px;
+}
+
+@media (max-width: 560px) {
+  .mf-group > * + * {
+    margin-left: 12px;
+    padding-left: 12px;
+  }
+}
+
+/* ============================================================
+   PLACE
+   ============================================================ */
+
+.mp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-family: var(--ag-font-body);
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--ag-text-2);
+}
+
+.mp__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mp__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--ag-text-3);
+}
+
+.mp--sm {
+  font-size: 11.5px;
+}
+
+/* ============================================================
+   MOMENT
+   ============================================================ */
+
+.mm {
+  font-family: var(--ag-font-body);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--ag-text-3);
+  white-space: nowrap;
+}
+
+.mm__prefix {
+  color: var(--ag-text-3);
+}
+
+.mm--sm {
+  font-size: 11px;
+}
+
+/* Freshness tones. Paired with words in every case — "Stale · 8mo" reads
+   without the colour, which is the requirement. */
+.mm--tone {
+  font-weight: 500;
+}
+.mm--current {
+  color: var(--ag-text-3);
+}
+.mm--due {
+  color: var(--ag-warning);
+}
+.mm--stale {
+  color: var(--ag-danger);
+}
+.mm--muted {
+  color: var(--ag-text-3);
+  font-weight: 400;
+}
+
+/* ============================================================
+   NOTATION
+   ============================================================ */
+
+.mn {
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--ag-text-3);
+}
+
+.mn--attributed {
+  font-style: italic;
+}
+
+.mn--sm {
+  font-size: 11px;
+}
+
+/* ============================================================
+   META LINE
+
+   The separator is an element, not a character in a joined string: one
+   colour everywhere, quieter than the values it divides, and out of the
+   accessibility tree.
+   ============================================================ */
+
+.ml {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  font-family: var(--ag-font-body);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ag-text-2);
+}
+
+.ml__item {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ml__sep {
+  flex-shrink: 0;
+  margin: 0 7px;
+  /* Quieter than every value it divides, so it structures the line without
+     being read as content. */
+  color: var(--ag-text-4);
+  user-select: none;
+}
+
+.ml--sm {
+  font-size: 11.5px;
+}
+.ml--sm .ml__sep {
+  margin: 0 5px;
+}
+
+.ml--wrap {
+  flex-wrap: wrap;
+}
+.ml--wrap .ml__item {
+  overflow: visible;
+  white-space: normal;
+}
+
+/* ============================================================
+   Forced colors
+
+   Tone is conveyed by colour here, which forced-colors mode discards. Every
+   toned value already carries its meaning in words ("Stale · 8mo", "Not
+   recorded"), so the correct behaviour is to hand the text back to the
+   system palette rather than to invent a border.
+   ============================================================ */
+@media (forced-colors: active) {
+  .mm--due,
+  .mm--stale,
+  .mm--current,
+  .mf--exceptional .mf__val,
+  .mf--strong .mf__val,
+  .mf--fair .mf__val,
+  .mf--low .mf__val {
+    color: CanvasText;
+  }
+  .mf-group > * + * {
+    border-left-color: CanvasText;
+  }
+}
+
+/* ============================================================
+   On dark — drawer hero, photo scrims, the review room's ink page
+
+   Mirrors `.dv--onDark` in the division system, and exists for the same
+   reason: these components default to warm dark inks, and a surface that
+   inverts the ground would otherwise render them invisible. Applying it to
+   a MetaLine cascades to whatever it wraps, so a caller sets it once.
+
+   Values keep their relative hierarchy — figure brightest, unit and
+   notation quieter, separator quietest — rather than all flattening to
+   white, which is what makes a dark panel read as designed instead of
+   inverted.
+   ============================================================ */
+
+.meta--onDark,
+.meta--onDark .mf__val {
+  color: rgba(244, 238, 226, 0.92);
+}
+
+.meta--onDark .mf__key,
+.meta--onDark .mf__unit,
+.meta--onDark .mf__sub,
+.meta--onDark .mm,
+.meta--onDark .mn,
+.meta--onDark .mp,
+.meta--onDark .mp__icon {
+  color: rgba(244, 238, 226, 0.62);
+}
+
+.meta--onDark .ml__sep {
+  color: rgba(244, 238, 226, 0.32);
+}
+
+.meta--onDark .mf-group > * + *,
+.mf-group.meta--onDark > * + * {
+  border-left-color: rgba(239, 233, 220, 0.16);
+}
+
+/* Tones stay legible against ink: the warm danger/warning inks are tuned for
+   a cream ground and go muddy on dark, so they lift rather than invert. */
+.meta--onDark.mm--due,
+.meta--onDark .mm--due {
+  color: #e8b45e;
+}
+.meta--onDark.mm--stale,
+.meta--onDark .mm--stale {
+  color: #e88f7f;
+}
+.meta--onDark.mf--exceptional .mf__val {
+  color: var(--ag-gold);
+}
+
+/* ---- Verdict: a judgement about the figure, not a restatement of it ----
+
+   Separate from `.mf__sub` on purpose. `sub` carries the same value in
+   another unit ("5′ 10″"); a verdict carries an opinion ("Exceptional").
+   Setting them identically — which an earlier draft did — made a match
+   grade read with exactly the weight of a centimetre conversion.
+
+   Tracked uppercase gives it the register of a stamped assessment, and
+   inherits the figure's tone so the verdict and the number agree. */
+.mf__verdict {
+  font-family: var(--ag-font-body);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--ag-text-3);
+  white-space: nowrap;
+}
+
+.mf--exceptional .mf__verdict {
+  color: var(--ag-gold-deep);
+}
+.mf--strong .mf__verdict {
+  color: var(--ag-text-2);
+}
+
+/* A match grade is the number a booker looks at first on a submission; at
+   `lg` it should carry that weight rather than matching a shoe size. */
+.mf--lg .mf__verdict {
+  font-size: 10.5px;
+}
+.meta--onDark .mf__verdict {
+  color: rgba(244, 238, 226, 0.55);
+}
+.meta--onDark.mf--exceptional .mf__verdict {
+  color: var(--ag-gold);
+}

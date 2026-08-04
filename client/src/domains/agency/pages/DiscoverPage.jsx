@@ -29,16 +29,16 @@ import MatchScore from '../components/ui/MatchScore';
 import BriefUnderstanding from '../components/BriefUnderstanding';
 import { DiscoverDetail } from './DiscoverDetail';
 import Grainient from './Grainient';
-import { formatLocation } from '../../../shared/utils/locationFormat';
+import { Place } from '../components/meta';
+import { cmToImperial } from '../components/meta/metaFormat';
 import './DiscoverPage.css';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
-const fmtHeight = (cm) => {
-  if (!cm) return null;
-  const inch = Math.round(cm / 2.54);
-  return `${Math.floor(inch / 12)}'${inch % 12}"`;
-};
+/* Height comes from the shared formatter. The local one here rounded feet
+   before the remainder (5′ 12″ at 182cm) and used straight quotes where the
+   rest of the system uses primes. */
+const fmtHeight = (cm) => cmToImperial(cm);
 const AGE_BAND_LABEL = { under_18: 'Under 18', '18_or_older': '18+' };
 const fmtAgeBand = (band) => AGE_BAND_LABEL[band] || null;
 const firstPhoto = (imgs) => {
@@ -159,7 +159,7 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
         </div>
         <div className="dc-card-line">
           <span className="dc-card-arch">{talent.archetype}</span>
-          {talent.city && <><span className="dc-dot" /><span className="dc-card-loc">{formatLocation(talent.city)}</span></>}
+          {talent.city && <><span className="dc-dot" /><Place value={talent.city} size="sm" className="dc-card-loc" /></>}
         </div>
 
         {hasFacts && (

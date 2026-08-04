@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import MatchScore from '../ui/MatchScore';
+import { MetaLine, Place } from '../meta';
 
 const DRAG_THRESHOLD = 6;
 
@@ -101,10 +102,10 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
                 )}
               </span>
               <span className="ov-strip-name">{t.name}</span>
-              <span className="ov-strip-meta">
+              <MetaLine size="sm" className="ov-strip-meta">
                 {t.typeLabel}
-                {t.city ? ` · ${t.city}` : ''}
-              </span>
+                <Place value={t.city} size="sm" />
+              </MetaLine>
             </button>
           ))}
         </div>

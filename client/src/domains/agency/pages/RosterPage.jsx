@@ -19,11 +19,9 @@ import {
   standingForStage,
   rowBoardStandings,
   normalizeStatusKey,
-  cmToImperial,
-  measurementSummary,
-  measurementAge,
-  measurementFreshness,
 } from './rosterFormat';
+import { Figure, Freshness, Place } from '../components/meta';
+import { heightFigure, measurementFigure } from '../components/meta/metaFormat';
 import './RosterPage.css';
 
 const PAGE_SIZE = 30;
@@ -52,11 +50,8 @@ const EMPTY_FORM = Object.freeze({
 function RosterRow({ item, selected, onSelect }) {
   const rowBoards = rowBoardStandings(item);
   const stageStanding = standingForStage(item.stage, item.membershipStatus);
-  const freshness = measurementFreshness(item.measurementsUpdatedAt);
-  const height = item.heightCm
-    ? `${item.heightCm} cm · ${cmToImperial(item.heightCm)}`
-    : 'Height missing';
-  const measurements = measurementSummary(item);
+  const height = heightFigure(item.heightCm);
+  const measurements = measurementFigure(item.measurements);
 
   return (
     <button
@@ -75,7 +70,11 @@ function RosterRow({ item, selected, onSelect }) {
         )}
         <span className="ag-roster-person-text">
           <strong>{item.name}</strong>
-          <span>{item.location || 'Market not recorded'}</span>
+          {item.location ? (
+            <Place value={item.location} size="sm" />
+          ) : (
+            <span className="ag-roster-nomarket">Market not recorded</span>
+          )}
         </span>
       </span>
       <span className="ag-roster-cell">
@@ -94,13 +93,24 @@ function RosterRow({ item, selected, onSelect }) {
         <StatusText className="ag-roster-avail" status={normalizeStatusKey(item.availability)} label={item.availability} />
       </span>
       <span className="ag-roster-cell">
-        <span className="ag-roster-measure" title={`${height}. ${measurements}`}>
-          <span className={item.heightCm ? 'ag-roster-measure-height' : 'ag-roster-measure-height is-missing'}>{height}</span>
-          <small>{measurements}</small>
-        </span>
+        {height || measurements ? (
+          <span className="ag-roster-measure">
+            {height && <Figure value={height.value} unit={height.unit} sub={height.sub} size="sm" />}
+            {measurements && (
+              <Figure
+                label={measurements.key}
+                value={measurements.value}
+                unit={measurements.unit}
+                size="sm"
+              />
+            )}
+          </span>
+        ) : (
+          <span className="ag-roster-nomarket">Not recorded</span>
+        )}
       </span>
-      <span className={`ag-roster-fresh ag-roster-fresh--${freshness.tone}`} title={measurementAge(item.measurementsUpdatedAt)}>
-        {freshness.label}
+      <span className="ag-roster-cell">
+        <Freshness value={item.measurementsUpdatedAt} size="sm" />
       </span>
     </button>
   );

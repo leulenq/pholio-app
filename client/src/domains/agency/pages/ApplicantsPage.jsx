@@ -16,21 +16,11 @@ import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
 import { formatLocation } from '../../../shared/utils/locationFormat';
+import { Moment } from '../components/meta';
 import './ApplicantsPage.css';
 
 const PAGE_SIZE = 60;
 const VIEW_KEY = 'ag-submissions-view';
-
-const timeAgo = (ts) => {
-  if (!ts) return '—';
-  const s = (Date.now() - new Date(ts).getTime()) / 1000;
-  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  const d = Math.floor(s / 86400);
-  if (d === 1) return 'Yesterday';
-  if (d < 14) return `${d}d ago`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
 
 const initials = (name) => (name || '')
   .split(' ')
@@ -227,7 +217,7 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
         {a.city ? ` · ${formatLocation(a.city)}` : ''}
       </span>
       <span className="ap-card-state">
-        <span className="ap-card-when">{timeAgo(a.appliedAt)}</span>
+        <Moment value={a.appliedAt} className="ap-card-when" />
         {!quietStatus && <StatusCell status={a.status} className="ap-card-status" />}
       </span>
     </div>
@@ -277,7 +267,7 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
           {a.city ? ` · ${formatLocation(a.city)}` : ''}
         </span>
       </div>
-      <span className="ap-applied">{timeAgo(a.appliedAt)}</span>
+      <Moment value={a.appliedAt} className="ap-applied" />
       <span className="ap-score-cell">{a.match != null && <MatchScore score={a.match} size="xs" tone="overlay" />}</span>
       <span className="ap-status">
         {isNew(a.status)

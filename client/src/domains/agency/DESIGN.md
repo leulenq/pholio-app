@@ -103,6 +103,40 @@ components:
 
 # Design System: Pholio Agency Command Center
 
+
+## Metadata component system
+
+Every small value the dashboard prints about a person, a board, or a record
+goes through `components/meta`. The tier is chosen by **what kind of thing the
+value is**, not by how important the surface feels:
+
+| Tier | What it is | Treatment | Component |
+|---|---|---|---|
+| **Mark** | a bounded entity you hold standing in — boards only | container + ground carries standing | `DivisionMark`, `DivisionSet` |
+| **Figure** | a measured value: height, measurements, age, match, counts | mono tabular numerals + tracked Inter unit, **never a container** | `Figure`, `FigureGroup`, `MatchFigure` |
+| **Notation** | quiet context: location, recency, provenance, notes | small Inter, muted ink, tone only where actionable | `Place`, `Moment`, `Freshness`, `Notation` |
+
+`MetaLine` joins any of them into the canonical `·` separated secondary line.
+
+Rules that are load-bearing, not stylistic:
+
+- **A figure never gets a container.** A number in a box reads as a badge —
+  banned by the pattern list, and wrong regardless: a height is a fact about a
+  person, not a state they are in. Only a board earns a container.
+- **`sub` and `verdict` are different slots.** `sub` restates the value in
+  another unit (`5′ 10″`); `verdict` is a judgement about it
+  (`EXCEPTIONAL`). They must not share a typographic treatment.
+- **Formatting lives in `metaFormat.js` and returns structure, not strings.**
+  A formatter that returns a finished string invites the next caller to build
+  a slightly different one — which is how five `timeAgo` implementations,
+  three height converters and two match components happened.
+- **`Place` shows the city only** by default. `profiles.city` is free text
+  holding whatever was typed at onboarding; the region is noise in a scanning
+  column. Pass `full` where travel or work eligibility is the actual question.
+- **Tone is never the only signal.** Every toned value carries words too
+  (`Stale · 8mo`, `Not recorded`).
+- Pass `onDark` on ink grounds; it cascades from `MetaLine` to its children.
+
 ## 1. Overview
 
 **Creative North Star: "The Editorial Ledger"**
