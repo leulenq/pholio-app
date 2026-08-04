@@ -25,6 +25,7 @@ import LegalNoticeLine from '../../../../shared/components/LegalNoticeLine';
 import {
   stashOnboardingAuthHandoff,
 } from '../../../../shared/lib/pholio-auth/onboarding-handoff';
+import { goToDestination } from '../../lib/spa-navigation';
 import styles from './LoginPage.module.css';
 import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
 
@@ -41,28 +42,6 @@ function entryVariantFor(path) {
   return typeof path === 'string' && path.startsWith('/dashboard/agency')
     ? 'agency'
     : 'talent';
-}
-
-/**
- * Sign-in used to finish with `window.location.href = redirect`, which tears
- * the SPA down and boots it again from scratch: blank page, chunk re-download,
- * Firebase re-init, every query re-fetched. Inside the app that whole reload is
- * dead weight — the session cookie is already set by the time /api/login
- * answers, and the React Query cache is empty anyway on a fresh sign-in.
- *
- * So route in-app whenever the destination is a route this SPA owns, and keep
- * the hard navigation only for targets it does not (server-rendered pages,
- * other origins), where a document load is the actual requirement.
- */
-const SPA_ROUTE_ROOTS = ['/dashboard', '/reveal', '/internal'];
-
-function isSpaRoute(target) {
-  if (typeof target !== 'string' || !target.startsWith('/')) return false;
-  if (target.startsWith('//')) return false; // protocol-relative — off-origin
-  const path = target.split(/[?#]/)[0];
-  return SPA_ROUTE_ROOTS.some(
-    (root) => path === root || path.startsWith(`${root}/`)
-  );
 }
 
 // Dev-only: when Firebase is not configured locally, sign in through the
@@ -188,11 +167,20 @@ export default function LoginPage() {
       });
     } catch (err) {
       cancelEntryTransition();
-      setError(
-        err.code === 'auth/popup-closed-by-user'
-          ? 'Sign in cancelled.'
-          : 'Failed to sign in with Google. Please try again.'
-      );
+      // Firebase blocks the popup itself when this email already has a Pholio
+      // account under a different sign-in method — the request never reaches
+      // our backend, so this is the only place that failure is visible. Safe
+      // to name the situation specifically here (unlike a failed password
+      // attempt): completing the Google popup already proves the person
+      // asking is the owner of that Google identity, not an anonymous prober.
+      let msg = 'Failed to sign in with Google. Please try again.';
+      if (err.code === 'auth/popup-closed-by-user') {
+        msg = 'Sign in cancelled.';
+      } else if (err.code === 'auth/account-exists-with-different-credential') {
+        msg =
+          'An account already exists for this email with a different sign-in method. Sign in with your email and password instead.';
+      }
+      setError(msg);
       setIsGoogleLoading(false);
     }
   };
@@ -248,18 +236,6 @@ export default function LoginPage() {
     }
   };
 
-  /**
-   * Land in the app without reloading it when the destination is ours; fall
-   * back to a document load for anything this SPA does not route.
-   */
-  const goToDestination = (target) => {
-    if (isSpaRoute(target)) {
-      navigate(target, { replace: true });
-      return;
-    }
-    window.location.href = target;
-  };
-
   const devEmailSignIn = async () => {
     beginExplicitAuth();
     // No Firebase step on this path, so this is where the transition starts.
@@ -290,7 +266,7 @@ export default function LoginPage() {
       const target = data.redirect || from;
       reportEntryIdentity({ variant: entryVariantFor(target) });
       notifyAuthChange({ authenticated: true });
-      goToDestination(target);
+      goToDestination(target, navigate);
     } catch (err) {
       cancelEntryTransition();
       setError(err.message || 'Failed to sign in.');
@@ -377,7 +353,7 @@ export default function LoginPage() {
       // the login page could not have known about (agency vs talent).
       reportEntryIdentity({ variant: entryVariantFor(target) });
       notifyAuthChange({ authenticated: true });
-      goToDestination(target);
+      goToDestination(target, navigate);
     } catch (err) {
       cancelEntryTransition();
       setError(err.message || 'Server connection failed. Please try again.');

@@ -40,6 +40,7 @@ const {
   sendPasswordResetViaSmtp,
   sendSignInMethodNoticeViaSmtp,
 } = require("../services/email-verification");
+const { sendPasswordChangedEmail } = require("../../../shared/lib/email");
 const {
   acceptTeamInvitation,
   loadTeamInvitation,
@@ -335,6 +336,10 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     typeof req.body?.invite_token === "string"
       ? req.body.invite_token.trim()
       : "";
+  // Set by ResetPasswordPage's post-reset sign-in only — conditions the
+  // "your password was changed" confirmation email below on an ordinary
+  // login never sending it.
+  const passwordJustReset = req.body?.password_just_reset === true;
 
   // Declared at handler scope because several exit paths need it — notably the
   // existing-user "AGENCY login not assigned to an organization" branch, which
@@ -1057,6 +1062,28 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       redirectUrl = sessionRedirect;
     }
     console.log("[Login] Redirecting to:", redirectUrl);
+
+    // The session above is now fully established — this really was a
+    // successful re-authentication, not just a completed Firebase action —
+    // so this is the right place to confirm the change, not ResetPasswordPage
+    // itself (which only knows Firebase accepted a new password, not that
+    // Pholio verified the caller and logged them in on it). Never blocks the
+    // response: a stalled SMTP send must not turn a real, successful login
+    // into a failure.
+    if (passwordJustReset) {
+      try {
+        await sendPasswordChangedEmail({
+          to: user.email,
+          firstName: user.first_name,
+          supportUrl: "mailto:support@pholio.studio",
+        });
+      } catch (notifyError) {
+        console.warn(
+          "[Login] Password-changed confirmation email failed:",
+          notifyError.message,
+        );
+      }
+    }
 
     // If request is JSON or Accept header requests JSON, return JSON response with redirect URL
     const contentType = req.headers["content-type"] || "";
