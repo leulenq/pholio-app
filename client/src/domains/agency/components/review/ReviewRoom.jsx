@@ -14,7 +14,8 @@ import {
 import { getApplicationDetails } from '../../api/agency';
 import { resolveTier, MATCH_TIER_LABELS, normalizeScore } from '../../lib/matchTier';
 import { getStatusLabel } from '../ui/StatusText';
-import { cmToImperial } from '../../pages/rosterFormat';
+import { MetaLine, Moment, Place, Figure, FigureGroup } from '../meta';
+import { heightFigure, measurementFigure, cityOf } from '../meta/metaFormat';
 import './ReviewRoom.css';
 
 /* ── local helpers ───────────────────────────────────────────────── */
@@ -27,18 +28,6 @@ const initials = (name) =>
     .slice(0, 2)
     .join('')
     .toUpperCase();
-
-const timeAgo = (ts) => {
-  if (!ts) return null;
-  const s = (Date.now() - new Date(ts).getTime()) / 1000;
-  if (!Number.isFinite(s) || s < 0) return 'just now';
-  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  const d = Math.floor(s / 86400);
-  if (d === 1) return 'yesterday';
-  if (d < 14) return `${d}d ago`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
 
 const titleCase = (value) =>
   value ? String(value).charAt(0).toUpperCase() + String(value).slice(1).toLowerCase() : '';
@@ -92,19 +81,15 @@ function Grade({ score, tier }) {
 function buildCompCard(profile) {
   if (!profile) return [];
   const cells = [];
-  if (profile.height_cm) {
-    cells.push({ key: 'Height', value: `${profile.height_cm}`, sub: cmToImperial(profile.height_cm) });
-  }
-  const bwh = [profile.bust_cm ?? profile.chest_cm, profile.waist_cm, profile.hips_cm];
-  if (bwh.some((v) => v != null)) {
-    cells.push({
-      key: profile.bust_cm != null ? 'B · W · H' : 'C · W · H',
-      value: bwh.map((v) => (v != null ? v : '—')).join(' · '),
-      sub: 'cm',
-    });
-  }
+
+  const height = heightFigure(profile.height_cm);
+  if (height) cells.push({ key: 'Height', ...height });
+
+  const measure = measurementFigure(profile);
+  if (measure) cells.push(measure);
+
   if (profile.shoe_size != null && profile.shoe_size !== '') {
-    cells.push({ key: 'Shoe', value: String(profile.shoe_size), sub: null });
+    cells.push({ key: 'Shoe', value: String(profile.shoe_size), unit: null, sub: null });
   }
   return cells;
 }
@@ -121,7 +106,7 @@ function buildDetails(profile) {
     { label: 'Eyes', value: titleCase(profile.eye_color) || null },
     { label: 'Age', value: profile.age ?? profile.age_band ?? null },
     { label: dressLabel, value: profile.dress_size ?? profile.suit_size ?? null },
-    { label: 'Based in', value: profile.city || null },
+    { label: 'Based in', value: cityOf(profile.city) },
     { label: 'Nationality', value: profile.nationality || null },
     { label: 'Languages', value: languages },
   ].filter((row) => row.label && row.value != null && row.value !== '');
@@ -272,14 +257,14 @@ export default function ReviewRoom({
     : '';
   const social = Array.isArray(profile?.social) ? profile.social.filter((s) => s?.handle || s?.url) : [];
 
-  const submittedAgo = timeAgo(application?.created_at || row?.appliedAt);
+  const submittedAt = application?.created_at || row?.appliedAt;
   const total = position?.total ?? 0;
   const index = position?.index ?? 0;
   const progressPct = total > 0 ? ((index + 1) / total) * 100 : 0;
   const remaining = queue.filter((q) => !DECIDED.has(String(q.status || '').toLowerCase())).length;
 
   const factParts = [
-    submittedAgo ? `Submitted ${submittedAgo}` : null,
+    submittedAt ? <Moment key="submitted" value={submittedAt} prefix="Submitted" /> : null,
     application ? (application.invited_by_agency_id ? 'Invited by your agency' : 'Open application') : null,
     application && !application.viewed_at ? 'First look' : null,
   ].filter(Boolean);
@@ -386,22 +371,22 @@ export default function ReviewRoom({
                 <p className="rr-market">
                   <span className="rr-market-mark" aria-hidden="true" />
                   <span className="rr-market-name">{type}</span>
-                  {city && <span className="rr-market-city">{city}</span>}
+                  {city && <Place value={city} className="rr-market-city" />}
                 </p>
 
                 {/* The comp card — the numbers a booker checks first. */}
                 {compCard.length > 0 && (
-                  <div className="rr-comp">
+                  <FigureGroup className="rr-comp">
                     {compCard.map((c) => (
-                      <div className="rr-comp-cell" key={c.key}>
-                        <span className="rr-comp-key">{c.key}</span>
-                        <span className="rr-comp-val">
-                          {c.value}
-                          {c.sub && <em>{c.sub}</em>}
-                        </span>
-                      </div>
+                      <Figure
+                        key={c.key}
+                        label={c.key}
+                        value={c.value}
+                        unit={c.unit}
+                        sub={c.sub}
+                      />
                     ))}
-                  </div>
+                  </FigureGroup>
                 )}
 
                 {/* Billing — the match grade and the state, on one rule. */}
@@ -409,7 +394,7 @@ export default function ReviewRoom({
                   {score != null ? <Grade score={score} tier={tier} /> : <span />}
                   <StateMark status={status} />
                 </div>
-                {factParts.length > 0 && <p className="rr-facts">{factParts.join(' · ')}</p>}
+                {factParts.length > 0 && <MetaLine className="rr-facts" wrap>{factParts}</MetaLine>}
 
                 {isError ? (
                   <div className="rr-error">

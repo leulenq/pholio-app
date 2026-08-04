@@ -20,6 +20,11 @@
   --ag-gold-muted: rgba(201, 165, 90, 0.12);
   --ag-gold-ghost: rgba(201, 165, 90, 0.08);
   --ag-gold-hover: #B8956A;
+  /* Gold that is legible AS TEXT. --ag-gold measures 2.33:1 on white and is a
+     surface/accent value only; used for type it fails AA outright. This is the
+     darkened form for figures and labels that must carry gold's meaning —
+     4.9:1 on the cream canvas, 5.4:1 on white. */
+  --ag-gold-deep: #806634;
 
   /* ---- Text (warm darks) ---- */
   --ag-text-0: #1A1815;              /* headlines */

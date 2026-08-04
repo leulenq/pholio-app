@@ -7,18 +7,8 @@ import { getBoards } from '../api/agency';
 import { resolveBoardIdentity, boardIdentityStyle, resolveBoardType, BOARD_VOCAB } from '../lib/board-identity';
 import { useCardButton } from '../hooks/useCardButton';
 import CastingNewModal from './CastingNewModal';
+import { Moment } from '../components/meta';
 import './CastingPage.css';
-
-const timeAgo = (ts) => {
-  if (!ts) return '—';
-  const s = (Date.now() - new Date(ts).getTime()) / 1000;
-  if (s < 3600) return `${Math.max(1, Math.floor(s / 60))}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  const d = Math.floor(s / 86400);
-  if (d === 1) return 'yesterday';
-  if (d < 14) return `${d}d ago`;
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
 
 const DAY = 1000 * 60 * 60 * 24;
 // { text, soon } describing the close date, or null when the board has none.
@@ -143,7 +133,7 @@ function FolioCard({ board, index, onOpen }) {
       <div className="sg-foot">
         <LedgerLine board={board} />
         <span className="sg-open">
-          <span className="sg-updated">Updated {timeAgo(board.updatedAt)}</span>
+          <Moment value={board.updatedAt} prefix="Updated" className="sg-updated" />
           <span className="sg-open-cue">Open board <ArrowRight size={13} /></span>
         </span>
       </div>

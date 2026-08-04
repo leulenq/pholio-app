@@ -7,8 +7,8 @@ import {
   getReminders, createReminder,
 } from '../../api/agency';
 import './TalentThread.css';
+import { MetaLine, Moment, Notation } from '../meta';
 
-const fmtTime = (ts) => new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 const fmtDay = (ts) => {
   const d = new Date(ts);
   const today = new Date();
@@ -17,7 +17,6 @@ const fmtDay = (ts) => {
   if (d.toDateString() === yest.toDateString()) return 'Yesterday';
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 };
-const fmtDate = (ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 function Composer({ value, onChange, onSubmit, placeholder, pending, icon: Icon }) {
   const submit = () => { if (value.trim() && !pending) onSubmit(); };
@@ -78,7 +77,10 @@ function Conversation({ applicationId }) {
               {showDay && <div className="tt-day"><span>{fmtDay(m.created_at)}</span></div>}
               <div className={`tt-msg ${out ? 'tt-msg--out' : 'tt-msg--in'}`}>
                 <div className="tt-bubble">{m.message}</div>
-                <div className="tt-meta">{out ? 'You' : (m.sender_name || 'Talent')} · {fmtTime(m.created_at)}</div>
+                <MetaLine className="tt-meta" size="sm">
+                  {out ? 'You' : m.sender_name || 'Talent'}
+                  <Moment value={m.created_at} as="time" size="sm" />
+                </MetaLine>
               </div>
             </Fragment>
           );
@@ -129,9 +131,11 @@ function Notes({ applicationId }) {
         {notes.map((n, i) => (
           <div key={n.id || i} className="tt-note">
             <div className="tt-note-text">{n.note || n.text}</div>
-            <div className="tt-meta">
-              {n.created_by || 'Former team member'} · {fmtDate(n.created_at)}{n.edited ? ' · edited' : ''}
-            </div>
+            <MetaLine className="tt-meta" size="sm">
+              <Notation attributed size="sm">{n.created_by || 'Former team member'}</Notation>
+              <Moment value={n.created_at} as="date" size="sm" />
+              {n.edited ? 'edited' : null}
+            </MetaLine>
           </div>
         ))}
       </div>
@@ -186,7 +190,10 @@ function Followup({ applicationId }) {
             <span className="tt-reminder-icon"><CalendarClock size={15} /></span>
             <div className="tt-reminder-body">
               <div className="tt-reminder-title">{r.title}{r.notes ? ` — ${r.notes}` : ''}</div>
-              <div className="tt-meta">Due {fmtDate(r.reminder_date)}{r.status && r.status !== 'pending' ? ` · ${r.status}` : ''}</div>
+              <MetaLine className="tt-meta" size="sm">
+                <Moment value={r.reminder_date} as="date" prefix="Due" size="sm" />
+                {r.status && r.status !== 'pending' ? r.status : null}
+              </MetaLine>
             </div>
           </div>
         ))}
