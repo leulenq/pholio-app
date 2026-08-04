@@ -267,7 +267,6 @@
   gap: 8px;
   padding: 4px 0 6px;
   border: 0;
-  border-bottom: 1px solid var(--ph-btn-hair-gold);
   border-radius: 0;
   background: transparent;
   color: var(--ph-btn-text);
@@ -279,7 +278,6 @@
 }
 
 .pholio-btn--meta:hover:not(:disabled):not([aria-disabled='true']) {
-  border-color: var(--ph-btn-gold);
   color: var(--ph-btn-gold-text);
 }
 
@@ -464,7 +462,6 @@
   min-height: 32px !important;
   padding: 4px 0 6px !important;
   border: 0 !important;
-  border-bottom: 1px solid var(--ph-btn-hair-gold) !important;
   border-radius: 0 !important;
   background: transparent !important;
   font-family: var(--ph-btn-mono) !important;
@@ -479,11 +476,11 @@
 }
 
 .pholio-btn--meta:hover:not(:disabled):not([aria-disabled='true']) {
-  border-bottom-color: var(--ph-btn-gold) !important;
   color: var(--ph-btn-gold-text) !important;
 }
 
 .pholio-btn--destructive {
+  border-bottom: 1px solid var(--ph-btn-hair-gold) !important;
   color: var(--ph-btn-text-faint) !important;
   font-size: 0.5625rem !important;
   font-weight: 500 !important;

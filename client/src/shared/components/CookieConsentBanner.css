@@ -69,14 +69,6 @@
   min-height: 44px;
 }
 
-/* Manage's underline, ported from pholio-landing's cookie banner: removed.
-   Scoped to this instance rather than pholio-btn--meta itself, which is the
-   canonical talent button primitive used in ~30 other places across the
-   dashboard — this control shouldn't restyle the shared variant, only itself. */
-.app-cookie-link.pholio-btn--meta {
-  border-bottom: none !important;
-}
-
 @media (max-width: 640px) {
   .app-cookie-banner {
     padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
