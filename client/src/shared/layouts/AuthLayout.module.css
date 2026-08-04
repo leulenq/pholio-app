@@ -16,6 +16,32 @@
   right: 0;
   padding: 28px 32px;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.headerBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ag-text-2, #6b6560);
+  text-decoration: none;
+  font-family: var(--ag-font-sans, 'Inter', sans-serif);
+  transition: color 0.2s ease;
+}
+
+.headerBack:hover {
+  color: var(--ag-gold-hover, #b8956a);
+}
+
+.headerBack:focus-visible {
+  outline: none;
+  color: var(--ag-gold, #c9a55a);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .logo {

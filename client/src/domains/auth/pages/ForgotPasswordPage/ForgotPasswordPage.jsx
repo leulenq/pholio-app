@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, AlertCircle, Mail } from 'lucide-react';
+import { Loader2, AlertCircle, Mail, Lock } from 'lucide-react';
 // Reuses LoginPage's stylesheet rather than forking one: same inputs, alerts,
 // and submit button, so this reads as the same form continued on its own
 // screen, not a redesign. CSS Modules scope by file path, so importing it
@@ -24,6 +24,11 @@ const EASE = [0.16, 1, 0.3, 1];
  * If the visitor arrived via the login page's "Forgot?" link with an email
  * already typed there, `location.state.email` prefills this field — a
  * convenience, not a requirement; the field stays freely editable.
+ *
+ * "Back to sign in" lives in AuthLayout's own header, beside the wordmark —
+ * the actual top-left of the page — not inline at the top of this panel.
+ * AuthLayout renders it for this route by pathname; see HEADER_BACK_LINKS
+ * there.
  */
 export default function ForgotPasswordPage() {
   const location = useLocation();
@@ -67,15 +72,10 @@ export default function ForgotPasswordPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: EASE }}
     >
-      <Link to="/login" className={styles.forgotBack}>
-        <ArrowLeft size={15} />
-        <span>Back to sign in</span>
-      </Link>
-
       {sent ? (
         <>
-          <div className={styles.forgotSentIcon} aria-hidden="true">
-            <Mail size={22} />
+          <div className={styles.forgotIcon} aria-hidden="true">
+            <Mail size={26} />
           </div>
           <header className={styles.heading}>
             <h1 className={styles.title}>
@@ -97,6 +97,9 @@ export default function ForgotPasswordPage() {
         </>
       ) : (
         <>
+          <div className={styles.forgotIcon} aria-hidden="true">
+            <Lock size={24} />
+          </div>
           <header className={styles.heading}>
             <h1 className={styles.title}>
               Reset your <em className={styles.titleAccent}>password.</em>
@@ -143,6 +146,13 @@ export default function ForgotPasswordPage() {
               {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'Send reset link'}
             </button>
           </form>
+
+          <div className={styles.footerRow}>
+            <span>Remembered it?</span>
+            <Link to="/login" className={styles.footerLink}>
+              Back to sign in
+            </Link>
+          </div>
         </>
       )}
     </motion.div>
