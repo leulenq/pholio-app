@@ -17,8 +17,9 @@ import './LoadingSpinner.css';
  *
  * Two things keep it from reading as a generic spinner:
  *
- *  1. Weight. The stroke stays at hairline (1–1.75px), never a thick track.
- *     A heavy ring is a progress meter; a hairline is a rule.
+ *  1. Weight. Fine, but deliberately not a hairline: 1.5–2.5px, scaled off the
+ *     box. Enough to carry gold at a glance, still nowhere near the
+ *     tenth-of-a-diameter band that reads as a progress meter.
  *  2. Cadence. Two nested rotations run at the same period — a constant turn
  *     plus a gentle ±16° eased oscillation. Their sum is a sweep that gathers
  *     speed and settles, and never stalls or reverses. Constant-velocity
@@ -41,26 +42,58 @@ const SIZES = { sm: 24, md: 40, lg: 56, xl: 72 };
  * chord projection below stops being monotonic and the gradient stops would
  * run backwards.
  */
-const SPAN = 168;
+const SPAN = 150;
 
 /**
- * Where the gold peaks along the sweep, 0 = tail, 1 = head. Nudged past centre
- * so the leading edge is the dense one — the difference between a gradient
- * that happens to rotate and a sweep with a direction of travel.
+ * The ramp along the sweep, as `[position, opacity]` control points. Position
+ * is normalised arc length: 0 is the trailing tip, 1 the leading one — and the
+ * ring turns clockwise, so 1 is the edge that arrives first.
+ *
+ * This is the wordmark's rule, not a comet: transparent → gold → transparent,
+ * tapering to nothing at *both* tips. The leading edge in particular has to
+ * fade out — cutting it off at strength, even behind a round linecap, turns
+ * the sweep into a dash and stops it reading as the rule under the wordmark.
+ *
+ * What it is not is symmetric. The peak sits at 0.88, close to the head, so
+ * the gold gathers into a short bright entry and draws out into a long dim
+ * tail behind it. That is where the sweep gets a legible *start*: the same
+ * fade the rule has, just compressed at the front and stretched at the back.
  */
-const PEAK = 0.6;
+const RAMP = [
+  [0, 0],
+  [0.4, 0.2],
+  [0.7, 0.58],
+  [0.88, 1],
+  [1, 0],
+];
 
 /** Gradient stops used to linearise the ramp along the arc. */
-const STOP_COUNT = 13;
+const STOP_COUNT = 15;
+
+/** Opacity of the resting rule the sweep travels through. */
+const TRACK_OPACITY = 0.18;
+
+/** Arc position of the ramp's brightest point — the head. */
+const PEAK_T = RAMP.reduce((best, point) => (point[1] > best[1] ? point : best))[0];
+
+/** The ramp above, sampled at an arbitrary point along the arc. */
+function rampAt(t) {
+  for (let i = 1; i < RAMP.length; i += 1) {
+    const [t0, a0] = RAMP[i - 1];
+    const [t1, a1] = RAMP[i];
+    if (t <= t1) return a0 + ((a1 - a0) * (t - t0)) / (t1 - t0);
+  }
+  return RAMP[RAMP.length - 1][1];
+}
 
 const round = (n) => Math.round(n * 1000) / 1000;
 
-/** Hairline weight, nudged up with the box so large loaders don't disappear. */
+/** Stroke weight, nudged up with the box so large loaders stay in proportion. */
 function strokeFor(dimension) {
-  if (dimension <= 28) return 1;
-  if (dimension <= 48) return 1.25;
-  if (dimension <= 64) return 1.5;
-  return 1.75;
+  if (dimension <= 28) return 1.5;
+  if (dimension <= 48) return 2;
+  if (dimension <= 64) return 2.25;
+  return 2.5;
 }
 
 /**
@@ -77,9 +110,11 @@ function buildSweep(dimension, stroke) {
   const c = dimension / 2;
   const r = (dimension - stroke) / 2;
   const half = ((SPAN / 2) * Math.PI) / 180;
-  // Centred on 12 o'clock, so a reduced-motion render rests with the gold at
-  // the top rather than at some arbitrary angle.
-  const bisector = -Math.PI / 2;
+  // Rotated so the ramp's brightest point — not the arc's midpoint — lands at
+  // 12 o'clock, which is where a reduced-motion render comes to rest. Anchor
+  // the midpoint instead and reshaping the ramp silently drags the still frame
+  // off top-centre.
+  const bisector = -Math.PI / 2 - (PEAK_T - 0.5) * 2 * half;
   const at = (a) => [
     round(c + r * Math.cos(bisector + a)),
     round(c + r * Math.sin(bisector + a)),
@@ -92,7 +127,7 @@ function buildSweep(dimension, stroke) {
     const t = i / (STOP_COUNT - 1);
     return {
       offset: round((Math.sin((t - 0.5) * 2 * half) / Math.sin(half) + 1) / 2),
-      opacity: round(t <= PEAK ? t / PEAK : (1 - t) / (1 - PEAK)),
+      opacity: round(rampAt(t)),
     };
   });
 
@@ -174,7 +209,7 @@ export default function LoadingSpinner({
               cy={c}
               r={r}
               stroke="currentColor"
-              strokeOpacity="0.12"
+              strokeOpacity={TRACK_OPACITY}
               strokeWidth={stroke}
             />
 
