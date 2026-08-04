@@ -36,7 +36,10 @@ const {
   createVerifiedLocationIntel,
 } = require("../../../shared/lib/geolocation");
 const { syncProviderAccountAvatar } = require("../../../shared/lib/account-avatar");
-const { sendPasswordResetViaSmtp } = require("../services/email-verification");
+const {
+  sendPasswordResetViaSmtp,
+  sendSignInMethodNoticeViaSmtp,
+} = require("../services/email-verification");
 const {
   acceptTeamInvitation,
   loadTeamInvitation,
@@ -105,6 +108,15 @@ function agencyRequestAccessUrl() {
 // POST /api/auth/password-reset — deliver Firebase password-reset action links
 // through Pholio SMTP instead of Firebase's stock email sender. Always returns
 // success for syntactically valid email so account existence is not exposed.
+//
+// Firebase refuses to generate a reset link for an account with no `password`
+// entry in its `providerData` — a Google- or Instagram-only account has
+// nothing to reset. Asking anyway is what produced "Failed to send reset
+// email" for those users: `generatePasswordResetLink` threw, and the only
+// response the client had was a generic failure. So the account's actual
+// sign-in methods are checked here first, and an account with no password
+// provider gets an email naming how it *does* sign in instead of a reset link
+// Firebase was never going to issue.
 router.post("/api/auth/password-reset", async (req, res, next) => {
   try {
     const email = String(req.body?.email || "").trim().toLowerCase();
@@ -118,10 +130,29 @@ router.post("/api/auth/password-reset", async (req, res, next) => {
 
     const user = await knex("users").whereRaw("LOWER(email) = ?", [email]).first();
     if (user?.email) {
-      await sendPasswordResetViaSmtp({
-        email: user.email,
-        firstName: user.first_name,
-      });
+      const firebaseUser = await getUserByEmail(user.email);
+      const providerIds = firebaseUser
+        ? firebaseUser.providerData.map((provider) => provider.providerId)
+        : [];
+      const hasPasswordProvider = providerIds.includes("password");
+
+      if (!firebaseUser) {
+        // DB row with no matching Firebase identity (data drift, a
+        // dev-seeded row, …). Nothing we can email a link for — and saying so
+        // would confirm the DB row exists, so this falls through to the same
+        // generic success response as everything else.
+      } else if (hasPasswordProvider) {
+        await sendPasswordResetViaSmtp({
+          email: user.email,
+          firstName: user.first_name,
+        });
+      } else {
+        await sendSignInMethodNoticeViaSmtp({
+          email: user.email,
+          firstName: user.first_name,
+          providerIds,
+        });
+      }
     }
 
     return res.json({ success: true });

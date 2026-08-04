@@ -83,6 +83,29 @@ function buildPasswordResetEmailHtml({ firstName, resetUrl, expiresMinutes } = {
   });
 }
 
+/**
+ * Sent instead of a password-reset link when the account has no password to
+ * reset — it signed in through Google, Instagram, or another provider only.
+ * Firebase's own reset-link generation refuses accounts with no `password`
+ * entry in `providerData`, so the caller must branch before ever asking
+ * Firebase for a link. See `services/email-verification.js`.
+ */
+function buildSignInMethodNoticeEmailHtml({ firstName, providerLabel } = {}) {
+  const provider = providerLabel || "a connected account";
+  return renderEmail({
+    previewText: `Your Pholio account signs in with ${provider}, not a password.`,
+    blocks: [
+      heading("You already have a way in."),
+      goldRule(),
+      paragraph(`${greet(firstName)} this Pholio account signs in with ${strong(provider)} — it has no password to reset.`),
+      paragraph(`Use "Continue with ${esc(provider)}" on the sign-in page to get back in.`),
+      button("Go to sign in", `${appUrl()}/login`),
+      note("If you did not request this, no action is needed — your account is unaffected."),
+      signoff(),
+    ],
+  });
+}
+
 function buildPasswordChangedEmailHtml({ firstName, changedAt, supportUrl } = {}) {
   return renderEmail({
     previewText: "Your Pholio password was changed.",
@@ -189,4 +212,4 @@ function buildGuardianConsentEmailHtml({ guardianName, talentName, talentPhotoUr
   });
 }
 
-module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildAgencyActivationEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml };
+module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildAgencyActivationEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildSignInMethodNoticeEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml };

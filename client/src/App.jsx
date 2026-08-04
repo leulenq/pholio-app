@@ -10,6 +10,7 @@ import CookieConsentBanner from './shared/components/CookieConsentBanner';
 import PageLoadingScreen from './shared/components/shared/PageLoadingScreen';
 
 const LoginPage = lazy(() => import('./domains/auth/pages/LoginPage/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('./domains/auth/pages/ForgotPasswordPage/ForgotPasswordPage'));
 const InstagramCallbackPage = lazy(() => import('./domains/auth/pages/InstagramCallbackPage'));
 const OverviewPage = lazy(() => import('./domains/talent/pages/OverviewPage'));
 const ProfilePage = lazy(() => import('./domains/talent/pages/ProfilePage'));
@@ -79,6 +80,7 @@ function App() {
           {/* Auth Routes */}
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/login/forgot-password" element={<ForgotPasswordPage />} />
           </Route>
           {import.meta.env.DEV ? (
             <Route path="/dev/preview/auth-entry" element={<AuthEntrySplashPreview />} />
