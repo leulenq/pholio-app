@@ -9,6 +9,9 @@
  * base rate, so the sweep gathers and settles once per revolution without ever
  * stalling or reversing. Tune with the two custom properties below; drop the
  * cadence to 0 and it degrades to an ordinary constant spin.
+ *
+ * The two rings stack: the resting track sits underneath, the masked sweep
+ * turns above it.
  */
 
 .ph-spinner {
@@ -24,12 +27,25 @@
   color: #c9a55a;
 }
 
+.ph-spinner__ring,
+.ph-spinner__orbit {
+  position: absolute;
+  inset: 0;
+}
+
 .ph-spinner__orbit,
 .ph-spinner__cadence {
   display: block;
   line-height: 0;
   transform-origin: 50% 50%;
   will-change: transform;
+}
+
+.ph-spinner__cadence,
+.ph-spinner__sweep,
+.ph-spinner__ring {
+  width: 100%;
+  height: 100%;
 }
 
 .ph-spinner__orbit {
@@ -43,7 +59,7 @@
     cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
-.ph-spinner__svg {
+.ph-spinner__sweep {
   display: block;
 }
 
