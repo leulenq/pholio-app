@@ -1,5 +1,13 @@
 # Lessons Learned
 
+## 2026-08-04 — A newer main-side UI edit is not automatically canonical
+
+- When a feature branch and `main` contain competing complete interface directions,
+  do not assume the later `main` components should be blended into the feature.
+- Show both rendered results before resolving the conflict when product intent is
+  unclear. If the owner identifies `main` as outdated, replace that implementation
+  with the approved branch design instead of producing an unrequested hybrid.
+
 ## 2026-07-30 — Scroll endpoints cannot depend on trailing percentage flex spacers
 
 - Firefox and Chromium can disagree about whether a trailing percentage flex
