@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { getSeasonAnalytics } from '../api/agency';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 
@@ -10,7 +11,6 @@ import { FlowRibbon } from '../components/analytics/FlowRibbon';
 import { VolumeStream } from '../components/analytics/VolumeStream';
 import { QueueAging } from '../components/analytics/QueueAging';
 import { MatchCalibration } from '../components/analytics/MatchCalibration';
-import { BoardQuadrant } from '../components/analytics/BoardQuadrant';
 import { Punchcard, CohortGrid } from '../components/analytics/HeatGrid';
 import { DistributionBars, Meter } from '../components/analytics/DistributionBars';
 import { PairedHistogram } from '../components/analytics/PairedHistogram';
@@ -40,8 +40,8 @@ import './AnalyticsPage.css';
 const RANGES = [
   { days: 30, label: '30 days' },
   { days: 90, label: '90 days' },
-  { days: 365, label: 'Season' },
-  { days: 730, label: 'Two years' },
+  { days: 365, label: '12 months' },
+  { days: 730, label: '24 months' },
 ];
 
 const LENSES = [
@@ -68,10 +68,11 @@ function PipelineLens({ data }) {
   const stages = useMemo(() => flow?.stages || [], [flow]);
   const signed = flow?.signed || 0;
   const cohort = flow?.cohort || 0;
+  const totalCohort = flow?.totalCohort || cohort;
 
   // The one written line on this lens, and only when a real hand-off carries it.
   const strongestHandoff = useMemo(() => {
-    const candidates = stages.filter((s) => s.conversion != null && s.reached >= 3);
+    const candidates = stages.filter((s) => s.conversion > 0 && s.reached >= 3);
     if (!candidates.length) return null;
     return candidates.reduce((best, s) => (s.conversion > best.conversion ? s : best));
   }, [stages]);
@@ -85,33 +86,39 @@ function PipelineLens({ data }) {
         title="How the season flowed"
         reading={
           cohort
-            ? `${signed} of ${cohort} submissions reached representation${
+            ? `${signed} of ${cohort} fully evidenced journeys reached representation${
                 strongestHandoff
                   ? ` · strongest hand-off is ${strongestHandoff.stage} at ${strongestHandoff.conversion}%`
                   : ''
               }`
             : undefined
         }
-        note="A stage counts as reached only where a recorded status change or the current status evidences it — a status jump never invents the hand-offs it skipped."
-        empty={cohort ? null : 'The flow draws itself once submissions land in this window.'}
+        note={
+          flow?.excludedIncomplete
+            ? `${flow.excludedIncomplete} of ${totalCohort} submissions are excluded from this ribbon because their recorded history skips one or more hand-offs. Current outcomes remain included elsewhere in the report.`
+            : 'Every hand-off in this ribbon is backed by an adjacent recorded status change.'
+        }
+        empty={cohort ? null : totalCohort ? 'No complete transition histories are available for this window yet.' : 'The flow draws itself once submissions land in this window.'}
         legend={
           <>
             {stages.map((s, i) => (
               <LegendKey key={s.stage} color={VIZ.depth[i]} label={s.stage} />
             ))}
-            <LegendKey color={VIZ.exit} label="Passed" />
+            <LegendKey color={VIZ.exit} label="Closed outcome" />
           </>
         }
         table={
           <VizTable
-            caption={`Pipeline flow for ${cohort} submissions`}
-            columns={['Stage', 'Reached', 'Advanced', 'Holding', 'Passed', 'Conversion', 'Median in stage']}
+            caption={`Pipeline flow for ${cohort} fully evidenced journeys out of ${totalCohort} submissions`}
+            columns={['Stage', 'Reached', 'Advanced', 'Holding', 'Passed', 'Kept on file', 'Withdrawn', 'Conversion', 'Median in stage']}
             rows={stages.map((s) => [
               s.stage,
               s.reached,
               s.advanced,
               s.held,
-              s.exited,
+              s.passed,
+              s.keptOnFile,
+              s.withdrawn,
               pct(s.conversion),
               s.medianDwellDays != null ? `${s.medianDwellDays}d (n=${s.dwellSample})` : 'not yet timed',
             ])}
@@ -126,14 +133,14 @@ function PipelineLens({ data }) {
         title="Intake and where it landed"
         reading={`${volume?.series?.reduce((sum, r) => sum + r.total, 0) || 0} submissions across the window`}
         note={`Line is the trailing ${volume?.windowSize || 7}-${volume?.granularity || 'day'} average of the same total.`}
-        empty={cohort ? null : 'Nothing arrived in this window.'}
+        empty={totalCohort ? null : 'Nothing arrived in this window.'}
         legend={[...VOLUME_STACK].reverse().map((s) => (
           <LegendKey key={s.key} color={s.color} label={s.label} />
         ))}
         table={
           <VizTable
             caption="Submissions per bucket by outcome"
-            columns={['Bucket', 'Total', 'Still applied', 'Shortlisted', 'Offered', 'Signed', 'Passed']}
+            columns={['Bucket', 'Total', 'Still applied', 'Shortlisted', 'Offered', 'Signed', 'Passed', 'Kept on file', 'Withdrawn']}
             rows={(volume?.series || [])
               .filter((r) => r.total > 0)
               .map((r) => [
@@ -144,6 +151,8 @@ function PipelineLens({ data }) {
                 r.offered,
                 r.signed,
                 r.passed,
+                r.keptOnFile,
+                r.withdrawn,
               ])}
           />
         }
@@ -154,6 +163,7 @@ function PipelineLens({ data }) {
       <Panel
         span={4}
         title="Open work by age"
+        action={<Link className="sv-panel-link" to="/dashboard/agency/submissions">Open submissions</Link>}
         reading={
           queue?.total
             ? `${queue.total} open · oldest untouched for ${queue.oldestDays} days`
@@ -174,7 +184,7 @@ function PipelineLens({ data }) {
 
       <Panel
         span={6}
-        title="Match score against what the desk did"
+        title="Stored score against current outcomes"
         reading={
           calibration?.separation != null
             ? `Signed talent scored ${calibration.separation} points above passed talent`
@@ -182,7 +192,7 @@ function PipelineLens({ data }) {
         }
         note={
           calibration?.sample
-            ? `${calibration.sample} scored submissions. A climbing line means the score is calibrated; a flat one means it is decorative.`
+            ? `${calibration.sample} scored submissions. This is a retrospective association, not predictive calibration: Pholio does not yet preserve an immutable score-at-submission snapshot.`
             : undefined
         }
         empty={calibration?.sample ? null : 'Match scores appear once submissions are scored against a board.'}
@@ -192,13 +202,15 @@ function PipelineLens({ data }) {
             <LegendKey color={VIZ.depth[2]} label="Advanced" />
             <LegendKey color={VIZ.depth[3]} label="Signed" />
             <LegendKey color={VIZ.exit} label="Passed" />
-            <LegendKey color={VIZ.series[1]} label="Advance rate" shape="line" />
+            <LegendKey color={VIZ.keptOnFile} label="Kept on file" />
+            <LegendKey color={VIZ.withdrawn} label="Withdrawn" />
+            <LegendKey color={VIZ.series[1]} label="Positive action rate" shape="line" />
           </>
         }
         table={
           <VizTable
             caption="Outcome by match score band"
-            columns={['Score', 'Scored', 'Still open', 'Advanced', 'Signed', 'Passed', 'Advance rate']}
+            columns={['Score', 'Scored', 'Still open', 'Advanced', 'Signed', 'Passed', 'Kept on file', 'Withdrawn', 'Positive action rate']}
             rows={(calibration?.bins || []).map((b) => [
               b.label,
               b.total,
@@ -206,6 +218,8 @@ function PipelineLens({ data }) {
               b.advanced,
               b.signed,
               b.passed,
+              b.keptOnFile,
+              b.withdrawn,
               pct(b.advanceRate),
             ])}
           />
@@ -216,41 +230,51 @@ function PipelineLens({ data }) {
 
       <Panel
         span={6}
-        title="Boards by score and conversion"
+        title="Package intake"
         reading={
           boardsWithVolume.length
-            ? `${boardsWithVolume.length} ${boardsWithVolume.length === 1 ? 'board' : 'boards'} took submissions this window`
+            ? `${boardsWithVolume.length} ${boardsWithVolume.length === 1 ? 'package' : 'packages'} took submissions this window`
             : undefined
         }
-        note="Bubble area is submission volume. Crosshair sits at this agency's own medians."
+        note="Application outcomes are not attributed to packages because the current schema has no package-specific decision history."
         empty={
           boardsWithVolume.length
             ? null
-            : 'Boards appear here once submissions are assigned and scored against them.'
+            : 'Packages appear here once submissions are assigned to a casting package.'
         }
         table={
           <VizTable
-            caption="Board performance"
-            columns={['Board', 'Submissions', 'Average match', 'Advance rate', 'Signed', 'Slots filled']}
+            caption="Package intake"
+            columns={['Package', 'Submissions', 'Scored', 'Score coverage', 'Average match']}
             rows={(boards || []).map((b) => [
               b.name,
               b.submissions,
+              b.scoredSubmissions,
+              pct(b.scoreCoverage),
               num(b.averageMatch),
-              pct(b.advanceRate),
-              b.signed,
-              b.targetSlots ? `${b.filled} of ${b.targetSlots}` : num(b.filled),
             ])}
           />
         }
       >
-        <BoardQuadrant boards={boards} />
+        <DistributionBars
+          items={boardsWithVolume.map((board) => ({
+            key: board.id,
+            label: board.name,
+            value: board.submissions,
+            valueLabel: 'Submissions',
+            note: board.averageMatch == null
+              ? 'No stored scores'
+              : `${board.scoredSubmissions} scored · ${board.averageMatch} average match`,
+          }))}
+          labelWidth={152}
+        />
       </Panel>
 
       <Panel
         span={12}
         title="Cohort progression"
         reading="Each month's intake and how far it got"
-        note="Applied is not drawn — every submission reaches it by definition, so the column would carry no information. Read down a column to see whether the desk is getting better at a stage, and across a row to see one month's whole journey."
+        note="Applied is not drawn because every submission reaches it. Later stages count only when a recorded event or current status evidences that exact stage; skipped hand-offs are not backfilled."
         empty={cohorts?.length ? null : 'Cohorts build up over the first months of submissions.'}
         table={
           <VizTable
@@ -399,7 +423,7 @@ function RosterLens({ data }) {
         span={4}
         title="Category signature"
         reading={fitObserved ? `Averaged over ${fitObserved} represented` : undefined}
-        note="Where the incoming shape bulges outside the roster shape, the market is sending something the house does not yet represent."
+        note="Where the incoming shape extends beyond the roster shape, submissions are bringing categories the agency does not yet represent."
         empty={fitObserved ? null : 'Category fit appears once profiles have been analysed.'}
         legend={
           <>
@@ -427,7 +451,7 @@ function RosterLens({ data }) {
         span={4}
         title="Markets"
         reading={roster.markets?.length ? `${roster.markets.length} ${roster.markets.length === 1 ? 'market' : 'markets'} represented` : undefined}
-        empty={roster.markets?.length ? null : 'Markets appear once roster profiles carry a city.'}
+        empty={roster.markets?.length ? null : 'Markets appear once roster profiles carry a representation market.'}
         table={
           <VizTable
             caption="Roster by market"
@@ -449,7 +473,7 @@ function RosterLens({ data }) {
       <Panel
         span={4}
         title="Tenure"
-        reading={roster.size ? 'How long the roster has been with the house' : undefined}
+        reading={roster.size ? 'How long talent has been represented by the agency' : undefined}
         empty={roster.size ? null : 'Tenure appears once talent has been signed.'}
         table={
           <VizTable
@@ -524,7 +548,7 @@ function RosterLens({ data }) {
 // ---------------------------------------------------------------------------
 
 function DeskLens({ data }) {
-  const { desk } = data;
+  const { desk, meta } = data;
   if (!desk) return null;
 
   const { latency, team, interviews, reminders } = desk;
@@ -539,7 +563,7 @@ function DeskLens({ data }) {
             ? `${desk.punchTotal} recorded actions across the window`
             : undefined
         }
-        note="Grouped in your own timezone. Darker means busier."
+        note={`Grouped in ${meta?.timeZone || 'the agency timezone'}. Darker means busier.`}
         empty={desk.punchTotal ? null : 'The working pattern appears once the team acts on submissions.'}
         table={
           <VizTable
@@ -612,6 +636,7 @@ function DeskLens({ data }) {
       <Panel
         span={4}
         title="Interview response"
+        action={<Link className="sv-panel-link" to="/dashboard/agency/interviews">Open interviews</Link>}
         reading={
           interviews?.total
             ? `${interviews.total} scheduled · ${interviews.answered} answered`
@@ -657,7 +682,7 @@ function DeskLens({ data }) {
       <Panel
         span={4}
         title="Interview format"
-        reading={interviews?.byType?.length ? 'How the house meets talent' : undefined}
+        reading={interviews?.byType?.length ? 'How the agency meets talent' : undefined}
         empty={interviews?.byType?.length ? null : 'Formats appear once interviews are scheduled.'}
         table={
           <VizTable
@@ -680,6 +705,7 @@ function DeskLens({ data }) {
       <Panel
         span={4}
         title="Follow-ups"
+        action={<Link className="sv-panel-link" to="/dashboard/agency/reminders">Open reminders</Link>}
         reading={
           reminders
             ? `${reminders.open} open${reminders.overdue ? ` · ${reminders.overdue} overdue` : ''}`
@@ -748,19 +774,50 @@ function SeasonSkeleton() {
 
 function AnalyticsPage() {
   const [range, setRange] = useState(90);
-  const [boardId, setBoardId] = useState('');
   const [lens, setLens] = useState('pipeline');
+  const [scopeByLens, setScopeByLens] = useState({ pipeline: '', roster: '' });
+  const lensRefs = useRef(new Map());
+  const shouldReduceMotion = useReducedMotion();
+  const boardId = lens === 'desk' ? '' : scopeByLens[lens] || '';
 
-  const { data, isLoading, isError, isFetching, refetch } = useQuery({
+  const {
+    data,
+    error,
+    isLoading,
+    isError,
+    isFetching,
+    isPlaceholderData,
+    refetch,
+  } = useQuery({
     queryKey: ['agency-season', range, boardId],
-    queryFn: () => getSeasonAnalytics({ range, boardId: boardId || null }),
+    queryFn: ({ signal }) => getSeasonAnalytics({ range, boardId: boardId || null, signal }),
     staleTime: 60_000,
     placeholderData: keepPreviousData,
   });
 
-  const rangeLabel = RANGES.find((r) => r.days === range)?.label || `${range} days`;
-  const boards = data?.meta?.boards || [];
+  const reportRange = data?.meta?.range ?? range;
+  const reportRangeLabel =
+    RANGES.find((item) => item.days === reportRange)?.label || `${reportRange} days`;
+  const boardKind = lens === 'pipeline' ? 'package' : lens === 'roster' ? 'division' : null;
+  const boards = (data?.meta?.boards || []).filter((board) => board.kind === boardKind);
+  const boardLabel = boardKind === 'package' ? 'Package' : 'Division';
   const generatedAt = data?.meta?.generatedAt ? new Date(data.meta.generatedAt) : null;
+
+  const chooseLens = (nextLens) => {
+    setLens(nextLens);
+    lensRefs.current.get(nextLens)?.focus();
+  };
+
+  const handleLensKeyDown = (event, currentIndex) => {
+    let nextIndex = null;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % LENSES.length;
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + LENSES.length) % LENSES.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = LENSES.length - 1;
+    if (nextIndex == null) return;
+    event.preventDefault();
+    chooseLens(LENSES[nextIndex].key);
+  };
 
   return (
     <div className="sv-page">
@@ -768,7 +825,7 @@ function AnalyticsPage() {
         <h1 className="sv-title">The Season</h1>
         <p className="sv-sub">
           {data
-            ? `${data.totals.windowSubmissions} submissions and ${data.roster?.size ?? 0} represented, read across ${rangeLabel.toLowerCase()}`
+            ? `${data.totals.windowSubmissions} submissions and ${data.roster?.size ?? 0} represented, read across ${reportRangeLabel.toLowerCase()}`
             : 'Reading the pipeline, the roster, and the desk'}
         </p>
       </header>
@@ -791,9 +848,15 @@ function AnalyticsPage() {
 
         {boards.length ? (
           <label className="sv-board-filter">
-            <span className="sv-board-filter-label">Board</span>
-            <select value={boardId} onChange={(e) => setBoardId(e.target.value)}>
-              <option value="">Every board</option>
+            <span className="sv-board-filter-label">{boardLabel}</span>
+            <select
+              value={boardId}
+              onChange={(event) => {
+                const value = event.target.value;
+                setScopeByLens((current) => ({ ...current, [lens]: value }));
+              }}
+            >
+              <option value="">Every {boardLabel.toLowerCase()}</option>
               {boards.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -813,31 +876,57 @@ function AnalyticsPage() {
       {isLoading ? <SeasonSkeleton /> : null}
 
       {isError && !data ? (
-        <div className="sv-error">
+        <div className="sv-error" role="alert" aria-live="assertive">
           <p>The season report couldn’t load.</p>
-          <button type="button" className="sv-retry" onClick={() => refetch()}>
-            Try again
+          <button type="button" className="sv-retry" disabled={isFetching} onClick={() => refetch()}>
+            {isFetching ? 'Trying again…' : 'Try again'}
           </button>
         </div>
       ) : null}
 
       {data ? (
-        // Held at reduced opacity while refetching rather than flashing a
-        // skeleton, so the layout never jumps under the reader.
-        <div className={`sv-content${isFetching ? ' sv-content--stale' : ''}`}>
-          <SignalRail signals={data.signals} rangeLabel={rangeLabel} />
+        <div className="sv-content">
+          {isPlaceholderData && !isError ? (
+            <div className="sv-refresh-status" role="status" aria-live="polite">
+              Updating this view. The figures below remain on the previous reporting scope until the new report is ready.
+            </div>
+          ) : null}
+
+          {isError ? (
+            <div className="sv-refresh-error" role="status" aria-live="polite">
+              <span>
+                Couldn’t refresh this report. Showing the last successful read
+                {generatedAt
+                  ? ` from ${generatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                  : ''}
+                .
+              </span>
+              <button type="button" className="sv-retry" disabled={isFetching} onClick={() => refetch()}>
+                {isFetching ? 'Retrying…' : 'Retry'}
+              </button>
+              {error?.message ? <span className="sr-only">{error.message}</span> : null}
+            </div>
+          ) : null}
+
+          <SignalRail signals={data.signals} rangeLabel={reportRangeLabel} />
 
           <nav className="sv-lenses" role="tablist" aria-label="Analytics lens">
-            {LENSES.map((l) => (
+            {LENSES.map((l, index) => (
               <button
                 key={l.key}
+                ref={(node) => {
+                  if (node) lensRefs.current.set(l.key, node);
+                  else lensRefs.current.delete(l.key);
+                }}
                 type="button"
                 role="tab"
                 id={`sv-lens-${l.key}`}
                 aria-selected={lens === l.key}
                 aria-controls={`sv-board-${l.key}`}
+                tabIndex={lens === l.key ? 0 : -1}
                 className={`sv-lens${lens === l.key ? ' sv-lens--on' : ''}`}
                 onClick={() => setLens(l.key)}
+                onKeyDown={(event) => handleLensKeyDown(event, index)}
               >
                 {l.label}
               </button>
@@ -850,7 +939,7 @@ function AnalyticsPage() {
             role="tabpanel"
             aria-labelledby={`sv-lens-${lens}`}
             className="sv-board"
-            {...rise}
+            {...(shouldReduceMotion ? {} : rise)}
           >
             {lens === 'pipeline' ? <PipelineLens data={data} /> : null}
             {lens === 'roster' ? <RosterLens data={data} /> : null}

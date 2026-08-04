@@ -36,28 +36,81 @@
   box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15) !important;
 }
 
-/* ---- Inputs ---- */
+/* ---- Inputs (Talent Dashboard Textbox Design System) ---- */
 .ag input[type="text"],
+.ag input[type="email"],
+.ag input[type="password"],
+.ag input[type="tel"],
+.ag input[type="url"],
 .ag input[type="number"],
 .ag input[type="date"],
 .ag input[type="search"],
-.ag select,
 .ag textarea {
-  background-color: var(--ag-surface-1) !important;
-  border-color: var(--ag-border) !important;
-  color: var(--ag-text-1) !important;
+  background-color: #f8f8f7 !important;
+  border: 1px solid rgba(26, 24, 21, 0.08) !important;
+  border-radius: 8px !important;
+  color: var(--ag-text-0, #1A1815) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01) !important;
+  font-family: 'Inter', sans-serif !important;
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+  outline: none !important;
+}
+
+.ag textarea {
+  resize: none !important;
+  line-height: 1.6 !important;
 }
 
 .ag input::placeholder,
 .ag textarea::placeholder {
-  color: var(--ag-text-3) !important;
+  color: #A39E99 !important;
+  font-style: italic !important;
+}
+
+.ag input:hover:not(:focus),
+.ag textarea:hover:not(:focus) {
+  border-color: rgba(201, 165, 90, 0.25) !important;
+  background-color: #fdfdfc !important;
 }
 
 .ag input:focus,
-.ag select:focus,
 .ag textarea:focus {
-  border-color: var(--ag-gold-dim) !important;
-  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.1) !important;
+  border-color: rgba(201, 165, 90, 0.35) !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+}
+
+/* ---- Dropdowns / Select Fields (Talent Dashboard Dropdown Design) ---- */
+.ag select {
+  background-color: #f8f8f7 !important;
+  border: 1px solid rgba(26, 24, 21, 0.08) !important;
+  border-radius: 8px !important;
+  color: var(--ag-text-0, #1A1815) !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01) !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  padding-right: 48px !important;
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B6560' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 16px center !important;
+  cursor: pointer !important;
+}
+
+.ag select:hover:not(:focus):not(:disabled) {
+  border-color: rgba(201, 165, 90, 0.25) !important;
+  background-color: #fdfdfc !important;
+}
+
+.ag select:focus {
+  border-color: rgba(201, 165, 90, 0.35) !important;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23C9A55A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E") !important;
 }
 
 /* ---- Checkboxes ---- */

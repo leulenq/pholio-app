@@ -127,8 +127,8 @@ function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, on
       onClick={() => onOpen(c)}
       {...cardButtonProps}
       layout={reduceMotion ? false : 'position'}
-      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
       exit={reduceMotion ? undefined : { opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
     >

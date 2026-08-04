@@ -5,11 +5,11 @@ import { useTooltip } from './useTooltip';
 import { TipRows } from './Tooltip';
 
 /**
- * Does the match score predict what the desk actually does?
+ * Retrospective association between stored match scores and current outcomes.
  *
  * Each score band is a column split by outcome, with the share that advanced
- * drawn as a line across the tops. If scoring is calibrated the line climbs
- * left to right; if it is flat, the score is decorative and the panel says so.
+ * drawn as a line across the tops. This does not claim predictive calibration:
+ * the current schema does not preserve an immutable score-at-submission event.
  */
 
 const PAD = { top: 16, right: 12, bottom: 42, left: 30 };
@@ -17,6 +17,8 @@ const HEIGHT = 216;
 const MAX_BAR = 24;
 
 const LAYERS = [
+  { key: 'withdrawn', label: 'Withdrawn', color: VIZ.withdrawn },
+  { key: 'keptOnFile', label: 'Kept on file', color: VIZ.keptOnFile },
   { key: 'passed', label: 'Passed', color: VIZ.exit },
   { key: 'signed', label: 'Signed', color: VIZ.depth[3] },
   { key: 'advanced', label: 'Advanced', color: VIZ.depth[2] },

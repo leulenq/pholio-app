@@ -29,14 +29,16 @@ const hoursAgo = (n) => new Date(NOW.getTime() - n * HOUR_MS).toISOString();
 
 let db;
 
-async function createSchema(knex) {
+async function createSchema(knex, { fitScoreTable = "analysis" } = {}) {
   await knex.schema.createTable("applications", (t) => {
     t.string("id").primary();
     t.string("profile_id");
     t.string("agency_id");
     t.string("status");
-    t.string("board_id");
     t.integer("match_score");
+    t.boolean("minor_at_submission").notNullable().defaultTo(false);
+    t.string("minor_access_revoked_at");
+    t.string("guardian_consent_expires_at");
     t.string("created_at");
     t.string("updated_at");
     t.string("viewed_at");
@@ -51,6 +53,7 @@ async function createSchema(knex) {
     t.integer("target_slots");
     t.boolean("is_active");
     t.string("closes_at");
+    t.string("board_type");
   });
   await knex.schema.createTable("board_applications", (t) => {
     t.string("id").primary();
@@ -70,6 +73,7 @@ async function createSchema(knex) {
   await knex.schema.createTable("interviews", (t) => {
     t.string("id").primary();
     t.string("agency_id");
+    t.string("application_id");
     t.string("status");
     t.string("interview_type");
     t.string("proposed_datetime");
@@ -79,6 +83,7 @@ async function createSchema(knex) {
   await knex.schema.createTable("reminders", (t) => {
     t.string("id").primary();
     t.string("agency_id");
+    t.string("application_id");
     t.string("status");
     t.string("priority");
     t.string("reminder_date");
@@ -109,6 +114,19 @@ async function createSchema(knex) {
     t.string("joined_at");
     t.string("left_at");
   });
+  await knex.schema.createTable("roster_board_standings", (t) => {
+    t.string("id").primary();
+    t.string("membership_id");
+    t.string("board_id");
+    t.string("standing");
+    t.boolean("is_primary");
+  });
+  await knex.schema.createTable("agency_setup_steps", (t) => {
+    t.string("id").primary();
+    t.string("agency_id");
+    t.string("step_key");
+    t.text("data");
+  });
   await knex.schema.createTable("profiles", (t) => {
     t.string("id").primary();
     t.string("city");
@@ -118,15 +136,28 @@ async function createSchema(knex) {
     t.string("gender");
     t.string("experience_level");
     t.string("archetype");
-    t.integer("fit_score_runway");
-    t.integer("fit_score_editorial");
-    t.integer("fit_score_commercial");
-    t.integer("fit_score_lifestyle");
-    t.integer("fit_score_swim_fitness");
+    if (fitScoreTable === "profile") {
+      t.integer("fit_score_runway");
+      t.integer("fit_score_editorial");
+      t.integer("fit_score_commercial");
+      t.integer("fit_score_lifestyle");
+      t.integer("fit_score_swim_fitness");
+    }
+  });
+  await knex.schema.createTable("ai_profile_analysis", (t) => {
+    t.string("id").primary();
+    t.string("profile_id").unique();
+    if (fitScoreTable === "analysis") {
+      t.integer("fit_score_runway");
+      t.integer("fit_score_editorial");
+      t.integer("fit_score_commercial");
+      t.integer("fit_score_lifestyle");
+      t.integer("fit_score_swim_fitness");
+    }
   });
 }
 
-async function seed(knex) {
+async function seed(knex, { fitScoreTable = "analysis" } = {}) {
   await knex("boards").insert([
     {
       id: "board-runway",
@@ -136,6 +167,7 @@ async function seed(knex) {
       target_slots: 10,
       is_active: true,
       closes_at: null,
+      board_type: "package",
     },
     {
       id: "board-commercial",
@@ -145,6 +177,27 @@ async function seed(knex) {
       target_slots: 4,
       is_active: true,
       closes_at: null,
+      board_type: "package",
+    },
+    {
+      id: "division-development",
+      agency_id: AGENCY,
+      name: "Development",
+      client_name: null,
+      target_slots: null,
+      is_active: true,
+      closes_at: null,
+      board_type: null,
+    },
+    {
+      id: "division-main",
+      agency_id: AGENCY,
+      name: "Main",
+      client_name: null,
+      target_slots: null,
+      is_active: true,
+      closes_at: null,
+      board_type: null,
     },
   ]);
 
@@ -168,6 +221,12 @@ async function seed(knex) {
       status: "active",
     },
   ]);
+  await knex("agency_setup_steps").insert({
+    id: "setup-defaults",
+    agency_id: AGENCY,
+    step_key: "defaults",
+    data: JSON.stringify({ timezone: "America/New_York" }),
+  });
 
   // app-signed: applied → shortlisted → accepted → represented, all inside 90d
   // app-passed: applied → shortlisted → passed
@@ -179,8 +238,8 @@ async function seed(knex) {
       profile_id: "p-signed",
       agency_id: AGENCY,
       status: "represented",
-      board_id: "board-runway",
       match_score: 88,
+      minor_at_submission: false,
       created_at: daysAgo(40),
       updated_at: daysAgo(20),
       viewed_at: daysAgo(39),
@@ -192,8 +251,8 @@ async function seed(knex) {
       profile_id: "p-passed",
       agency_id: AGENCY,
       status: "passed",
-      board_id: "board-runway",
       match_score: 41,
+      minor_at_submission: false,
       created_at: daysAgo(30),
       updated_at: daysAgo(25),
       viewed_at: daysAgo(30),
@@ -205,8 +264,8 @@ async function seed(knex) {
       profile_id: "p-open",
       agency_id: AGENCY,
       status: "submitted",
-      board_id: "board-commercial",
       match_score: 66,
+      minor_at_submission: false,
       created_at: daysAgo(40),
       updated_at: daysAgo(40),
       viewed_at: null,
@@ -218,8 +277,8 @@ async function seed(knex) {
       profile_id: "p-old",
       agency_id: AGENCY,
       status: "passed",
-      board_id: null,
       match_score: 20,
+      minor_at_submission: false,
       created_at: daysAgo(300),
       updated_at: daysAgo(299),
       viewed_at: daysAgo(300),
@@ -302,7 +361,7 @@ async function seed(knex) {
       agency_id: AGENCY,
       profile_id: "p-signed",
       talent_record_id: null,
-      board_id: "board-runway",
+      board_id: "division-development",
       stage: "new_face",
       status: "active",
       joined_at: daysAgo(22),
@@ -313,7 +372,7 @@ async function seed(knex) {
       agency_id: AGENCY,
       profile_id: "p-veteran",
       talent_record_id: null,
-      board_id: "board-commercial",
+      board_id: "division-main",
       stage: "main",
       status: "active",
       joined_at: daysAgo(400),
@@ -324,11 +383,35 @@ async function seed(knex) {
       agency_id: AGENCY,
       profile_id: "p-left",
       talent_record_id: null,
-      board_id: "board-runway",
+      board_id: "division-development",
       stage: "main",
       status: "left",
       joined_at: daysAgo(500),
       left_at: daysAgo(60),
+    },
+  ]);
+
+  await knex("roster_board_standings").insert([
+    {
+      id: "rbs1",
+      membership_id: "rm1",
+      board_id: "division-development",
+      standing: "developing",
+      is_primary: true,
+    },
+    {
+      id: "rbs2",
+      membership_id: "rm2",
+      board_id: "division-main",
+      standing: "represented",
+      is_primary: true,
+    },
+    {
+      id: "rbs3",
+      membership_id: "rm2",
+      board_id: "division-development",
+      standing: "active",
+      is_primary: false,
     },
   ]);
 
@@ -340,11 +423,6 @@ async function seed(knex) {
       height_cm: 178,
       date_of_birth: "2004-05-02",
       experience_level: "new_face",
-      fit_score_runway: 80,
-      fit_score_editorial: 70,
-      fit_score_commercial: 40,
-      fit_score_lifestyle: 45,
-      fit_score_swim_fitness: 30,
     },
     {
       id: "p-veteran",
@@ -353,20 +431,49 @@ async function seed(knex) {
       height_cm: 182,
       date_of_birth: "1998-01-10",
       experience_level: "established",
+    },
+    { id: "p-passed", city: "Milan", market: "milan", height_cm: 168 },
+    { id: "p-open", city: "New York", market: "new-york", height_cm: 172 },
+  ]);
+
+  const fitScores = [
+    {
+      profile_id: "p-signed",
+      fit_score_runway: 80,
+      fit_score_editorial: 70,
+      fit_score_commercial: 40,
+      fit_score_lifestyle: 45,
+      fit_score_swim_fitness: 30,
+    },
+    {
+      profile_id: "p-veteran",
       fit_score_runway: 90,
       fit_score_editorial: 85,
       fit_score_commercial: 35,
       fit_score_lifestyle: 40,
       fit_score_swim_fitness: 25,
     },
-    { id: "p-passed", city: "Milan", market: "milan", height_cm: 168 },
-    { id: "p-open", city: "New York", market: "new-york", height_cm: 172 },
-  ]);
+  ];
+  if (fitScoreTable === "analysis") {
+    await knex("ai_profile_analysis").insert(
+      fitScores.map((scores, index) => ({
+        id: `analysis-${index}`,
+        ...scores,
+      })),
+    );
+  } else {
+    await Promise.all(
+      fitScores.map(({ profile_id: profileId, ...values }) =>
+        knex("profiles").where({ id: profileId }).update(values),
+      ),
+    );
+  }
 
   await knex("interviews").insert([
     {
       id: "i1",
       agency_id: AGENCY,
+      application_id: "app-signed",
       status: "accepted",
       interview_type: "video_call",
       proposed_datetime: daysAgo(18),
@@ -376,6 +483,7 @@ async function seed(knex) {
     {
       id: "i2",
       agency_id: AGENCY,
+      application_id: "app-passed",
       status: "declined",
       interview_type: "in_person",
       proposed_datetime: daysAgo(10),
@@ -388,6 +496,7 @@ async function seed(knex) {
     {
       id: "r1",
       agency_id: AGENCY,
+      application_id: "app-open",
       status: "pending",
       priority: "high",
       reminder_date: daysAgo(3),
@@ -397,6 +506,7 @@ async function seed(knex) {
     {
       id: "r2",
       agency_id: AGENCY,
+      application_id: "app-signed",
       status: "completed",
       priority: "normal",
       reminder_date: daysAgo(6),
@@ -483,15 +593,29 @@ describe("replayJourney", () => {
     // one recorded move, timed from Applied — not three fabricated hand-offs
     expect(journey.dwell).toHaveLength(1);
     expect(journey.dwell[0].stageIndex).toBe(0);
+    expect(journey.reachedStages).toEqual([true, false, false, true]);
+    expect(journey.flowComplete).toBe(false);
+  });
+
+  it.each([
+    ["kept_on_file", "Kept on file"],
+    ["withdrawn", "Withdrawn"],
+  ])("treats %s as a closed outcome rather than open work", (status, stage) => {
+    const journey = replayJourney(
+      { created_at: daysAgo(5), updated_at: daysAgo(1), status },
+      [],
+    );
+    expect(journey.currentStage).toBe(stage);
+    expect(journey.isOpen).toBe(false);
   });
 });
 
 describe("buildFlow", () => {
   it("splits every stage into advanced / held / exited without double counting", () => {
     const journeys = [
-      { journey: { reachedIndex: 3, exitedFrom: null, dwell: [] } },
-      { journey: { reachedIndex: 1, exitedFrom: 1, dwell: [] } },
-      { journey: { reachedIndex: 0, exitedFrom: null, dwell: [] } },
+      { journey: { reachedIndex: 3, exitedFrom: null, dwell: [], flowComplete: true } },
+      { journey: { reachedIndex: 1, exitedFrom: 1, exitKind: "passed", dwell: [], flowComplete: true } },
+      { journey: { reachedIndex: 0, exitedFrom: null, dwell: [], flowComplete: true } },
     ];
     const flow = buildFlow(journeys);
     const [applied, shortlisted] = flow.stages;
@@ -507,6 +631,17 @@ describe("buildFlow", () => {
     expect(shortlisted.advanced).toBe(1);
     expect(shortlisted.held).toBe(0);
     expect(flow.signed).toBe(1);
+  });
+
+  it("excludes journeys whose intermediate hand-offs are not evidenced", () => {
+    const flow = buildFlow([
+      { journey: { reachedIndex: 3, exitedFrom: null, dwell: [], flowComplete: false } },
+      { journey: { reachedIndex: 0, exitedFrom: null, dwell: [], flowComplete: true } },
+    ]);
+    expect(flow.totalCohort).toBe(2);
+    expect(flow.cohort).toBe(1);
+    expect(flow.excludedIncomplete).toBe(1);
+    expect(flow.signed).toBe(0);
   });
 });
 
@@ -565,7 +700,7 @@ describe("bucket planning", () => {
       new Date("2026-01-01T00:00:00Z"),
       new Date("2026-01-05T00:00:00Z"),
       "day",
-      0,
+      "UTC",
     );
     expect(keys).toEqual([
       "2026-01-01",
@@ -584,7 +719,7 @@ describe("buildSeasonAnalytics", () => {
     result = await buildSeasonAnalytics(db, {
       agencyId: AGENCY,
       range: 90,
-      tzOffsetMinutes: 0,
+      timeZone: "UTC",
       now: NOW,
     });
   });
@@ -602,7 +737,15 @@ describe("buildSeasonAnalytics", () => {
   it("reports the requested window and the agency's boards", () => {
     expect(result.meta.range).toBe(90);
     expect(result.meta.granularity).toBe("day");
-    expect(result.meta.boards.map((b) => b.name)).toEqual(["Commercial", "Runway"]);
+    expect(result.meta.boards.map((b) => b.name)).toEqual([
+      "Commercial",
+      "Development",
+      "Main",
+      "Runway",
+    ]);
+    expect(result.meta.boards.filter((b) => b.kind === "package")).toHaveLength(2);
+    expect(result.meta.boards.filter((b) => b.kind === "division")).toHaveLength(2);
+    expect(result.meta.timeZone).toBe("UTC");
     expect(result.meta.rosterIsDerived).toBe(false);
   });
 
@@ -641,13 +784,13 @@ describe("buildSeasonAnalytics", () => {
     expect(result.calibration.separation).toBe(47);
   });
 
-  it("scores board performance from board links", () => {
+  it("reports package intake without inventing board-specific conversions", () => {
     const runway = result.boards.find((b) => b.name === "Runway");
     expect(runway.submissions).toBe(2);
-    expect(runway.signed).toBe(1);
     expect(runway.averageMatch).toBe(65); // (88 + 41) / 2 rounded
-    expect(runway.filled).toBe(1);
-    expect(runway.fillRate).toBe(10);
+    expect(runway.scoreCoverage).toBe(100);
+    expect(runway).not.toHaveProperty("signed");
+    expect(runway).not.toHaveProperty("advanceRate");
   });
 
   it("attributes desk activity to the team member who acted", () => {
@@ -664,7 +807,34 @@ describe("buildSeasonAnalytics", () => {
     // app-open has never been viewed or acted on, so it contributes no latency
     // sample rather than an invented one.
     expect(result.desk.latency.sample).toBe(2);
-    expect(result.desk.latency.medianHours).not.toBeNull();
+    // Viewing happened before the first status-change activities, so the
+    // earlier view timestamps must win: 0h and 24h, median 12h.
+    expect(result.desk.latency.medianHours).toBe(12);
+  });
+
+  it("counts an interview by its proposed date when it was created earlier", async () => {
+    await db("interviews").insert({
+      id: "i-proposed-in-window",
+      agency_id: AGENCY,
+      application_id: "app-open",
+      status: "pending",
+      interview_type: "in_person",
+      proposed_datetime: daysAgo(5),
+      responded_at: null,
+      created_at: daysAgo(120),
+    });
+    try {
+      const withScheduledInterview = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      expect(withScheduledInterview.desk.interviews.total).toBe(3);
+      expect(withScheduledInterview.desk.interviews.pending).toBe(1);
+    } finally {
+      await db("interviews").where({ id: "i-proposed-in-window" }).delete();
+    }
   });
 
   it("summarises interview and reminder operations", () => {
@@ -683,6 +853,10 @@ describe("buildSeasonAnalytics", () => {
       "new-york",
       "paris",
     ]);
+    expect(result.roster.boardMix).toEqual([
+      { board: "Development", count: 2, share: 100 },
+      { board: "Main", count: 1, share: 50 },
+    ]);
   });
 
   it("compares roster fit against the incoming pipeline on the same axes", () => {
@@ -694,7 +868,7 @@ describe("buildSeasonAnalytics", () => {
     expect(runway.pipelineSample).toBe(1);
   });
 
-  it("scopes every section to a single board when asked", async () => {
+  it("scopes pipeline and linked desk records to a package", async () => {
     const scoped = await buildSeasonAnalytics(db, {
       agencyId: AGENCY,
       range: 90,
@@ -702,20 +876,91 @@ describe("buildSeasonAnalytics", () => {
       now: NOW,
     });
     expect(scoped.meta.boardId).toBe("board-commercial");
+    expect(scoped.meta.boardScope).toBe("package");
     expect(scoped.flow.cohort).toBe(1);
     expect(scoped.boards).toHaveLength(1);
-    expect(scoped.roster.size).toBe(1);
+    expect(scoped.roster.size).toBe(2);
+    expect(scoped.desk.interviews.total).toBe(0);
+    expect(scoped.desk.reminders.open).toBe(1);
   });
 
-  it("ignores an unknown board id rather than returning an empty report", async () => {
+  it("scopes only the roster lens to a division", async () => {
     const scoped = await buildSeasonAnalytics(db, {
+      agencyId: AGENCY,
+      range: 90,
+      boardId: "division-main",
+      now: NOW,
+    });
+    expect(scoped.meta.boardScope).toBe("division");
+    expect(scoped.flow.cohort).toBe(3);
+    expect(scoped.roster.size).toBe(1);
+    expect(scoped.roster.boardMix).toEqual([
+      { board: "Main", count: 1, share: 100 },
+    ]);
+  });
+
+  it("rejects an unknown board instead of failing open to agency-wide data", async () => {
+    await expect(buildSeasonAnalytics(db, {
       agencyId: AGENCY,
       range: 90,
       boardId: "not-a-board",
       now: NOW,
+    })).rejects.toMatchObject({ code: "ANALYTICS_INVALID_BOARD" });
+  });
+
+  it("filters minor submissions before aggregation unless permission and consent are current", async () => {
+    await db("applications").insert({
+      id: "app-minor",
+      profile_id: null,
+      agency_id: AGENCY,
+      status: "submitted",
+      match_score: 72,
+      minor_at_submission: true,
+      guardian_consent_expires_at: "2027-08-01T00:00:00.000Z",
+      minor_access_revoked_at: null,
+      created_at: daysAgo(2),
+      updated_at: daysAgo(2),
     });
-    expect(scoped.meta.boardId).toBeNull();
-    expect(scoped.flow.cohort).toBe(3);
+    await db("board_applications").insert({
+      id: "ba-minor",
+      board_id: "board-runway",
+      application_id: "app-minor",
+      match_score: 72,
+    });
+
+    try {
+      const restricted = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        allowMinorSubmissions: false,
+        now: NOW,
+      });
+      const permitted = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        allowMinorSubmissions: true,
+        now: NOW,
+      });
+      expect(restricted.flow.totalCohort).toBe(3);
+      expect(permitted.flow.totalCohort).toBe(4);
+
+      await db("applications")
+        .where({ id: "app-minor" })
+        .update({ minor_access_revoked_at: daysAgo(1) });
+      const revoked = await buildSeasonAnalytics(db, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        allowMinorSubmissions: true,
+        now: NOW,
+      });
+      expect(revoked.flow.totalCohort).toBe(3);
+    } finally {
+      await db("board_applications").where({ id: "ba-minor" }).delete();
+      await db("applications").where({ id: "app-minor" }).delete();
+    }
   });
 
   it("falls back to the default range for an unsupported value", async () => {
@@ -725,5 +970,28 @@ describe("buildSeasonAnalytics", () => {
       now: NOW,
     });
     expect(scoped.meta.range).toBe(90);
+  });
+
+  it("reads fit scores from the fresh-migration profile layout too", async () => {
+    const freshDb = knexFactory({
+      client: "sqlite3",
+      connection: { filename: ":memory:" },
+      useNullAsDefault: true,
+    });
+    try {
+      await createSchema(freshDb, { fitScoreTable: "profile" });
+      await seed(freshDb, { fitScoreTable: "profile" });
+      const freshResult = await buildSeasonAnalytics(freshDb, {
+        agencyId: AGENCY,
+        range: 90,
+        timeZone: "UTC",
+        now: NOW,
+      });
+      const runway = freshResult.roster.fit.find((row) => row.axis === "Runway");
+      expect(runway.roster).toBe(85);
+      expect(runway.pipeline).toBe(80);
+    } finally {
+      await freshDb.destroy();
+    }
   });
 });

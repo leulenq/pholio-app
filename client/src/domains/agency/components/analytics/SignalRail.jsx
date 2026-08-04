@@ -62,7 +62,9 @@ function Delta({ signal }) {
   const tone = good == null ? 'flat' : good ? 'good' : 'bad';
   const Icon = up ? ArrowUpRight : ArrowDownRight;
   const magnitude =
-    unit === 'count' && deltaPercent != null
+    unit === 'percent'
+      ? `${Math.abs(delta)} percentage ${Math.abs(delta) === 1 ? 'point' : 'points'}`
+      : unit === 'count' && deltaPercent != null
       ? `${Math.abs(deltaPercent)}%`
       : formatValue(Math.abs(delta), unit);
 

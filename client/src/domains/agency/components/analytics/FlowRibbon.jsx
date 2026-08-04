@@ -9,7 +9,7 @@ import { TipRows } from './Tooltip';
  *
  * A cohort of submissions enters at Applied and the band thins left to right:
  * what advanced carries on, what is still sitting somewhere peels into the
- * holding lane, what was passed on peels into the exit lane, and what survives
+ * holding lane, what closed peels into the exit lane, and what survives
  * to the right-hand terminal is signed. Every figure is evidenced — a stage is
  * only counted as reached where a recorded status change or the current status
  * says so, so a status jump never invents the hand-offs it skipped.
@@ -41,7 +41,7 @@ function ribbon(x0, y0a, y0b, x1, y1a, y1b) {
 /**
  * Below about 620px the four-column ribbon cannot hold its stage headers apart,
  * so the same flow is redrawn as stacked rows: each stage a bar split into what
- * advanced, what is holding, and what was passed. Same numbers, same colours,
+ * advanced, what is holding, and what closed. Same numbers, same colours,
  * a shape that survives a phone.
  */
 function FlowRows({ stages, cohort, show, hide }) {
@@ -58,7 +58,7 @@ function FlowRows({ stages, cohort, show, hide }) {
           : [
               { key: 'advanced', value: stage.advanced, color: VIZ.depth[i + 1], label: 'advanced' },
               { key: 'held', value: stage.held, color, label: 'holding' },
-              { key: 'exited', value: stage.exited, color: VIZ.exit, label: 'passed' },
+              { key: 'exited', value: stage.exited, color: VIZ.exit, label: 'closed' },
             ];
         return (
           <div className="sv-flow-row" key={stage.stage} style={{ minHeight: ROW_H }}>
@@ -240,15 +240,17 @@ export function FlowRibbon({ flow }) {
                     fill={VIZ.exit}
                     fillOpacity="0.3"
                     onMouseMove={(e) =>
-                      tip(e, `Passed from ${stage.stage}`, null, [
-                        { label: 'Passed on', value: stage.exited, color: VIZ.exit },
+                      tip(e, `Closed from ${stage.stage}`, null, [
+                        ...(stage.passed ? [{ label: 'Passed', value: stage.passed, color: VIZ.exit }] : []),
+                        ...(stage.keptOnFile ? [{ label: 'Kept on file', value: stage.keptOnFile, color: VIZ.keptOnFile }] : []),
+                        ...(stage.withdrawn ? [{ label: 'Withdrawn', value: stage.withdrawn, color: VIZ.withdrawn }] : []),
                       ])
                     }
                     onMouseLeave={hide}
                   />
                   <rect x={peelEnd} y={exitLaneTop} width={3} height={exitT} fill={VIZ.exit} />
                   <text className="sv-flow-peel" x={peelEnd + 8} y={exitLaneTop + exitT / 2 + 3.5}>
-                    {stage.exited} passed
+                    {stage.exited} closed
                   </text>
                 </>
               ) : null}
@@ -278,7 +280,7 @@ export function FlowRibbon({ flow }) {
                 onMouseMove={(e) =>
                   tip(e, stage.stage, `${stage.reached} of ${cohort} submissions reached this stage`, [
                     ...(isLast ? [] : [{ label: 'Advanced', value: stage.advanced }, { label: 'Holding', value: stage.held }]),
-                    { label: 'Passed', value: stage.exited },
+                    { label: 'Closed', value: stage.exited },
                     {
                       label: 'Median in stage',
                       value:

@@ -260,3 +260,49 @@
   --ph-error-secondary-border: var(--ag-border-strong);
   --ph-inline-error: var(--ag-danger);
 }
+
+/* ============================================================
+   Canonical Agency Primary Button (New Board / Schedule signature design)
+   ============================================================ */
+.ag-btn-primary,
+.ag-btn--primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #16130D;
+  color: #FAF8F5;
+  border: 1px solid #16130D;
+  border-radius: 6px;
+  padding: 11px 18px;
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(20, 18, 14, 0.16);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+
+.ag-btn-primary:hover:not(:disabled),
+.ag-btn--primary:hover:not(:disabled) {
+  background: var(--ag-gold);
+  border-color: var(--ag-gold);
+  color: #16130D;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(184, 149, 106, 0.3);
+}
+
+.ag-btn-primary:focus-visible,
+.ag-btn--primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4);
+}
+
+.ag-btn-primary:disabled,
+.ag-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}

@@ -89,13 +89,14 @@ async function request(endpoint, options = {}) {
 
     return data;
   } catch (error) {
+    if (error?.name === 'AbortError') throw error;
     if (error instanceof ApiError) throw error;
     throw new ApiError(error.message || 'Network error', 0, null);
   }
 }
 
 const apiClient = {
-  get: (endpoint) => request(endpoint, { method: 'GET' }),
+  get: (endpoint, options = {}) => request(endpoint, { ...options, method: 'GET' }),
   post: (endpoint, body) => request(endpoint, {
     method: 'POST',
     body: body instanceof FormData ? body : JSON.stringify(body)
@@ -339,16 +340,16 @@ export async function getAgencyAnalytics(range = 90) {
 /**
  * Season analytics — the aggregate behind the Season surface.
  *
- * Sends the viewer's UTC offset in minutes east (so New York sends -300) so
- * day and hour buckets are grouped on the desk's own calendar rather than UTC.
+ * Sends the browser's IANA timezone as a fallback. The server prefers the
+ * agency timezone saved during setup, so historic DST boundaries stay correct.
  */
-export async function getSeasonAnalytics({ range = 90, boardId = null } = {}) {
+export async function getSeasonAnalytics({ range = 90, boardId = null, signal } = {}) {
   const params = new URLSearchParams({
     range: String(range),
-    tz: String(-new Date().getTimezoneOffset()),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   });
   if (boardId) params.set('board', boardId);
-  const res = await apiClient.get(`/analytics/season?${params.toString()}`);
+  const res = await apiClient.get(`/analytics/season?${params.toString()}`, { signal });
   return res?.data || res;
 }
 

@@ -8,7 +8,7 @@ import { TipRows } from './Tooltip';
  * Two magnitude surfaces on one sequential ramp (one hue, light → dark).
  *
  * `Punchcard` — when the desk actually works, day of week against hour, in the
- * viewer's own timezone (the server buckets on the offset the client sends).
+ * agency's configured IANA timezone (with the browser zone as a fallback).
  * `CohortGrid` — how far each month's intake got, as a share of that month.
  *
  * A sequential ramp is used because both encode "how much", not identity; the

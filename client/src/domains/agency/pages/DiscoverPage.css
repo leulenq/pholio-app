@@ -49,26 +49,8 @@
   pointer-events: none;
 }
 
-/* ── Neural dot grid substrate ── */
-.dc-neural {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: var(--ag-rail-w);
-  z-index: 1;
-  pointer-events: none;
-  background-image: radial-gradient(circle, rgba(201, 165, 90, 0.055) 1px, transparent 1px);
-  background-size: 38px 38px;
-}
-
-.ag-shell--discover.ag-shell--collapsed .dc-neural {
-  left: var(--ag-rail-w-collapsed);
-}
-
 @media (max-width: 1024px) {
-  .ag-shell--discover .dc-bg,
-  .ag-shell--discover .dc-neural {
+  .ag-shell--discover .dc-bg {
     left: 0;
   }
 }
@@ -93,12 +75,16 @@
   text-align: center;
 }
 
-/* ── Headline ── */
+/* ── Headline ──
+   Noto Serif Display, not Playfair: at this size the headline's italic line
+   ends on "for.", and Playfair Display Italic's `f` has a blunt, flat-cut
+   descender that reads as a rendering clip. Noto's italic `f` carries a proper
+   tapered tail. Both are house display faces. */
 .dc-headline {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
   font-size: clamp(2.6rem, 5.5vw, 4.4rem);
   font-weight: 400;
-  line-height: 1.18;
+  line-height: 1.24; /* clears the italic descender without opening the pair */
   letter-spacing: -0.02em;
   color: rgba(250, 248, 245, 0.92);
   margin: 0 0 52px;
@@ -110,12 +96,10 @@
 }
 
 /* ============================================================
-   SEARCH BAR — "Aurora Field"
-   A dark pill sitting inside a living gold aurora that bleeds out
-   into the page's Grainient field rather than ending at an edge.
-   Gold leads; violet + ember are the supporting mix. Focus lifts
-   the field and assembles the ring.
-   Scope: the search bar only — the page around it is unchanged.
+   SEARCH BAR
+   A dark pill edged by a living conic ring. The page's atmosphere
+   is the Grainient field behind it (.dc-bg) — the bar does not
+   carry a glow of its own, so nothing is anchored to it.
    ============================================================ */
 @property --dc-ring-angle {
   syntax: '<angle>';
@@ -128,93 +112,13 @@
   max-width: 680px;
   margin: 0 auto;
   z-index: 5;
-}
-
-/* ── the aurora ──
-   Lives in the PAGE's background stack, not inside the bar. `.dc-page` is
-   position:relative with no z-index, so it is not a stacking context — which
-   means this element blends against its siblings, including `.dc-bg` (the
-   Grainient). Sat inside `.dc-bar` it was isolated and `screen` was a no-op.
-   z-index 2 keeps it above `.dc-neural` (1) and under `.dc-threshold` (3).
-   Screen only ever lightens, so the headline over it stays legible. */
-.dc-search-aurora {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: min(72vh, 680px);
-  z-index: 2;
-  filter: blur(64px);
-  opacity: 0.62;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  will-change: transform, opacity;
-  animation: dcAuroraSwell 11s ease-in-out infinite;
-  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.dc-page--searching .dc-search-aurora { opacity: 1; }
-
-@media (max-width: 1024px) {
-  .dc-search-aurora { left: 0; }
-}
-
-/* the whole field slowly breathes + turns, echoing the Grainient's warp */
-@keyframes dcAuroraSwell {
-  0%, 100% { transform: scale(1) rotate(0deg); }
-  50%      { transform: scale(1.09) rotate(5deg); }
-}
-
-.dc-search-aurora span {
-  position: absolute;
-  border-radius: 50%;
-  display: block;
-  will-change: transform;
-}
-/* Gold leads: the two largest blobs are gold and flank the bar, so the field
-   reads gold first. Violet + ember are the supporting mix, kept smaller and
-   pushed to the middle where they blend rather than compete. Vertical
-   placement centres the field on the bar, which sits below the headline. */
-.dc-search-aurora span:nth-child(1) {
-  width: 48%; height: 46%; left: 8%; top: 48%;
-  background: radial-gradient(closest-side, #e6c680, transparent);
-  animation: dcAuroraA 9s ease-in-out infinite;
-}
-.dc-search-aurora span:nth-child(2) {
-  width: 44%; height: 44%; right: 8%; top: 50%;
-  background: radial-gradient(closest-side, #c9a55a, transparent);
-  animation: dcAuroraB 11s ease-in-out infinite;
-}
-.dc-search-aurora span:nth-child(3) {
-  width: 24%; height: 28%; left: 36%; top: 62%;
-  background: radial-gradient(closest-side, #9b72cb, transparent);
-  animation: dcAuroraC 13s ease-in-out infinite;
-}
-.dc-search-aurora span:nth-child(4) {
-  width: 22%; height: 26%; right: 32%; top: 60%;
-  background: radial-gradient(closest-side, #d96570, transparent);
-  animation: dcAuroraD 15s ease-in-out infinite;
-}
-/* Three-phase wanders on coprime-ish durations — the blobs never resync, so
-   the field keeps recombining instead of looping visibly. */
-@keyframes dcAuroraA {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(26%, 16%) scale(1.18); }
-  66%      { transform: translate(-14%, 10%) scale(0.9); }
-}
-@keyframes dcAuroraB {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(-22%, 18%) scale(0.88); }
-  66%      { transform: translate(12%, -14%) scale(1.2); }
-}
-@keyframes dcAuroraC {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(20%, -20%) scale(1.22); }
-  66%      { transform: translate(-18%, -6%) scale(0.92); }
-}
-@keyframes dcAuroraD {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(-24%, -14%) scale(1.16); }
-  66%      { transform: translate(16%, 12%) scale(0.9); }
+  /* Single source of truth for the three stacked text layers — the textarea,
+     the cycling placeholder and the ghost completion. They are separate boxes
+     drawn on top of each other, so any metric that differs between them shows
+     up as misalignment. line-height 1.5 (not 1) gives symmetric half-leading,
+     which is what actually optically centres the glyphs against the mark. */
+  --dc-bar-fs: 1.05rem;
+  --dc-bar-lh: 1.5;
 }
 
 /* ── the pill ── */
@@ -224,20 +128,24 @@
   display: flex;
   align-items: center;
   height: 66px;
-  gap: 12px;
-  padding: 0 8px 0 20px;
+  gap: 14px;
+  /* No right padding — the submit is a flush cap on the pill, not an object
+     floating inside it. */
+  padding: 0 0 0 22px;
   border-radius: 999px;
   background: #0a0806;
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  /* Transparent, not absent: the shell keeps its 1px so nothing shifts, and the
+     travelling ring below is the bar's only edge in every state. */
+  border: 1px solid transparent;
   box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.9);
-  transition: border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.dc-bar--on .dc-bar-shell { border-color: transparent; }
 
-/* Ring — assembles on focus and travels continuously around the pill. Gold
-   holds ~200° of the 360° sweep (0–95 and 250–360) so it reads gold; violet +
-   ember occupy the short middle arc. The literal `0deg` fallback keeps the
-   gradient valid if @property is unsupported (it just won't travel). */
+/* Ring — always present, travelling continuously around the pill: the bar is
+   thinking before you touch it. Focus brightens it and quickens the sweep
+   rather than assembling it from nothing. Gold holds ~200° of the 360° sweep
+   (0–95 and 250–360) so it reads gold; violet + ember occupy the short middle
+   arc. The literal `0deg` fallback keeps the gradient valid if @property is
+   unsupported (it just won't travel). */
 .dc-bar-shell::before {
   content: '';
   position: absolute;
@@ -258,34 +166,38 @@
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-  opacity: 0;
-  animation: dcRingTravel 12s linear infinite;
+  opacity: 0.62; /* at rest — legible as an edge, quiet enough not to shout */
+  animation: dcRingTravel 14s linear infinite;
   transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
 }
 .dc-bar--on .dc-bar-shell::before {
   opacity: 1;
-  animation-duration: 5s; /* quickens on focus — the bar is "thinking" */
+  animation-duration: 5s; /* quickens on focus — the bar leans in */
 }
 @keyframes dcRingTravel {
   to { --dc-ring-angle: 360deg; }
 }
 
-/* the sparkle mark */
-.dc-bar-spark {
+/* the house mark — one accent, so the bar reads as a single instrument.
+   The two minor sparks stay quieter than the major so the mark has depth
+   rather than reading as three equal blobs. */
+.dc-bar-mark {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
+  width: 21px;
+  height: 21px;
   display: block;
+  overflow: visible;
+  color: rgba(230, 198, 128, 0.52);
+  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+.dc-bar-mark-minor { opacity: 0.55; }
+.dc-bar--on .dc-bar-mark { color: #e6c680; }
 
 @media (prefers-reduced-motion: reduce) {
-  .dc-search-aurora,
-  .dc-search-aurora span,
   .dc-bar-shell::before { animation: none; }
-  .dc-search-aurora,
-  .dc-bar-shell,
   .dc-bar-shell::before,
+  .dc-bar-mark,
   .dc-bar-go { transition-duration: 0.01ms; }
 }
 
@@ -312,8 +224,8 @@ body.is-agency .dc-bar-input {
   padding: 0 !important;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-style: normal;
-  font-size: 1.05rem;
-  line-height: 1;
+  font-size: var(--dc-bar-fs);
+  line-height: var(--dc-bar-lh);
   color: #f4f1ea;
   caret-color: #e6c680;
 }
@@ -334,7 +246,8 @@ body.is-agency .dc-bar-input:focus {
   align-items: center;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-style: normal;
-  font-size: 1.05rem;
+  font-size: var(--dc-bar-fs);
+  line-height: var(--dc-bar-lh);
   /* 0.5 keeps the placeholder at ~4.6:1 on #0a0806; lower fails WCAG AA */
   color: rgba(244, 241, 234, 0.5);
   pointer-events: none;
@@ -380,8 +293,8 @@ body.is-agency .dc-bar-input:focus {
   z-index: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-style: normal;
-  font-size: 1.05rem;
-  line-height: 1;
+  font-size: var(--dc-bar-fs);
+  line-height: var(--dc-bar-lh);
 }
 .dc-ghost-typed { color: transparent; }
 .dc-ghost-rest { color: rgba(230, 198, 128, 0.62); }
@@ -1021,18 +934,17 @@ body.is-agency .dc-bar-input:focus {
 
   .dc-bar-shell {
     height: 58px;
-    padding: 0 6px 0 16px;
-    gap: 10px;
+    padding: 0 0 0 18px;
+    gap: 12px;
   }
 
-  .dc-bar-input,
-  .dc-bar-ph,
-  .dc-ghost {
-    font-size: 0.9375rem;
-  }
+  /* Retune the shared metric, never the three layers individually — the
+     `.dc-page .dc-bar-input` override outranks a bare class here, so setting
+     them one by one silently desyncs the input from its placeholder. */
+  .dc-bar { --dc-bar-fs: 0.9375rem; }
 
-  .dc-bar-go { width: 42px; height: 42px; }
-  .dc-search-aurora { height: min(66vh, 520px); filter: blur(44px); }
+  /* .dc-bar-go / --brief mobile sizing lives at the end of this file, after
+     their base rules — a media query adds no specificity. */
 
   .dc-curated {
     padding: 0 20px 60px;
@@ -1071,33 +983,43 @@ body.is-agency .dc-bar-input:focus {
   color: rgba(250, 248, 245, 0.46);
 }
 
-/* submit — circular four-colour button */
+/* ── submit — the pill's right cap ──
+   Not a circle sitting inside the field: the last 70px of the bar IS the
+   button, sharing the shell's radius. No divider — the cap is defined by the
+   gold arriving, not by a rule drawn next to it. It arms itself: a bare arrow
+   while the field is empty, solid gold the moment there is something to
+   search, so the fill itself is the state. */
 .dc-bar-go {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
+  align-self: stretch;
+  width: 70px;
+  padding: 0;
   border: none;
-  background: conic-gradient(
-    from 120deg,
-    #f0d491 0deg,
-    #d9b46a 100deg,
-    #9b72cb 175deg,
-    #d96570 215deg,
-    #c9a55a 260deg,
-    #f0d491 360deg
-  );
-  color: #2b1d06;
+  border-radius: 0 999px 999px 0;
+  background: transparent;
+  color: rgba(230, 198, 128, 0.42);
   cursor: pointer;
-  transition: transform 0.25s ease, filter 0.25s ease;
+  transition:
+    background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.dc-bar-go:hover { transform: scale(1.05); filter: brightness(1.08); }
+.dc-bar-go svg { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+
+.dc-bar-go:disabled { cursor: default; }
+.dc-bar-go:not(:disabled) {
+  background-color: #e6c680;
+  color: #1a1207;
+}
+.dc-bar-go:not(:disabled):hover { background-color: #f0d491; }
+.dc-bar-go:not(:disabled):hover svg { transform: translateY(-2px); }
+.dc-bar-go:not(:disabled):active svg { transform: translateY(0); }
+.dc-bar-go:disabled:hover { color: rgba(230, 198, 128, 0.6); }
 .dc-bar-go:focus-visible {
   outline: 2px solid #e6c680;
-  outline-offset: 3px;
+  outline-offset: -4px;
 }
 
 /* example intent suggestions (replace fake chips) */
@@ -1175,45 +1097,36 @@ body.is-agency .dc-bar-input {
   overflow: hidden;
   white-space: nowrap;
   height: auto;
-  min-height: 1.2em;
+  /* one line box exactly — must track --dc-bar-lh or descenders clip */
+  min-height: calc(var(--dc-bar-fs) * var(--dc-bar-lh));
 }
 .dc-page .dc-bar-input--brief,
 body.is-agency .dc-bar-input--brief {
   white-space: pre-wrap;
   overflow-y: auto;
   max-height: 180px;
-  line-height: 1.5;
 }
-/* brief mode grows the pill into a rounded rect so multi-line text fits */
+/* brief mode grows the pill into a rounded rect so multi-line text fits.
+   The submit stops being a full-height cap here — a stretched slab down the
+   side of a tall brief reads as a wall — and drops to the bottom-right with
+   the clear, so the two controls stay one cluster at the end of the brief. */
 .dc-bar-shell--brief {
   height: auto;
   min-height: 66px;
   align-items: flex-start;
-  padding: 16px 8px 16px 20px;
+  padding: 15px 0 15px 22px;
   border-radius: 26px;
 }
 .dc-bar-shell--brief .dc-bar-field { height: auto; align-items: flex-start; }
-.dc-bar-shell--brief .dc-bar-spark,
-.dc-bar-shell--brief .dc-bar-go,
-.dc-bar-shell--brief .dc-bar-mode,
-.dc-bar-shell--brief .dc-bar-clear { margin-top: 2px; }
-
-/* mode toggle — bare icon, no box */
-.dc-bar-mode {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  background: transparent;
-  border: none;
-  color: rgba(244, 241, 234, 0.34);
-  cursor: pointer;
-  transition: color 0.2s ease;
+.dc-bar-shell--brief .dc-bar-mark { margin-top: 3px; }
+.dc-bar-shell--brief .dc-bar-clear { align-self: flex-end; margin-bottom: 10px; }
+.dc-bar-shell--brief .dc-bar-go {
+  align-self: flex-end;
+  width: 44px;
+  height: 44px;
+  margin: 0 11px 0 0;
+  border-radius: 999px;
 }
-.dc-bar-mode:hover,
-.dc-bar-mode--on { color: rgba(244, 241, 234, 0.85); }
 
 /* ── grouped results ── */
 .dc-curated-header {
@@ -1311,4 +1224,13 @@ body.is-agency .dc-bar-input--brief {
   border-color: rgba(255, 255, 255, 0.28);
   color: rgba(250, 248, 245, 0.9);
   background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── search bar · small screens ──
+   Must sit after the base .dc-bar-go / .dc-bar-shell--brief rules above: a
+   media query carries no extra specificity, so an earlier block loses. */
+@media (max-width: 768px) {
+  .dc-bar-go { width: 60px; }
+  .dc-bar-shell--brief { padding: 13px 0 13px 18px; }
+  .dc-bar-shell--brief .dc-bar-go { width: 40px; height: 40px; margin-right: 9px; }
 }

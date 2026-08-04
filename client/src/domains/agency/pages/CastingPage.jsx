@@ -106,9 +106,9 @@ function FolioCard({ board, index, onOpen }) {
       onClick={() => onOpen(board.id)}
       aria-label={`Open board ${board.name}${board.client ? ` for ${board.client}` : ''}`}
       {...cardButtonProps}
-      initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, delay: Math.min(index * 0.045, 0.32), ease: [0.22, 1, 0.36, 1] }}
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2, delay: Math.min(index * 0.03, 0.2), ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="sg-plate">
         {identity.logoUrl

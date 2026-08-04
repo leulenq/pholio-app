@@ -710,3 +710,19 @@
 - Do not `git stash` to get a baseline when the user may be editing concurrently:
   it sweeps up their uncommitted work. Compare against `git show origin/main:path`
   or a worktree instead.
+
+## 2026-08-02 — Pholio stops at the representation decision
+
+- Pholio's core product is the pre-representation application layer connecting
+  talent and agencies. Do not treat missing booking, contracts, commissions,
+  call sheets, roster operations, or ongoing relationship management as features
+  Pholio should automatically build.
+- In audits, distinguish a missing core application capability from an intentional
+  product boundary. If existing code crosses into agency CRM/booking behavior,
+  recommend removal, disablement, or a clean handoff—not completion of the CRM.
+- “Discovery” should lead to an invitation to submit, with talent-controlled
+  disclosure. It should not quietly turn Pholio into an open talent database or
+  casting marketplace.
+- Fashion Week Brooklyn only validates the core thesis when an actual agency is
+  receiving a representation submission. Event casting is a different product
+  object and must not be relabeled to fit the agency-application portal.

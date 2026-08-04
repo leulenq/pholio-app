@@ -39,6 +39,9 @@ export const VIZ = {
   /** Pipeline depth, light (just arrived) → dark (signed). */
   depth: ['#C9A55A', '#B0873F', '#8E6B31', '#5F4623'],
   exit: '#948C82',
+  /** Distinct closed outcomes; direct labels and table twins remain required. */
+  keptOnFile: '#3B6FA8',
+  withdrawn: '#756378',
 
   /** Magnitude ramp for heat surfaces (sequential — the light end may recede). */
   heat: ['#F7EFDF', '#E9D5AC', '#D9BE88', '#C9A55A', '#AC8440', '#86642E', '#5C441F'],
@@ -75,6 +78,8 @@ export const STAGE_COLOR = {
  * drop the adjacent pair under the normal-vision floor.
  */
 export const VOLUME_STACK = [
+  { key: 'withdrawn', label: 'Withdrawn', color: VIZ.withdrawn },
+  { key: 'keptOnFile', label: 'Kept on file', color: VIZ.keptOnFile },
   { key: 'passed', label: 'Passed', color: VIZ.exit },
   { key: 'signed', label: 'Signed', color: VIZ.depth[3] },
   { key: 'offered', label: 'Offered', color: VIZ.depth[2] },

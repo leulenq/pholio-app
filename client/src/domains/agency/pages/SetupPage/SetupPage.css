@@ -370,14 +370,14 @@
   width: 100%;
   min-height: 46px;
   padding: 11px 14px;
-  border: 1px solid rgba(26, 24, 21, 0.12);
+  border: 1px solid rgba(26, 24, 21, 0.08);
   border-radius: 8px;
-  background: var(--stg-surface);
+  background: #f8f8f7;
   color: var(--stg-ink);
   font: inherit;
   font-size: 0.9375rem;
-  box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.04);
-  transition: border-color var(--stg-state), box-shadow var(--stg-state);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 
 .stg-field textarea {
@@ -399,21 +399,23 @@
 
 .stg-field input::placeholder,
 .stg-field textarea::placeholder {
-  color: var(--stg-placeholder);
+  color: #A39E99;
+  font-style: italic;
 }
 
-.stg-field input:hover,
-.stg-field textarea:hover,
-.stg-field select:hover {
-  border-color: rgba(26, 24, 21, 0.22);
+.stg-field input:hover:not(:focus),
+.stg-field textarea:hover:not(:focus) {
+  border-color: rgba(201, 165, 90, 0.25);
+  background: #fdfdfc;
 }
 
 .stg-field input:focus-visible,
 .stg-field textarea:focus-visible,
 .stg-field select:focus-visible {
   outline: none;
-  border-color: var(--stg-gold);
-  box-shadow: inset 0 1px 2px rgba(26, 24, 21, 0.04), 0 0 0 3px rgba(201, 165, 90, 0.18);
+  border-color: rgba(201, 165, 90, 0.35);
+  background: #ffffff;
+  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .stg-field input[aria-invalid='true'] {

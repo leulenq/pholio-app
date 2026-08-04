@@ -20,13 +20,12 @@ mountAgencyApiGuard(router);
  *
  * Query:
  *   range  30 | 90 | 365 | 730   (default 90)
- *   board  <uuid>                scope every section to one board
- *   tz     offset minutes        Date#getTimezoneOffset() from the browser, so
- *                                day and hour buckets match the desk's calendar
+ *   board     <uuid>             scope the compatible lens to one package/division
+ *   timezone  <IANA zone>        browser fallback when agency setup has no zone
  *
- * Aggregates only — no talent identity leaves this endpoint, so the
- * minor-submission visibility gates that scope the roster and inbox reads have
- * nothing to redact here.
+ * Aggregate inputs obey the same minor-submission visibility gate as roster,
+ * inbox, and activity reads. Small filtered cohorts can otherwise disclose a
+ * restricted submission even when names are omitted.
  *
  * Auth: requireRole('AGENCY') + org.view_analytics (route-permissions.js)
  */
@@ -44,11 +43,19 @@ router.get(
         agencyId,
         range: req.query.range,
         boardId: req.query.board || null,
-        tzOffsetMinutes: Number.parseInt(req.query.tz, 10) || 0,
+        requestedTimeZone: req.query.timezone || null,
+        allowMinorSubmissions: req.allowMinorSubmissions,
       });
 
       return res.json({ success: true, data: analytics });
     } catch (error) {
+      if (error?.code === "ANALYTICS_INVALID_BOARD") {
+        return res.status(400).json({
+          success: false,
+          error: "The selected analytics board is no longer available.",
+          code: error.code,
+        });
+      }
       console.error("[AgencySeasonAnalytics] Error:", error);
       return res.status(500).json({
         success: false,

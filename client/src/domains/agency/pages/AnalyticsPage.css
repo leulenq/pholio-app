@@ -45,6 +45,7 @@
 .sv-range {
   background: none;
   border: none;
+  min-height: 44px;
   padding: 4px 0;
   cursor: pointer;
   font: 600 11px/1.2 var(--ag-font-body);
@@ -72,25 +73,33 @@
 }
 .sv-board-filter select {
   appearance: none;
-  background: var(--ag-surface-1);
-  border: 1px solid var(--ag-border-strong);
-  border-radius: var(--ag-radius-md);
-  padding: 6px 28px 6px 10px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: #f8f8f7;
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  border-radius: 8px;
+  min-height: 44px;
+  padding: 6px 32px 6px 12px;
   font: 500 12px/1.2 var(--ag-font-body);
   color: var(--ag-text-0);
   cursor: pointer;
-  background-image: linear-gradient(45deg, transparent 50%, var(--ag-text-3) 50%),
-                    linear-gradient(135deg, var(--ag-text-3) 50%, transparent 50%);
-  background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%;
-  background-size: 5px 5px, 5px 5px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B6560' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  transition: border-color var(--ag-duration-fast) var(--ag-ease);
+  background-position: right 10px center;
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
-.sv-board-filter select:hover { border-color: var(--ag-text-3); }
-.sv-board-filter select:focus-visible {
+.sv-board-filter select:hover:not(:focus) {
+  border-color: rgba(201, 165, 90, 0.25);
+  background-color: #fdfdfc;
+}
+.sv-board-filter select:focus-visible,
+.sv-board-filter select:focus {
   outline: none;
-  border-color: var(--ag-gold);
-  box-shadow: 0 0 0 3px var(--ag-gold-muted);
+  border-color: rgba(201, 165, 90, 0.35);
+  background-color: #ffffff;
+  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23C9A55A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
 }
 
 .sv-generated {
@@ -102,7 +111,6 @@
 
 /* ---------- CONTENT ---------- */
 .sv-content { transition: opacity var(--ag-duration) var(--ag-ease); }
-.sv-content--stale { opacity: .55; }
 
 /* ---------- SIGNAL RAIL ---------- */
 .sv-rail {
@@ -154,14 +162,14 @@
   color: var(--ag-text-3);
 }
 .sv-delta svg { flex: 0 0 auto; }
-.sv-delta--good { color: var(--ag-success); }
+.sv-delta--good { color: #217044; }
 .sv-delta--bad { color: var(--ag-danger); }
 
 .sv-signal-sample {
   display: block;
   margin-top: 5px;
   font: 400 10px/1.3 var(--ag-font-body);
-  color: var(--ag-text-4);
+  color: var(--ag-text-2);
 }
 
 /* ---------- LENSES ---------- */
@@ -174,6 +182,7 @@
 .sv-lens {
   background: none;
   border: none;
+  min-height: 44px;
   padding: 0 0 11px;
   cursor: pointer;
   font-family: var(--ag-font-display);
@@ -221,6 +230,14 @@
   gap: 14px;
 }
 .sv-panel-heading { min-width: 0; }
+.sv-panel-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .sv-panel-title {
   font-family: var(--ag-font-display);
   font-size: 17px;
@@ -244,6 +261,7 @@
   background: none;
   border: 1px solid var(--ag-border-strong);
   border-radius: var(--ag-radius-sm);
+  min-height: 44px;
   padding: 4px 9px;
   cursor: pointer;
   font: 600 10px/1.2 var(--ag-font-body);
@@ -252,6 +270,28 @@
   color: var(--ag-text-3);
   transition: color var(--ag-duration-fast) var(--ag-ease),
               border-color var(--ag-duration-fast) var(--ag-ease);
+}
+.sv-panel-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  font: 600 11px/1.2 var(--ag-font-body);
+  color: var(--ag-text-1);
+  text-decoration: underline;
+  text-decoration-color: var(--ag-border-strong);
+  text-underline-offset: 3px;
+  transition: color var(--ag-duration-fast) var(--ag-ease),
+              text-decoration-color var(--ag-duration-fast) var(--ag-ease);
+}
+.sv-panel-link:hover {
+  color: var(--ag-text-0);
+  text-decoration-color: var(--ag-gold);
+}
+.sv-panel-link:focus-visible {
+  outline: none;
+  border-radius: var(--ag-radius-sm);
+  box-shadow: 0 0 0 3px var(--ag-gold-muted);
 }
 .sv-panel-toggle:hover { color: var(--ag-text-0); border-color: var(--ag-text-3); }
 .sv-panel-toggle:focus-visible {
@@ -309,7 +349,7 @@
 /* Chart type — Inter throughout; serif never enters a data surface. */
 .sv-axis {
   font: 400 10px/1.2 var(--ag-font-body);
-  fill: #8A837B;
+  fill: var(--ag-text-2);
   font-variant-numeric: tabular-nums;
 }
 .sv-axis--row { font-size: 11px; }
@@ -343,7 +383,7 @@
 .sv-flow-conv,
 .sv-flow-dwell {
   font: 400 10px/1.2 var(--ag-font-body);
-  fill: #8A837B;
+  fill: var(--ag-text-2);
   font-variant-numeric: tabular-nums;
 }
 .sv-flow-peel {
@@ -480,7 +520,7 @@
   padding-top: 14px;
   border-top: 1px solid var(--ag-border);
   font: 400 11px/1.5 var(--ag-font-body);
-  color: var(--ag-text-4);
+  color: var(--ag-text-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -525,6 +565,28 @@
 
 .sv-error { padding: 40px 0; }
 .sv-error p { font-size: 13px; color: var(--ag-text-2); margin: 0 0 12px; }
+.sv-refresh-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 18px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ag-border-strong);
+  border-radius: var(--ag-radius-md);
+  background: var(--ag-surface-1);
+  font: 500 12px/1.45 var(--ag-font-body);
+  color: var(--ag-text-1);
+}
+.sv-refresh-status {
+  margin: 18px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius-md);
+  background: var(--ag-surface-1);
+  font: 500 12px/1.45 var(--ag-font-body);
+  color: var(--ag-text-2);
+}
 .sv-retry {
   background: none;
   border: 1px solid var(--ag-border-strong);
@@ -533,10 +595,12 @@
   font: 600 12px/1 var(--ag-font-body);
   color: var(--ag-text-0);
   cursor: pointer;
+  min-height: 44px;
   transition: border-color var(--ag-duration-fast) var(--ag-ease);
 }
 .sv-retry:hover { border-color: var(--ag-gold); }
 .sv-retry:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ag-gold-muted); }
+.sv-retry:disabled { cursor: wait; opacity: .6; }
 
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 1280px) {
@@ -562,6 +626,9 @@
   .sv-lenses { gap: 18px; }
   .sv-lens { font-size: 17px; }
   .sv-generated { margin-left: 0; width: 100%; }
+  .sv-panel-head { flex-direction: column; }
+  .sv-panel-actions { width: 100%; justify-content: flex-start; }
+  .sv-refresh-error { align-items: flex-start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -576,7 +643,7 @@
 
 /* Cohort base size rides its own row label, so the reader sees what the
    percentages are a share of before reading them. */
-.sv-cell-base { fill: var(--ag-text-4); font-weight: 400; }
+.sv-cell-base { fill: var(--ag-text-2); font-weight: 400; }
 
 /* ---------- FLOW: NARROW FALLBACK ---------- */
 /* The ribbon needs four columns of headroom. Under ~620px the same flow is

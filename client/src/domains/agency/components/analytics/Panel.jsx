@@ -18,6 +18,7 @@ export function Panel({
   tall = false,
   legend,
   table,
+  action,
   empty,
   children,
 }) {
@@ -36,19 +37,24 @@ export function Panel({
     >
       <header className="sv-panel-head">
         <div className="sv-panel-heading">
-          <h3 className="sv-panel-title" id={titleId}>{title}</h3>
+          <h2 className="sv-panel-title" id={titleId}>{title}</h2>
           {reading ? <p className="sv-panel-reading">{reading}</p> : null}
         </div>
-        {hasTable ? (
-          <button
-            type="button"
-            className="sv-panel-toggle"
-            onClick={() => setShowTable((v) => !v)}
-            aria-pressed={showTable}
-          >
-            {showTable ? <LineChart size={13} aria-hidden="true" /> : <Table2 size={13} aria-hidden="true" />}
-            <span>{showTable ? 'Chart' : 'Table'}</span>
-          </button>
+        {action || hasTable ? (
+          <div className="sv-panel-actions">
+            {action}
+            {hasTable ? (
+              <button
+                type="button"
+                className="sv-panel-toggle"
+                onClick={() => setShowTable((v) => !v)}
+                aria-pressed={showTable}
+              >
+                {showTable ? <LineChart size={13} aria-hidden="true" /> : <Table2 size={13} aria-hidden="true" />}
+                <span>{showTable ? 'Chart' : 'Table'}</span>
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </header>
 

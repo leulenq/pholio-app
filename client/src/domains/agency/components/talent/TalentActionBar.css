@@ -18,8 +18,23 @@
 }
 .tact-btn:hover { background: #fff; border-color: var(--ag-gold, #C9A55A); }
 .tact-btn:disabled { opacity: 0.5; cursor: default; }
-.tact-btn--primary { background: var(--ag-gold, #C9A55A); border-color: var(--ag-gold, #C9A55A); color: #16130D; font-weight: 600; }
-.tact-btn--primary:hover { filter: brightness(1.07); background: var(--ag-gold, #C9A55A); }
+.tact-btn--primary {
+  background: #16130D;
+  border-color: #16130D;
+  color: #FAF8F5;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: 0 8px 20px rgba(20, 18, 14, 0.16);
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+}
+.tact-btn--primary:hover:not(:disabled) {
+  background: var(--ag-gold);
+  border-color: var(--ag-gold);
+  color: #16130D;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(184, 149, 106, 0.3);
+  filter: none;
+}
 .tact-btn--icon { width: 38px; padding: 0; color: #6b6256; }
 .tact-btn--danger { color: #c0563f; }
 .tact-btn--danger:hover { border-color: #c0563f; }

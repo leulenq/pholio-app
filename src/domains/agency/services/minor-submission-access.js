@@ -34,6 +34,7 @@ const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
   ["GET", "/api/agency/messages/threads", "filtered_collection"],
   ["GET", "/api/agency/messages/unread-count", "filtered_collection"],
   ["GET", "/api/agency/activity", "filtered_collection"],
+  ["GET", "/api/agency/analytics/season", "filtered_collection"],
   ["GET", "/api/agency/boards", "filtered_collection"],
   ["GET", "/api/agency/boards/:boardId/candidates", "filtered_collection"],
   ["POST", "/api/agency/boards/:boardId/rank", "filtered_collection"],
@@ -110,9 +111,13 @@ async function getApplicationAccessDecision(
 
 function applyMinorSubmissionFilter(
   query,
-  { alias = "applications", allowMinor = false } = {},
+  { alias = "applications", allowMinor = false, force = false } = {},
 ) {
-  if (!config.minorSubmissionEnforce) return query;
+  // `force` is used by aggregate/report builders whose focused test schemas
+  // explicitly carry the minor-access columns. It keeps the security contract
+  // testable even though the global test runner disables enforcement for older
+  // hand-built fixtures.
+  if (!config.minorSubmissionEnforce && !force) return query;
   if (!allowMinor) {
     return query.where(`${alias}.minor_at_submission`, false);
   }

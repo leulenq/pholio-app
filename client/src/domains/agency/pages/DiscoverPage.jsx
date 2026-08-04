@@ -18,7 +18,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, ArrowUp, Sparkles, AlignLeft } from 'lucide-react';
+import { X, ArrowRight, ArrowUp, Sparkles } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -55,6 +55,22 @@ const realBio = (b) => {
 
 const PAGE_SIZE = 30;
 
+/**
+ * The house AI mark — the same thin-waisted Pholio spark the talent bio writer
+ * uses (BioWriter.jsx · PholioMagicMark), so "Pholio is reading this" looks the
+ * same on both sides of the product. Static here; the bar's own ring carries
+ * the motion.
+ */
+function PholioMark() {
+  return (
+    <svg className="dc-bar-mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M9.7 3.4 C10.9 8.2 12.6 9.9 17.4 11.1 C12.6 12.3 10.9 14 9.7 18.8 C8.5 14 6.8 12.3 2 11.1 C6.8 9.9 8.5 8.2 9.7 3.4 Z" />
+      <path className="dc-bar-mark-minor" d="M18.6 1 C19.1 3 19.8 3.7 21.8 4.2 C19.8 4.7 19.1 5.4 18.6 7.4 C18.1 5.4 17.4 4.7 15.4 4.2 C17.4 3.7 18.1 3 18.6 1 Z" />
+      <path className="dc-bar-mark-minor" d="M18.6 15.6 C19.1 17.6 19.8 18.3 21.8 18.8 C19.8 19.3 19.1 20 18.6 22 C18.1 20 17.4 19.3 15.4 18.8 C17.4 18.3 18.1 17.6 18.6 15.6 Z" />
+    </svg>
+  );
+}
+
 function mapTalent(p, invitedIds) {
   // tier_band is the only ranking signal launch mode exposes; legacy shapes fall
   // back to the raw match score. Null → the card omits the ring numeral.
@@ -89,10 +105,10 @@ function mapTalent(p, invitedIds) {
 
 
 const PROMPTS = [
-  "Tall editorial models in New York with agency experience…",
+  "Tall editorial women in New York with runway experience…",
+  "Commercial faces under 25 with fresh digitals…",
   "New faces, female, 5'8\" and above for commercial campaigns…",
   "Runway specialists for FW26 — Paris or Milan based…",
-  "Athletic presence for a luxury lifestyle campaign…",
 ];
 
 // ─── Talent Card — art-directed portrait, type integrated on the image ──────────
@@ -203,7 +219,6 @@ export default function DiscoverPage() {
   const includeOutside = urlOutside;
   const [query, setQuery] = useState(urlQ);
   const [limit, setLimit] = useState(PAGE_SIZE);
-  const [briefMode, setBriefMode] = useState(urlQ.includes('\n'));
   const [isFocused, setIsFocused] = useState(false);
   const [promptIdx, setPromptIdx] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
@@ -212,6 +227,11 @@ export default function DiscoverPage() {
   const inputRef = useRef(null);
 
   const completion = useMemo(() => predictCompletion(query), [query]);
+  // Brief mode is a property of the text, not a control: the moment the query
+  // holds a line break (pasted brief, or Shift+Enter) the field becomes a
+  // multi-line brief and grows. Nothing to toggle, nothing to discover.
+  const briefMode = query.includes('\n');
+  const canSubmit = query.trim().length > 0;
 
   // Cycle the placeholder prompts.
   useEffect(() => {
@@ -232,12 +252,13 @@ export default function DiscoverPage() {
     setLimit(PAGE_SIZE);
   }
 
-  // Auto-grow the brief-mode textarea.
+  // Auto-grow while multi-line; hand the height back to CSS when it collapses.
   useEffect(() => {
-    if (briefMode && inputRef.current) {
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-    }
+    const el = inputRef.current;
+    if (!el) return;
+    if (!briefMode) { el.style.height = ''; return; }
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
   }, [briefMode, query]);
 
   const { data, isFetching } = useQuery({
@@ -341,8 +362,8 @@ export default function DiscoverPage() {
     requestAnimationFrame(() => inputRef.current?.focus());
   };
   const onKeyDown = (e) => {
-    if (!briefMode && (e.key === 'Enter')) { e.preventDefault(); onSubmit(e); return; }
-    if (briefMode && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(e); return; }
+    // Enter searches; Shift+Enter opens a new line (and, with it, brief mode).
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSubmit(e); return; }
     if (!completion) return;
     const el = e.target;
     const atEnd = el.selectionStart === el.selectionEnd && el.selectionStart === query.length;
@@ -356,30 +377,24 @@ export default function DiscoverPage() {
   const showBriefLoading = !!submitted && isFetching && !data;
 
   return (
-    <div className={`dc-page${isFocused ? ' dc-page--searching' : ''}`}>
-      {/* Background — kept */}
+    <div className="dc-page">
+      {/* ── Environment ──
+          One atmospheric layer for the whole page. The field is centred
+          (centerX/Y 0) and zoomed out (0.55) so its light spreads edge to edge
+          instead of pooling in a corner; low contrast + soft blend keep it a
+          room rather than a graphic. Fixed position, so scrolling the results
+          moves through the environment rather than scrolling it away. */}
       <div className="dc-bg" aria-hidden="true">
         <Grainient
           color1="#C9A55A" color2="#3D2000" color3="#6B4A10"
-          timeSpeed={0.8} colorBalance={0.4} warpStrength={1.2}
+          timeSpeed={0.5} colorBalance={0.1} warpStrength={1.2}
           warpFrequency={3.5} warpSpeed={2.2} warpAmplitude={70}
-          blendAngle={-20} blendSoftness={0.45} rotationAmount={280}
+          blendAngle={-20} blendSoftness={1} rotationAmount={280}
           noiseScale={2.2} grainAmount={0} grainScale={0}
-          grainAnimated={false} contrast={1.5} gamma={0.55}
-          saturation={0.85} centerX={0.3} centerY={0.15} zoom={1}
+          grainAnimated={false} contrast={1.05} gamma={0.6}
+          saturation={0.85} centerX={0} centerY={0} zoom={0.55}
         />
         <div className="dc-bg-veil" />
-      </div>
-      <div className="dc-neural" aria-hidden="true" />
-
-      {/* Search aurora — lives in the page's background stack (not inside the
-          bar) so it screen-blends against the Grainient itself rather than
-          being isolated inside the bar's stacking context. */}
-      <div className="dc-search-aurora" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
       </div>
 
       {/* ── Threshold ── */}
@@ -398,19 +413,7 @@ export default function DiscoverPage() {
 
           <form className={`dc-bar${isFocused ? ' dc-bar--on' : ''}`} onSubmit={onSubmit}>
             <div className={`dc-bar-shell${briefMode ? ' dc-bar-shell--brief' : ''}`}>
-              <svg className="dc-bar-spark" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M12 2c.4 4.8 2.2 6.6 7 7-4.8.4-6.6 2.2-7 7-.4-4.8-2.2-6.6-7-7 4.8-.4 6.6-2.2 7-7z"
-                  fill="url(#dcSparkGrad)"
-                />
-                <defs>
-                  <linearGradient id="dcSparkGrad" x1="5" y1="2" x2="19" y2="16">
-                    <stop stopColor="#F0D491" />
-                    <stop offset="0.55" stopColor="#D9B46A" />
-                    <stop offset="1" stopColor="#9B72CB" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <PholioMark />
               <div className="dc-bar-field">
                 <textarea
                   ref={inputRef}
@@ -443,15 +446,6 @@ export default function DiscoverPage() {
                   </span>
                 )}
               </div>
-              <button
-                type="button"
-                className={`dc-bar-mode${briefMode ? ' dc-bar-mode--on' : ''}`}
-                onClick={() => { setBriefMode((v) => !v); requestAnimationFrame(() => inputRef.current?.focus()); }}
-                aria-label={briefMode ? 'Single-line search' : 'Paste a full brief'}
-                title={briefMode ? 'Single-line search' : 'Paste a full brief'}
-              >
-                <AlignLeft size={15} strokeWidth={2} />
-              </button>
               <AnimatePresence>
                 {query && (
                   <motion.button
@@ -468,7 +462,12 @@ export default function DiscoverPage() {
                   </motion.button>
                 )}
               </AnimatePresence>
-              <button type="submit" className="dc-bar-go" aria-label="Search">
+              <button
+                type="submit"
+                className="dc-bar-go"
+                disabled={!canSubmit}
+                aria-label="Search"
+              >
                 <ArrowUp size={18} strokeWidth={2.4} />
               </button>
             </div>
@@ -500,7 +499,7 @@ export default function DiscoverPage() {
             <p className="dc-curated-head">
               {submitted
                 ? <>Closest matches to <em>“{submitted}”</em></>
-                : <>Newest talent{agencyName ? <> · for <em>{agencyName}</em></> : null}</>}
+                : <>Newest talent{agencyName ? <> for <em>{agencyName}</em></> : null}</>}
             </p>
             {!submitted && pool && (
               <p className="dc-pool-line">

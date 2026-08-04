@@ -1,3 +1,18 @@
+# Reconcile all Pholio branches into canonical main — 2026-08-04
+
+- [ ] Inventory local, remote, stash, and uncommitted work by commit and patch equivalence.
+- [ ] Preserve the current worktree and every local-only commit with recoverable backup refs.
+- [ ] Integrate all valid unique work onto the latest `origin/main` without reintroducing known regressions.
+- [ ] Resolve conflicts against the canonical current implementations and scoped design rules.
+- [ ] Run focused and full verification, then review the final tree and history.
+- [ ] Fast-forward local `main` and push `origin/main` without force.
+
+## Review
+
+- Pending integration and verification.
+
+---
+
 # Talent profile measurement ranges
 
 - [x] Trace circumference storage, conversion, validation, and measuring-tape behavior.
@@ -3086,6 +3101,83 @@ Onboarding's finishing preloader now hands off to `/dashboard/talent` instead of
 - `npm run client:build` → exit 0, no dangling import of the deleted page
 - Grep sweep: no `RevealPage`, `arrived-from-reveal`, `useCastingRevealComplete`,
   `reveal-complete`, or `reveal_viewed` references remain in app code
+
+# Fix season analytics application-schema drift — 2026-08-01
+
+- [x] Trace the failing fields through analytics queries and migrations.
+- [x] Confirm the connected PostgreSQL migration/schema state.
+- [x] Remove or repair the stale schema dependency at its source.
+- [x] Add regression coverage for the production-shaped application schema.
+- [x] Run focused tests and record the result.
+
+## Review
+
+- Root cause: season analytics selected the retired `applications.board_id`
+  column even though board assignment is canonical in `board_applications` and
+  the connected PostgreSQL schema no longer has the legacy column.
+- Removed the stale select and application-level board fallback. Roster fallback
+  remains truthful by leaving division unassigned when no persisted
+  `roster_memberships` row exists.
+- Updated the focused SQLite fixture to omit `applications.board_id`, matching
+  the live PostgreSQL shape and preventing the regression.
+- `npm test -- src/domains/agency/queries/__tests__/season.queries.test.js --runInBand`
+  → 25 tests passed.
+- Read-only PostgreSQL smoke call to `buildSeasonAnalytics` → completed
+  successfully; `node --check` and `git diff --check` also passed.
+- Follow-up root cause: season analytics also selected retired fit-score columns
+  from `profiles`; production stores them on the unique per-profile
+  `ai_profile_analysis` row.
+- Joined `ai_profile_analysis` for roster and pipeline fit data, and moved the
+  regression fixture's score fields into the same split schema.
+- Re-ran the focused suite → 25 tests passed. A populated PostgreSQL smoke run
+  traversed 40 applications, 15 active roster members, and all five fit axes
+  without an error; syntax and diff checks passed.
+
+# Production-harden agency season analytics — 2026-08-01
+
+- [x] Enforce minor-submission visibility before every aggregate is built.
+- [x] Separate casting-package and roster-division scopes and reject invalid filters.
+- [x] Make lifecycle, flow, calibration, roster, and timezone calculations evidence-based.
+- [x] Bound request-path data loading and preserve truthful provenance/coverage metadata.
+- [x] Harden stale/error, keyboard, reduced-motion, contrast, and touch-target states.
+- [x] Add backend and frontend regression coverage for the corrected contracts.
+- [x] Run focused tests, lint, build, live PostgreSQL smoke checks, and browser QA.
+
+## Review
+
+- Aggregate inputs now obey minor-submission permission plus current guardian
+  consent before application, package, roster, activity, interview, reminder,
+  score, and all-time counts are built. The endpoint is recorded in the
+  audited minor-access matrix.
+- Boards are typed as casting packages or roster divisions. Package filters
+  scope the linked submission facts; division filters scope canonical roster
+  standings. Unknown board ids fail closed with a 400 instead of silently
+  returning agency-wide data.
+- Pipeline ribbons require every adjacent status hand-off to be evidenced;
+  skipped history is disclosed and excluded rather than backfilled. Passed,
+  kept-on-file, and withdrawn remain distinct closed outcomes. Score analysis
+  is explicitly retrospective because immutable score snapshots do not exist.
+- Request loading is bounded to the comparison window plus live queue, related
+  rows are restricted to visible applications, schema capability checks are
+  cached, and fit scores work in both the long-lived production layout
+  (`ai_profile_analysis`) and the fresh-migration layout (`profiles`). IANA
+  timezone bucketing uses the saved agency timezone and preserves DST.
+- The page now has package/division-compatible controls, abortable requests,
+  truthful previous-scope and failed-refresh states, keyboard-roving tabs,
+  reduced-motion handling, readable chart/table twins, 44px controls, and
+  direct links from actionable queue/interview/reminder panels. The requested
+  Playfair tab treatment was intentionally left unchanged.
+- Verification: 32 focused backend tests and 4 frontend tests pass; changed-file
+  ESLint, Node syntax checks, and the production Vite build pass. A read-only
+  Neon smoke run returned 37 window submissions, 40 all-time, 13 permission-
+  visible roster members, six signals, and 91 daily buckets without schema
+  errors. Signed-in browser QA confirmed package/division switching, a scoped
+  Development roster (4 represented), correct percentage-point copy, and no
+  console warnings/errors.
+- Deploy note: `20260731120000_create_roster_board_standings.js` is still one of
+  three pending live migrations. The report remains operational on legacy
+  primary-board data, but full multi-division roster attribution requires the
+  normal migration deployment.
 
 # Talent bio intelligence control — 2026-07-30
 

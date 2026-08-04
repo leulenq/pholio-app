@@ -18,6 +18,9 @@
 const {
   mapApplicationStatusToCastingStage,
 } = require("../routes/casting-stage-helpers");
+const {
+  applyMinorSubmissionFilter,
+} = require("../services/minor-submission-access");
 
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
@@ -28,9 +31,34 @@ const EXIT_STAGE = "Passed";
 
 const ALLOWED_RANGES = [30, 90, 365, 730];
 const DEFAULT_RANGE = 90;
+const DEFAULT_TIME_ZONE = "UTC";
+const PACKAGE_BOARD_TYPE = "package";
+const CLOSED_STAGES = new Set(["Passed", "Kept on file", "Withdrawn"]);
+const CLOSED_APPLICATION_STATUSES = [
+  "passed",
+  "declined",
+  "archived",
+  "kept_on_file",
+  "withdrawn",
+];
+const FIT_SCORE_COLUMNS = [
+  "fit_score_runway",
+  "fit_score_editorial",
+  "fit_score_commercial",
+  "fit_score_lifestyle",
+  "fit_score_swim_fitness",
+];
 
 /** Application statuses that put talent on the roster (mirrors roster-memberships service). */
 const REPRESENTED_STATUSES = ["accepted", "booked", "represented"];
+
+class AnalyticsInputError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AnalyticsInputError";
+    this.code = "ANALYTICS_INVALID_BOARD";
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Small numeric helpers
@@ -77,6 +105,20 @@ function toDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function earliestDate(...values) {
+  return values
+    .map(toDate)
+    .filter(Boolean)
+    .sort((a, b) => a - b)[0] || null;
+}
+
+function latestDate(...values) {
+  return values
+    .map(toDate)
+    .filter(Boolean)
+    .sort((a, b) => b - a)[0] || null;
+}
+
 function parseJson(raw) {
   if (!raw) return {};
   if (typeof raw === "object") return raw;
@@ -87,26 +129,54 @@ function parseJson(raw) {
   }
 }
 
-/**
- * `YYYY-MM-DD` in the viewer's offset, so day buckets match the desk's
- * calendar. `offsetMinutes` is minutes east of UTC — the client sends
- * `-new Date().getTimezoneOffset()`, so New York is -300 and it is added.
- */
-function localDayKey(date, offsetMinutes) {
-  const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
-  return shifted.toISOString().slice(0, 10);
+function validTimeZone(value) {
+  if (!value || typeof value !== "string" || value.length > 100) return null;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date(0));
+    return value;
+  } catch {
+    return null;
+  }
 }
 
-function localMonthKey(date, offsetMinutes) {
-  return localDayKey(date, offsetMinutes).slice(0, 7);
+function zonedParts(date, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 }
 
-/** ISO-ish week key anchored to the Monday of the local week. */
-function localWeekKey(date, offsetMinutes) {
-  const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
-  const dow = (shifted.getUTCDay() + 6) % 7; // Monday = 0
-  shifted.setUTCDate(shifted.getUTCDate() - dow);
-  return shifted.toISOString().slice(0, 10);
+/** `YYYY-MM-DD` in the agency's IANA timezone, including historical DST. */
+function localDayKey(date, timeZone) {
+  const parts = zonedParts(date, timeZone);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function localMonthKey(date, timeZone) {
+  return localDayKey(date, timeZone).slice(0, 7);
+}
+
+/** ISO-ish week key anchored to Monday in the agency's local calendar. */
+function localWeekKey(date, timeZone) {
+  const dayKey = localDayKey(date, timeZone);
+  const localDate = new Date(`${dayKey}T12:00:00.000Z`);
+  const dow = (localDate.getUTCDay() + 6) % 7; // Monday = 0
+  localDate.setUTCDate(localDate.getUTCDate() - dow);
+  return localDate.toISOString().slice(0, 10);
+}
+
+function localDowAndHour(date, timeZone) {
+  const parts = zonedParts(date, timeZone);
+  const dow = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(
+    parts.weekday,
+  );
+  return { dow: Math.max(0, dow), hour: Number(parts.hour) };
 }
 
 // ---------------------------------------------------------------------------
@@ -128,25 +198,25 @@ function resolveGranularity(rangeDays) {
   return "month";
 }
 
-function bucketKey(date, granularity, offsetMinutes) {
-  if (granularity === "month") return localMonthKey(date, offsetMinutes);
-  if (granularity === "week") return localWeekKey(date, offsetMinutes);
-  return localDayKey(date, offsetMinutes);
+function bucketKey(date, granularity, timeZone) {
+  if (granularity === "month") return localMonthKey(date, timeZone);
+  if (granularity === "week") return localWeekKey(date, timeZone);
+  return localDayKey(date, timeZone);
 }
 
-function enumerateBuckets(start, end, granularity, offsetMinutes) {
+function enumerateBuckets(start, end, granularity, timeZone = DEFAULT_TIME_ZONE) {
   const keys = [];
   const seen = new Set();
   const cursor = new Date(start.getTime());
   while (cursor <= end) {
-    const key = bucketKey(cursor, granularity, offsetMinutes);
+    const key = bucketKey(cursor, granularity, timeZone);
     if (!seen.has(key)) {
       seen.add(key);
       keys.push(key);
     }
     cursor.setTime(cursor.getTime() + DAY_MS);
   }
-  const endKey = bucketKey(end, granularity, offsetMinutes);
+  const endKey = bucketKey(end, granularity, timeZone);
   if (!seen.has(endKey)) keys.push(endKey);
   return keys;
 }
@@ -154,6 +224,29 @@ function enumerateBuckets(start, end, granularity, offsetMinutes) {
 // ---------------------------------------------------------------------------
 // Stage journey replay
 // ---------------------------------------------------------------------------
+
+function analyticsStageForStatus(status) {
+  switch (String(status || "").toLowerCase()) {
+    case "kept_on_file":
+      return "Kept on file";
+    case "withdrawn":
+      return "Withdrawn";
+    case "booked":
+      return "Represented";
+    default:
+      return mapApplicationStatusToCastingStage(status);
+  }
+}
+
+function isClosedStage(stage) {
+  return CLOSED_STAGES.has(stage);
+}
+
+function exitKey(stage) {
+  if (stage === "Kept on file") return "keptOnFile";
+  if (stage === "Withdrawn") return "withdrawn";
+  return "passed";
+}
 
 /**
  * Replays every recorded `status_change` for one application and returns the
@@ -169,10 +262,13 @@ function enumerateBuckets(start, end, granularity, offsetMinutes) {
  */
 function replayJourney(application, activities) {
   const createdAt = toDate(application.created_at);
-  const currentStage = mapApplicationStatusToCastingStage(application.status);
+  const currentStage = analyticsStageForStatus(application.status);
   const journey = {
     reachedIndex: 0,
+    reachedStages: FORWARD_STAGES.map((_, index) => index === 0),
+    transitions: [],
     exitedFrom: null,
+    exitKind: null,
     exitedAt: null,
     dwell: [],
     signedAt: null,
@@ -181,7 +277,10 @@ function replayJourney(application, activities) {
   if (!createdAt) return journey;
 
   const currentIndex = FORWARD_STAGES.indexOf(currentStage);
-  if (currentIndex > 0) journey.reachedIndex = currentIndex;
+  if (currentIndex > 0) {
+    journey.reachedIndex = currentIndex;
+    journey.reachedStages[currentIndex] = true;
+  }
 
   let stage = "Applied";
   let stageIndex = 0;
@@ -198,20 +297,29 @@ function replayJourney(application, activities) {
     const metadata = parseJson(activity.metadata);
     if (!metadata.new_status) continue;
 
-    const nextStage = mapApplicationStatusToCastingStage(metadata.new_status);
+    const nextStage = analyticsStageForStatus(metadata.new_status);
     if (nextStage === stage) continue;
 
     const nextIndex = FORWARD_STAGES.indexOf(nextStage);
-    journey.dwell.push({
-      stageIndex,
-      days: (at.getTime() - enteredAt.getTime()) / DAY_MS,
-    });
+    if (stageIndex >= 0) {
+      journey.dwell.push({
+        stageIndex,
+        days: (at.getTime() - enteredAt.getTime()) / DAY_MS,
+      });
+    }
 
-    if (nextStage === EXIT_STAGE) {
+    if (isClosedStage(nextStage)) {
       journey.exitedFrom = stageIndex;
+      journey.exitKind = exitKey(nextStage);
       journey.exitedAt = at;
     } else if (nextIndex >= 0) {
       if (nextIndex > journey.reachedIndex) journey.reachedIndex = nextIndex;
+      journey.reachedStages[nextIndex] = true;
+      journey.transitions.push({
+        fromIndex: stageIndex,
+        toIndex: nextIndex,
+        at,
+      });
       if (nextStage === "Represented" && !journey.signedAt) {
         journey.signedAt = at;
       }
@@ -223,8 +331,9 @@ function replayJourney(application, activities) {
   }
 
   // No transition history but a terminal status still tells us the outcome.
-  if (currentStage === EXIT_STAGE && journey.exitedFrom == null) {
+  if (isClosedStage(currentStage) && journey.exitedFrom == null) {
     journey.exitedFrom = journey.reachedIndex;
+    journey.exitKind = exitKey(currentStage);
     journey.exitedAt = toDate(application.declined_at) || toDate(application.updated_at);
   }
   if (currentStage === "Represented" && !journey.signedAt) {
@@ -232,15 +341,31 @@ function replayJourney(application, activities) {
   }
 
   journey.currentStage = currentStage;
-  journey.stageIndex = stageIndex;
+  journey.stageIndex = currentIndex >= 0 ? currentIndex : stageIndex;
   journey.enteredCurrentStageAt = enteredAt;
+  journey.isOpen = currentIndex >= 0 && currentStage !== "Represented";
+
+  // A ribbon is a sequential-flow claim, so only journeys with every adjacent
+  // hand-off evidenced may enter it. Current status can prove an outcome, but
+  // it cannot prove the intermediate hand-offs used to reach that outcome.
+  const terminalIndex = currentIndex >= 0 ? currentIndex : journey.exitedFrom || 0;
+  journey.flowComplete = Array.from({ length: terminalIndex }, (_, index) =>
+    journey.transitions.some(
+      (transition) =>
+        transition.fromIndex === index && transition.toIndex === index + 1,
+    ),
+  ).every(Boolean);
   return journey;
 }
 
 /** The outcome label a submission carries in the volume chart. */
 function journeyOutcome(journey) {
-  if (journey.currentStage === EXIT_STAGE) return "passed";
+  if (isClosedStage(journey.currentStage)) return exitKey(journey.currentStage);
   return ["applied", "shortlisted", "offered", "signed"][journey.reachedIndex] || "applied";
+}
+
+function firstResponseAt(application, journey) {
+  return earliestDate(journey.firstTouchAt, application.viewed_at);
 }
 
 // ---------------------------------------------------------------------------
@@ -255,127 +380,398 @@ async function tableExists(knex, name) {
   }
 }
 
-async function loadRows(knex, agencyId, windowStart) {
-  const [
-    applications,
-    boards,
-    boardApplications,
-    activities,
-    interviews,
-    reminders,
-    memberships,
+async function columnExists(knex, table, column) {
+  try {
+    return await knex.schema.hasColumn(table, column);
+  } catch {
+    return false;
+  }
+}
+
+const schemaCapabilitiesByClient = new WeakMap();
+
+async function loadSchemaCapabilities(knex) {
+  const cached = schemaCapabilitiesByClient.get(knex);
+  if (cached) return cached;
+
+  const pending = (async () => {
+    const [
+      hasRosterTable,
+      hasStandingsTable,
+      hasBoardType,
+      hasMinorAtSubmission,
+      hasMinorRevokedAt,
+      hasMinorExpiry,
+      hasSetupSteps,
+      rosterHasSourceApplication,
+      hasTalentRecords,
+      talentRecordIsMinor,
+      talentRecordConsentStatus,
+      talentRecordConsentExpiry,
+      fitScoreLocations,
+    ] = await Promise.all([
+      tableExists(knex, "roster_memberships"),
+      tableExists(knex, "roster_board_standings"),
+      columnExists(knex, "boards", "board_type"),
+      columnExists(knex, "applications", "minor_at_submission"),
+      columnExists(knex, "applications", "minor_access_revoked_at"),
+      columnExists(knex, "applications", "guardian_consent_expires_at"),
+      tableExists(knex, "agency_setup_steps"),
+      columnExists(knex, "roster_memberships", "source_application_id"),
+      tableExists(knex, "talent_records"),
+      columnExists(knex, "talent_records", "is_minor"),
+      columnExists(knex, "talent_records", "minor_consent_status"),
+      columnExists(knex, "talent_records", "minor_consent_expires_at"),
+      Promise.all(
+        FIT_SCORE_COLUMNS.map(async (column) => ({
+          column,
+          inProfile: await columnExists(knex, "profiles", column),
+          inAnalysis: await columnExists(knex, "ai_profile_analysis", column),
+        })),
+      ),
+    ]);
+
+    return {
+      hasRosterTable,
+      hasStandingsTable,
+      hasBoardType,
+      hasMinorColumns:
+        hasMinorAtSubmission && hasMinorRevokedAt && hasMinorExpiry,
+      hasSetupSteps,
+      rosterHasSourceApplication,
+      hasTalentRecords,
+      talentRecordHasMinorColumns:
+        hasTalentRecords &&
+        talentRecordIsMinor &&
+        talentRecordConsentStatus &&
+        talentRecordConsentExpiry,
+      fitScoreLocations,
+    };
+  })();
+
+  schemaCapabilitiesByClient.set(knex, pending);
+  try {
+    return await pending;
+  } catch (error) {
+    schemaCapabilitiesByClient.delete(knex);
+    throw error;
+  }
+}
+
+function applyAnalyticsMinorFilter(query, alias, allowMinor, hasMinorColumns) {
+  if (!hasMinorColumns) return query;
+  return applyMinorSubmissionFilter(query, {
+    alias,
+    allowMinor,
+    force: true,
+  });
+}
+
+async function loadRows(
+  knex,
+  agencyId,
+  windowStart,
+  { allowMinorSubmissions = false, now = new Date() } = {},
+) {
+  const {
     hasRosterTable,
-  ] = await Promise.all([
-    knex("applications")
-      .where({ agency_id: agencyId })
-      .select(
-        "id",
-        "profile_id",
-        "status",
-        "board_id",
-        "match_score",
-        "created_at",
-        "updated_at",
-        "viewed_at",
-        "accepted_at",
-        "declined_at",
-      ),
-    knex("boards")
-      .where({ agency_id: agencyId })
-      .select("id", "name", "client_name", "target_slots", "is_active", "closes_at"),
-    knex("board_applications as ba")
-      .join("applications as a", "a.id", "ba.application_id")
-      .where("a.agency_id", agencyId)
-      .select(
-        "ba.board_id",
-        "ba.application_id",
-        "ba.match_score",
-      ),
-    knex("application_activities")
-      .where({ agency_id: agencyId })
-      .select("application_id", "user_id", "activity_type", "metadata", "created_at")
-      .orderBy("created_at", "asc"),
-    knex("interviews")
-      .where({ agency_id: agencyId })
-      .select("status", "interview_type", "proposed_datetime", "responded_at", "created_at"),
-    knex("reminders")
-      .where({ agency_id: agencyId })
-      .select("status", "priority", "reminder_date", "completed_at", "created_at"),
-    knex("agency_memberships as m")
-      .leftJoin("users as u", "u.id", "m.user_id")
-      .where("m.agency_id", agencyId)
-      .select(
-        "m.user_id",
-        "m.membership_role",
-        "m.status",
-        "u.first_name",
-        "u.last_name",
-        "u.email",
-      ),
-    tableExists(knex, "roster_memberships"),
-  ]);
+    hasStandingsTable,
+    hasBoardType,
+    hasMinorColumns,
+    hasSetupSteps,
+    rosterHasSourceApplication,
+    hasTalentRecords,
+    talentRecordHasMinorColumns,
+    fitScoreLocations,
+  } = await loadSchemaCapabilities(knex);
+  const windowStartValue = windowStart.toISOString();
+
+  let applicationsQuery = knex("applications as a")
+    .where("a.agency_id", agencyId)
+    .andWhere((scope) => {
+      scope
+        .where("a.created_at", ">=", windowStartValue)
+        .orWhere("a.accepted_at", ">=", windowStartValue)
+        .orWhere("a.declined_at", ">=", windowStartValue)
+        .orWhereNull("a.status")
+        .orWhereNotIn("a.status", [
+          ...CLOSED_APPLICATION_STATUSES,
+          ...REPRESENTED_STATUSES,
+        ]);
+      // A deployment without the canonical roster table still needs historic
+      // represented applications to derive its legacy roster.
+      if (!hasRosterTable) scope.orWhereIn("a.status", REPRESENTED_STATUSES);
+    })
+    .select(
+      "a.id",
+      "a.profile_id",
+      "a.status",
+      "a.match_score",
+      "a.created_at",
+      "a.updated_at",
+      "a.viewed_at",
+      "a.accepted_at",
+      "a.declined_at",
+    );
+  applicationsQuery = applyAnalyticsMinorFilter(
+    applicationsQuery,
+    "a",
+    allowMinorSubmissions,
+    hasMinorColumns,
+  );
+
+  let allTimeCountQuery = knex("applications as a")
+    .where("a.agency_id", agencyId)
+    .count({ count: "a.id" })
+    .first();
+  allTimeCountQuery = applyAnalyticsMinorFilter(
+    allTimeCountQuery,
+    "a",
+    allowMinorSubmissions,
+    hasMinorColumns,
+  );
+
+  const boardQuery = knex("boards")
+    .where({ agency_id: agencyId })
+    .select("id", "name", "client_name", "target_slots", "is_active", "closes_at")
+    .modify((query) => {
+      if (hasBoardType) query.select("board_type");
+    });
+
+  const membershipQuery = knex("agency_memberships as m")
+    .leftJoin("users as u", "u.id", "m.user_id")
+    .where("m.agency_id", agencyId)
+    .select(
+      "m.user_id",
+      "m.membership_role",
+      "m.status",
+      "u.first_name",
+      "u.last_name",
+      "u.email",
+    );
+
+  const setupQuery = hasSetupSteps
+    ? knex("agency_setup_steps")
+        .where({ agency_id: agencyId, step_key: "defaults" })
+        .first("data")
+    : Promise.resolve(null);
+
+  const [applications, boards, memberships, allTimeCountRow, setupDefaults] =
+    await Promise.all([
+      applicationsQuery,
+      boardQuery,
+      membershipQuery,
+      allTimeCountQuery,
+      setupQuery,
+    ]);
+
+  const applicationIds = applications.map((application) => application.id);
+  const forVisibleApplications = (query, column = "application_id") =>
+    applicationIds.length
+      ? query.whereIn(column, applicationIds)
+      : query.whereRaw("1 = 0");
 
   let roster = [];
   if (hasRosterTable) {
-    roster = await knex("roster_memberships")
-      .where({ agency_id: agencyId })
-      .select(
-        "id",
-        "profile_id",
-        "talent_record_id",
-        "board_id",
-        "stage",
-        "status",
-        "joined_at",
-        "left_at",
+    let rosterQuery = knex("roster_memberships as rm").where(
+      "rm.agency_id",
+      agencyId,
+    );
+    if (rosterHasSourceApplication) {
+      rosterQuery = rosterQuery.leftJoin(
+        "applications as source_application",
+        "source_application.id",
+        "rm.source_application_id",
       );
+    }
+    if (hasTalentRecords) {
+      rosterQuery = rosterQuery.leftJoin(
+        "talent_records as tr",
+        "tr.id",
+        "rm.talent_record_id",
+      );
+    }
+    roster = await rosterQuery.select(
+      "rm.id",
+      "rm.profile_id",
+      "rm.talent_record_id",
+      "rm.board_id",
+      "rm.stage",
+      "rm.status",
+      "rm.joined_at",
+      "rm.left_at",
+      ...(rosterHasSourceApplication && hasMinorColumns
+        ? [
+            "source_application.minor_at_submission as source_is_minor",
+            "source_application.minor_access_revoked_at as source_minor_revoked_at",
+            "source_application.guardian_consent_expires_at as source_minor_expires_at",
+          ]
+        : []),
+      ...(talentRecordHasMinorColumns
+        ? [
+            "tr.is_minor as record_is_minor",
+            "tr.minor_consent_status as record_minor_consent_status",
+            "tr.minor_consent_expires_at as record_minor_expires_at",
+          ]
+        : []),
+    );
   }
 
-  // Roster fallback for environments still deriving membership from
-  // applications (pre roster_memberships). Same definition the legacy
-  // analytics endpoint used, so the two never disagree.
-  if (!roster.length) {
+  // Only deployments without the roster table use the application fallback.
+  // An empty canonical roster is a truthful empty roster, not a derivation cue.
+  if (!hasRosterTable) {
     roster = applications
-      .filter((a) => REPRESENTED_STATUSES.includes(a.status))
-      .map((a) => ({
-        id: `derived:${a.id}`,
-        profile_id: a.profile_id,
+      .filter((application) => REPRESENTED_STATUSES.includes(application.status))
+      .map((application) => ({
+        id: `derived:${application.id}`,
+        profile_id: application.profile_id,
         talent_record_id: null,
-        board_id: a.board_id,
+        board_id: null,
         stage: "main",
         status: "active",
-        joined_at: a.accepted_at || a.updated_at || a.created_at,
+        joined_at:
+          application.accepted_at ||
+          application.updated_at ||
+          application.created_at,
         left_at: null,
         derived: true,
       }));
   }
 
-  const rosterProfileIds = roster.map((r) => r.profile_id).filter(Boolean);
+  const rosterStandings = hasStandingsTable
+    ? await knex("roster_board_standings as rbs")
+        .join("roster_memberships as rm", "rm.id", "rbs.membership_id")
+        .where("rm.agency_id", agencyId)
+        .select(
+          "rbs.membership_id",
+          "rbs.board_id",
+          "rbs.standing",
+          "rbs.is_primary",
+        )
+    : [];
+
+  const rosterProfileIds = roster.map((row) => row.profile_id).filter(Boolean);
   const applicantProfileIds = applications
     .filter((a) => toDate(a.created_at) >= windowStart)
     .map((a) => a.profile_id)
     .filter(Boolean);
   const profileIds = [...new Set([...rosterProfileIds, ...applicantProfileIds])];
 
-  const profiles = profileIds.length
-    ? await knex("profiles")
-        .whereIn("id", profileIds)
-        .select(
-          "id",
-          "city",
-          "market",
-          "height_cm",
-          "date_of_birth",
-          "gender",
-          "experience_level",
-          "archetype",
-          "fit_score_runway",
-          "fit_score_editorial",
-          "fit_score_commercial",
-          "fit_score_lifestyle",
-          "fit_score_swim_fitness",
-        )
-    : [];
+  let profiles = [];
+  if (profileIds.length) {
+    let profilesQuery = knex("profiles as p")
+      .whereIn("p.id", profileIds)
+      .select(
+        "p.id",
+        "p.city",
+        "p.market",
+        "p.height_cm",
+        "p.date_of_birth",
+        "p.gender",
+        "p.experience_level",
+        "p.archetype",
+      );
+    if (fitScoreLocations.some((location) => location.inAnalysis)) {
+      profilesQuery = profilesQuery.leftJoin(
+        "ai_profile_analysis as analysis",
+        "analysis.profile_id",
+        "p.id",
+      );
+    }
+    fitScoreLocations.forEach(({ column, inProfile, inAnalysis }) => {
+      if (inAnalysis) {
+        profilesQuery.select({ [column]: `analysis.${column}` });
+      } else if (inProfile) {
+        profilesQuery.select({ [column]: `p.${column}` });
+      } else {
+        profilesQuery.select(knex.raw("NULL as ??", [column]));
+      }
+    });
+    profiles = await profilesQuery;
+  }
+
+  const profileById = new Map(profiles.map((profile) => [profile.id, profile]));
+  const rosterVisible = roster.filter((row) => {
+    const sourceGrantCurrent =
+      !row.source_is_minor ||
+      (!row.source_minor_revoked_at &&
+        toDate(row.source_minor_expires_at)?.getTime() > now.getTime());
+    const recordGrantCurrent =
+      !row.record_is_minor ||
+      (row.record_minor_consent_status === "verified" &&
+        toDate(row.record_minor_expires_at)?.getTime() > now.getTime());
+    const profileAge = row.profile_id
+      ? ageFromDob(profileById.get(row.profile_id)?.date_of_birth, now)
+      : null;
+    const profileIsMinor = profileAge != null && profileAge < 18;
+    if (!allowMinorSubmissions) {
+      return !row.source_is_minor && !row.record_is_minor && !profileIsMinor;
+    }
+    return sourceGrantCurrent && recordGrantCurrent;
+  });
+
+  const visibleRosterIds = new Set(rosterVisible.map((row) => row.id));
+  const visibleRosterStandings = rosterStandings.filter((standing) =>
+    visibleRosterIds.has(standing.membership_id),
+  );
+
+  const [boardApplications, activities, interviews, reminders] =
+    await Promise.all([
+      forVisibleApplications(
+        knex("board_applications as ba").select(
+          "ba.board_id",
+          "ba.application_id",
+          "ba.match_score",
+        ),
+        "ba.application_id",
+      ),
+      forVisibleApplications(
+        knex("application_activities")
+          .where({ agency_id: agencyId })
+          .select(
+            "application_id",
+            "user_id",
+            "activity_type",
+            "metadata",
+            "created_at",
+          )
+          .orderBy("created_at", "asc"),
+      ),
+      forVisibleApplications(
+        knex("interviews")
+          .where({ agency_id: agencyId })
+          .andWhere((scope) =>
+            scope
+              .where("created_at", ">=", windowStartValue)
+              .orWhere("proposed_datetime", ">=", windowStartValue),
+          )
+          .select(
+            "application_id",
+            "status",
+            "interview_type",
+            "proposed_datetime",
+            "responded_at",
+            "created_at",
+          ),
+      ),
+      forVisibleApplications(
+        knex("reminders")
+          .where({ agency_id: agencyId })
+          .andWhere((scope) =>
+            scope
+              .where("status", "pending")
+              .orWhere("completed_at", ">=", windowStartValue),
+          )
+          .select(
+            "application_id",
+            "status",
+            "priority",
+            "reminder_date",
+            "completed_at",
+            "created_at",
+          ),
+      ),
+    ]);
 
   return {
     applications,
@@ -385,9 +781,15 @@ async function loadRows(knex, agencyId, windowStart) {
     interviews,
     reminders,
     memberships,
-    roster,
+    roster: rosterVisible,
+    rosterStandings: visibleRosterStandings,
     profiles,
     rosterIsDerived: !hasRosterTable,
+    allTimeSubmissionCount: Number(allTimeCountRow?.count || 0),
+    configuredTimeZone: validTimeZone(parseJson(setupDefaults?.data).timezone),
+    hasBoardType,
+    hasStandingsTable,
+    hasMinorColumns,
   };
 }
 
@@ -396,13 +798,23 @@ async function loadRows(knex, agencyId, windowStart) {
 // ---------------------------------------------------------------------------
 
 function buildFlow(journeys) {
+  const eligible = journeys.filter(({ journey }) => journey.flowComplete);
   const reached = FORWARD_STAGES.map(() => 0);
   const exited = FORWARD_STAGES.map(() => 0);
+  const exitsByKind = FORWARD_STAGES.map(() => ({
+    passed: 0,
+    keptOnFile: 0,
+    withdrawn: 0,
+  }));
   const dwellByStage = FORWARD_STAGES.map(() => []);
 
-  journeys.forEach(({ journey }) => {
+  eligible.forEach(({ journey }) => {
     for (let i = 0; i <= journey.reachedIndex; i += 1) reached[i] += 1;
-    if (journey.exitedFrom != null) exited[journey.exitedFrom] += 1;
+    if (journey.exitedFrom != null) {
+      exited[journey.exitedFrom] += 1;
+      const key = journey.exitKind || "passed";
+      exitsByKind[journey.exitedFrom][key] += 1;
+    }
     journey.dwell.forEach(({ stageIndex, days }) => {
       if (dwellByStage[stageIndex]) dwellByStage[stageIndex].push(days);
     });
@@ -419,6 +831,7 @@ function buildFlow(journeys) {
       reached: reached[i],
       advanced,
       exited: lost,
+      ...exitsByKind[i],
       held,
       conversion: i + 1 < FORWARD_STAGES.length ? share(advanced, reached[i]) : null,
       medianDwellDays: round(median(dwell)),
@@ -428,20 +841,24 @@ function buildFlow(journeys) {
 
   return {
     stages,
-    cohort: journeys.length,
+    cohort: eligible.length,
+    totalCohort: journeys.length,
+    excludedIncomplete: journeys.length - eligible.length,
     signed: reached[FORWARD_STAGES.length - 1],
     exited: exited.reduce((sum, v) => sum + v, 0),
     open: stages.reduce((sum, s) => sum + s.held, 0),
   };
 }
 
-function buildVolume(journeys, buckets, granularity, offsetMinutes) {
+function buildVolume(journeys, buckets, granularity, timeZone) {
   const empty = () => ({
     applied: 0,
     shortlisted: 0,
     offered: 0,
     signed: 0,
     passed: 0,
+    keptOnFile: 0,
+    withdrawn: 0,
     total: 0,
   });
   const index = new Map(buckets.map((key) => [key, { bucket: key, ...empty() }]));
@@ -449,7 +866,7 @@ function buildVolume(journeys, buckets, granularity, offsetMinutes) {
   journeys.forEach(({ application, journey }) => {
     const createdAt = toDate(application.created_at);
     if (!createdAt) return;
-    const key = bucketKey(createdAt, granularity, offsetMinutes);
+    const key = bucketKey(createdAt, granularity, timeZone);
     const row = index.get(key);
     if (!row) return;
     row[journeyOutcome(journey)] += 1;
@@ -523,9 +940,9 @@ const CALIBRATION_BINS = [
 ];
 
 /**
- * Does the match score predict what the desk actually does? Bins scored
- * submissions and splits each bin by outcome, so an agency can see whether
- * its scoring is calibrated or decorative.
+ * Retrospective association between the currently stored match score and the
+ * submission's current outcome. This is intentionally not called predictive
+ * calibration because the schema has no immutable score-at-submission event.
  */
 function buildCalibration(journeys, scoreForApplication) {
   const bins = CALIBRATION_BINS.map((b) => ({
@@ -534,6 +951,8 @@ function buildCalibration(journeys, scoreForApplication) {
     advanced: 0,
     open: 0,
     passed: 0,
+    keptOnFile: 0,
+    withdrawn: 0,
     total: 0,
   }));
   const signedScores = [];
@@ -545,9 +964,13 @@ function buildCalibration(journeys, scoreForApplication) {
     const bin = bins.find((b) => score >= b.lo && score < b.hi);
     if (!bin) return;
     bin.total += 1;
-    if (journey.currentStage === EXIT_STAGE) {
+    if (journey.currentStage === "Passed") {
       bin.passed += 1;
       passedScores.push(score);
+    } else if (journey.currentStage === "Kept on file") {
+      bin.keptOnFile += 1;
+    } else if (journey.currentStage === "Withdrawn") {
+      bin.withdrawn += 1;
     } else if (journey.reachedIndex === 3) {
       bin.signed += 1;
       signedScores.push(score);
@@ -560,7 +983,8 @@ function buildCalibration(journeys, scoreForApplication) {
 
   const sample = bins.reduce((sum, b) => sum + b.total, 0);
   bins.forEach((b) => {
-    const decided = b.signed + b.advanced + b.passed;
+    const decided =
+      b.signed + b.advanced + b.passed + b.keptOnFile + b.withdrawn;
     b.advanceRate = decided ? share(b.signed + b.advanced, decided) : null;
   });
 
@@ -578,14 +1002,7 @@ function buildCalibration(journeys, scoreForApplication) {
   };
 }
 
-function buildBoardPerformance(boards, journeys, boardsForApplication, roster, now) {
-  const rosterByBoard = new Map();
-  roster
-    .filter((r) => r.status === "active" && r.board_id)
-    .forEach((r) => {
-      rosterByBoard.set(r.board_id, (rosterByBoard.get(r.board_id) || 0) + 1);
-    });
-
+function buildBoardPerformance(boards, journeys, boardsForApplication, now) {
   const stats = new Map(
     boards.map((b) => [
       b.id,
@@ -599,24 +1016,17 @@ function buildBoardPerformance(boards, journeys, boardsForApplication, roster, n
         daysToClose: b.closes_at
           ? round((toDate(b.closes_at).getTime() - now.getTime()) / DAY_MS, 0)
           : null,
-        filled: rosterByBoard.get(b.id) || 0,
         submissions: 0,
-        advanced: 0,
-        signed: 0,
-        passed: 0,
         scores: [],
       },
     ]),
   );
 
-  journeys.forEach(({ application, journey }) => {
+  journeys.forEach(({ application }) => {
     boardsForApplication(application).forEach(({ boardId, score }) => {
       const row = stats.get(boardId);
       if (!row) return;
       row.submissions += 1;
-      if (journey.reachedIndex >= 1) row.advanced += 1;
-      if (journey.reachedIndex === 3) row.signed += 1;
-      if (journey.currentStage === EXIT_STAGE) row.passed += 1;
       if (score != null) row.scores.push(score);
     });
   });
@@ -626,19 +1036,17 @@ function buildBoardPerformance(boards, journeys, boardsForApplication, roster, n
       ...row,
       averageMatch: round(mean(scores), 0),
       scoredSubmissions: scores.length,
-      advanceRate: share(row.advanced, row.submissions),
-      signRate: share(row.signed, row.submissions),
-      fillRate: row.targetSlots ? share(row.filled, row.targetSlots) : null,
+      scoreCoverage: share(scores.length, row.submissions),
     }))
     .sort((a, b) => b.submissions - a.submissions);
 }
 
-function buildCohorts(journeys, offsetMinutes, monthsBack = 12) {
+function buildCohorts(journeys, timeZone, monthsBack = 12) {
   const index = new Map();
   journeys.forEach(({ application, journey }) => {
     const createdAt = toDate(application.created_at);
     if (!createdAt) return;
-    const key = localMonthKey(createdAt, offsetMinutes);
+    const key = localMonthKey(createdAt, timeZone);
     if (!index.has(key)) {
       index.set(key, {
         month: key,
@@ -649,8 +1057,10 @@ function buildCohorts(journeys, offsetMinutes, monthsBack = 12) {
     }
     const row = index.get(key);
     row.size += 1;
-    for (let i = 0; i <= journey.reachedIndex; i += 1) row.reached[i] += 1;
-    if (journey.currentStage === EXIT_STAGE) row.passed += 1;
+    journey.reachedStages.forEach((didReach, index) => {
+      if (didReach) row.reached[index] += 1;
+    });
+    if (journey.currentStage === "Passed") row.passed += 1;
   });
 
   return [...index.values()]
@@ -673,7 +1083,7 @@ function buildDesk(context) {
     activities,
     windowStart,
     now,
-    offsetMinutes,
+    timeZone,
     journeysById,
     memberships,
     interviews,
@@ -691,9 +1101,7 @@ function buildDesk(context) {
 
   inWindow.forEach((activity) => {
     const at = toDate(activity.created_at);
-    const shifted = new Date(at.getTime() + offsetMinutes * 60_000);
-    const dow = (shifted.getUTCDay() + 6) % 7; // Monday = 0
-    const hour = shifted.getUTCHours();
+    const { dow, hour } = localDowAndHour(at, timeZone);
     const key = `${dow}:${hour}`;
     const next = (grid.get(key) || 0) + 1;
     grid.set(key, next);
@@ -712,7 +1120,7 @@ function buildDesk(context) {
   const latencyHours = [];
   journeysById.forEach(({ application, journey, createdAt }) => {
     if (!createdAt || createdAt < windowStart) return;
-    const touch = journey.firstTouchAt || toDate(application.viewed_at);
+    const touch = firstResponseAt(application, journey);
     if (!touch) return;
     const hours = (touch.getTime() - createdAt.getTime()) / HOUR_MS;
     if (hours >= 0) latencyHours.push(hours);
@@ -770,7 +1178,7 @@ function buildDesk(context) {
 
   // --- interviews ----------------------------------------------------------
   const windowInterviews = interviews.filter((i) => {
-    const at = toDate(i.created_at) || toDate(i.proposed_datetime);
+    const at = toDate(i.proposed_datetime) || toDate(i.created_at);
     return at && at >= windowStart && at <= now;
   });
   const interviewStatus = (status) =>
@@ -886,18 +1294,38 @@ function binCounts(bins, values) {
 }
 
 function buildRoster(context) {
-  const { roster, profiles, boards, now, offsetMinutes, pipelineProfileIds } = context;
+  const {
+    roster,
+    rosterStandings,
+    profiles,
+    boards,
+    now,
+    timeZone,
+    pipelineProfileIds,
+  } = context;
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
-  const boardById = new Map(boards.map((b) => [b.id, b]));
+  const boardById = new Map(
+    boards.filter((board) => board.kind === "division").map((board) => [board.id, board]),
+  );
+  const standingsByMembership = new Map();
+  (rosterStandings || []).forEach((standing) => {
+    if (!standingsByMembership.has(standing.membership_id)) {
+      standingsByMembership.set(standing.membership_id, []);
+    }
+    standingsByMembership.get(standing.membership_id).push(standing);
+  });
   const active = roster.filter((r) => r.status === "active");
 
   // --- twelve months of joins and departures -------------------------------
   const months = [];
+  const currentMonthAnchor = new Date(
+    `${localMonthKey(now, timeZone)}-15T12:00:00.000Z`,
+  );
   for (let i = 11; i >= 0; i -= 1) {
-    const anchor = new Date(now.getTime());
-    anchor.setUTCMonth(anchor.getUTCMonth() - i, 1);
-    months.push(localMonthKey(anchor, offsetMinutes));
+    const anchor = new Date(currentMonthAnchor.getTime());
+    anchor.setUTCMonth(anchor.getUTCMonth() - i);
+    months.push(anchor.toISOString().slice(0, 7));
   }
   const growth = months.map((month) => ({ month, joined: 0, left: 0, total: 0 }));
   const growthIndex = new Map(growth.map((row) => [row.month, row]));
@@ -905,24 +1333,22 @@ function buildRoster(context) {
   roster.forEach((r) => {
     const joined = toDate(r.joined_at);
     if (joined) {
-      const row = growthIndex.get(localMonthKey(joined, offsetMinutes));
+      const row = growthIndex.get(localMonthKey(joined, timeZone));
       if (row) row.joined += 1;
     }
     const left = toDate(r.left_at);
     if (left) {
-      const row = growthIndex.get(localMonthKey(left, offsetMinutes));
+      const row = growthIndex.get(localMonthKey(left, timeZone));
       if (row) row.left += 1;
     }
   });
 
   growth.forEach((row) => {
-    const monthEnd = new Date(`${row.month}-01T00:00:00.000Z`);
-    monthEnd.setUTCMonth(monthEnd.getUTCMonth() + 1);
     row.total = roster.filter((r) => {
       const joined = toDate(r.joined_at);
       const left = toDate(r.left_at);
-      if (!joined || joined >= monthEnd) return false;
-      return !left || left >= monthEnd;
+      if (!joined || localMonthKey(joined, timeZone) > row.month) return false;
+      return !left || localMonthKey(left, timeZone) > row.month;
     }).length;
     row.net = row.joined - row.left;
   });
@@ -941,9 +1367,24 @@ function buildRoster(context) {
     const stage = r.stage || "main";
     stageIndex.set(stage, (stageIndex.get(stage) || 0) + 1);
 
-    const boardName = r.board_id ? boardById.get(r.board_id)?.name : null;
-    const boardKey = boardName || "Unassigned";
-    boardMix.set(boardKey, (boardMix.get(boardKey) || 0) + 1);
+    const canonicalStandings = (standingsByMembership.get(r.id) || []).filter(
+      (standing) =>
+        boardById.has(standing.board_id) &&
+        !["ended", "passed", "inactive"].includes(standing.standing),
+    );
+    const boardIds = canonicalStandings.length
+      ? canonicalStandings.map((standing) => standing.board_id)
+      : r.board_id && boardById.has(r.board_id)
+        ? [r.board_id]
+        : [];
+    if (boardIds.length) {
+      [...new Set(boardIds)].forEach((boardId) => {
+        const boardName = boardById.get(boardId)?.name;
+        if (boardName) boardMix.set(boardName, (boardMix.get(boardName) || 0) + 1);
+      });
+    } else {
+      boardMix.set("Unassigned", (boardMix.get("Unassigned") || 0) + 1);
+    }
 
     const joined = toDate(r.joined_at);
     if (joined) tenureMonths.push((now.getTime() - joined.getTime()) / (30.44 * DAY_MS));
@@ -951,7 +1392,7 @@ function buildRoster(context) {
     const profile = r.profile_id ? profileById.get(r.profile_id) : null;
     if (!profile) return;
 
-    const market = profile.market || profile.city;
+    const market = profile.market;
     if (market) marketIndex.set(market, (marketIndex.get(market) || 0) + 1);
     if (profile.experience_level) {
       experienceIndex.set(
@@ -1136,7 +1577,7 @@ function windowSummary(journeys, windowStart, windowEnd) {
   );
   const firstResponse = inWindow
     .map(({ application, journey, createdAt }) => {
-      const touch = journey.firstTouchAt || toDate(application.viewed_at);
+      const touch = firstResponseAt(application, journey);
       if (!touch || !createdAt) return null;
       const hours = (touch.getTime() - createdAt.getTime()) / HOUR_MS;
       return hours >= 0 ? hours : null;
@@ -1155,8 +1596,7 @@ function windowSummary(journeys, windowStart, windowEnd) {
     advanceRate: share(advanced, submissions),
     signed: signedJourneys.length,
     open: inWindow.filter(
-      ({ journey }) =>
-        journey.currentStage !== EXIT_STAGE && journey.reachedIndex < 3,
+      ({ journey }) => journey.isOpen,
     ).length,
     firstResponseHours: round(median(firstResponse)),
     firstResponseSample: firstResponse.length,
@@ -1174,9 +1614,9 @@ function windowSummary(journeys, windowStart, windowEnd) {
  * @param {object} options
  * @param {string} options.agencyId
  * @param {number|string} [options.range] one of 30 / 90 / 365 / 730
- * @param {string|null} [options.boardId] scope every section to one board
- * @param {number} [options.tzOffsetMinutes] viewer offset, so day/hour buckets
- *   line up with the desk's own calendar rather than UTC
+ * @param {string|null} [options.boardId] package scope for Pipeline, division scope for Roster
+ * @param {string|null} [options.requestedTimeZone] browser IANA fallback
+ * @param {boolean} [options.allowMinorSubmissions] permission-resolved minor visibility
  * @param {Date} [options.now] injectable clock for tests
  */
 async function buildSeasonAnalytics(knex, options) {
@@ -1184,16 +1624,38 @@ async function buildSeasonAnalytics(knex, options) {
     agencyId,
     range,
     boardId = null,
-    tzOffsetMinutes = 0,
+    requestedTimeZone = null,
+    timeZone: explicitTimeZone = null,
+    allowMinorSubmissions = false,
     now = new Date(),
   } = options;
 
   const rangeDays = resolveRange(range);
-  const offsetMinutes = Math.max(-840, Math.min(840, Number(tzOffsetMinutes) || 0));
   const windowStart = new Date(now.getTime() - rangeDays * DAY_MS);
   const previousStart = new Date(now.getTime() - 2 * rangeDays * DAY_MS);
 
-  const rows = await loadRows(knex, agencyId, previousStart);
+  const rows = await loadRows(knex, agencyId, previousStart, {
+    allowMinorSubmissions,
+    now,
+  });
+  const timeZone =
+    validTimeZone(explicitTimeZone) ||
+    rows.configuredTimeZone ||
+    validTimeZone(requestedTimeZone) ||
+    DEFAULT_TIME_ZONE;
+
+  const boards = rows.boards.map((board) => ({
+    ...board,
+    kind: board.board_type === PACKAGE_BOARD_TYPE ? "package" : "division",
+  }));
+  const activeBoard = boardId
+    ? boards.find((board) => board.id === boardId)
+    : null;
+  if (boardId && !activeBoard) {
+    throw new AnalyticsInputError("Unknown analytics board");
+  }
+  const activeBoardId = activeBoard?.id || null;
+  const activeScope = activeBoard?.kind || "agency";
 
   // --- board scoping -------------------------------------------------------
   const boardLinks = new Map();
@@ -1205,31 +1667,23 @@ async function buildSeasonAnalytics(knex, options) {
     });
   });
   const boardsForApplication = (application) => {
-    const links = boardLinks.get(application.id) || [];
-    if (links.length) return links;
-    if (application.board_id) {
-      return [
-        {
-          boardId: application.board_id,
-          score:
-            application.match_score == null ? null : Number(application.match_score),
-        },
-      ];
-    }
-    return [];
+    return boardLinks.get(application.id) || [];
   };
   const scoreForApplication = (application) => {
+    if (activeScope === "package") {
+      const selected = boardsForApplication(application).find(
+        (link) => link.boardId === activeBoardId,
+      );
+      if (selected?.score != null) return selected.score;
+    }
     if (application.match_score != null) return Number(application.match_score);
     const scores = boardsForApplication(application)
       .map((l) => l.score)
       .filter((s) => s != null);
-    return scores.length ? Math.max(...scores) : null;
+    return round(mean(scores), 1);
   };
 
-  const activeBoardId =
-    boardId && rows.boards.some((b) => b.id === boardId) ? boardId : null;
-
-  const scopedApplications = activeBoardId
+  const scopedApplications = activeScope === "package"
     ? rows.applications.filter((a) =>
         boardsForApplication(a).some((l) => l.boardId === activeBoardId),
       )
@@ -1253,8 +1707,10 @@ async function buildSeasonAnalytics(knex, options) {
     ),
     lastTouchAt: (() => {
       const list = activitiesByApplication.get(application.id);
-      if (!list || !list.length) return null;
-      return toDate(list[list.length - 1].created_at);
+      const lastActivityAt = list?.length
+        ? list[list.length - 1].created_at
+        : null;
+      return latestDate(lastActivityAt, application.viewed_at);
     })(),
   }));
 
@@ -1266,28 +1722,66 @@ async function buildSeasonAnalytics(knex, options) {
   // because a submission that has sat untouched for 200 days is exactly the
   // one a booker needs to see.
   const openJourneys = allJourneys.filter(
-    ({ journey }) => journey.currentStage !== EXIT_STAGE && journey.reachedIndex < 3,
+    ({ journey }) => journey.isOpen,
   );
 
   const buckets = enumerateBuckets(
     windowStart,
     now,
     resolveGranularity(rangeDays),
-    offsetMinutes,
+    timeZone,
   );
 
   const scopedActivityIds = new Set(scopedApplications.map((a) => a.id));
-  const scopedActivities = activeBoardId
+  const scopedActivities = activeScope === "package"
     ? rows.activities.filter((a) => scopedActivityIds.has(a.application_id))
     : rows.activities;
+  const scopedInterviews = activeScope === "package"
+    ? rows.interviews.filter((row) => scopedActivityIds.has(row.application_id))
+    : rows.interviews;
+  const scopedReminders = activeScope === "package"
+    ? rows.reminders.filter((row) => scopedActivityIds.has(row.application_id))
+    : rows.reminders;
 
   const pipelineProfileIds = new Set(
     windowJourneys.map(({ application }) => application.profile_id).filter(Boolean),
   );
 
-  const scopedRoster = activeBoardId
-    ? rows.roster.filter((r) => r.board_id === activeBoardId)
+  const standingMembershipIds = new Set(
+    activeScope === "division"
+      ? rows.rosterStandings
+          .filter((standing) => standing.board_id === activeBoardId)
+          .map((standing) => standing.membership_id)
+      : [],
+  );
+  const scopedRoster = activeScope === "division"
+    ? rows.roster.filter(
+        (row) => row.board_id === activeBoardId || standingMembershipIds.has(row.id),
+      )
     : rows.roster;
+  const scopedRosterIds = new Set(scopedRoster.map((row) => row.id));
+  const scopedRosterStandings = rows.rosterStandings.filter(
+    (standing) =>
+      scopedRosterIds.has(standing.membership_id) &&
+      (activeScope !== "division" || standing.board_id === activeBoardId),
+  );
+
+  let allTimeSubmissions = rows.allTimeSubmissionCount;
+  if (activeScope === "package") {
+    let countQuery = knex("board_applications as ba")
+      .join("applications as a", "a.id", "ba.application_id")
+      .where({ "a.agency_id": agencyId, "ba.board_id": activeBoardId })
+      .count({ count: "ba.application_id" })
+      .first();
+    countQuery = applyAnalyticsMinorFilter(
+      countQuery,
+      "a",
+      allowMinorSubmissions,
+      rows.hasMinorColumns,
+    );
+    const countRow = await countQuery;
+    allTimeSubmissions = Number(countRow?.count || 0);
+  }
 
   const current = windowSummary(allJourneys, windowStart, now);
   const previous = windowSummary(allJourneys, previousStart, windowStart);
@@ -1300,19 +1794,23 @@ async function buildSeasonAnalytics(knex, options) {
       windowStart: windowStart.toISOString(),
       windowEnd: now.toISOString(),
       generatedAt: now.toISOString(),
-      tzOffsetMinutes: offsetMinutes,
+      timeZone,
       boardId: activeBoardId,
-      boards: rows.boards
+      boardScope: activeScope,
+      boards: boards
         .map((b) => ({
           id: b.id,
           name: b.name,
           clientName: b.client_name || null,
           isActive: b.is_active !== false,
+          kind: b.kind,
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
       stages: FORWARD_STAGES,
       exitStage: EXIT_STAGE,
       rosterIsDerived: rows.rosterIsDerived,
+      rosterUsesBoardStandings: rows.hasStandingsTable,
+      minorSubmissionsIncluded: Boolean(allowMinorSubmissions),
     },
     signals: buildSignals(
       current,
@@ -1324,43 +1822,45 @@ async function buildSeasonAnalytics(knex, options) {
       windowJourneys,
       buckets,
       resolveGranularity(rangeDays),
-      offsetMinutes,
+      timeZone,
     ),
     queue: buildQueue(openJourneys, now),
     calibration: buildCalibration(windowJourneys, scoreForApplication),
     boards: buildBoardPerformance(
-      activeBoardId
-        ? rows.boards.filter((b) => b.id === activeBoardId)
-        : rows.boards,
+      boards.filter(
+        (board) =>
+          board.kind === "package" &&
+          (activeScope !== "package" || board.id === activeBoardId),
+      ),
       windowJourneys,
       boardsForApplication,
-      rows.roster,
       now,
     ),
     cohorts: buildCohorts(
       allJourneys.filter(({ createdAt }) => createdAt && createdAt >= previousStart),
-      offsetMinutes,
+      timeZone,
     ),
     desk: buildDesk({
       activities: scopedActivities,
       windowStart,
       now,
-      offsetMinutes,
+      timeZone,
       journeysById: allJourneys,
       memberships: rows.memberships,
-      interviews: rows.interviews,
-      reminders: rows.reminders,
+      interviews: scopedInterviews,
+      reminders: scopedReminders,
     }),
     roster: buildRoster({
       roster: scopedRoster,
+      rosterStandings: scopedRosterStandings,
       profiles: rows.profiles,
-      boards: rows.boards,
+      boards,
       now,
-      offsetMinutes,
+      timeZone,
       pipelineProfileIds,
     }),
     totals: {
-      allTimeSubmissions: scopedApplications.length,
+      allTimeSubmissions,
       windowSubmissions: windowJourneys.length,
       activitiesObserved: scopedActivities.length,
       scoredSubmissions: windowJourneys.filter(
