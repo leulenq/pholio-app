@@ -1,26 +1,68 @@
-/* Pholio Gold Sweep Spinner — Thick Editorial Sweep */
+/*
+ * Pholio Gold Sweep Loader — the wordmark's gold swish, closed into an orbit.
+ * See LoadingSpinner.jsx for the geometry and the reasoning.
+ *
+ * Motion is two rotations at the same period, composed:
+ *   orbit   — a constant turn, the travel itself.
+ *   cadence — a ±16° eased oscillation layered on top.
+ * Their sum modulates angular velocity between roughly 0.65× and 1.35× of the
+ * base rate, so the sweep gathers and settles once per revolution without ever
+ * stalling or reversing. Tune with the two custom properties below; drop the
+ * cadence to 0 and it degrades to an ordinary constant spin.
+ */
 
 .ph-spinner {
+  --ph-spinner-duration: 1.5s;
+  --ph-spinner-cadence: 16deg;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
   box-sizing: border-box;
+  /* The mark is drawn entirely in currentColor. */
+  color: #c9a55a;
+}
+
+.ph-spinner__orbit,
+.ph-spinner__cadence {
+  display: block;
+  line-height: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.ph-spinner__orbit {
+  animation: ph-spinner-orbit var(--ph-spinner-duration) linear infinite;
+}
+
+.ph-spinner__cadence {
+  /* Sine-like ease so the oscillation has no velocity discontinuity at the
+     loop seam — an ease-in-out on both halves is what keeps it from ticking. */
+  animation: ph-spinner-cadence var(--ph-spinner-duration)
+    cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 .ph-spinner__svg {
   display: block;
-  animation: ph-sweep-spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  transform-origin: center center;
-  filter: drop-shadow(0 0 8px rgba(201, 165, 90, 0.35));
 }
 
-@keyframes ph-sweep-spin {
-  0% {
+@keyframes ph-spinner-orbit {
+  from {
     transform: rotate(0deg);
   }
-  100% {
+  to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes ph-spinner-cadence {
+  0%,
+  100% {
+    transform: rotate(calc(var(--ph-spinner-cadence) * -1));
+  }
+  50% {
+    transform: rotate(var(--ph-spinner-cadence));
   }
 }
 
@@ -44,9 +86,10 @@
   height: 72px;
 }
 
+/* The sweep rests at 12 o'clock, so the still frame still reads as the mark. */
 @media (prefers-reduced-motion: reduce) {
-  .ph-spinner__svg {
-    animation: none !important;
-    opacity: 0.85;
+  .ph-spinner__orbit,
+  .ph-spinner__cadence {
+    animation: none;
   }
 }
