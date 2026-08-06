@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { X } from 'lucide-react';
 import { updateRosterBoards } from '../api/agency';
 import { DivisionMark, STANDINGS } from './status';
+import BoardSelect from './BoardSelect';
 import './BoardStandingsEditor.css';
 
 /* The standings a booker can set by hand, in ladder order. `unknown` is
@@ -152,21 +153,19 @@ export default function BoardStandingsEditor({ membershipId, value, boards, onCh
       )}
 
       {available.length > 0 && (
-        <label className="bse__add">
+        <div className="bse__add">
           <span className="bse__sr">Add a board</span>
-          <select
-            value={pendingBoardId}
+          <BoardSelect
+            boards={available}
+            value={pendingBoardId || null}
+            onChange={(id) => add(id)}
+            placeholder="Add a board…"
+            showAllOption={false}
+            showManageLink={false}
+            ariaLabel="Add a board"
             disabled={busy}
-            onChange={(event) => add(event.target.value)}
-          >
-            <option value="">Add a board…</option>
-            {available.map((board) => (
-              <option key={board.id} value={board.id}>
-                {board.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          />
+        </div>
       )}
     </div>
   );

@@ -133,19 +133,14 @@
      floating inside it. */
   padding: 0 0 0 22px;
   border-radius: 999px;
-  background: #0a0806;
+  background: #000000;
   /* Transparent, not absent: the shell keeps its 1px so nothing shifts, and the
      travelling ring below is the bar's only edge in every state. */
   border: 1px solid transparent;
   box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.9);
 }
 
-/* Ring — always present, travelling continuously around the pill: the bar is
-   thinking before you touch it. Focus brightens it and quickens the sweep
-   rather than assembling it from nothing. Gold holds ~200° of the 360° sweep
-   (0–95 and 250–360) so it reads gold; violet + ember occupy the short middle
-   arc. The literal `0deg` fallback keeps the gradient valid if @property is
-   unsupported (it just won't travel). */
+/* Ring — appears when focused / clicked. */
 .dc-bar-shell::before {
   content: '';
   position: absolute;
@@ -166,12 +161,13 @@
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-  opacity: 0.62; /* at rest — legible as an edge, quiet enough not to shout */
+  opacity: 0; /* hidden when not clicked / at rest */
   animation: dcRingTravel 14s linear infinite;
-  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: none;
 }
-.dc-bar--on .dc-bar-shell::before {
+.dc-bar--on .dc-bar-shell::before,
+.dc-bar-shell:focus-within::before {
   opacity: 1;
   animation-duration: 5s; /* quickens on focus — the bar leans in */
 }

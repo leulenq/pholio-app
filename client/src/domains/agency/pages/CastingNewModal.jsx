@@ -7,6 +7,8 @@ import { X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { createBoard } from '../api/agency';
 import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
+import { AgencyButton } from '../components/ui';
+import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import '../components/BoardIdentityEditor.css';
 
 const TYPES = ['Campaign', 'Editorial', 'Runway', 'Lookbook', 'Commercial', 'E-commerce'];
@@ -112,19 +114,25 @@ export default function CastingNewModal({ open, onClose }) {
             <div className="cn-modal-body">
               <div className="cn-field">
                 <label className="cn-label">Board name <span className="cn-req">*</span></label>
-                <input className="cn-input" value={form.name} onChange={set('name')} placeholder="SS26 Campaign" autoFocus />
+                <div className="cn-input-wrap">
+                  <input value={form.name} onChange={set('name')} placeholder="SS26 Campaign" autoFocus />
+                </div>
               </div>
 
               <div className="cn-row">
                 <div className="cn-field">
                   <label className="cn-label">Client</label>
-                  <input className="cn-input" value={form.client_name} onChange={set('client_name')} placeholder="Prada" />
+                  <div className="cn-input-wrap">
+                    <input value={form.client_name} onChange={set('client_name')} placeholder="Prada" />
+                  </div>
                 </div>
                 <div className="cn-field">
                   <label className="cn-label">Type</label>
-                  <select className="cn-input" value={form.type} onChange={set('type')}>
-                    {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  <PholioCustomSelect
+                    options={TYPES.map((t) => ({ value: t, label: t }))}
+                    value={form.type}
+                    onChange={(val) => setForm((f) => ({ ...f, type: val }))}
+                  />
                 </div>
               </div>
 
@@ -152,24 +160,28 @@ export default function CastingNewModal({ open, onClose }) {
 
               <div className="cn-field">
                 <label className="cn-label">The brief</label>
-                <textarea
-                  className="cn-input cn-textarea"
-                  rows={3}
-                  value={form.description}
-                  onChange={set('description')}
-                  style={{ resize: 'none' }}
-                  placeholder="Describe the board focus, the look, and what reviewers should prioritize."
-                />
+                <div className="cn-input-wrap cn-textarea-wrap">
+                  <textarea
+                    rows={3}
+                    value={form.description}
+                    onChange={set('description')}
+                    placeholder="Describe the board focus, the look, and what reviewers should prioritize."
+                  />
+                </div>
               </div>
 
-              <div className="cn-row">
+              <div className="cn-row cn-row--split">
                 <div className="cn-field">
                   <label className="cn-label">Closes</label>
-                  <input className="cn-input" type="date" value={form.closes_at} onChange={set('closes_at')} />
+                  <div className="cn-input-wrap">
+                    <input type="date" value={form.closes_at} onChange={set('closes_at')} />
+                  </div>
                 </div>
                 <div className="cn-field">
                   <label className="cn-label">Target slots</label>
-                  <input className="cn-input" type="number" min="0" value={form.target_slots} onChange={set('target_slots')} placeholder="12" />
+                  <div className="cn-input-wrap">
+                    <input type="number" min="0" value={form.target_slots} onChange={set('target_slots')} placeholder="12" />
+                  </div>
                 </div>
               </div>
 
@@ -180,11 +192,12 @@ export default function CastingNewModal({ open, onClose }) {
               </label>
             </div>
 
+
             <div className="cn-actions">
-              <button type="button" className="cn-cancel" onClick={onClose}>Cancel</button>
-              <button type="submit" className="cn-submit" disabled={create.isPending}>
-                {create.isPending ? 'Creating…' : 'Create board'}
-              </button>
+              <AgencyButton variant="secondary" onClick={onClose}>Cancel</AgencyButton>
+              <AgencyButton type="submit" loading={create.isPending}>
+                Create board
+              </AgencyButton>
             </div>
           </motion.form>
         </motion.div>

@@ -91,10 +91,13 @@ describe('AnalyticsPage', () => {
   test('offers only compatible package and division scopes for each lens', async () => {
     renderPage();
 
-    expect(await screen.findByLabelText('Package')).toHaveTextContent('Runway intake');
-    expect(screen.getByLabelText('Package')).not.toHaveTextContent('Development');
+    const pkgTrigger = await screen.findByLabelText('Package');
+    fireEvent.click(pkgTrigger);
+    const pkgPanel = screen.getByRole('listbox');
+    expect(pkgPanel).toHaveTextContent('Runway intake');
+    expect(pkgPanel).not.toHaveTextContent('Development');
 
-    fireEvent.change(screen.getByLabelText('Package'), { target: { value: 'package-runway' } });
+    fireEvent.click(screen.getByText('Runway intake'));
     await waitFor(() => {
       expect(getSeasonAnalytics).toHaveBeenCalledWith(expect.objectContaining({
         range: 90,
@@ -103,10 +106,13 @@ describe('AnalyticsPage', () => {
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'Roster' }));
-    expect(await screen.findByLabelText('Division')).toHaveTextContent('Development');
-    expect(screen.getByLabelText('Division')).not.toHaveTextContent('Runway intake');
+    const divTrigger = await screen.findByLabelText('Division');
+    fireEvent.click(divTrigger);
+    const divPanel = screen.getByRole('listbox');
+    expect(divPanel).toHaveTextContent('Development');
+    expect(divPanel).not.toHaveTextContent('Runway intake');
 
-    fireEvent.change(screen.getByLabelText('Division'), { target: { value: 'division-development' } });
+    fireEvent.click(screen.getByText('Development'));
     await waitFor(() => {
       expect(getSeasonAnalytics).toHaveBeenCalledWith(expect.objectContaining({
         range: 90,
@@ -115,7 +121,8 @@ describe('AnalyticsPage', () => {
     });
 
     fireEvent.click(screen.getByRole('tab', { name: 'Desk' }));
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Package')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Division')).not.toBeInTheDocument();
   });
 
   test('supports roving keyboard focus across analytics tabs', async () => {

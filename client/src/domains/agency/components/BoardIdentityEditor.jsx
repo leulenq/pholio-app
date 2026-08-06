@@ -8,6 +8,7 @@ import { updateBoard, uploadBoardIdentityImage } from '../api/agency';
 import {
   resolveBoardIdentity, boardIdentityStyle, PLATE_STYLES,
 } from '../lib/board-identity';
+import { AgencyButton } from './ui';
 import './BoardIdentityEditor.css';
 
 /**
@@ -267,15 +268,14 @@ export default function BoardIdentityEditor({ board, open, onClose }) {
             </div>
 
             <div className="cn-actions">
-              <button type="button" className="cn-cancel" onClick={onClose}>Cancel</button>
-              <button
-                type="button"
-                className="bide-save"
+              <AgencyButton variant="secondary" onClick={onClose}>Cancel</AgencyButton>
+              <AgencyButton
                 disabled={save.isPending || uploading != null}
+                loading={save.isPending}
                 onClick={() => save.mutate()}
               >
-                {save.isPending ? 'Saving…' : 'Save identity'}
-              </button>
+                Save identity
+              </AgencyButton>
             </div>
           </motion.div>
         </motion.div>

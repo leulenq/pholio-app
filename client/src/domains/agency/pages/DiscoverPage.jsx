@@ -26,6 +26,7 @@ import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/ag
 import { predictCompletion } from '../lib/intentParser';
 import { resolveMatchScore, tierBandToScore, constraintAnnotations, amendBriefRemove } from '../lib/discoverMatch';
 import MatchScore from '../components/ui/MatchScore';
+import { DivisionMark } from '../components/status';
 import BriefUnderstanding from '../components/BriefUnderstanding';
 import { DiscoverDetail } from './DiscoverDetail';
 import Grainient from './Grainient';
@@ -158,7 +159,7 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
           )}
         </div>
         <div className="dc-card-line">
-          <span className="dc-card-arch">{talent.archetype}</span>
+          {talent.archetype && <DivisionMark division={talent.archetype} size="sm" onDark />}
           {talent.city && <><span className="dc-dot" /><Place value={talent.city} size="sm" className="dc-card-loc" /></>}
         </div>
 

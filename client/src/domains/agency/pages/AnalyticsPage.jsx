@@ -6,6 +6,7 @@ import { getSeasonAnalytics } from '../api/agency';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 
 import { Panel, LegendKey, VizTable } from '../components/analytics/Panel';
+import BoardSelect from '../components/BoardSelect';
 import { SignalRail } from '../components/analytics/SignalRail';
 import { FlowRibbon } from '../components/analytics/FlowRibbon';
 import { VolumeStream } from '../components/analytics/VolumeStream';
@@ -849,20 +850,16 @@ function AnalyticsPage() {
         {boards.length ? (
           <label className="sv-board-filter">
             <span className="sv-board-filter-label">{boardLabel}</span>
-            <select
-              value={boardId}
-              onChange={(event) => {
-                const value = event.target.value;
-                setScopeByLens((current) => ({ ...current, [lens]: value }));
-              }}
-            >
-              <option value="">Every {boardLabel.toLowerCase()}</option>
-              {boards.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+            <BoardSelect
+              boards={boards}
+              value={boardId || null}
+              onChange={(id) => setScopeByLens((current) => ({ ...current, [lens]: id || '' }))}
+              placeholder={`Every ${boardLabel.toLowerCase()}`}
+              allOptionLabel={`Every ${boardLabel.toLowerCase()}`}
+              allOptionSub="Whole agency perspective"
+              showManageLink={false}
+              ariaLabel={boardLabel}
+            />
           </label>
         ) : null}
 

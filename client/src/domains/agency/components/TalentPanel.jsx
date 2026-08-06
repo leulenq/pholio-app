@@ -9,6 +9,7 @@ import { ApplicantsZone } from './zones/ApplicantsZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
 import MatchScore from './ui/MatchScore';
+import { DivisionMark } from './status';
 import { MetaLine, Place } from './meta';
 import './TalentPanel.css';
 
@@ -198,6 +199,10 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
             </>
           )}
 
+          {matchScore != null && (
+            <MatchScore score={matchScore} size="sm" tone="overlay" className="tp-hero-match" />
+          )}
+
           <div className="tp-hero-controls">
             {talent.applicationId && (
               <button
@@ -216,13 +221,8 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
 
           <div className="tp-identity">
             <div className="tp-identity-top">
-              <MetaLine className="tp-meta-type">
-                {talent.type || talent.typeLabel || 'Editorial'}
-                <Place value={talent.location || talent.city} />
-              </MetaLine>
-              {matchScore != null && (
-                <MatchScore score={matchScore} size="sm" tone="overlay" className="tp-hero-match" />
-              )}
+              <DivisionMark division={talent.type || talent.typeLabel || talent.archetype || 'editorial'} size="sm" onDark />
+              <Place value={talent.location || talent.city} onDark />
             </div>
             {siteLink ? (
               <h2 className="tp-name">

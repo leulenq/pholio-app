@@ -266,12 +266,12 @@ button.bd-agenda-row:not(:disabled):hover { background: var(--ag-surface-hover);
 .bd-form select { min-height: 42px; padding: 0 12px; }
 .bd-form textarea { min-height: 84px; padding: 10px 12px; resize: none; line-height: 1.6; }
 .bd-form input::placeholder,
-.bd-form textarea::placeholder { color: #A39E99; font-style: italic; }
+.bd-form textarea::placeholder { color: var(--ag-text-3, #756E68); font-style: normal; font-weight: 400; }
 .bd-form input:hover:not(:focus),
-.bd-form textarea:hover:not(:focus) { border-color: rgba(201, 165, 90, 0.25); background: #fdfdfc; }
+.bd-form textarea:hover:not(:focus) { border-color: var(--ag-text-3, rgba(26, 24, 21, 0.22)); background: #ffffff; }
 .bd-form input:focus-visible,
 .bd-form select:focus-visible,
-.bd-form textarea:focus-visible { border-color: rgba(201, 165, 90, 0.35); background: #ffffff; box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02); outline: none; }
+.bd-form textarea:focus-visible { border-color: var(--ag-gold, #C9A55A); background: #ffffff; outline: none; }
 
 .bd-conflicts,
 .bd-overlap-decision {

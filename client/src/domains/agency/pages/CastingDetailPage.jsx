@@ -15,7 +15,8 @@ import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import FitBriefsPanel from '../components/FitBriefs/FitBriefsPanel';
 import BoardIdentityEditor from '../components/BoardIdentityEditor';
-import { StatusText } from '../components/ui';
+import { StatusText, MatchScore } from '../components/ui';
+import { DivisionMark } from '../components/status';
 import { normalizeScore, resolveTier, MATCH_TIER_LABELS } from '../lib/matchTier';
 import {
   resolveBoardIdentity, boardIdentityStyle, resolveBoardType, BOARD_VOCAB,
@@ -133,6 +134,7 @@ function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, on
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="rr-photo" style={{ backgroundImage: c.avatar ? `url(${c.avatar})` : 'none' }}>
+        <MatchScore score={c.score} size="xs" tone="overlay" className="rr-card-match" />
         {showActions && (
           <div className="rr-acts" onClick={(e) => e.stopPropagation()}>
             {column === 'new' && (
@@ -146,18 +148,17 @@ function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, on
           </div>
         )}
       </div>
-      <FitMeter score={c.score} />
       <div className="rr-card-body">
         <h4 className="rr-card-name">{c.name}</h4>
-        <span className="rr-card-meta">
-          {c.archetype || 'editorial'}{c.location ? ` · ${c.location}` : ''}
-        </span>
-        <div className="rr-card-foot">
-          <FitLine score={c.score} />
-          {showSubState && (
-            <StatusText status={status} className="rr-card-status" />
-          )}
+        <div className="rr-card-meta">
+          <DivisionMark division={c.archetype || 'editorial'} size="sm" />
+          {c.location ? <span className="rr-card-loc"> · {c.location}</span> : null}
         </div>
+        {showSubState && (
+          <div className="rr-card-foot">
+            <StatusText status={status} className="rr-card-status" />
+          </div>
+        )}
       </div>
     </motion.div>
     </div>
@@ -232,8 +233,8 @@ function Shelf({ title, items, onOpen }) {
                     style={{ backgroundImage: c.avatar ? `url(${c.avatar})` : 'none' }}
                   />
                   <span className="rr-shelf-name">{c.name}</span>
-                  <span className="rr-shelf-meta">{c.archetype || 'editorial'}</span>
-                  <FitLine score={c.score} />
+                  <DivisionMark division={c.archetype || 'editorial'} size="sm" />
+                  {c.score != null && <MatchScore score={c.score} size="xs" tone="overlay" />}
                 </button>
               </li>
             ))}

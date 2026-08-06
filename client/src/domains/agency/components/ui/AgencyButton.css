@@ -41,8 +41,8 @@
   background: var(--ag-gold);
   border-color: var(--ag-gold);
   color: #16130D;
-  transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(184, 149, 106, 0.3);
+  transform: none;
+  box-shadow: 0 8px 20px rgba(20, 18, 14, 0.16);
 }
 
 .agency-btn--secondary {

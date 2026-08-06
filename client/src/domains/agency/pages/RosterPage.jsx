@@ -11,6 +11,8 @@ import {
 } from '../api/agency';
 import { AgencyButton, AgencyModal, SkeletonRow, StatusText } from '../components/ui';
 import RosterDetailDrawer from '../components/RosterDetailDrawer';
+import BoardSelect from '../components/BoardSelect';
+import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import { EmptyErrorState } from '../../../shared/components/states';
 import { DivisionMark, DivisionSet } from '../components/status';
 import {
@@ -196,13 +198,18 @@ export function TalentRecordForm({ boards, onClose, onSaved, mode = 'create', re
           <input name="market" value={form.market} onChange={update} maxLength={160} />
         </label>
         {!isEdit && (
-          <label>
-            Division
-            <select name="boardId" value={form.boardId} onChange={update}>
-              <option value="">Unassigned</option>
-              {boards.map((board) => <option value={board.id} key={board.id}>{board.name}</option>)}
-            </select>
-          </label>
+          <div className="rst-field">
+            <span className="rst-field-label">Division</span>
+            <BoardSelect
+              boards={boards}
+              value={form.boardId || null}
+              onChange={(id) => update({ target: { name: 'boardId', value: id || '' } })}
+              placeholder="Unassigned"
+              showAllOption={false}
+              showManageLink={false}
+              ariaLabel="Select division"
+            />
+          </div>
         )}
         {!isEdit && (
           <label>
@@ -321,31 +328,49 @@ export default function RosterPage() {
           <span className="sr-only">Search roster</span>
           <input value={search} onChange={resetPage(setSearch)} placeholder="Search name or market" />
         </label>
-        <label>
+        <div className="rst-filter-item">
           <span className="sr-only">Division</span>
-          <select value={boardId} onChange={resetPage(setBoardId)}>
-            <option value="">All divisions</option>
-            {boards.map((board) => <option key={board.id} value={board.id}>{board.name}</option>)}
-          </select>
-        </label>
-        <label>
+          <BoardSelect
+            boards={boards}
+            value={boardId || null}
+            onChange={(id) => resetPage(setBoardId)({ target: { value: id || '' } })}
+            placeholder="All divisions"
+            allOptionLabel="All divisions"
+            allOptionSub="Every roster member, across divisions"
+            showManageLink={false}
+            ariaLabel="Filter by division"
+          />
+        </div>
+        <div className="rst-filter-item">
           <span className="sr-only">Stage</span>
-          <select value={stage} onChange={resetPage(setStage)}>
-            <option value="">All stages</option>
-            <option value="main">Main</option>
-            <option value="development">Development</option>
-            <option value="new_face">New Face</option>
-          </select>
-        </label>
-        <label>
+          <PholioCustomSelect
+            value={stage}
+            onChange={(val) => resetPage(setStage)({ target: { value: val } })}
+            options={[
+              { value: '', label: 'All stages' },
+              { value: 'main', label: 'Main' },
+              { value: 'development', label: 'Development' },
+              { value: 'new_face', label: 'New Face' },
+            ]}
+            placeholder="All stages"
+            id="roster-stage-filter"
+          />
+        </div>
+        <div className="rst-filter-item">
           <span className="sr-only">Roster status</span>
-          <select value={status} onChange={resetPage(setStatus)}>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="left">Left</option>
-            <option value="ended">Ended</option>
-          </select>
-        </label>
+          <PholioCustomSelect
+            value={status}
+            onChange={(val) => resetPage(setStatus)({ target: { value: val } })}
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+              { value: 'left', label: 'Left' },
+              { value: 'ended', label: 'Ended' },
+            ]}
+            placeholder="Active"
+            id="roster-status-filter"
+          />
+        </div>
       </section>
 
       <section className="ag-roster-list" aria-busy={rosterQuery.isFetching}>

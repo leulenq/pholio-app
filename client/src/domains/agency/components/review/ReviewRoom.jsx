@@ -2,43 +2,37 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { X, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
+import {
+  X, ChevronLeft, ChevronRight, ArrowUpRight, Camera,
+} from 'lucide-react';
 import { getApplicationDetails } from '../../api/agency';
 import { resolveTier, MATCH_TIER_LABELS, normalizeScore } from '../../lib/matchTier';
 import { getStatusLabel } from '../ui/StatusText';
+import {
+  DIGITALS_SLOTS, frameForSlot,
+} from '../../../../shared/utils/profileReadinessImages';
 import { SHOT_LABELS, normalizeShotSlug } from '../../../../shared/constants/frameTaxonomy';
 import { formatLocation } from '../../../../shared/utils/locationFormat';
+import { ImageLightbox } from '../ImageLightbox';
+import { DecisionConfirmation } from './DecisionConfirmation';
 import './ReviewRoom.css';
 
 /* ────────────────────────────────────────────────────────────────────
-   The information architecture of this screen is driven by how bookers
-   actually work a submission queue: they eliminate, they do not appraise.
-   Volumes run 50–100 inbound a day at a few seconds each, so the screen
-   is built as a rejection funnel with a very short leading edge.
+   Submissions Review Room — the surface an agency decides a submission on.
 
-   Gate 0  admissibility  — age, minor status, market, board applied to
-   Gate 1  physical spec  — height against the board (the ONLY measurement
-                            that screens; Storm's own application collects
-                            height and nothing else)
-   Gate 2  the look       — face AND silhouette, which is why the whole set
-                            of digitals is co-visible rather than one hero
-                            with the full-length buried below the fold
-   Gate 3  honesty        — do the frames and the numbers agree, and are the
-                            frames raw? Hence slot coverage + measurement
-                            provenance rendered as first-class facts.
-   Gate 4  board need     — what this person IS, in one word, to compare
-                            against what the board already carries.
-   Gate 5  confirmation   — full measurements, provenance, house record.
-                            Present, but subordinate. Survivors only.
+   Designed as a dense, scannable broadsheet: queue chrome, a compact talent
+   hero, the canonical five-slot digitals sheet, a tight provenance block, and
+   a sticky decision bar. Everything a booker needs to triage in ~10 seconds
+   sits above the fold; nothing requires a click to evaluate.
 
-   Everything for gates 0–4 sits above the fold. Nothing there requires a
-   click. Weight is never rendered: it appears on no comp card and no major
-   agency application, and it is a reputational hazard beside a photograph
-   of a young person.
+   Keyboard:
+     ArrowLeft / ArrowRight  previous / next submission
+     J / K                   previous / next submission (legacy)
+     A                       offer representation (opens confirmation)
+     S                       shortlist (opens confirmation)
+     X                       pass (opens confirmation)
+     Esc                     close lightbox → close room
    ──────────────────────────────────────────────────────────────────── */
-
-/** The canonical digitals set every agency asks for, in submission order. */
-const DIGITAL_SLOTS = ['headshot', 'profile', 'three_quarter', 'full_length', 'back'];
 
 const DECIDED = new Set(['represented', 'booked', 'accepted', 'signed', 'declined', 'passed']);
 
@@ -73,7 +67,9 @@ const titleCase = (v) =>
 
 const imageSrc = (img) => img?.url || img?.public_url || img?.path || null;
 
-/** Frame caption — the slot the talent placed it in, in the house's words. */
+const isSubmittedStatus = (s) => !s || s === 'submitted' || s === 'pending' || s === 'new';
+
+/** Label for a frame, using its canonical shot type or falling back to Unplaced. */
 const frameLabel = (img) => {
   const slug = normalizeShotSlug(img?.shot_type);
   if (slug && SHOT_LABELS[slug]) return SHOT_LABELS[slug];
@@ -81,34 +77,27 @@ const frameLabel = (img) => {
   return 'Unplaced';
 };
 
-/**
- * Which of the canonical digitals slots this submission actually covers.
- * A missing full-length or headshot is the single most common reason a
- * booker asks for more rather than passing, so it is rendered as a ledger
- * rather than left for them to work out by counting frames.
- */
-function slotCoverage(images, picks) {
-  const bySlot = new Set();
-  Object.entries(picks || {}).forEach(([slot, id]) => {
-    if (id && images.some((img) => img.id === id)) bySlot.add(slot);
-  });
-  images.forEach((img) => {
-    const slug = normalizeShotSlug(img?.shot_type);
-    if (slug) bySlot.add(slug);
-  });
-  return DIGITAL_SLOTS.map((slot) => ({
+/** The canonical five-slot digitals sheet, plus any unplaced extras. */
+function buildDigitalSheet(images) {
+  const all = Array.isArray(images) ? images.filter((i) => imageSrc(i)) : [];
+  const slotFrames = DIGITALS_SLOTS.map((slot) => ({
     slot,
-    label: SHOT_LABELS[slot] || titleCase(slot.replaceAll('_', ' ')),
-    present: bySlot.has(slot),
+    frame: frameForSlot(all, slot.key),
   }));
+  const placedIds = new Set(slotFrames.filter(({ frame }) => frame).map(({ frame }) => frame.id));
+  const unplaced = all.filter((img) => !placedIds.has(img.id));
+  const filledCount = slotFrames.filter(({ frame }) => frame).length;
+  return { slots: slotFrames, unplaced, filledCount, requiredCount: DIGITALS_SLOTS.length };
 }
 
-/**
- * The confirmation measurements — everything except height, which is
- * promoted into the spec line, and except weight, which is never shown.
- * Values come from the server's one canonical stats formatter so this
- * screen can never disagree with the comp card or the profile.
- */
+/** Frames in the order the lightbox presents them: canonical slots first, then extras. */
+function lightboxFrames(sheet) {
+  const placed = sheet.slots.filter(({ frame }) => frame).map(({ slot, frame }) => ({ slot, frame }));
+  const extras = sheet.unplaced.map((frame) => ({ slot: null, frame }));
+  return [...placed, ...extras];
+}
+
+/** Confirmation measurements — everything except height (promoted) and weight (never shown). */
 function buildConfirmationStats(profile, { hideBody }) {
   if (!profile) return [];
   const fields = Array.isArray(profile.stats?.fields) ? profile.stats.fields : [];
@@ -125,7 +114,6 @@ function buildConfirmationStats(profile, { hideBody }) {
 
 /* ── small composed pieces ───────────────────────────────────────── */
 
-/** The stage stamp — a letterpress rule frame, never a coloured status pill. */
 function Stamp({ children, tone }) {
   return (
     <span className={`rv-stamp${tone ? ` rv-stamp--${tone}` : ''}`}>
@@ -134,7 +122,6 @@ function Stamp({ children, tone }) {
   );
 }
 
-/** One cell of the spec line: a tracked key over a typeset value. */
 function Spec({ label, value, unit, sub, lead }) {
   if (value == null || value === '') return null;
   return (
@@ -164,17 +151,6 @@ function Row({ label, value, unit, muted }) {
 
 /* ── the review room ─────────────────────────────────────────────── */
 
-/**
- * ReviewRoom — the surface an agency decides a submission on.
- *
- * Composed as a broadsheet: house chrome, a billing block where the name is
- * deliberately held back so the screening facts carry the hierarchy, a spec
- * line, the digitals as a full-width contact sheet, three typeset columns of
- * confirmation, and an ink verdict bar.
- *
- * Keyboard: the submissions page owns J/K/S/A/X/Esc. The room adds only
- * ArrowLeft/Right (paging frames) and captures Escape while zoom is open.
- */
 export default function ReviewRoom({
   applicationId,
   row,
@@ -184,10 +160,12 @@ export default function ReviewRoom({
   onDecide,
   busy,
   queue = [],
+  boards = [],
 }) {
-  const [frame, setFrame] = useState(0);
   const [bioOpen, setBioOpen] = useState(false);
-  const [zoom, setZoom] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [pendingDecision, setPendingDecision] = useState(null);
   const roomRef = useRef(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -206,9 +184,9 @@ export default function ReviewRoom({
   const [prevAppId, setPrevAppId] = useState(applicationId);
   if (prevAppId !== applicationId) {
     setPrevAppId(applicationId);
-    setFrame(0);
     setBioOpen(false);
-    setZoom(false);
+    setLightboxOpen(false);
+    setPendingDecision(null);
   }
 
   const name = useMemo(() => {
@@ -234,32 +212,43 @@ export default function ReviewRoom({
     return [];
   }, [profile, row]);
 
-  const activeFrame = Math.min(frame, Math.max(0, images.length - 1));
-  const activeImage = images[activeFrame] || null;
-  const multi = images.length > 1;
-
-  const nextFrame = useCallback(
-    () => setFrame((i) => (i + 1) % Math.max(1, images.length)),
-    [images.length],
+  const sheet = useMemo(
+    () => buildDigitalSheet(images),
+    [images],
   );
-  const prevFrame = useCallback(
-    () => setFrame((i) => (i - 1 + Math.max(1, images.length)) % Math.max(1, images.length)),
-    [images.length],
+  const lbFrames = useMemo(() => lightboxFrames(sheet), [sheet]);
+
+  const openLightboxForSlot = useCallback(
+    (slotKey) => {
+      const idx = lbFrames.findIndex(({ slot }) => slot?.key === slotKey);
+      if (idx >= 0) {
+        setLightboxIndex(idx);
+        setLightboxOpen(true);
+      }
+    },
+    [lbFrames],
+  );
+
+  const openLightboxForUnplaced = useCallback(
+    (img) => {
+      const idx = lbFrames.findIndex(({ frame }) => frame.id === img.id);
+      if (idx >= 0) {
+        setLightboxIndex(idx);
+        setLightboxOpen(true);
+      }
+    },
+    [lbFrames],
   );
 
   // ---- queue ------------------------------------------------------------
   const index = position?.index ?? 0;
   const total = position?.total ?? queue.length;
   const prevId = index > 0 ? queue[index - 1]?.applicationId ?? null : null;
-  const nextId = queue[index + 1]?.applicationId ?? null;
+  const nextId = index < queue.length - 1 ? queue[index + 1]?.applicationId ?? null : null;
   const undecided = queue.filter((q) => !DECIDED.has(String(q.status || '').toLowerCase())).length;
 
   // ---- reading content --------------------------------------------------
-  const coverage = useMemo(
-    () => slotCoverage(images, submissionPackage?.digitalSlotPicks),
-    [images, submissionPackage],
-  );
-  const missingSlots = coverage.filter((c) => !c.present).length;
+  const missingSlots = sheet.requiredCount - sheet.filledCount;
 
   const stats = profile?.stats || null;
   const heightCm = stats?.height?.cm ?? profile?.height_cm ?? null;
@@ -271,7 +260,7 @@ export default function ReviewRoom({
   const measuredAgo = monthsAgo(stats?.updated_days_ago);
   const measurementsStale = Boolean(stats?.is_stale);
 
-  const boards = useMemo(
+  const boardsApplied = useMemo(
     () => (Array.isArray(submissionPackage?.boards) ? submissionPackage.boards.filter(Boolean) : []),
     [submissionPackage],
   );
@@ -297,35 +286,69 @@ export default function ReviewRoom({
     ? profile.languages.join(' · ')
     : null;
 
+  // ---- decisions --------------------------------------------------------
+  const startDecision = useCallback((mode) => setPendingDecision(mode), []);
+  const cancelDecision = useCallback(() => setPendingDecision(null), []);
+  const confirmDecision = useCallback(
+    (payload) => {
+      setPendingDecision(null);
+      onDecide?.(payload);
+    },
+    [onDecide],
+  );
+
   // ---- keyboard + focus -------------------------------------------------
+  // Capture-phase Escape: close the top-most layer so the page's global handler
+  // never rips the whole room away while a lightbox/modal is open.
   useEffect(() => {
-    if (!multi) return undefined;
+    const onKeyCapture = (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (lightboxOpen) {
+        setLightboxOpen(false);
+        return;
+      }
+      if (pendingDecision) {
+        cancelDecision();
+        return;
+      }
+      onClose?.();
+    };
+    window.addEventListener('keydown', onKeyCapture, true);
+    return () => window.removeEventListener('keydown', onKeyCapture, true);
+  }, [lightboxOpen, pendingDecision, onClose, cancelDecision]);
+
+  useEffect(() => {
+    if (lightboxOpen) return undefined;
     const onKey = (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const tag = e.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target?.isContentEditable) return;
-      if (e.key === 'ArrowLeft') { e.preventDefault(); prevFrame(); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); nextFrame(); }
+
+      if (e.key === 'ArrowLeft' || e.key === 'k' || e.key === 'K') {
+        e.preventDefault();
+        prevId && onJump?.(prevId);
+      } else if (e.key === 'ArrowRight' || e.key === 'j' || e.key === 'J') {
+        e.preventDefault();
+        nextId && onJump?.(nextId);
+      } else if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        if (!decided) startDecision('offer');
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        if (!decided) startDecision('shortlist');
+      } else if (e.key === 'x' || e.key === 'X') {
+        e.preventDefault();
+        if (!decided) startDecision('pass');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [multi, prevFrame, nextFrame]);
-
-  // Zoom owns Escape while open (capture phase, so the page never sees it).
-  useEffect(() => {
-    if (!zoom) return undefined;
-    const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); setZoom(false); }
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [zoom]);
+  }, [lightboxOpen, prevId, nextId, onJump, decided, startDecision]);
 
   useEffect(() => { roomRef.current?.focus({ preventScroll: true }); }, []);
 
-  // Warm the next submission's lead frame. At a few seconds per submission a
-  // half-second image load, sixty times over, is what makes a booker abandon
-  // the tool — the queue must never make them wait for a face.
+  // Warm the next submission's lead frame.
   useEffect(() => {
     const nextPhoto = queue[index + 1]?.photo;
     if (!nextPhoto) return;
@@ -346,40 +369,41 @@ export default function ReviewRoom({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* ───── house chrome ───── */}
+      {/* ───── chrome ───── */}
       <header className="rv-chrome">
-        <span className="rv-mark">Pholio</span>
-        <div className="rv-chrome-mid">
-          <span className="rv-caps">Submissions review</span>
+        <div className="rv-chrome-start">
+          <span className="rv-scope">Submissions</span>
           {total > 0 && (
-            <strong>
-              {String(index + 1).padStart(2, '0')} / {total}
-            </strong>
+            <span className="rv-counter">
+              {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
+            </span>
           )}
+          {undecided > 0 && <span className="rv-undecided">{undecided} undecided</span>}
+          {firstLook && <span className="rv-firstlook">First look</span>}
         </div>
+
         <div className="rv-chrome-end">
-          {total > 1 && (
-            <div className="rv-pager">
-              <button
-                type="button"
-                onClick={() => prevId && onJump?.(prevId)}
-                disabled={!prevId}
-                aria-label="Previous submission"
-              >
-                <ChevronLeft size={15} strokeWidth={1.7} aria-hidden="true" />
-              </button>
-              {undecided > 0 && <span className="rv-mono">{undecided} undecided</span>}
-              <button
-                type="button"
-                onClick={() => nextId && onJump?.(nextId)}
-                disabled={!nextId}
-                aria-label="Next submission"
-              >
-                <ChevronRight size={15} strokeWidth={1.7} aria-hidden="true" />
-              </button>
-            </div>
-          )}
-          <button type="button" className="rv-exit rv-caps" onClick={onClose}>Exit room</button>
+          <div className="rv-pager">
+            <button
+              type="button"
+              onClick={() => prevId && onJump?.(prevId)}
+              disabled={!prevId}
+              aria-label="Previous submission"
+            >
+              <ChevronLeft size={16} strokeWidth={1.7} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => nextId && onJump?.(nextId)}
+              disabled={!nextId}
+              aria-label="Next submission"
+            >
+              <ChevronRight size={16} strokeWidth={1.7} aria-hidden="true" />
+            </button>
+          </div>
+          <button type="button" className="rv-close" onClick={onClose} aria-label="Close review room">
+            <X size={18} strokeWidth={1.7} aria-hidden="true" />
+          </button>
         </div>
       </header>
 
@@ -392,26 +416,42 @@ export default function ReviewRoom({
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* ═══ the billing — the name is held back on purpose ═══ */}
-          <div className="rv-billing">
-            <div className="rv-billing-id">
+          {/* ═══ compact hero ═══ */}
+          <div className="rv-hero">
+            <div className="rv-hero-main">
               <h1 className="rv-name">{name}</h1>
-              <div className="rv-idline">
-                {type && <span className="rv-italic">{type}</span>}
-                {type && city && <i aria-hidden="true">/</i>}
-                {city && <span className="rv-italic">{city}</span>}
-                {status && <Stamp>{getStatusLabel(status)}</Stamp>}
+              <div className="rv-hero-line">
+                {type && <span className="rv-hero-fact">{type}</span>}
+                {type && city && <i aria-hidden="true">·</i>}
+                {city && <span className="rv-hero-fact">{city}</span>}
+                {age != null && (
+                  <>
+                    <i aria-hidden="true">·</i>
+                    <span className="rv-hero-fact">Age {age}</span>
+                  </>
+                )}
                 {isMinor && (
-                  <Stamp tone="alert">
-                    Minor{age != null ? ` — age ${age}` : ''}
-                  </Stamp>
+                  <>
+                    <i aria-hidden="true">·</i>
+                    <span className="rv-hero-fact rv-hero-fact--alert">Minor</span>
+                  </>
+                )}
+                {!isSubmittedStatus(status) && (
+                  <Stamp>{getStatusLabel(status)}</Stamp>
                 )}
               </div>
             </div>
-            {firstLook && <div className="rv-firstlook rv-caps">First look</div>}
+            <div className="rv-hero-side">
+              {score != null && (
+                <div className="rv-match">
+                  <span className="rv-match-score">{normalizeScore(score)}</span>
+                  <span className="rv-match-tier">{MATCH_TIER_LABELS[tier]}</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* ═══ the spec line — gate 0 and gate 1, and nothing else ═══ */}
+          {/* ═══ spec line ═══ */}
           <div className="rv-spec">
             <Spec
               lead
@@ -421,15 +461,9 @@ export default function ReviewRoom({
               sub={heightImperial}
             />
             <Spec
-              lead
-              label="Age"
-              value={age ?? '—'}
-              sub={isMinor ? 'Guardian consent required' : null}
-            />
-            <Spec
               label="Submitted for"
-              value={boards[0] || 'General consideration'}
-              sub={boards.length > 1 ? `Also read for ${boards.slice(1).join(' · ')}` : null}
+              value={boardsApplied[0] || 'General consideration'}
+              sub={boardsApplied.length > 1 ? `Also ${boardsApplied.slice(1).join(' · ')}` : null}
             />
             <Spec
               label="Based in"
@@ -439,30 +473,29 @@ export default function ReviewRoom({
             <Spec
               label="Received"
               value={receivedAgo || '—'}
-              sub={scouted ? 'Scouted by your agency' : 'Open call'}
             />
           </div>
 
-          {/* ═══ the digitals — the primary evidence, face and silhouette together ═══ */}
+          {/* ═══ digitals contact sheet ═══ */}
           <section className="rv-digitals">
             <div className="rv-dighead">
-              <span className="rv-caps rv-dighead-t">
-                Digitals
-                <em>
-                  {images.length} {images.length === 1 ? 'frame' : 'frames'}
-                  {selects ? ` · selects “${selects}”` : ''}
-                </em>
-              </span>
-              {images.length > 0 && (
-                <div className="rv-slots rv-mono" aria-label="Digitals slot coverage">
-                  {coverage.map((c) => (
-                    <span key={c.slot} className={`rv-slot${c.present ? '' : ' is-missing'}`}>
-                      <i className="rv-tick" aria-hidden="true" />
-                      <b>{c.label}</b>
-                      <span className="rv-sr">{c.present ? 'supplied' : 'missing'}</span>
-                    </span>
-                  ))}
-                </div>
+              <div className="rv-dighead-start">
+                <span className="rv-dighead-title">Digitals</span>
+                <span className="rv-dighead-count">
+                  {sheet.filledCount} / {sheet.requiredCount}
+                </span>
+                {selects && <span className="rv-dighead-selects">· {selects}</span>}
+              </div>
+              {missingSlots > 0 && (
+                <button
+                  type="button"
+                  className="rv-dighead-action"
+                  onClick={() => onDecide?.({ action: 'requested_more' })}
+                  disabled={busy || decided}
+                >
+                  <Camera size={13} aria-hidden="true" />
+                  Request {missingSlots} missing
+                </button>
               )}
             </div>
 
@@ -477,40 +510,52 @@ export default function ReviewRoom({
               </div>
             ) : (
               <>
-                <div className={`rv-plates${isLoading ? ' is-waiting' : ''}`} style={{ gridTemplateColumns: `repeat(${Math.max(images.length, 3)}, minmax(0, 1fr))` }}>
-                  {images.map((img, i) => (
-                    <button
-                      key={img.id || imageSrc(img) || i}
-                      type="button"
-                      className={`rv-plate${i === activeFrame ? ' is-on' : ''}`}
-                      style={{ backgroundImage: `url(${imageSrc(img)})` }}
-                      aria-label={`${frameLabel(img)} — frame ${i + 1} of ${images.length}, view full size`}
-                      onClick={() => { setFrame(i); setZoom(true); }}
-                    >
-                      <span className="rv-no" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
-                    </button>
+                <div className={`rv-slotsheet${isLoading ? ' is-waiting' : ''}`}>
+                  {sheet.slots.map(({ slot, frame }) => (
+                    <div key={slot.key} className="rv-slotcol">
+                      {frame ? (
+                        <button
+                          type="button"
+                          className="rv-slotframe"
+                          style={{ backgroundImage: `url(${imageSrc(frame)})` }}
+                          aria-label={`${slot.label} — view full size`}
+                          onClick={() => openLightboxForSlot(slot.key)}
+                        />
+                      ) : (
+                        <div className="rv-slotframe rv-slotframe--missing" aria-label={`${slot.label} missing`}>
+                          <span className="rv-slotmissing">Missing</span>
+                        </div>
+                      )}
+                      <span className={`rv-slotlabel${frame ? '' : ' is-missing'}`}>{slot.label}</span>
+                    </div>
                   ))}
                 </div>
-                <div className="rv-platecaps rv-mono" style={{ gridTemplateColumns: `repeat(${Math.max(images.length, 3)}, minmax(0, 1fr))` }} aria-hidden="true">
-                  {images.map((img, i) => (
-                    <span key={img.id || i} className={i === activeFrame ? 'is-on' : undefined}>
-                      {frameLabel(img)}
-                    </span>
-                  ))}
-                </div>
+
+                {sheet.unplaced.length > 0 && (
+                  <div className="rv-unplaced">
+                    <span className="rv-unplaced-title">Unplaced · {sheet.unplaced.length}</span>
+                    <div className="rv-unplaced-list">
+                      {sheet.unplaced.map((img) => (
+                        <button
+                          key={img.id}
+                          type="button"
+                          className="rv-unplaced-frame"
+                          style={{ backgroundImage: `url(${imageSrc(img)})` }}
+                          aria-label={`${frameLabel(img)} — view full size`}
+                          onClick={() => openLightboxForUnplaced(img)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </section>
 
-          {/* ═══ confirmation — survivors only, deliberately subordinate ═══ */}
+          {/* ═══ confirmation columns ═══ */}
           <div className="rv-cols">
-            <section className="rv-col">
-              <div className="rv-h">
-                <span className="rv-caps">Measurements</span>
-                <span className="rv-prov rv-mono">
-                  Self-reported{measuredAgo ? ` · ${measuredAgo}` : ''}
-                </span>
-              </div>
+            <section className="rv-col rv-col--measurements">
+              <div className="rv-h"><span className="rv-caps">Measurements</span></div>
               {confirmation.length > 0 ? (
                 <dl className="rv-mgrid">
                   {confirmation.map((m) => (
@@ -521,30 +566,25 @@ export default function ReviewRoom({
                 <p className="rv-note">No measurements on this submission.</p>
               )}
               {isMinor && (
-                <p className="rv-note rv-note--alert rv-mono">
+                <p className="rv-note rv-note--alert">
                   Body measurements withheld — talent is a minor
                 </p>
               )}
               {!isMinor && measurementsStale && (
-                <p className="rv-note rv-note--alert rv-mono">
+                <p className="rv-note rv-note--alert">
                   Not confirmed in person · over 90 days old
                 </p>
               )}
+              <p className="rv-prov">
+                Self-reported{measuredAgo ? ` · ${measuredAgo}` : ''}
+              </p>
             </section>
 
             <section className="rv-col">
               <div className="rv-h"><span className="rv-caps">Fit &amp; provenance</span></div>
               <dl>
-                {score != null && (
-                  <div className="rv-fit">
-                    <dt>Pholio board fit</dt>
-                    <dd>
-                      {normalizeScore(score)}
-                      <span>{MATCH_TIER_LABELS[tier]}</span>
-                    </dd>
-                  </div>
-                )}
                 <Row label="Route" value={scouted ? 'Scouted by your agency' : 'Open call'} />
+                <Row label="Boards" value={boardsApplied.join(' · ') || 'General consideration'} />
                 <Row label="Languages" value={languages} />
                 <Row label="Nationality" value={profile?.nationality} />
                 <Row label="Track" value={titleCase(stats?.track)} />
@@ -565,7 +605,7 @@ export default function ReviewRoom({
                 {contact?.phone && <a href={`tel:${contact.phone}`}>{contact.phone}</a>}
               </div>
               {isMinor && (
-                <p className="rv-note rv-mono">
+                <p className="rv-note">
                   Contact withheld — route all correspondence through the guardian on record
                 </p>
               )}
@@ -605,35 +645,32 @@ export default function ReviewRoom({
 
       {/* ═══ the verdict ═══ */}
       <footer className="rv-verdict">
-        <div className="rv-who rv-caps">
+        <div className="rv-who">
           {decided ? 'Decided' : 'Deciding on'}
           <b>{decided ? getStatusLabel(status) : name}</b>
         </div>
         {decided ? (
-          <span className="rv-decided rv-mono">Use the arrows above to keep moving</span>
+          <span className="rv-decided">Use the arrows to keep moving</span>
         ) : (
           <>
             <div className="rv-softs">
-              <button type="button" onClick={() => onDecide?.('kept_on_file')} disabled={busy}>
+              <button type="button" onClick={() => onDecide?.({ action: 'kept_on_file' })} disabled={busy}>
                 Keep on file
-              </button>
-              <button type="button" onClick={() => onDecide?.('requested_more')} disabled={busy}>
-                {missingSlots > 0 ? `Request ${missingSlots} missing` : 'Request digitals'}
               </button>
             </div>
             <div className="rv-verbs">
               <button
                 type="button"
                 className="rv-verb rv-verb--represent"
-                onClick={() => onDecide?.('accept')}
+                onClick={() => startDecision('offer')}
                 disabled={busy}
               >
                 Offer representation
               </button>
-              <button type="button" className="rv-verb" onClick={() => onDecide?.('shortlist')} disabled={busy}>
+              <button type="button" className="rv-verb" onClick={() => startDecision('shortlist')} disabled={busy}>
                 Shortlist
               </button>
-              <button type="button" className="rv-verb" onClick={() => onDecide?.('decline')} disabled={busy}>
+              <button type="button" className="rv-verb" onClick={() => startDecision('pass')} disabled={busy}>
                 Pass
               </button>
             </div>
@@ -641,47 +678,26 @@ export default function ReviewRoom({
         )}
       </footer>
 
-      {/* ═══ the full-size look ═══ */}
+      {/* ═══ lightbox ═══ */}
       <AnimatePresence>
-        {zoom && activeImage && (
-          <motion.div
-            className="rv-zoom"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            onClick={() => setZoom(false)}
-          >
-            <img src={imageSrc(activeImage)} alt={activeImage?.alt || name} />
-            <span className="rv-zoom-cap rv-mono">
-              {frameLabel(activeImage)} · {activeFrame + 1} / {images.length}
-            </span>
-            {multi && (
-              <>
-                <button
-                  type="button"
-                  className="rv-zoom-nav rv-zoom-nav--prev"
-                  aria-label="Previous frame"
-                  onClick={(e) => { e.stopPropagation(); prevFrame(); }}
-                >
-                  <ChevronLeft size={20} strokeWidth={1.6} aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  className="rv-zoom-nav rv-zoom-nav--next"
-                  aria-label="Next frame"
-                  onClick={(e) => { e.stopPropagation(); nextFrame(); }}
-                >
-                  <ChevronRight size={20} strokeWidth={1.6} aria-hidden="true" />
-                </button>
-              </>
-            )}
-            <button type="button" className="rv-zoom-close" aria-label="Close full-size view">
-              <X size={18} strokeWidth={1.7} aria-hidden="true" />
-            </button>
-          </motion.div>
+        {lightboxOpen && lbFrames.length > 0 && (
+          <ImageLightbox
+            images={lbFrames.map(({ frame }) => ({ ...frame, path: imageSrc(frame) }))}
+            initialIndex={lightboxIndex}
+            onClose={() => setLightboxOpen(false)}
+          />
         )}
       </AnimatePresence>
+
+      {/* ═══ decision confirmations ═══ */}
+      <DecisionConfirmation
+        mode={pendingDecision}
+        talentName={name}
+        boards={boards}
+        busy={busy}
+        onClose={cancelDecision}
+        onConfirm={confirmDecision}
+      />
     </motion.div>,
     document.body,
   );

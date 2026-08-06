@@ -3,15 +3,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight } from 'lucide-react';
+import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight, ChevronDown } from 'lucide-react';
 import {
   getApplicants, getBoards, getCastingBoardPipeline,
   acceptApplication, shortlistApplication, declineApplication,
   keepOnFileApplication, requestMoreApplication, getApplicationDetails,
+  assignToBoard,
 } from '../api/agency';
 import BoardSelect from '../components/BoardSelect';
+import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
 import ReviewRoom from '../components/review/ReviewRoom';
 import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, MatchScore, StatusCell } from '../components/ui';
+import { DivisionMark } from '../components/status';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
@@ -28,8 +31,6 @@ const initials = (name) => (name || '')
   .slice(0, 2)
   .join('')
   .toUpperCase();
-
-const typeLabel = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1).toLowerCase() : 'Editorial');
 
 const isNew = (s) => s === 'submitted' || s === 'pending' || s === 'new' || !s;
 const SIGNED_STATES = ['represented', 'booked', 'accepted', 'signed'];
@@ -54,21 +55,22 @@ const STATUS_FOR = {
   requestMore: 'requested_more',
 };
 
-// Primary ledger-as-tabs — the stages a booker triages between.
-const PRIMARY_TABS = [
-  { key: 'submitted', label: 'New', match: isNew },
+// Primary decision lifecycle tabs — representing the review decision ladder only.
+const LIFECYCLE_TABS = [
+  { key: 'to_review', label: 'To Review', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
-  { key: 'represented', label: 'Signed', match: isSigned },
+  { key: 'offered', label: 'Offered', match: isSigned },
+  { key: 'passed', label: 'Passed', match: (s) => s === 'declined' || s === 'passed' },
   { key: 'all', label: 'All', match: () => true },
 ];
-// Quiet outcomes + the in-flight band on the rail's right edge.
-const SECONDARY_TABS = [
-  { key: 'in_progress', label: 'In progress', match: isInFlightState },
-  { key: 'development', label: 'New Faces', match: (s) => s === 'development' },
-  { key: 'kept_on_file', label: 'On file', match: (s) => s === 'kept_on_file' },
-  { key: 'declined', label: 'Passed', match: (s) => s === 'declined' },
-];
-const ALL_TABS = [...PRIMARY_TABS, ...SECONDARY_TABS];
+
+const INITIAL_FILTERS = {
+  status: [],
+  talent: [],
+  source: [],
+  locations: [],
+  matchTier: null,
+};
 
 function mapRow(p) {
   const img = p.images?.[0];
@@ -212,10 +214,10 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
       <span className="ap-card-row">
         <span className="ap-card-name">{a.name}</span>
       </span>
-      <span className="ap-card-spec">
-        {typeLabel(a.type)}
-        {a.city ? ` · ${formatLocation(a.city)}` : ''}
-      </span>
+      <div className="ap-card-spec">
+        <DivisionMark division={a.type || 'editorial'} size="sm" />
+        {a.city ? <span className="ap-card-loc"> · {formatLocation(a.city)}</span> : null}
+      </div>
       <span className="ap-card-state">
         <Moment value={a.appliedAt} className="ap-card-when" />
         {!quietStatus && <StatusCell status={a.status} className="ap-card-status" />}
@@ -262,10 +264,10 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
       </span>
       <div className="ap-id">
         <span className="ap-name">{a.name}</span>
-        <span className="ap-meta">
-          {typeLabel(a.type)}
-          {a.city ? ` · ${formatLocation(a.city)}` : ''}
-        </span>
+        <div className="ap-meta">
+          <DivisionMark division={a.type || 'editorial'} size="sm" />
+          {a.city ? <span className="ap-loc"> · {formatLocation(a.city)}</span> : null}
+        </div>
       </div>
       <Moment value={a.appliedAt} className="ap-applied" />
       <span className="ap-score-cell">{a.match != null && <MatchScore score={a.match} size="xs" tone="overlay" />}</span>
@@ -286,9 +288,10 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
 }
 
 // Board context band — shown only for a selected board: name, one-line brief
-// excerpt, where-it-stands, link to the signing room.
+// excerpt, where-it-stands, link to the signing room. Visually aligned with /signing.
 function BoardBand({ board }) {
   if (!board) return null;
+  const identity = resolveBoardIdentity(board);
   const pipeline = board.application_count || 0;
   const waiting = board.submitted_count || 0;
   const represented = board.represented_count || board.booked_count || 0;
@@ -299,28 +302,44 @@ function BoardBand({ board }) {
     <motion.section
       className="ap-band"
       aria-label={`${board.name || 'Board'} context`}
+      style={boardIdentityStyle(identity)}
+      data-letterform={identity.letterform}
+      data-treatment={identity.treatment}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
     >
-      <div className="ap-band-copy">
-        <h2 className="ap-band-name">{board.name || 'Untitled Board'}</h2>
-        <p className="ap-band-brief">{brief}</p>
-        <p className="ap-band-stands">
-          {pipeline} in pipeline · {waiting} awaiting review · {represented} represented
-        </p>
+      <div className="ap-band-plate">
+        {identity.logoUrl ? (
+          <img className="ap-band-logo" src={identity.logoUrl} alt={identity.label} />
+        ) : (
+          <span className="ap-band-wordmark">{identity.label}</span>
+        )}
+        {board.client_name && <span className="ap-band-client">{board.client_name}</span>}
       </div>
-      <Link className="ap-band-link" to={`/dashboard/agency/signing/${board.id}`}>
-        Open board
-        <ArrowUpRight size={14} aria-hidden="true" />
-      </Link>
+      <div className="ap-band-body">
+        <div className="ap-band-copy">
+          <h2 className="ap-band-name">{board.name || 'Untitled Board'}</h2>
+          <p className="ap-band-brief">{brief}</p>
+          <p className="ap-band-stands">
+            {pipeline} in pipeline · {waiting} awaiting review · {represented} represented
+          </p>
+        </div>
+        <Link className="ap-band-link" to={`/dashboard/agency/signing/${board.id}`}>
+          Open board
+          <ArrowUpRight size={14} aria-hidden="true" />
+        </Link>
+      </div>
     </motion.section>
   );
 }
 
 function ApplicationsPage() {
   const qc = useQueryClient();
-  const [tab, setTab] = useState('all');
+  const [tab, setTab] = useState('to_review');
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef(null);
   const [q, setQ] = useState('');
   const [sort, setSort] = useState('recent');
   const [view, setView] = useState(() => {
@@ -341,6 +360,17 @@ function ApplicationsPage() {
   const rowRefs = useRef([]);
   const sentinelRef = useRef(null);
   const lastPickIndex = useRef(null);
+
+  useEffect(() => {
+    if (!filterOpen) return;
+    const handleOutsideClick = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [filterOpen]);
 
   const changeView = useCallback((next) => {
     setView(next);
@@ -437,27 +467,135 @@ function ApplicationsPage() {
 
   const shortlist = useMutation(triageOptions('shortlist', shortlistApplication, 'Shortlisted'));
   const accept = useMutation(triageOptions('accept', acceptApplication, 'Signed'));
-  const decline = useMutation(triageOptions('decline', declineApplication, 'Passed'));
+  // Decline supports an optional structured reason/note. The backend currently
+  // accepts the body; when reason storage lands it will already be sent.
+  const decline = useMutation({
+    mutationFn: (vars) => declineApplication(vars.applicationId || vars, { reason: vars.reason, note: vars.note }),
+    onMutate: async (vars) => {
+      const id = vars.applicationId || vars;
+      await qc.cancelQueries({ queryKey: activeKey() });
+      return applyOptimistic(id, STATUS_FOR.decline);
+    },
+    onError: (_err, _vars, ctx) => { rollback(ctx); toast.error('Action failed'); },
+    onSuccess: () => { toast.success('Passed'); },
+    onSettled: () => { refresh(); },
+  });
   const keepOnFile = useMutation(triageOptions('keepOnFile', keepOnFileApplication, 'Kept on file'));
   const requestMore = useMutation(triageOptions('requestMore', requestMoreApplication, 'Requested more digitals'));
-  const inFlight = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables) || (keepOnFile.isPending && keepOnFile.variables) || (requestMore.isPending && requestMore.variables) || null;
+  const assignBoard = useMutation({
+    mutationFn: ({ applicationId: id, boardId }) => assignToBoard(id, boardId),
+    onError: () => toast.error('Could not file to board'),
+  });
+  const inFlight = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables?.applicationId) || (keepOnFile.isPending && keepOnFile.variables) || (requestMore.isPending && requestMore.variables) || (assignBoard.isPending && assignBoard.variables?.applicationId) || null;
 
   const counts = useMemo(() => {
     const c = {};
-    ALL_TABS.forEach((t) => { c[t.key] = applicants.filter((a) => t.match(a.status)).length; });
+    LIFECYCLE_TABS.forEach((t) => { c[t.key] = applicants.filter((a) => t.match(a.status)).length; });
+    c.in_progress = applicants.filter((a) => isInFlightState(a.status)).length;
+    c.kept_on_file = applicants.filter((a) => a.status === 'kept_on_file').length;
+    c.represented = applicants.filter((a) => isSigned(a.status)).length;
+    c.declined = applicants.filter((a) => a.status === 'declined' || a.status === 'passed').length;
     return c;
   }, [applicants]);
 
+  const toggleFilter = (category, value) => {
+    setFilters((prev) => {
+      const list = prev[category] || [];
+      const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+      return { ...prev, [category]: next };
+    });
+    setFocusedIndex(-1);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const setMatchTierFilter = (tier) => {
+    setFilters((prev) => ({
+      ...prev,
+      matchTier: prev.matchTier === tier ? null : tier,
+    }));
+    setFocusedIndex(-1);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const resetFilters = () => {
+    setFilters(INITIAL_FILTERS);
+    setFocusedIndex(-1);
+    setVisibleCount(PAGE_SIZE);
+  };
+
+  const activeFilterCount = useMemo(() => {
+    let c = 0;
+    c += filters.status.length;
+    c += filters.talent.length;
+    c += filters.source.length;
+    c += filters.locations.length;
+    if (filters.matchTier) c += 1;
+    return c;
+  }, [filters]);
+
+  const hasActiveFilters = activeFilterCount > 0;
+
+  const availableCities = useMemo(() => {
+    const cities = new Set();
+    applicants.forEach((a) => {
+      if (a.city && a.city.trim()) cities.add(a.city.trim());
+    });
+    return Array.from(cities).sort();
+  }, [applicants]);
+
   const filtered = useMemo(() => {
-    const matcher = (ALL_TABS.find((t) => t.key === tab) || ALL_TABS[0]).match;
-    let list = applicants.filter((a) => matcher(a.status));
+    const tabConfig = LIFECYCLE_TABS.find((t) => t.key === tab) || LIFECYCLE_TABS[0];
+    let list = applicants.filter((a) => tabConfig.match(a.status));
+
+    // Status filter
+    if (filters.status.length > 0) {
+      list = list.filter((a) => {
+        if (filters.status.includes('in_progress') && isInFlightState(a.status)) return true;
+        if (filters.status.includes('on_file') && a.status === 'kept_on_file') return true;
+        return false;
+      });
+    }
+
+    // Talent filter
+    if (filters.talent.length > 0) {
+      list = list.filter((a) => {
+        const isNewFace = a.status === 'development' || a.type === 'new_face' || a.type === 'development';
+        if (filters.talent.includes('new_faces') && isNewFace) return true;
+        if (filters.talent.includes('existing') && !isNewFace) return true;
+        return false;
+      });
+    }
+
+    // Source filter
+    if (filters.source.length > 0) {
+      list = list.filter((a) => {
+        const src = (a.source || 'open_call').toLowerCase();
+        if (filters.source.includes('open_call') && (src === 'open_call' || !a.source)) return true;
+        if (filters.source.includes('scouted') && src === 'scouted') return true;
+        if (filters.source.includes('referral') && src === 'referral') return true;
+        return false;
+      });
+    }
+
+    // Location filter
+    if (filters.locations.length > 0) {
+      list = list.filter((a) => a.city && filters.locations.includes(a.city));
+    }
+
+    // Match tier filter
+    if (filters.matchTier) {
+      const minScore = filters.matchTier === 'exceptional' ? 85 : filters.matchTier === 'strong' ? 70 : 50;
+      list = list.filter((a) => (a.match || 0) >= minScore);
+    }
+
+    // Search query
     if (q.trim()) {
       const s = q.toLowerCase();
       list = list.filter((a) => a.name.toLowerCase().includes(s) || (a.city || '').toLowerCase().includes(s));
     }
     return [...list].sort((a, b) =>
       sort === 'match' ? (b.match || 0) - (a.match || 0) : new Date(b.appliedAt) - new Date(a.appliedAt));
-  }, [applicants, tab, q, sort]);
+  }, [applicants, tab, filters, q, sort]);
 
   const total = applicants.length;
   // The lead hero figure = what's actually on the desk: submissions still
@@ -528,25 +666,35 @@ function ApplicationsPage() {
   }, []);
 
   // A decision made from the review room advances to the next row (or closes).
-  // Decided applications never re-fire (the panel hides its buttons, but the
-  // keyboard path lands here too); re-shortlisting a shortlisted talent just
-  // advances the queue.
-  const decideFromReview = useCallback((kind) => {
+  // The review room now passes an object payload so it can carry structured
+  // choices (board destination, pass reason) while still supporting simple
+  // string actions from legacy callers.
+  const decideFromReview = useCallback((payload) => {
     const { filtered: list, reviewId: rid } = triageRef.current;
     const idx = list.findIndex((a) => a.applicationId === rid);
     if (idx < 0) return;
     const row = list[idx];
     if (isDecided(row.status)) return;
     const nextId = list[idx + 1]?.applicationId ?? null;
-    if (kind === 'shortlist' && row.status === 'shortlisted') {
+
+    const action = typeof payload === 'string' ? payload : payload?.action;
+    if (action === 'shortlist' && row.status === 'shortlisted') {
       setReviewId(nextId);
       return;
     }
-    const mutation = { shortlist, accept, decline, kept_on_file: keepOnFile, requested_more: requestMore }[kind];
-    if (!mutation) return;
-    mutation.mutate(rid);
+
+    if (action === 'decline') {
+      decline.mutate({ applicationId: rid, reason: payload?.reason, note: payload?.note });
+    } else {
+      const mutation = { shortlist, accept, kept_on_file: keepOnFile, requested_more: requestMore }[action];
+      if (!mutation) return;
+      mutation.mutate(rid);
+    }
+    if (action === 'shortlist' && payload?.boardId) {
+      assignBoard.mutate({ applicationId: rid, boardId: payload.boardId });
+    }
     setReviewId(nextId);
-  }, [shortlist, accept, decline, keepOnFile, requestMore]);
+  }, [shortlist, accept, decline, keepOnFile, requestMore, assignBoard]);
 
   // ---- Multi-select ----
   const toggleSelect = useCallback((applicationId, index, shiftKey) => {
@@ -623,7 +771,7 @@ function ApplicationsPage() {
     if (idx < 0) return;
     // Search filters on name/city (unaffected by status), so staying in view
     // hinges purely on whether the new status still matches the active tab.
-    const matcher = (ALL_TABS.find((t) => t.key === tab) || ALL_TABS[0]).match;
+    const matcher = (LIFECYCLE_TABS.find((t) => t.key === tab) || LIFECYCLE_TABS[0]).match;
     if (matcher(STATUS_FOR[kind])) return; // row remains; leave focus put
     const nextLen = list.length - 1;
     const target = nextLen <= 0 ? -1 : Math.min(idx, nextLen - 1);
@@ -698,15 +846,18 @@ function ApplicationsPage() {
       // Never hijack keys while the booker is typing or using a modifier chord.
       if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
 
-      // Review open — a compact review-room keymap; no wrap, no Enter.
+      // Review open — navigation and decision shortcuts are handled by the review
+      // room itself (with confirmation modals for irreversible decisions). Keep
+      // this branch so list-mode shortcuts do not also fire through the page.
       if (rid != null) {
         switch (e.key) {
-          case 'j': case 'J': case 'ArrowDown': e.preventDefault(); k.goNextReview(); break;
-          case 'k': case 'K': case 'ArrowUp': e.preventDefault(); k.goPrevReview(); break;
-          case 's': case 'S': e.preventDefault(); k.decideFromReview('shortlist'); break;
-          case 'a': case 'A': e.preventDefault(); k.decideFromReview('accept'); break;
-          case 'x': case 'X': e.preventDefault(); k.decideFromReview('decline'); break;
-          default: break;
+          case 'j': case 'J': case 'k': case 'K': case 'ArrowDown': case 'ArrowUp':
+          case 's': case 'S': case 'a': case 'A': case 'x': case 'X':
+          case 'ArrowLeft': case 'ArrowRight':
+            e.preventDefault();
+            break;
+          default:
+            break;
         }
         return;
       }
@@ -752,18 +903,15 @@ function ApplicationsPage() {
     return () => io.disconnect();
   }, [filtered.length, visibleCount]);
 
-  const hasActiveFilter = tab !== 'all' || Boolean(q.trim());
+  const hasActiveFilter = tab !== 'to_review' || Boolean(q.trim()) || hasActiveFilters;
   const isGenuineEmpty = applicants.length === 0;
   const hasNoResults = !isGenuineEmpty && filtered.length === 0;
   const visible = filtered.slice(0, visibleCount);
 
-  const resetFilters = () => { setTab('all'); setQ(''); resetTriage(); };
   const retrySubmissions = () => {
     boardsQuery.refetch();
     activeApplicantsQuery.refetch();
   };
-
-  const railTabs = PRIMARY_TABS.map((t) => ({ ...t, value: counts[t.key] ?? 0 }));
 
   if (isLoading) {
     return (
@@ -888,11 +1036,11 @@ function ApplicationsPage() {
         </motion.div>
       </header>
 
-      {/* STAGE RAIL — quiet text tabs; gold marks the active stage only.
-          Quiet outcomes sit on the rail's right edge. */}
-      <div className="ap-rail" role="tablist" aria-label="Filter submissions by stage">
+      {/* STAGE RAIL — decision lifecycle tabs (where is this submission in the review process?)
+          and FILTERS dropdown (what kind of submissions do I want to see?). */}
+      <div className="ap-rail" role="tablist" aria-label="Submission decision lifecycle">
         <div className="ap-rail-tabs" role="presentation">
-          {railTabs.map((t) => (
+          {LIFECYCLE_TABS.map((t) => (
             <button
               key={t.key}
               type="button"
@@ -904,30 +1052,166 @@ function ApplicationsPage() {
               onClick={() => changeTab(t.key)}
             >
               <span className="ap-tab-label">{t.label}</span>
-              {t.value > 0 && <span className="ap-tab-count">{t.value}</span>}
             </button>
           ))}
         </div>
-        {/* Same tablist, quiet grouping — outcomes and the in-flight band. */}
-        <div className="ap-rail-aside" role="presentation">
-          {SECONDARY_TABS.map((t) => {
-            const value = counts[t.key] ?? 0;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                id={`ap-tab-${t.key}`}
-                aria-selected={tab === t.key}
-                aria-controls="ap-results"
-                className={`ap-aside-item${tab === t.key ? ' is-on' : ''}`}
-                onClick={() => changeTab(tab === t.key ? 'all' : t.key)}
+
+        {/* Filter dropdown panel */}
+        <div className="ap-rail-filters" ref={filterRef}>
+          <button
+            type="button"
+            className={`ap-filter-btn${hasActiveFilters ? ' is-active' : ''}${filterOpen ? ' is-open' : ''}`}
+            aria-expanded={filterOpen}
+            aria-label="Filter submissions"
+            onClick={() => setFilterOpen((o) => !o)}
+          >
+            <span>FILTERS</span>
+            {activeFilterCount > 0 && <span className="ap-filter-badge">{activeFilterCount}</span>}
+            <ChevronDown size={14} className="ap-filter-chevron" aria-hidden="true" />
+          </button>
+
+          <AnimatePresence>
+            {filterOpen && (
+              <motion.div
+                className="ap-filter-popover"
+                initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                transition={{ duration: 0.15, ease: [0.4, 0, 0.2, 1] }}
               >
-                <span className="ap-aside-label">{t.label}</span>
-                {value > 0 && <span className="ap-aside-count">{value}</span>}
-              </button>
-            );
-          })}
+                <div className="ap-filter-head">
+                  <span className="ap-filter-title">Filters</span>
+                  {hasActiveFilters && (
+                    <button type="button" className="ap-filter-reset" onClick={resetFilters}>
+                      Reset all
+                    </button>
+                  )}
+                </div>
+
+                <div className="ap-filter-body">
+                  {/* STATUS GROUP */}
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">STATUS</span>
+                    <label className="ap-filter-option">
+                      <input
+                        type="checkbox"
+                        checked={filters.status.includes('in_progress')}
+                        onChange={() => toggleFilter('status', 'in_progress')}
+                      />
+                      <span>In progress</span>
+                    </label>
+                    <label className="ap-filter-option">
+                      <input
+                        type="checkbox"
+                        checked={filters.status.includes('on_file')}
+                        onChange={() => toggleFilter('status', 'on_file')}
+                      />
+                      <span>On file</span>
+                    </label>
+                  </div>
+
+                  {/* TALENT GROUP */}
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">TALENT</span>
+                    <label className="ap-filter-option">
+                      <input
+                        type="checkbox"
+                        checked={filters.talent.includes('new_faces')}
+                        onChange={() => toggleFilter('talent', 'new_faces')}
+                      />
+                      <span>New faces</span>
+                    </label>
+                    <label className="ap-filter-option">
+                      <input
+                        type="checkbox"
+                        checked={filters.talent.includes('existing')}
+                        onChange={() => toggleFilter('talent', 'existing')}
+                      />
+                      <span>Existing talent</span>
+                    </label>
+                  </div>
+
+                  {/* SOURCE GROUP */}
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">SOURCE</span>
+                    <label className="ap-filter-option">
+                      <input
+                        type="checkbox"
+                        checked={filters.source.includes('open_call')}
+                        onChange={() => toggleFilter('source', 'open_call')}
+                      />
+                      <span>Open call</span>
+                    </label>
+                    <label className="ap-filter-option">
+                      <input
+                        type="checkbox"
+                        checked={filters.source.includes('scouted')}
+                        onChange={() => toggleFilter('source', 'scouted')}
+                      />
+                      <span>Scouted</span>
+                    </label>
+                    <label className="ap-filter-option">
+                      <input
+                        type="checkbox"
+                        checked={filters.source.includes('referral')}
+                        onChange={() => toggleFilter('source', 'referral')}
+                      />
+                      <span>Referral</span>
+                    </label>
+                  </div>
+
+                  {/* LOCATION GROUP */}
+                  {availableCities.length > 0 && (
+                    <div className="ap-filter-group">
+                      <span className="ap-filter-group-label">LOCATION</span>
+                      {availableCities.slice(0, 6).map((city) => (
+                        <label key={city} className="ap-filter-option">
+                          <input
+                            type="checkbox"
+                            checked={filters.locations.includes(city)}
+                            onChange={() => toggleFilter('locations', city)}
+                          />
+                          <span>{city}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* MATCH GROUP */}
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">MATCH</span>
+                    <label className="ap-filter-option">
+                      <input
+                        type="radio"
+                        name="matchTier"
+                        checked={filters.matchTier === 'exceptional'}
+                        onChange={() => setMatchTierFilter('exceptional')}
+                      />
+                      <span>Exceptional (85+)</span>
+                    </label>
+                    <label className="ap-filter-option">
+                      <input
+                        type="radio"
+                        name="matchTier"
+                        checked={filters.matchTier === 'strong'}
+                        onChange={() => setMatchTierFilter('strong')}
+                      />
+                      <span>Strong (70+)</span>
+                    </label>
+                    <label className="ap-filter-option">
+                      <input
+                        type="radio"
+                        name="matchTier"
+                        checked={filters.matchTier === 'fair'}
+                        onChange={() => setMatchTierFilter('fair')}
+                      />
+                      <span>Fair (50+)</span>
+                    </label>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -953,6 +1237,14 @@ function ApplicationsPage() {
             ? <button type="button" className="ap-empty-action" onClick={resetFilters}>Clear filters</button>
             : undefined}
         />
+      )}
+
+      {!isGenuineEmpty && !hasNoResults && (
+        <div className="ap-showing-bar">
+          <span className="ap-showing-text">
+            showing {filtered.length} {filtered.length === 1 ? 'submission' : 'submissions'}
+          </span>
+        </div>
       )}
 
       {!isGenuineEmpty && !hasNoResults && (view === 'book' ? (
@@ -1004,9 +1296,9 @@ function ApplicationsPage() {
             className="ap-bulk"
             role="region"
             aria-label="Bulk actions"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, x: "-50%", y: 8 }}
+            animate={{ opacity: 1, x: "-50%", y: 0 }}
+            exit={{ opacity: 0, x: "-50%", y: 8 }}
             transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
           >
             <span className="ap-bulk-count">{selectedIds.size} selected</span>
@@ -1036,6 +1328,7 @@ function ApplicationsPage() {
             onDecide={decideFromReview}
             onJump={jumpReview}
             queue={filtered}
+            boards={boards}
             busy={Boolean(inFlight)}
           />
         )}

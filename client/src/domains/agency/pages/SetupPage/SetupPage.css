@@ -399,23 +399,23 @@
 
 .stg-field input::placeholder,
 .stg-field textarea::placeholder {
-  color: #A39E99;
-  font-style: italic;
+  color: var(--ag-text-3, #756E68);
+  font-style: normal;
+  font-weight: 400;
 }
 
 .stg-field input:hover:not(:focus),
 .stg-field textarea:hover:not(:focus) {
-  border-color: rgba(201, 165, 90, 0.25);
-  background: #fdfdfc;
+  border-color: var(--ag-text-3, rgba(26, 24, 21, 0.22));
+  background: #ffffff;
 }
 
 .stg-field input:focus-visible,
 .stg-field textarea:focus-visible,
 .stg-field select:focus-visible {
   outline: none;
-  border-color: rgba(201, 165, 90, 0.35);
+  border-color: var(--ag-gold, #C9A55A);
   background: #ffffff;
-  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .stg-field input[aria-invalid='true'] {

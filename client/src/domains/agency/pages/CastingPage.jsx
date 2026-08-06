@@ -8,6 +8,7 @@ import { resolveBoardIdentity, boardIdentityStyle, resolveBoardType, BOARD_VOCAB
 import { useCardButton } from '../hooks/useCardButton';
 import CastingNewModal from './CastingNewModal';
 import { Moment } from '../components/meta';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './CastingPage.css';
 
 const DAY = 1000 * 60 * 60 * 24;
@@ -202,9 +203,9 @@ export default function CastingPage() {
           <h1 className="sg-title">Signing</h1>
           <p className="sg-sub">{sub}</p>
         </div>
-        <button className="sg-new" onClick={openModal}>
-          <Plus size={16} /> New board
-        </button>
+        <PholioButton variant="primary" icon={<Plus size={16} />} onClick={openModal}>
+          New board
+        </PholioButton>
       </header>
 
       {isLoading ? (

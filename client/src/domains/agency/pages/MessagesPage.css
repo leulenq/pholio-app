@@ -60,42 +60,40 @@
 }
 
 .mc-search {
-  flex: none;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   margin: 16px 16px 8px;
-  padding: 9px 13px;
-  background: #f8f8f7;
-  border: 1px solid rgba(26, 24, 21, 0.08);
-  border-radius: var(--ag-radius-md);
-  color: var(--ag-text-2);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01);
-  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  padding: 0 12px;
+  height: 36px;
+  background: #ffffff;
+  border: 1px solid var(--ag-border-strong, rgba(26, 24, 21, 0.12));
+  border-radius: var(--ag-radius-sm, 4px);
+  color: var(--ag-text-3);
+  box-shadow: none;
+  transition: border-color var(--ag-duration-fast) var(--ag-ease), box-shadow var(--ag-duration-fast) var(--ag-ease);
 }
 .mc-search:hover:not(:focus-within) {
-  border-color: rgba(201, 165, 90, 0.25);
-  background: #fdfdfc;
+  border-color: var(--ag-text-3, rgba(26, 24, 21, 0.22));
 }
 .mc-search:focus-within {
-  border-color: rgba(201, 165, 90, 0.35);
-  background: #ffffff;
-  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02);
-  color: var(--ag-gold);
+  border-color: var(--ag-gold, #C9A55A);
 }
 .mc-search-input {
   flex: 1;
   min-width: 0;
   border: none;
-  background: none;
+  background: transparent;
   outline: none;
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: #16130D;
+  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--ag-text-0, #1A1815);
 }
 .mc-search-input::placeholder {
-  color: #A39E99;
-  font-style: italic;
+  color: var(--ag-text-3, #756E68);
+  font-style: normal;
+  font-weight: 400;
 }
 
 .mc-threads {
@@ -397,17 +395,20 @@
   transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
 }
 .mc-composer-input::placeholder {
-  color: #A39E99;
-  font-style: italic;
+  color: var(--ag-text-3, #756E68);
+  font-style: normal;
+  font-weight: 400;
 }
 .mc-composer-input:hover:not(:focus) {
-  border-color: rgba(201, 165, 90, 0.25);
-  background: #fdfdfc;
-}
-.mc-composer-input:focus {
-  border-color: rgba(201, 165, 90, 0.35);
+  border-color: var(--ag-text-3, rgba(26, 24, 21, 0.22));
   background: #ffffff;
-  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+.mc-composer-input:focus,
+.mc-composer-input:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: var(--ag-gold, #C9A55A) !important;
+  background: #ffffff !important;
 }
 
 .mc-send {

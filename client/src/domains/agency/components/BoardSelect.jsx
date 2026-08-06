@@ -44,13 +44,28 @@ function closesLabel(closesAt) {
  * from the casting ledger — name, client, where it stands, closing pressure,
  * and a thin stage-mix strip (the Overview funnel's vocabulary at row scale).
  */
-export default function BoardSelect({ boards = [], value = null, onChange, totalAll = 0 }) {
+export default function BoardSelect({
+  boards = [],
+  value = null,
+  onChange,
+  placeholder = 'All submissions',
+  allOptionLabel = 'All submissions',
+  allOptionSub = 'Every open application, across boards',
+  showAllOption = true,
+  showManageLink = true,
+  ariaLabel = 'Select board',
+  className = '',
+  disabled = false,
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const panelRef = useRef(null);
 
   const activeBoards = useMemo(() => boards.filter((b) => b.is_active !== false), [boards]);
-  const current = activeBoards.find((b) => b.id === value) || null;
+  const current = useMemo(
+    () => (value ? boards.find((b) => String(b.id) === String(value)) || null : null),
+    [boards, value],
+  );
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -85,52 +100,60 @@ export default function BoardSelect({ boards = [], value = null, onChange, total
   }, [open, close]);
 
   const pick = (id) => {
-    onChange(id);
+    onChange?.(id);
     close();
   };
 
+  const isAllSelected = value == null || value === '';
+
   return (
-    <div className={`bsel${open ? ' bsel--open' : ''}`} ref={rootRef}>
+    <div className={`bsel${open ? ' bsel--open' : ''}${className ? ` ${className}` : ''}`} ref={rootRef}>
       <button
         type="button"
         className="bsel-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label="Review scope"
+        aria-label={ariaLabel}
+        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
+        onChange={(e) => onChange?.(e.target.value)}
       >
-        <span className="bsel-trigger-name">{current ? current.name : 'All submissions'}</span>
-        <span className="bsel-trigger-count">{current ? (current.application_count || 0) : totalAll}</span>
+        <span className={`bsel-trigger-name${!current && !showAllOption ? ' is-placeholder' : ''}`}>
+          {current ? current.name : placeholder}
+        </span>
         <ChevronDown size={14} className="bsel-caret" aria-hidden="true" />
       </button>
 
       {open && (
-        <div className="bsel-panel" role="listbox" aria-label="Boards" ref={panelRef}>
-          <button
-            type="button"
-            role="option"
-            aria-selected={value == null}
-            className={`bsel-option bsel-option--all${value == null ? ' is-on' : ''}`}
-            onClick={() => pick(null)}
-          >
-            <span className="bsel-opt-main">
-              <span className="bsel-opt-name">All submissions</span>
-              <span className="bsel-opt-sub">Every open application, across boards</span>
-            </span>
-            <span className="bsel-opt-side">
-              <span className="bsel-opt-count">{totalAll}</span>
-              {value == null && <Check size={14} className="bsel-opt-check" aria-hidden="true" />}
-            </span>
-          </button>
+        <div className="bsel-panel" role="listbox" aria-label={ariaLabel} ref={panelRef}>
+          {showAllOption && (
+            <button
+              type="button"
+              role="option"
+              aria-selected={isAllSelected}
+              className={`bsel-option bsel-option--all${isAllSelected ? ' is-on' : ''}`}
+              onClick={() => pick(null)}
+            >
+              <span className="bsel-opt-main">
+                <span className="bsel-opt-name">{allOptionLabel}</span>
+                {allOptionSub && <span className="bsel-opt-sub">{allOptionSub}</span>}
+              </span>
+              {isAllSelected && (
+                <span className="bsel-opt-side">
+                  <Check size={14} className="bsel-opt-check" aria-hidden="true" />
+                </span>
+              )}
+            </button>
+          )}
 
-          {activeBoards.length > 0 && <div className="bsel-key">Active boards</div>}
+          {showAllOption && activeBoards.length > 0 && <div className="bsel-key">Active boards</div>}
 
           <div className="bsel-scroll">
             {activeBoards.map((b) => {
               const closes = closesLabel(b.closes_at);
               const mix = stageMix(b);
               const waiting = b.submitted_count || 0;
-              const on = value === b.id;
+              const on = String(value) === String(b.id);
               return (
                 <button
                   key={b.id}
@@ -142,11 +165,13 @@ export default function BoardSelect({ boards = [], value = null, onChange, total
                 >
                   <span className="bsel-opt-main">
                     <span className="bsel-opt-name">{b.name || 'Untitled Board'}</span>
-                    <span className="bsel-opt-sub">
-                      {b.client_name ? `${b.client_name} · ` : ''}
-                      {b.application_count || 0} in pipeline
-                      {waiting ? ` · ${waiting} awaiting review` : ''}
-                    </span>
+                    {(b.client_name || b.application_count || waiting) ? (
+                      <span className="bsel-opt-sub">
+                        {b.client_name ? `${b.client_name} · ` : ''}
+                        {b.application_count ? `${b.application_count} in pipeline` : ''}
+                        {waiting ? ` · ${waiting} awaiting review` : ''}
+                      </span>
+                    ) : null}
                     {mix && (
                       <span className="bsel-opt-mix" aria-hidden="true">
                         {mix.map((seg) => (
@@ -164,10 +189,12 @@ export default function BoardSelect({ boards = [], value = null, onChange, total
             })}
           </div>
 
-          <Link to="/dashboard/agency/signing" className="bsel-manage" onClick={close}>
-            Manage boards
-            <ArrowUpRight size={12} aria-hidden="true" />
-          </Link>
+          {showManageLink && (
+            <Link to="/dashboard/agency/signing" className="bsel-manage" onClick={close}>
+              Manage boards
+              <ArrowUpRight size={12} aria-hidden="true" />
+            </Link>
+          )}
         </div>
       )}
     </div>

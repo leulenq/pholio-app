@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
 import './AgencyButton.css';
 
 export function AgencyButton({
@@ -13,19 +13,36 @@ export function AgencyButton({
   type = 'button',
   ...props
 }) {
+  let pholioVariant = 'primary';
+  if (variant === 'secondary') pholioVariant = 'secondary';
+  else if (variant === 'ghost' || variant === 'tertiary') pholioVariant = 'tertiary';
+  else if (variant === 'danger' || variant === 'destructive') pholioVariant = 'destructive';
+  else if (variant === 'icon') pholioVariant = 'icon';
+
+  let resolvedIcon = null;
+  if (Icon) {
+    resolvedIcon = React.isValidElement(Icon) ? Icon : <Icon size={size === 'sm' ? 14 : 16} />;
+  }
+
   return (
-    <button
+    <PholioButton
       type={type}
-      className={`agency-btn agency-btn--${variant} agency-btn--${size} ${className}`}
-      disabled={loading || disabled}
+      variant={pholioVariant}
+      loading={loading}
+      disabled={disabled}
+      icon={resolvedIcon}
+      className={className}
       {...props}
     >
-      {loading ? (
-        <Loader2 className="agency-btn-spinner" size={18} />
-      ) : Icon ? (
-        <Icon size={18} />
-      ) : null}
       {children}
-    </button>
+    </PholioButton>
+  );
+}
+
+export function DeclineButton({ children = 'Decline', ...props }) {
+  return (
+    <AgencyButton variant="danger" {...props}>
+      {children}
+    </AgencyButton>
   );
 }

@@ -113,8 +113,7 @@
   border-color: rgba(26, 26, 26, 0.16);
 }
 .tt-composer:focus-within {
-  border-color: rgba(201, 165, 90, 0.5);
-  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+  border-color: var(--ag-gold, #C9A55A);
 }
 .tt-composer-input {
   flex: 1;
@@ -138,7 +137,7 @@
   box-shadow: none !important;
   background: transparent !important;
 }
-.tt-composer-input::placeholder { color: #b3a89a; }
+.tt-composer-input::placeholder { color: var(--ag-text-3, #756E68); font-style: normal; font-weight: 400; }
 .tt-composer-send {
   flex: none;
   width: 34px;
@@ -189,27 +188,29 @@
 .tt-followrow { display: flex; gap: 9px; }
 .tt-field {
   flex: 1;
-  background: #f8f8f7 !important;
-  border: 1px solid rgba(26, 24, 21, 0.08) !important;
-  border-radius: 8px !important;
-  padding: 10px 12px !important;
-  font-family: 'Inter', sans-serif !important;
-  font-size: 13px !important;
-  color: #16130D !important;
-  outline: none !important;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01) !important;
-  height: auto !important;
-  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) !important;
-}
-.tt-field::placeholder { color: #A39E99 !important; font-style: italic !important; }
-.tt-field:hover:not(:focus) {
-  border-color: rgba(201, 165, 90, 0.25) !important;
-  background: #fdfdfc !important;
-}
-.tt-field:focus {
-  border-color: rgba(201, 165, 90, 0.35) !important;
   background: #ffffff !important;
-  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02) !important;
+  border: 1px solid var(--ag-border-strong, rgba(26, 24, 21, 0.12)) !important;
+  border-radius: var(--ag-radius-sm, 4px) !important;
+  padding: 0 12px !important;
+  font-family: var(--ag-font-body, 'Inter', sans-serif) !important;
+  font-size: 13.5px !important;
+  color: var(--ag-text-0, #1A1815) !important;
+  outline: none !important;
+  box-shadow: none !important;
+  height: 36px !important;
+  transition: border-color var(--ag-duration-fast) var(--ag-ease), box-shadow var(--ag-duration-fast) var(--ag-ease) !important;
+}
+.tt-field::placeholder { color: var(--ag-text-3, #756E68) !important; font-style: normal !important; font-weight: 400 !important; }
+.tt-field:hover:not(:focus) {
+  border-color: var(--ag-text-3, rgba(26, 24, 21, 0.22)) !important;
+  background: #ffffff !important;
+}
+.tt-field:focus,
+.tt-field:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: var(--ag-gold, #C9A55A) !important;
+  background: #ffffff !important;
 }
 .tt-field--date { color: #6b6256 !important; }
 .tt-form-btn {

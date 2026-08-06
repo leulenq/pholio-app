@@ -90,60 +90,61 @@
   font-style: italic;
 }
 
-/* Inputs, Selects, Textareas - Shared Luxury Styles */
+/* Inputs, Selects, Textareas - Agency-Aligned Baseline */
 .pholio-input,
 .pholio-select,
 .pholio-textarea {
   width: 100%;
-  font-family: 'Inter', sans-serif;
-  font-size: 16px;
-  padding: 14px 18px;
-  border: 1px solid transparent; 
-  border-radius: 8px; /* Medium radius 8px per guidelines */
-  background: #f8f8f7; /* Very light brand off-white for the "well" */
-  color: var(--pholio-text-dark);
-  box-shadow: 
-    inset 0 2px 4px rgba(0, 0, 0, 0.03),
-    0 1px 2px rgba(0, 0, 0, 0.01);
-  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  font-family: var(--ag-font-body, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 12px 16px;
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.12));
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ag-text-0, #1A1815);
+  box-shadow: none;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   outline: none;
-  min-height: 50px;
+  min-height: 48px;
   resize: none;
 }
 
 /* Focus state */
 .pholio-input:focus,
+.pholio-input:focus-visible,
 .pholio-select:focus,
-.pholio-textarea:focus {
-  border-color: rgba(201, 165, 90, 0.3);
-  background: #ffffff;
-  box-shadow: 
-    0 0 0 5px rgba(201, 165, 90, 0.12),
-    inset 0 2px 4px rgba(0, 0, 0, 0.02);
+.pholio-select:focus-visible,
+.pholio-textarea:focus,
+.pholio-textarea:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: var(--ag-gold, #C9A55A) !important;
+  background: #ffffff !important;
   transform: none;
 }
 
 /* Specific height for text inputs and selects */
 .pholio-input,
 .pholio-select {
-  height: 50px;
+  height: 48px;
 }
 
 /* Placeholder Styling */
 .pholio-input::placeholder,
 .pholio-textarea::placeholder {
-  color: var(--pholio-placeholder);
-  font-style: italic;
+  color: var(--ag-text-3, #756E68);
+  font-style: normal;
+  font-weight: 400;
 }
-
-
 
 /* Hover States */
 .pholio-input:hover:not(:focus),
 .pholio-select:hover:not(:focus),
 .pholio-textarea:hover:not(:focus) {
-  border-color: rgba(201, 165, 90, 0.2); 
-  background: #fdfdfc;
+  border-color: rgba(26, 24, 21, 0.24); 
+  background: #ffffff;
   transform: none;
 }
 
@@ -151,8 +152,8 @@
 .pholio-input.has-error,
 .pholio-select.has-error,
 .pholio-textarea.has-error {
-  border-color: var(--pholio-error);
-  background-color: #fffafa; /* Brand Guidelines: Section 8 */
+  border-color: rgba(176, 72, 72, 0.45);
+  background-color: #ffffff;
 }
 
 .pholio-input.has-error:focus,
@@ -395,20 +396,18 @@
 }
 
 .pholio-custom-select-trigger:focus {
-  border-color: rgba(201, 165, 90, 0.3);
+  border-color: rgba(201, 165, 90, 0.4);
   background: #ffffff;
-  box-shadow: 
-    0 0 0 5px rgba(201, 165, 90, 0.12),
-    inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
+  outline: none;
   transform: none;
 }
 
 .pholio-custom-select-trigger.open {
-  border-color: rgba(201, 165, 90, 0.3);
+  border-color: rgba(201, 165, 90, 0.4);
   background: #ffffff;
-  box-shadow: 
-    0 0 0 5px rgba(201, 165, 90, 0.12),
-    inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
+  outline: none;
   transform: none;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
@@ -418,12 +417,12 @@
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   transform: none;
-  border-color: rgba(201, 165, 90, 0.3);
+  border-color: rgba(201, 165, 90, 0.4);
 }
 
 .pholio-custom-select-trigger:focus-visible {
-  outline: 2px solid var(--pholio-gold);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: none;
 }
 
 /* Selected Value Text */
@@ -449,7 +448,7 @@
   color: var(--pholio-gold);
 }
 
-/* Dropdown Menu - Flush with input textbox */
+/* Dropdown Menu - Flush with input textbox, sharp edges */
 .pholio-custom-select-dropdown {
   position: absolute;
   top: 100%;
@@ -457,20 +456,20 @@
   right: 0;
   margin-top: 0;
   background: #FFFFFF;
-  border: 1px solid rgba(201, 165, 90, 0.3);
+  border: 1px solid rgba(26, 24, 21, 0.12);
   border-top: none;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   border-top-left-radius: 0;
   border-top-right-radius: 0;
-  box-shadow: 0 16px 48px rgba(26, 24, 21, 0.08);
+  box-shadow: 0 12px 36px rgba(26, 24, 21, 0.12);
   z-index: 9999;
   max-height: 250px;
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  animation: dropdownFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  padding: 6px;
+  animation: dropdownFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
 }
 
 /* Keep dropdowns scrollable without exposing browser scrollbar chrome. This
@@ -492,35 +491,34 @@
   }
 }
 
-/* Options */
+/* Options — wall-to-wall highlight, sharp 90° edges, agency design language */
 .pholio-select-option {
-  padding: 8px 12px;
-  margin: 2px 0;
-  font-family: 'Inter', sans-serif;
+  padding: 10px 14px;
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13.5px;
   font-weight: 400;
-  color: var(--pholio-text-dark, #1a1815);
+  color: var(--ag-text-0, #1A1815);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  transform: translateX(0);
+  transition: background 0.15s ease, color 0.15s ease;
+  transform: none;
 }
 
 .pholio-select-option:hover,
 .pholio-select-option.active,
 .pholio-autocomplete-option-active {
-  background: rgba(201, 165, 90, 0.05) !important;
-  color: var(--pholio-gold, #C9A55A) !important;
-  transform: translateX(3px);
+  background: var(--ag-surface-0, #FAF8F5);
+  color: var(--ag-text-0, #1A1815);
+  transform: none;
 }
 
 .pholio-select-option.selected {
-  background: rgba(201, 165, 90, 0.08); /* Pale gold */
-  color: var(--pholio-gold);
-  font-weight: 500;
+  color: var(--ag-gold, #B8956A);
+  font-weight: 600;
 }
 
 .check-icon {

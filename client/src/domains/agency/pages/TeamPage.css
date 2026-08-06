@@ -159,9 +159,30 @@
 .tm-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .tm-flabel { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #8a8073; }
 .tm-req { color: var(--ag-gold); }
-.tm-finput { font-family: 'Inter', sans-serif; font-size: 14px; color: #16130D; background: #fff; border: 1px solid #e2dac9; border-radius: 8px; padding: 11px 13px; outline: none; transition: border-color .18s, box-shadow .18s; width: 100%; box-sizing: border-box; }
-.tm-finput::placeholder { color: #b3a89a; }
-.tm-finput:focus { border-color: var(--ag-gold); box-shadow: 0 0 0 3px rgba(201,165,90,.1); }
+.tm-finput {
+  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  font-weight: 400;
+  color: var(--ag-text-0, #1A1815);
+  background: #ffffff;
+  border: 1px solid var(--ag-border-strong, rgba(26, 24, 21, 0.12));
+  border-radius: var(--ag-radius-sm, 4px);
+  padding: 0 12px;
+  height: 36px;
+  outline: none;
+  box-shadow: none;
+  transition: border-color var(--ag-duration-fast) var(--ag-ease), box-shadow var(--ag-duration-fast) var(--ag-ease);
+  width: 100%;
+  box-sizing: border-box;
+}
+.tm-finput::placeholder { color: var(--ag-text-3, #756E68); font-style: normal; font-weight: 400; }
+.tm-finput:focus,
+.tm-finput:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: var(--ag-gold, #C9A55A) !important;
+  background: #ffffff !important;
+}
 .tm-hint { font-size: 11.5px; line-height: 1.45; color: var(--ag-text-2); margin: 0; }
 
 .tm-seg { display: flex; gap: 8px; }

@@ -5,6 +5,7 @@ import { Check, Star, LayoutGrid, X, UserPlus, Download, Bookmark, Camera, Calen
 import { getBoards, inviteTalent } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
+import { AgencyButton, DeclineButton } from '../ui';
 import './TalentActionBar.css';
 
 // Download a talent comp card PDF (same flow the talent dashboard uses).
@@ -142,25 +143,23 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
         {isPipeline && applicationId && (
           isSigned ? (
             can('applications.accept') && (
-              <button className="tact-btn tact-btn--primary tact-btn--grow" disabled>
-                <Check size={15} /> Signed
-              </button>
+              <AgencyButton variant="primary" disabled icon={<Check size={15} />}>
+                Signed
+              </AgencyButton>
             )
           ) : isDeclined ? (
-            <button className="tact-btn tact-btn--grow" disabled>
-              <X size={15} /> Declined
-            </button>
+            <AgencyButton variant="secondary" disabled icon={<X size={15} />}>
+              Declined
+            </AgencyButton>
           ) : (
             <>
               {can('applications.accept') && (
-                <button className="tact-btn tact-btn--primary tact-btn--grow" disabled={isPending} onClick={() => accept.mutate()}>
-                  <Check size={15} /> Sign
-                </button>
+                <AgencyButton variant="primary" loading={isPending} onClick={() => accept.mutate()} icon={<Check size={15} />}>
+                  Sign
+                </AgencyButton>
               )}
               {can('applications.decline') && (
-                <button className="tact-btn tact-btn--danger" disabled={isPending} onClick={() => decline.mutate()}>
-                  <X size={15} /> Decline
-                </button>
+                <DeclineButton loading={isPending} onClick={() => decline.mutate()} />
               )}
             </>
           )
@@ -213,25 +212,23 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
         <>
           {isSigned ? (
             can('applications.accept') && (
-              <button className="tact-btn tact-btn--primary" disabled>
-                <Check size={15} /> Signed
-              </button>
+              <AgencyButton variant="primary" disabled icon={<Check size={15} />}>
+                Signed
+              </AgencyButton>
             )
           ) : isDeclined ? (
-            <button className="tact-btn" disabled>
-              <X size={15} /> Declined
-            </button>
+            <AgencyButton variant="secondary" disabled icon={<X size={15} />}>
+              Declined
+            </AgencyButton>
           ) : (
             <>
               {can('applications.accept') && (
-                <button className="tact-btn tact-btn--primary" disabled={isPending} onClick={() => accept.mutate()}>
-                  <Check size={15} /> Sign
-                </button>
+                <AgencyButton variant="primary" loading={isPending} onClick={() => accept.mutate()} icon={<Check size={15} />}>
+                  Sign
+                </AgencyButton>
               )}
               {can('applications.decline') && (
-                <button className="tact-btn tact-btn--danger" disabled={isPending} onClick={() => decline.mutate()}>
-                  <X size={15} /> Decline
-                </button>
+                <DeclineButton loading={isPending} onClick={() => decline.mutate()} />
               )}
             </>
           )}

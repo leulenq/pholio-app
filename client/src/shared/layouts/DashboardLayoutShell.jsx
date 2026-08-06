@@ -112,6 +112,11 @@ export default function DashboardLayoutShell() {
     return <Navigate to="/onboarding" replace />;
   }
 
+  // If user role is AGENCY or API returned 403 Forbidden (role mismatch), redirect to Agency Dashboard
+  if (user?.role === 'AGENCY' || (isError && (error?.status === 403 || error?.data?.role === 'AGENCY'))) {
+    return <Navigate to="/dashboard/agency" replace />;
+  }
+
   if (isLoading && !isError) {
     return <PageLoadingScreen />;
   }

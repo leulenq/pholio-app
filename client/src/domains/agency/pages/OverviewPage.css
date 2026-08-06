@@ -231,7 +231,7 @@
    contrast, no extra scrim. */
 .ov-strip-match.match-score {
   position: absolute; top: 0; right: 0;
-  border-radius: 0 5px 0 9px;
+  border-radius: 0;
   border-top-width: 0; border-right-width: 0;
   box-shadow: none;
 }

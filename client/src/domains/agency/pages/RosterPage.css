@@ -57,19 +57,53 @@
   margin-bottom: 16px;
 }
 
+.ag-roster-toolbar .rst-filter-item {
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.ag-roster-toolbar .pholio-form-group {
+  margin: 0;
+  width: 100%;
+}
+
+.ag-roster-toolbar .pholio-custom-select-trigger {
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ag-text-0, #1A1815);
+  background: var(--ag-surface-1, #FFFFFF);
+  border: 1px solid var(--ag-border-strong, rgba(26, 24, 21, 0.16));
+  border-radius: var(--ag-radius-sm, 4px);
+  box-shadow: none;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.ag-roster-toolbar .pholio-custom-select-trigger:hover {
+  border-color: var(--ag-text-3, #6B6560);
+}
+
+.ag-roster-toolbar .pholio-custom-select-trigger.open {
+  border-color: var(--ag-gold, #B8956A);
+}
+
 .ag-roster-toolbar select,
 .ag-roster-search,
 .ag-roster-form input,
 .ag-roster-form select {
-  min-height: 40px;
-  border: 1px solid rgba(26, 24, 21, 0.08);
-  border-radius: 8px;
-  background: #f8f8f7;
-  color: var(--ag-text-0);
-  font: 500 .8125rem/1.2 Inter, sans-serif;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.01);
-  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  min-height: 36px;
+  height: 36px;
+  border: 1px solid var(--ag-border-strong, rgba(26, 24, 21, 0.16));
+  border-radius: var(--ag-radius-sm, 4px);
+  background: var(--ag-surface-1, #FFFFFF);
+  color: var(--ag-text-0, #1A1815);
+  font: 600 13px Inter, sans-serif;
+  transition: border-color 0.15s ease;
   outline: none;
+  box-shadow: none;
 }
 
 .ag-roster-toolbar select { padding: 0 32px 0 12px; }
@@ -95,23 +129,23 @@
 }
 .ag-roster-search input::placeholder,
 .ag-roster-form input::placeholder {
-  color: #A39E99;
-  font-style: italic;
+  color: var(--ag-text-3, #756E68);
+  font-style: normal;
+  font-weight: 400;
 }
 
 .ag-roster-search:hover:not(:focus-within),
 .ag-roster-form input:hover:not(:focus) {
-  border-color: rgba(201, 165, 90, 0.25);
-  background: #fdfdfc;
+  border-color: var(--ag-text-3, rgba(26, 24, 21, 0.22));
+  background: var(--ag-surface-1, #FFFFFF);
 }
 
 .ag-roster-toolbar select:focus-visible,
 .ag-roster-search:focus-within,
 .ag-roster-form input:focus-visible,
 .ag-roster-form select:focus-visible {
-  border-color: rgba(201, 165, 90, 0.35);
-  background: #ffffff;
-  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-color: var(--ag-gold, #C9A55A);
+  background: var(--ag-surface-1, #FFFFFF);
   outline: none;
 }
 
@@ -123,19 +157,23 @@
 .ag-roster-columns,
 .ag-roster-row {
   display: grid;
-  grid-template-columns: minmax(210px, 1.5fr) minmax(130px, 1fr) 116px 116px minmax(200px, 1.1fr) 96px;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(140px, 1fr) 120px 120px minmax(200px, 1.1fr) 100px;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 .ag-roster-columns {
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--ag-rule);
   color: var(--ag-text-2);
   font-size: .6875rem;
   font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
+}
+
+.ag-roster-columns span:not(:first-child) {
+  text-align: center;
 }
 
 .ag-roster-row {
@@ -198,7 +236,13 @@
   font-weight: 700;
 }
 
-.ag-roster-cell { min-width: 0; }
+.ag-roster-cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
 
 /* Division — sharp-cornered tonal taxonomy tag (never a round pill). */
 .ag-roster-tag {
@@ -255,7 +299,7 @@
 }
 
 /* Availability — plain semantic text, given a little more weight for presence. */
-.ag-roster-avail { font-weight: 600; }
+.ag-roster-avail { font-weight: 600; text-align: center; }
 
 /* Measurements — mono spec data seated in a sharp tonal block. */
 .ag-roster-measure {
@@ -263,6 +307,9 @@
   max-width: 100%;
   min-width: 0;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 2px;
   box-sizing: border-box;
   padding: 6px 11px;
@@ -314,9 +361,40 @@
 .ag-roster-private-note { margin: 0; padding: 14px; border: 1px solid var(--ag-rule); border-radius: 8px; background: var(--ag-surface-2); color: var(--ag-text-1); font-size: .8125rem; line-height: 1.5; }
 .ag-roster-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .ag-roster-form-section-title { margin: -6px 0 0; padding-top: 14px; border-top: 1px solid var(--ag-rule); color: var(--ag-text-1); font-size: .75rem; font-weight: 600; }
-.ag-roster-form label { display: grid; gap: 7px; color: var(--ag-text-1); font-size: .75rem; font-weight: 600; }
 .ag-roster-form input,
-.ag-roster-form select { width: 100%; box-sizing: border-box; padding: 0 12px; }
+.ag-roster-form select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 12px;
+  height: 36px;
+  font-family: var(--ag-font-body, 'Inter', sans-serif);
+  font-size: 13.5px;
+  color: var(--ag-text-0, #1A1815);
+  background: #ffffff;
+  border: 1px solid var(--ag-border-strong, rgba(26, 24, 21, 0.12));
+  border-radius: var(--ag-radius-sm, 4px);
+  outline: none;
+  box-shadow: none;
+  transition: border-color var(--ag-duration-fast) var(--ag-ease), box-shadow var(--ag-duration-fast) var(--ag-ease);
+}
+.ag-roster-form select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+.ag-roster-form input:focus,
+.ag-roster-form input:focus-visible,
+.ag-roster-form select:focus,
+.ag-roster-form select:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+  border-color: var(--ag-gold, #C9A55A) !important;
+  background: #ffffff !important;
+}
 .ag-roster-form-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .ag-roster-form-error { margin: 0; color: var(--ag-danger); font-size: .8125rem; }
 

@@ -4,15 +4,16 @@ import { X } from 'lucide-react';
 import './ShortcutHelp.css';
 
 const SHORTCUTS = [
-  { keys: ['J', 'K'], label: 'Move through the list — or between talent in review' },
+  { keys: ['J', 'K'], label: 'Move through the list' },
   { keys: ['↑', '↓'], label: 'Move through the list' },
   { keys: ['Enter'], label: 'Open the review room' },
   { keys: ['Space'], label: 'Select / deselect for bulk actions' },
-  { keys: ['S'], label: 'Shortlist' },
-  { keys: ['A'], label: 'Sign' },
-  { keys: ['X'], label: 'Pass' },
+  { keys: ['←', '→'], label: 'Previous / next submission in review' },
+  { keys: ['S'], label: 'Shortlist (opens confirmation)' },
+  { keys: ['A'], label: 'Offer representation (opens confirmation)' },
+  { keys: ['X'], label: 'Pass (opens confirmation)' },
   { keys: ['?'], label: 'Toggle this help' },
-  { keys: ['Esc'], label: 'Close review or help · clear selection' },
+  { keys: ['Esc'], label: 'Close layer, review room, or help · clear selection' },
 ];
 
 /**

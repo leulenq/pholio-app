@@ -6,6 +6,7 @@ import { X, Video, Phone, MapPin, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApplicants, scheduleInterview } from '../api/agency';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
+import { AgencyButton } from './ui';
 
 const TIME_OPTIONS = Array.from({ length: 48 }).map((_, i) => {
   const h = Math.floor(i / 2);
@@ -245,10 +246,10 @@ export default function InterviewScheduleModal({ open, onClose }) {
             </div>
 
             <div className="iv-modal-actions">
-              <button type="button" className="iv-modal-cancel" onClick={handleClose}>Cancel</button>
-              <button type="submit" className="iv-modal-submit" disabled={create.isPending}>
-                {create.isPending ? 'Scheduling…' : 'Schedule interview'}
-              </button>
+              <AgencyButton variant="secondary" onClick={handleClose}>Cancel</AgencyButton>
+              <AgencyButton type="submit" loading={create.isPending}>
+                Schedule interview
+              </AgencyButton>
             </div>
           </motion.form>
         </motion.div>

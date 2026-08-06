@@ -152,6 +152,7 @@ const PholioCustomSelect = ({
                 id={`${selectId}-opt-${index}`}
                 className={`pholio-select-option ${value === option.value ? 'selected' : ''} ${index === activeIndex ? 'active' : ''}`}
                 onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setActiveIndex(index)}
                 onClick={() => handleSelect(option.value)}
                 role="option"
                 aria-selected={value === option.value}

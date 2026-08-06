@@ -168,10 +168,11 @@ export async function acceptApplication(applicationId) {
 }
 
 /**
- * Decline application
+ * Decline application. Optionally accepts a reason/note payload for structured
+ * pass reasons; the endpoint accepts the body even before storage is wired.
  */
-export async function declineApplication(applicationId) {
-  return apiClient.post(`/applications/${applicationId}/decline`);
+export async function declineApplication(applicationId, payload) {
+  return apiClient.post(`/applications/${applicationId}/decline`, payload || {});
 }
 
 /**

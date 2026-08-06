@@ -311,3 +311,31 @@
   transform: none;
   box-shadow: none;
 }
+
+/* Global Agency Dashboard Textbox Baseline — enforce outline suppression on all text fields */
+input,
+textarea,
+select {
+  outline: none;
+  box-shadow: none;
+}
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+
+/* Hide webkit/firefox number stepper spinners across agency inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

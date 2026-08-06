@@ -2,6 +2,7 @@ import React, { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
 import MatchScore from '../components/ui/MatchScore';
+import { DivisionMark } from '../components/status';
 import { formatLocation } from '../../../shared/utils/locationFormat';
 import './DiscoverDetail.css';
 
@@ -103,10 +104,10 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
             {/* identity */}
             <div className="dd-identity">
               {(talent.archetype || talent.city) && (
-                <p className="dd-sub">
-                  {talent.archetype}
-                  {talent.city ? <><span className="dd-sep">·</span>{formatLocation(talent.city)}</> : null}
-                </p>
+                <div className="dd-sub">
+                  {talent.archetype && <DivisionMark division={talent.archetype} size="sm" onDark />}
+                  {talent.city ? <span className="dd-loc"> · {formatLocation(talent.city)}</span> : null}
+                </div>
               )}
               <div className="dd-name-row">
                 <h2 className="dd-name">{talent.name}</h2>

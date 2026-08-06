@@ -1,6 +1,6 @@
 export { AgencyCard, AgencyCardHeader, AgencyCardTitle, AgencyCardContent, AgencyCardFooter } from './AgencyCard';
 export { AgencyStatCard } from './AgencyStatCard';
-export { AgencyButton } from './AgencyButton';
+export { AgencyButton, DeclineButton } from './AgencyButton';
 export { AgencyEmptyState } from './AgencyEmptyState';
 
 // Canonical component kit primitives

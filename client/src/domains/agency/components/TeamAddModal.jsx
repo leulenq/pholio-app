@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { addAgencyTeamMember } from '../api/agency';
 import { ASSIGNABLE_ROLES } from './team-presence';
 import { useAgencyPermissions } from '../hooks/useAgencyPermissions';
-import { AgencyModal } from './ui';
+import { AgencyModal, AgencyButton } from './ui';
 
 const DEFAULT_ROLE = 'SCOUT';
 
@@ -52,10 +52,10 @@ export default function TeamAddModal({ open, onClose }) {
       className="tm-invite-modal"
       footer={(
         <>
-          <button type="button" className="tm-modal-cancel" onClick={handleClose}>Cancel</button>
-          <button type="submit" form="team-invite-form" className="tm-modal-submit" disabled={add.isPending}>
-            {add.isPending ? 'Sending…' : 'Send invitation'}
-          </button>
+          <AgencyButton variant="secondary" onClick={handleClose}>Cancel</AgencyButton>
+          <AgencyButton type="submit" form="team-invite-form" loading={add.isPending}>
+            Send invitation
+          </AgencyButton>
         </>
       )}
     >

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { updateInterview, cancelInterview } from '../api/agency';
 import { deriveInterviewState, TYPE_META, monogram, formatWhen } from './interview-state';
 import { MetaLine, Place } from './meta';
+import { AgencyButton } from './ui';
 
 export default function InterviewRow({ interview, index = 0 }) {
   const qc = useQueryClient();
@@ -79,11 +80,11 @@ export default function InterviewRow({ interview, index = 0 }) {
       </a>
     );
   } else if (state.primary === 'reschedule') {
-    primaryAction = <button className="iv-act iv-act--primary" onClick={() => setEditing('reschedule')}>Reschedule</button>;
+    primaryAction = <AgencyButton size="sm" onClick={() => setEditing('reschedule')}>Reschedule</AgencyButton>;
   } else if (state.primary === 'addlink') {
-    primaryAction = <button className="iv-act iv-act--primary" onClick={() => setEditing('addlink')}>Add link</button>;
+    primaryAction = <AgencyButton size="sm" onClick={() => setEditing('addlink')}>Add link</AgencyButton>;
   } else if (state.primary === 'complete') {
-    primaryAction = <button className="iv-act iv-act--primary" onClick={markComplete} disabled={patch.isPending}>Mark complete</button>;
+    primaryAction = <AgencyButton size="sm" onClick={markComplete} loading={patch.isPending}>Mark complete</AgencyButton>;
   }
 
   return (
