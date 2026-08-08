@@ -1,5 +1,24 @@
 # Pholio Market Position: Pressure-Testing the "Application Portal" Hypothesis
 
+> ## ⚠️ PARTIALLY SUPERSEDED — 2026-08-08
+>
+> **The wedge recommendation in this memo is falsified.** Sections 3, 4, and 6 of Part 4
+> recommend building FWA compliance infrastructure as Pholio's primary wedge. Subsequent
+> research read the actual statute (S9832) and DOL guidance and found the Act contains
+> **no record retention period, no books-and-records requirement, no duty to produce
+> records, no audit procedure, and no registry** — only that a separate written consent
+> exist. That is a DocuSign-and-a-folder job, not a software job. One year in: 67
+> registrants, **zero penalties, zero complaints, zero lawsuits** under the digital-replica
+> provisions.
+>
+> The competitive claim that "essentially no vendor is marketing compliance features" is
+> also misleading in context: the funded players (Vermillio $16M/Sony Music, Loti AI
+> $23M/Khosla, Kartel.ai) target entertainment/celebrity, where budgets actually exist.
+>
+> **The market research in Parts 1–3 remains valid and is unaffected.** For the current
+> recommendation, see
+> [`2026-08-08-pholio-strategic-decision.md`](2026-08-08-pholio-strategic-decision.md).
+
 **Date:** 2026-08-07
 **Question:** Should Pholio become a full agency operating system, a pure application
 portal, or something else — and does the market actually support the "application
