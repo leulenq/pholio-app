@@ -98,12 +98,6 @@ describe("agency route permission coverage", () => {
     const expectations = [
       ["POST", "/api/agency/open-call/links", "open_call.manage"],
       ["PATCH", "/api/agency/open-call/links/abc", "open_call.manage"],
-      ["POST", "/api/agency/boards/abc/rank", "matching.rank"],
-      [
-        "POST",
-        "/api/agency/boards/abc/candidates/def/decision",
-        "matching.decide",
-      ],
       ["POST", "/api/agency/roster/abc/measured", "roster.manage_status"],
       ["DELETE", "/api/agency/roster/abc/measured", "roster.manage_status"],
       ["PATCH", "/api/agency/setup/profile", "org.complete_onboarding"],
@@ -117,10 +111,7 @@ describe("agency route permission coverage", () => {
     }
   });
 
-  test("safe /api/agency reads resolve where a fairness/open-call view exists", () => {
-    expect(
-      resolveRoutePermission("GET", "/api/agency/boards/abc/fairness"),
-    ).toBe("matching.view_fairness");
+  test("safe /api/agency reads resolve where an open-call view exists", () => {
     expect(resolveRoutePermission("GET", "/api/agency/open-call/links")).toBe(
       "open_call.view",
     );

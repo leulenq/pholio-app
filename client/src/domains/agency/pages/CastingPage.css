@@ -254,17 +254,6 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bd-ink, #16130D) 22%, transparent);
 }
 
-/* View switch — Pipeline vs Fit Briefs. */
-.rr-viewswitch { display: inline-flex; gap: 4px; margin: 0 0 24px; padding: 4px; background: rgba(20, 17, 11, 0.04); border: 1px solid #ECE4D4; border-radius: 10px; }
-.rr-viewtab {
-  border: none; background: none; cursor: pointer; border-radius: 7px;
-  padding: 8px 18px; font-size: 12.5px; font-weight: 600; color: #6B6256;
-  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
-}
-.rr-viewtab:hover { color: #16130D; }
-.rr-viewtab--on { background: #FFFFFF; color: #16130D; box-shadow: 0 1px 3px rgba(20, 18, 14, 0.08); }
-.rr-viewtab:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
-
 /* ---------- THE CASTING RAIL ----------
    Three working columns separated by ledger rules — not chip tabs,
    not a gray-lane kanban. Soft outcomes live on the shelf below. */

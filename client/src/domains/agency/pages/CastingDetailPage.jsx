@@ -13,7 +13,6 @@ import {
 } from '@dnd-kit/core';
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
-import FitBriefsPanel from '../components/FitBriefs/FitBriefsPanel';
 import BoardIdentityEditor from '../components/BoardIdentityEditor';
 import { StatusText, MatchScore } from '../components/ui';
 import { DivisionMark } from '../components/status';
@@ -249,7 +248,6 @@ function CastingDetailPage() {
   const { boardId } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [view, setView] = useState('board');
   const [selected, setSelected] = useState(null);
   const [identityOpen, setIdentityOpen] = useState(false);
 
@@ -400,21 +398,7 @@ function CastingDetailPage() {
         </div>
       </header>
 
-      <div className="rr-viewswitch" role="tablist" aria-label="Board view">
-        {[['board', 'Pipeline'], ['briefs', 'Fit Briefs']].map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={view === key}
-            className={`rr-viewtab${view === key ? ' rr-viewtab--on' : ''}`}
-            onClick={() => setView(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {view === 'board' && (
+      {(
         <>
           {isLoading && (
             <div className="rr-rail" aria-hidden="true">
@@ -475,8 +459,6 @@ function CastingDetailPage() {
           )}
         </>
       )}
-
-      {view === 'briefs' && <FitBriefsPanel boardId={boardId} />}
 
       {board && (
         <BoardIdentityEditor board={board} open={identityOpen} onClose={() => setIdentityOpen(false)} />

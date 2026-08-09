@@ -395,23 +395,6 @@ const ROUTE_PERMISSION_RULES = [
     permission: "boards.assign_application",
   },
 
-  // Matching (decision-support ranking / booker decisions / fairness monitor)
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/rank$/,
-    permission: "matching.rank",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/candidates\/[^/]+\/decision$/,
-    permission: "matching.decide",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/fairness$/,
-    permission: "matching.view_fairness",
-  },
-
   // Open call links
   {
     method: "GET",
