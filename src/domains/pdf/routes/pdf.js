@@ -1184,7 +1184,6 @@ async function renderComposedView(req, res, data, isDemo) {
           plan,
           statsBlock,
           imagesById,
-          watermark: !profile.is_pro,
           baseUrl,
           printBleed,
           fontsCss,
@@ -1354,7 +1353,6 @@ async function renderStandardView(req, res, data, isDemo) {
       // profile.bust/waist/hips columns (audit P1-6).
       stats: buildCanonicalStats(profile),
       baseUrl,
-      watermark: !profile.is_pro,
     });
   } catch (renderError) {
     console.error("[renderStandardView] ERROR:", renderError.message);
@@ -1573,7 +1571,6 @@ function renderPdfView(req, res, data, isDemo) {
       images: gallery,
       hero,
       heightFeet: toFeetInches(profile.height_cm),
-      watermark: !profile.is_pro,
       theme: mergedTheme,
       themeKey: themeKey,
       baseUrl,
@@ -3359,10 +3356,6 @@ router.post(
         return res.status(403).json({ error: error || "Not authorized" });
       }
 
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
-      }
-
       if (!req.file) {
         return res.status(400).json({ error: "Logo file required" });
       }
@@ -3457,10 +3450,6 @@ router.post(
         return res.status(403).json({ error: error || "Not authorized" });
       }
 
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
-      }
-
       const { url, position, size } = req.body;
 
       if (!url || typeof url !== "string") {
@@ -3548,10 +3537,6 @@ router.delete(
 
       if (!authorized) {
         return res.status(403).json({ error: error || "Not authorized" });
-      }
-
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
       }
 
       // Load customizations

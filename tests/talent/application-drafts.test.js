@@ -1142,7 +1142,6 @@ describe("application drafts", () => {
       used: 1,
       limit: 5,
       remaining: 4,
-      unlimited: false,
     });
 
     const reusedKey = await auth(
@@ -1248,7 +1247,6 @@ describe("application drafts", () => {
       used: 2,
       limit: 5,
       remaining: 3,
-      unlimited: false,
     });
   });
 
@@ -1304,9 +1302,8 @@ describe("application drafts", () => {
       );
       expect(blocked.status).toBe(403);
       expect(blocked.body).toMatchObject({
-        error: "Monthly application limit reached",
+        error: "monthly_discovery_limit_reached",
         limit: 5,
-        upgradeRequired: true,
       });
       expect(blocked.body.current).toBeGreaterThanOrEqual(5);
       expect(

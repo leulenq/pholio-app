@@ -27,7 +27,6 @@ const {
 } = require("../../src/domains/talent/services/submission-disclosure-consent");
 const {
   mintClaim,
-  OPEN_CALL_EXEMPT_MONTHLY_CAP,
 } = require("../../src/domains/talent/services/open-call-claims");
 
 const SESSION_SECRET = require("../../src/config").sessionSecret;
@@ -387,7 +386,6 @@ describe("agency open call claims", () => {
         .set("Accept", "application/json"),
     );
     expect(res.status).toBe(200);
-    expect(res.body.data.exemptMonthlyCap).toBe(OPEN_CALL_EXEMPT_MONTHLY_CAP);
     expect(res.body.data.exemptUsed).toBe(0);
     expect(res.body.data.activeClaims).toEqual([
       expect.objectContaining({
@@ -430,8 +428,7 @@ describe("agency open call claims", () => {
         ),
     );
     expect(res.status).toBe(403);
-    expect(res.body.error).toBe("Monthly application limit reached");
-    expect(res.body.upgradeRequired).toBe(true);
+    expect(res.body.error).toBe("monthly_discovery_limit_reached");
     expect(res.body.activeClaims).toEqual([
       expect.objectContaining({ agencyId: invitingAgencyId }),
     ]);
@@ -521,7 +518,7 @@ describe("agency open call claims", () => {
         .send(submissionPayload(invitingAgencyId, `resubmit:${uuidv4()}`)),
     );
     expect(resubmit.status).toBe(403);
-    expect(resubmit.body.error).toBe("Monthly application limit reached");
+    expect(resubmit.body.error).toBe("monthly_discovery_limit_reached");
     expect(
       (
         await knex("applications")
@@ -531,11 +528,15 @@ describe("agency open call claims", () => {
     ).toBe("withdrawn");
   });
 
-  test("the monthly exemption cap downgrades further invited submissions", async () => {
-    // Simulate the cap being spent this month.
-    const capFillers = [];
-    for (let i = 0; i < OPEN_CALL_EXEMPT_MONTHLY_CAP; i += 1) {
-      capFillers.push({
+  // The open call path is free and unlimited, always. No monthly ceiling
+  // downgrades an invited submission — an agency that puts a Pholio link on
+  // its own channels must stay reachable through it.
+  test("invited submissions stay exempt with no monthly ceiling", async () => {
+    // Simulate a month that already spent far more exempt submissions than
+    // the retired cap of 3, on top of a fully-spent discovery allowance.
+    const priorExempt = [];
+    for (let i = 0; i < 6; i += 1) {
+      priorExempt.push({
         id: uuidv4(),
         profile_id: profileId,
         agency_id: otherAgencyId,
@@ -551,7 +552,7 @@ describe("agency open call claims", () => {
         completed_at: new Date().toISOString(),
       });
     }
-    await knex("application_submission_requests").insert(capFillers);
+    await knex("application_submission_requests").insert(priorExempt);
     await fillDiscoveryQuota(5);
 
     const { claim } = await mintClaim(knex, {
@@ -567,19 +568,19 @@ describe("agency open call claims", () => {
       request(app)
         .post("/api/talent/applications")
         .set("Accept", "application/json")
-        .send(submissionPayload(thirdAgencyId, `capped:${uuidv4()}`)),
+        .send(submissionPayload(thirdAgencyId, `uncapped:${uuidv4()}`)),
     );
-    expect(res.status).toBe(403);
-    expect(res.body.error).toBe("open_call_exemption_cap_reached");
+    expect(res.status).toBe(200);
 
-    // The claim survives untouched for next month.
-    const survivingClaim = await knex("agency_open_call_claims")
+    const quotaEvent = await knex("application_submission_requests")
+      .where({ profile_id: profileId, application_id: res.body.id })
+      .first();
+    expect(Boolean(quotaEvent.quota_exempt)).toBe(true);
+
+    const consumedClaim = await knex("agency_open_call_claims")
       .where({ profile_id: profileId, agency_id: thirdAgencyId })
       .first();
-    expect(survivingClaim.status).toBe("active");
-    await knex("agency_open_call_claims")
-      .where({ id: survivingClaim.id })
-      .delete();
+    expect(consumedClaim.status).toBe("consumed");
   });
 
   test("agency link management lists, creates, and revokes with claim cascade", async () => {

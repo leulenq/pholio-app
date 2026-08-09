@@ -2,14 +2,15 @@
 
 const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
-const { utcMonthWindow } = require("./application-quota");
 
 // How long a claim stays redeemable after the talent (re)arrives.
 const CLAIM_TTL_DAYS = 14;
-// Ceiling on quota-exempt submissions per profile per UTC month. Bounds the
-// "harvest every agency's public link" strategy; genuine arrivals from one or
-// two agencies are untouched.
-const OPEN_CALL_EXEMPT_MONTHLY_CAP = 3;
+// There is no monthly ceiling on open-call submissions. The open-call path is
+// free and unlimited, always — it is the product's core distribution promise,
+// and an agency that puts a Pholio link on its own channels must be reachable
+// through it. Abuse is already bounded structurally: a claim requires an
+// arrival on that agency's own live link, and one claim per (agency, profile)
+// can ever be consumed.
 
 const CLAIM_STATUSES = {
   ACTIVE: "active",
@@ -295,32 +296,8 @@ async function consumeClaim(trx, claimId, applicationId) {
   }
 }
 
-/** Quota-exempt submissions completed in the current UTC month. */
-async function countExemptThisMonth(db, profileId, referenceDate = new Date()) {
-  const { periodStart, periodEnd } = utcMonthWindow(referenceDate);
-  let query = db("application_submission_requests")
-    .where({ profile_id: profileId, status: "completed", quota_exempt: true })
-    .whereNotNull("completed_at");
-  if (db.client.config.client === "sqlite3") {
-    query = query
-      .whereRaw("datetime(completed_at) >= datetime(?)", [
-        periodStart.toISOString(),
-      ])
-      .whereRaw("datetime(completed_at) < datetime(?)", [
-        periodEnd.toISOString(),
-      ]);
-  } else {
-    query = query
-      .where("completed_at", ">=", periodStart)
-      .where("completed_at", "<", periodEnd);
-  }
-  const row = await query.count({ count: "*" }).first();
-  return Number(row?.count || 0);
-}
-
 module.exports = {
   CLAIM_TTL_DAYS,
-  OPEN_CALL_EXEMPT_MONTHLY_CAP,
   CLAIM_STATUSES,
   LINK_STATUSES,
   hasOpenCallSchema,
@@ -335,5 +312,4 @@ module.exports = {
   listActiveClaims,
   resolveActiveClaim,
   consumeClaim,
-  countExemptThisMonth,
 };

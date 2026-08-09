@@ -137,7 +137,7 @@ function canResumeDraft(draft) {
 export default function ApplicationsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { profile, subscription, images } = useAuth();
+  const { profile, images } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
@@ -294,8 +294,8 @@ export default function ApplicationsView() {
     const now = new Date();
     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
   }).length;
-  const isPro = !!subscription?.isPro;
-  const monthlyLimitLabel = isPro ? 'Unlimited' : `${monthCount}/5`;
+  // The discovery allowance is identical on every plan — no tier lifts it.
+  const monthlyLimitLabel = `${monthCount}/5`;
 
   const openApplyFlow = (agency = null) => {
     const params = agency?.id ? `?agency=${encodeURIComponent(agency.id)}` : '?new=1';

@@ -700,20 +700,16 @@ export default function ApplyExperience() {
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
     },
     onError: (err) => {
-      if (err?.data?.upgradeRequired) {
+      if (err?.data?.error === 'monthly_discovery_limit_reached') {
         const claims = err?.data?.activeClaims || [];
-        if (err?.data?.error === 'open_call_exemption_cap_reached') {
-          toast.error(
-            "You've used this month's invited submissions. Invited submissions now count toward your monthly limit.",
-          );
-        } else if (claims.length > 0) {
-          // Never upsell past a free entitlement the talent already holds.
-          toast.error(
-            `Monthly discovery limit reached. You can still submit to ${claims[0].agencyName} — they invited you.`,
-          );
-        } else {
-          toast.error('Monthly discovery limit reached.');
-        }
+        // The limit is anti-spam and applies to every plan, so there is
+        // nothing to upsell — point at the open-call path, which is free
+        // and unlimited.
+        toast.error(
+          claims.length > 0
+            ? `Monthly discovery limit reached. You can still submit to ${claims[0].agencyName} — they invited you.`
+            : "Monthly discovery limit reached. Submissions through an agency's own open call link don't count toward it.",
+        );
         return;
       }
       const code = err?.data?.error;
@@ -1187,11 +1183,9 @@ export default function ApplyExperience() {
   );
   const monthlyLimitLabel = openCallClaim
     ? `Invited by ${openCallClaim.agencyName} — this submission won't use your monthly allowance`
-    : applicationQuota?.unlimited
-      ? 'Unlimited submissions this month'
-      : applicationQuota
-        ? `${applicationQuota.used}/${applicationQuota.limit} discovery submissions this month`
-        : 'Submission limit unavailable';
+    : applicationQuota
+      ? `${applicationQuota.used}/${applicationQuota.limit} discovery submissions this month`
+      : 'Submission limit unavailable';
 
   const visibleImages = useMemo(
     () => authImages.filter((image) => !image.exclude_from_agency && imageUrl(image)),

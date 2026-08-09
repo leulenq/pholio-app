@@ -1155,8 +1155,7 @@ router.put(
     // Social Handle Parsing & URLs. Social accounts live in their own table and are
     // written independently of the profile row (the client also mutates them via the
     // OAuth endpoints), so this runs before the profile transaction.
-    const isPro = profile.is_pro || false;
-    await saveProfileSocialFields(profile.id, data, isPro);
+    await saveProfileSocialFields(profile.id, data);
 
     // Remove social fields from updateData since they no longer exist on profiles table
     delete updateData.instagram_handle;

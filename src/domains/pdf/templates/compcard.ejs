@@ -324,23 +324,7 @@
       margin-top: 0;
     }
     
-    /* Watermark - Free Users Only (Bottom Right Corner) */
-    .comp-card__watermark {
-      position: absolute;
-      bottom: 0.15in;
-      right: 0.35in;
-      font-family: var(--stats-font);
-      font-size: 6px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      font-weight: 500;
-      color: var(--text-color);
-      opacity: 0.35;
-      pointer-events: none;
-      z-index: 10;
-    }
-    
-    /* Agency Logo - Pro Users Only */
+    /* Agency Logo */
     .comp-card__agency-logo {
       position: absolute;
       pointer-events: none;
@@ -426,21 +410,21 @@
       opacity: 0.6;
     }
     
-    /* Image Enhancement - Pro Only */
-    .comp-card--pro .comp-card__hero img,
-    .comp-card--pro .comp-card__gallery-item img {
+    /* Image Enhancement */
+    .comp-card__hero img,
+    .comp-card__gallery-item img {
       filter: contrast(1.05) saturate(1.1) brightness(1.02);
     }
-    
-    .comp-card--pro .comp-card__hero {
+
+    .comp-card__hero {
       box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.05);
     }
-    
-    .comp-card--pro .comp-card__gallery-item {
+
+    .comp-card__gallery-item {
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
-    
-    /* Extended Content Sections - Pro Only */
+
+    /* Extended Content Sections */
     .comp-card__extended {
       margin-top: 0.1in;
       padding-top: 0.1in;
@@ -497,7 +481,7 @@
     const gridCols = (typeof theme !== 'undefined' && theme && theme.layout && theme.layout.imageGrid && theme.layout.imageGrid.cols) ? theme.layout.imageGrid.cols : 2;
     const gridRows = (typeof theme !== 'undefined' && theme && theme.layout && theme.layout.imageGrid && theme.layout.imageGrid.rows) ? theme.layout.imageGrid.rows : 2;
   %>
-  <div class="comp-card <%= typeof layoutClasses !== 'undefined' ? layoutClasses : '' %> <%= isPro ? 'comp-card--pro' : '' %>" 
+  <div class="comp-card <%= typeof layoutClasses !== 'undefined' ? layoutClasses : '' %>"
        style="
          --bg-color: <%= bgColor %>;
          --text-color: <%= textColor %>;
@@ -515,31 +499,31 @@
     <header class="comp-card__header">
       <h1 class="comp-card__name" style="font-family: var(--name-font); color: var(--text-color);"><%= profile.first_name %> <%= profile.last_name %></h1>
       <div class="comp-card__location" style="font-family: var(--stats-font);"><%= profile.city || 'Location' %></div>
-      <div class="comp-card__stats <%= isPro ? 'comp-card__stats--advanced' : '' %>" style="font-family: var(--stats-font);">
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+      <div class="comp-card__stats comp-card__stats--advanced" style="font-family: var(--stats-font);">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Height</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= heightFeet %> (<%= profile.height_cm %> cm)</span>
         </div>
         <% if (profile.measurements) { %>
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Measurements</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.measurements %></span>
         </div>
         <% } %>
         <% if (profile.gender) { %>
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Gender</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.gender %></span>
         </div>
         <% } %>
         <% if (profile.age) { %>
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Age</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.age %></span>
         </div>
         <% } %>
         <% if (profile.weight_kg || profile.weight_lbs) { %>
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Weight</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);">
             <% if (profile.weight_kg && profile.weight_lbs) { %>
@@ -553,25 +537,25 @@
         </div>
         <% } %>
         <% if (profile.dress_size) { %>
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Dress Size</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.dress_size %></span>
         </div>
         <% } %>
         <% if (profile.hair_length) { %>
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Hair Length</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.hair_length %></span>
         </div>
         <% } %>
         <% if (profile.skin_tone) { %>
-        <div class="comp-card__stat <%= isPro ? 'comp-card__stat--advanced' : '' %>">
+        <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Skin Tone</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.skin_tone %></span>
         </div>
         <% } %>
-        <% if (isPro) { %>
-        <!-- Advanced Stats - Pro Only -->
+        <%/* Extended stats. Shown for every account — what an agency reads
+             off a comp card must not depend on the talent's plan. */%>
         <% if (profile.shoe_size) { %>
         <div class="comp-card__stat comp-card__stat--advanced">
           <span class="comp-card__stat-label">Shoe Size</span>
@@ -595,7 +579,6 @@
           <span class="comp-card__stat-label">Age Range</span>
           <span class="comp-card__stat-value" style="color: var(--text-color);"><%= profile.age_range %></span>
         </div>
-        <% } %>
         <% } %>
       </div>
     </header>
@@ -634,8 +617,8 @@
       </div>
       <% } %>
       
-      <!-- Extended Content Sections - Pro Only -->
-      <% if (isPro) { %>
+      <%/* Extended content sections. Every account gets all of them — the
+           card an agency receives is identical regardless of plan. */%>
       <div class="comp-card__extended">
         <% if (profile.languages) { %>
         <div class="comp-card__section">
@@ -695,7 +678,7 @@
           <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Social Media</div>
           <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
             <% if (profile.instagram_handle) { %>
-              <% if (isPro && profile.instagram_url) { %>
+              <% if (profile.instagram_url) { %>
                 <a href="<%= profile.instagram_url %>" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">Instagram: @<%= profile.instagram_handle %></a>
               <% } else { %>
                 Instagram: @<%= profile.instagram_handle %>
@@ -703,7 +686,7 @@
               <% if (profile.twitter_handle || profile.tiktok_handle) { %><br><% } %>
             <% } %>
             <% if (profile.twitter_handle) { %>
-              <% if (isPro && profile.twitter_url) { %>
+              <% if (profile.twitter_url) { %>
                 <a href="<%= profile.twitter_url %>" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">Twitter: @<%= profile.twitter_handle %></a>
               <% } else { %>
                 Twitter: @<%= profile.twitter_handle %>
@@ -711,7 +694,7 @@
               <% if (profile.tiktok_handle) { %><br><% } %>
             <% } %>
             <% if (profile.tiktok_handle) { %>
-              <% if (isPro && profile.tiktok_url) { %>
+              <% if (profile.tiktok_url) { %>
                 <a href="<%= profile.tiktok_url %>" target="_blank" rel="noopener" style="color: var(--accent-color); text-decoration: underline;">TikTok: @<%= profile.tiktok_handle %></a>
               <% } else { %>
                 TikTok: @<%= profile.tiktok_handle %>
@@ -758,33 +741,10 @@
         </div>
         <% } %>
       </div>
-      <% } else { %>
-      <!-- Free Users: Social Media as Text Only -->
-      <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
-      <div class="comp-card__extended">
-        <div class="comp-card__section">
-          <div class="comp-card__section-title" style="font-family: var(--stats-font); color: var(--text-color);">Social Media</div>
-          <div class="comp-card__section-content" style="font-family: var(--stats-font); color: var(--text-color);">
-            <% if (profile.instagram_handle) { %>
-              Instagram: @<%= profile.instagram_handle %>
-              <% if (profile.twitter_handle || profile.tiktok_handle) { %><br><% } %>
-            <% } %>
-            <% if (profile.twitter_handle) { %>
-              Twitter: @<%= profile.twitter_handle %>
-              <% if (profile.tiktok_handle) { %><br><% } %>
-            <% } %>
-            <% if (profile.tiktok_handle) { %>
-              TikTok: @<%= profile.tiktok_handle %>
-            <% } %>
-          </div>
-        </div>
-      </div>
-      <% } %>
-      <% } %>
     </div>
-    
-    <!-- QR Code - Pro Only (Bottom Left) -->
-    <% if (isPro && qrCode) { %>
+
+    <!-- QR Code (Bottom Left) -->
+    <% if (qrCode) { %>
     <div class="comp-card__qr">
       <div class="comp-card__qr-code">
         <img src="<%= qrCode %>" alt="Portfolio QR Code">
@@ -793,13 +753,8 @@
     </div>
     <% } %>
     
-    <!-- Watermark - Free Users Only (Bottom Right Corner) -->
-    <% if (watermark) { %>
-    <div class="comp-card__watermark" style="font-family: var(--stats-font); color: var(--text-color);">ZipSite</div>
-    <% } %>
-    
-    <!-- Agency Logo - Pro Users Only -->
-    <% if (isPro && agencyLogo && agencyLogo.path) { %>
+    <!-- Agency Logo -->
+    <% if (agencyLogo && agencyLogo.path) { %>
     <div class="comp-card__agency-logo comp-card__agency-logo--<%= agencyLogo.position || 'bottom-right' %> comp-card__agency-logo--<%= agencyLogo.size || 'small' %>">
       <% 
         const logoUrl = agencyLogo.type === 'url' 

@@ -72,15 +72,14 @@ const {
 } = require("../../../shared/lib/submission-retention");
 const {
   loadApplicationQuota,
+  MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
 } = require("../services/application-quota");
 const {
-  OPEN_CALL_EXEMPT_MONTHLY_CAP,
   hasOpenCallSchema,
   ensureClaimFromSession,
   listActiveClaims,
   resolveActiveClaim,
   consumeClaim,
-  countExemptThisMonth,
 } = require("../services/open-call-claims");
 const {
   buildOpenCallDisclosure,
@@ -391,7 +390,6 @@ router.get(
       success: true,
       data: {
         ...quota,
-        exemptMonthlyCap: OPEN_CALL_EXEMPT_MONTHLY_CAP,
         activeClaims: activeClaims.map(serializeClaim),
       },
     });
@@ -720,42 +718,33 @@ router.post(
     if (openCallReady) {
       await ensureClaimFromSession(knex, req, profile.id);
     }
-    if (!profile.is_pro) {
-      const quota = await loadApplicationQuota(knex, profile);
-      if (quota.remaining === 0) {
-        const preflightClaim = openCallReady
-          ? await knex("agency_open_call_claims")
-              .where({
-                profile_id: profile.id,
-                agency_id: agencyId,
-                status: "active",
-              })
-              .first()
-          : null;
-        const exemptCapReached =
-          openCallReady &&
-          (await countExemptThisMonth(knex, profile.id)) >=
-            OPEN_CALL_EXEMPT_MONTHLY_CAP;
-        if (!preflightClaim || exemptCapReached) {
-          const activeClaims = openCallReady
-            ? await listActiveClaims(knex, profile.id)
-            : [];
-          return res.status(403).json({
-            success: false,
-            error:
-              preflightClaim && exemptCapReached
-                ? "open_call_exemption_cap_reached"
-                : "Monthly application limit reached",
-            message:
-              preflightClaim && exemptCapReached
-                ? "You have used this month's invited submissions. Invited submissions now count toward your monthly limit."
-                : "Monthly application limit reached",
-            limit: quota.limit,
-            current: quota.used,
-            upgradeRequired: true,
-            activeClaims: activeClaims.map(serializeClaim),
-          });
-        }
+    // The discovery limit applies to every account identically — it is an
+    // anti-spam ceiling, not a commercial lever, so there is nothing to
+    // upgrade to and the response never says otherwise.
+    const preflightQuota = await loadApplicationQuota(knex, profile);
+    if (preflightQuota.remaining === 0) {
+      const preflightClaim = openCallReady
+        ? await knex("agency_open_call_claims")
+            .where({
+              profile_id: profile.id,
+              agency_id: agencyId,
+              status: "active",
+            })
+            .first()
+        : null;
+      if (!preflightClaim) {
+        const activeClaims = openCallReady
+          ? await listActiveClaims(knex, profile.id)
+          : [];
+        return res.status(403).json({
+          success: false,
+          error: "monthly_discovery_limit_reached",
+          message:
+            "You have used this month's discovery submissions. Submitting through an agency's own open call link is always unlimited.",
+          limit: preflightQuota.limit,
+          current: preflightQuota.used,
+          activeClaims: activeClaims.map(serializeClaim),
+        });
       }
     }
 
@@ -908,9 +897,11 @@ router.post(
     );
     try {
       await knex.transaction(async (trx) => {
+        // Row-locked only to serialize concurrent submissions. The quota does
+        // not read the subscription tier — no tier lifts it.
         let quotaProfileQuery = trx("profiles")
           .where({ id: profile.id })
-          .select("id", "is_pro");
+          .select("id");
         if (trx.client.config.client === "pg") {
           quotaProfileQuery = quotaProfileQuery.forUpdate();
         }
@@ -921,21 +912,15 @@ router.post(
         );
         // Authoritative open-call resolution: an active claim for this exact
         // agency exempts this submission from the monthly discovery quota,
-        // bounded by the monthly exemption cap. The claim is consumed below
-        // in this same transaction. Nothing client-supplied participates.
+        // with no ceiling on how many such claims a talent may redeem. The
+        // claim is consumed below in this same transaction. Nothing
+        // client-supplied participates.
         let openCallClaim = null;
         if (openCallReady) {
           openCallClaim = await resolveActiveClaim(trx, profile.id, agencyId);
-          if (
-            openCallClaim &&
-            (await countExemptThisMonth(trx, profile.id)) >=
-              OPEN_CALL_EXEMPT_MONTHLY_CAP
-          ) {
-            openCallClaim = null;
-          }
         }
         const quotaExempt = Boolean(openCallClaim);
-        if (!quotaExempt && !quota.unlimited && quota.remaining === 0) {
+        if (!quotaExempt && quota.remaining === 0) {
           const error = new Error("Monthly application limit reached");
           error.code = "MONTHLY_APPLICATION_LIMIT";
           error.quota = quota;
@@ -1310,11 +1295,11 @@ router.post(
           : [];
         return res.status(403).json({
           success: false,
-          error: "Monthly application limit reached",
-          message: "Monthly submission limit reached. Pholio maintains a monthly quota to ensure agency submission quality and prevent spam.",
-          limit: error.quota?.limit || 5,
-          current: error.quota?.used || 5,
-          upgradeRequired: true,
+          error: "monthly_discovery_limit_reached",
+          message:
+            "You have used this month's discovery submissions. Submitting through an agency's own open call link is always unlimited.",
+          limit: error.quota?.limit ?? MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
+          current: error.quota?.used ?? MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
           activeClaims: activeClaims.map(serializeClaim),
         });
       }

@@ -22,7 +22,6 @@
                   .wordmark { front: rect, back: rect }   — the link target rects
     statsBlock  StatsBlock            — stats-formatter output (.lines, .inline)
     imagesById  object                — { [imageId]: image row }
-    watermark   boolean               — non-pro watermark overlay
     baseUrl     string                — origin for relative image paths
 
   Print conventions: @page 5.5in 8.5in margin 0, .comp-card-page wrapper
@@ -49,7 +48,6 @@
     const statsInline = (typeof statsBlock !== 'undefined' && statsBlock && statsBlock.inline) || '';
     const contactLine = (back.contact && back.contact.line) ? back.contact.line : '';
     const safeImagesById = (typeof imagesById !== 'undefined' && imagesById) ? imagesById : {};
-    const showWatermark = (typeof watermark !== 'undefined') ? Boolean(watermark) : true;
     const origin = (typeof baseUrl !== 'undefined' && baseUrl) ? baseUrl : '';
 
     // Print export: 0.125in bleed canvas (5.75 × 8.75 trim-plus-bleed).
@@ -157,7 +155,7 @@
     const editionActive = Boolean(edition || backStyle || backNameplate);
 
     // Dark-paper detection (linear luminance). For a light paper this yields
-    // false, so watermark/empty-cell overrides never fire on legacy renders.
+    // false, so the empty-cell override never fires on legacy renders.
     const hexLuminance = (hex) => {
       const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '').trim());
       if (!m) return 1;
@@ -339,22 +337,6 @@
       opacity: 0.85;
     }
 
-    .non-pro-mark {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-      font-family: 'Inter', sans-serif;
-      font-size: 34pt;
-      font-weight: 600;
-      letter-spacing: 0.5em;
-      text-transform: uppercase;
-      color: rgba(26,24,21,0.06);
-      transform: rotate(-32deg);
-    }
-
     /* (Removed: the hardcoded split-layout override block. It forced an
        unverified gold #C9A55A on 7.2pt contact type (≈2.2:1 on paper) and
        repositioned engine-solved geometry with !important — micro-type
@@ -365,7 +347,7 @@
        is byte-identical to the pre-editions template. Carries: tabular
        numerals on all stat values (front + back), the footline/tabular
        stat chrome, cell dividers + index numerals, the running-head
-       nameplate scale, and dark-paper watermark/empty-cell overrides. */%>
+       nameplate scale, and the dark-paper empty-cell override. */%>
   <style>
     .stat-value, .stat-line-front { font-variant-numeric: tabular-nums; }
 
@@ -413,9 +395,8 @@
     .back-name--running-head { letter-spacing: 0.24em; }
 
     <% if (paperIsDark) { %>
-    /* dark paper: the watermark + empty cells derive from light ink at low
-       alpha (the light-paper rgba values would vanish on a night field) */
-    .non-pro-mark { color: rgba(244,241,236,0.08); }
+    /* dark paper: empty cells derive from light ink at low alpha (the
+       light-paper rgba values would vanish on a night field) */
     .cell-empty { background: <%= muted %>; opacity: 0.22; }
     <% } %>
   </style>
@@ -507,7 +488,6 @@
       <% } %>
     <% }); %>
     <%/* Front carries no wordmark — the gold signature lives on the back. */%>
-    <% if (showWatermark) { %><div class="non-pro-mark">Pholio</div><% } %>
   </div>
   <% } else { %>
   <div class="comp-card-page" id="front">
@@ -549,7 +529,6 @@
     <% } %>
 
     <%/* Front carries no wordmark — the gold signature lives on the back. */%>
-    <% if (showWatermark) { %><div class="non-pro-mark">Pholio</div><% } %>
   </div>
   <% } %>
 
@@ -628,7 +607,6 @@
       </div>
     <% } %>
 
-    <%/* Back carries the gold wordmark signature; no watermark here. */%>
     <div class="abs wordmark" style="<%= rectStyle(layout.wordmark) %> align-items: flex-end;">
       <span>Pholio</span>
       <% if (wordmarkUrl) { %><span class="mark-url"><%= wordmarkUrl %></span><% } %>

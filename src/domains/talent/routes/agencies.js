@@ -15,11 +15,9 @@ router.get(
   "/",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await knex("profiles")
-      .where({ user_id: req.session.userId })
-      .first("is_pro");
-    const isPro = !!profile?.is_pro;
-
+    // Every vetted agency is visible to every talent, paid or not. Payment
+    // may only change what the talent keeps for themselves — never who they
+    // can reach.
     // 1. Fetch Agencies as organizations, not login rows
     const blockedAgencyIds = await getBlockedAgencyIds(
       knex,
@@ -73,9 +71,7 @@ router.get(
       ...agency,
       open_boards: parseOpenBoards(agency.open_boards),
     }));
-    const result = isPro ? normalizedAgencies : normalizedAgencies.slice(0, 20);
-
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: normalizedAgencies });
   }),
 );
 

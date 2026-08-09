@@ -756,3 +756,27 @@
 - Tests that assert on flat solid-colour fixtures can encode the bug. Three
   suites asserted a *uniform* skin-toned PNG flags for review — i.e. exactly the
   wall case. Synthesise texture when standing in for a photograph.
+## 2026-08-09 — A tier flag near a submission pipeline is a statutory question
+
+- Implementing the 2026-08 plan's compliance phase, `is_pro` turned out to gate
+  more than the plan's eleven listed sites. The plan predicted this ("assume
+  there are more") and was right: `pool-status.js` derived `DISCOVERABLE` from
+  `profile.is_pro && profile.is_discoverable`, making agency-side visibility a
+  purchased state — the one thing invariant 2 forbids outright. It had zero
+  callers, which is exactly why it was easy to miss and would have been easy to
+  re-wire later. Grep the flag, not the plan's line numbers.
+- The comp card gated far more than the plan's list. `isPro` also hid the whole
+  extended-content block: languages, nationality, union, physical
+  characteristics, specializations, notable work, representation. A free card
+  reaching an agency was missing seven sections and carried a watermark reading
+  **"ZipSite"**. When a payment flag sits on a template, read the whole template
+  — the listed violations were the visible half.
+- Copy is part of the fix. Removing the mechanic while leaving "Unlimited
+  discovery submissions" in the upsell, `upgradeRequired: true` in the 403, and
+  "this limit keeps agency inboxes high-quality" in the disclosure would have
+  left the product still *saying* the thing the code no longer does. Under FTC
+  §5 the claim is the violation.
+- Establish the test baseline against your own HEAD, not the local `main` ref.
+  `main` was 5 commits stale here, so a baseline worktree made three pre-existing
+  failures look like fresh regressions and cost a real detour. `git stash` on the
+  working tree is the honest comparison.

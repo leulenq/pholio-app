@@ -97,10 +97,11 @@ export const RightSidebar = ({ nextPriority }) => {
             </p>
 
             <ul className="space-y-3 mb-8">
+              {/* Studio+ sells only what the talent keeps for themselves.
+                  Never reach, ranking, review speed, or submission volume. */}
               {[
                 'Premium PDF themes',
                 'Advanced insights',
-                'Unlimited discovery submissions',
               ].map((benefit) => (
                 <li key={benefit} className="relative pl-3.5 text-xs text-slate-600">
                   <span
