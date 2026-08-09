@@ -73,17 +73,29 @@ Found by direct code inspection. Each violates an invariant above.
 | 10 | Open-call submissions capped at 3/month | `src/shared/lib/submission-program-content.js:22`, `open-call-claims.js` | Remove the cap entirely. It breaks the core distribution promise |
 | 11 | Quota rationale contradicts itself — claims inbox quality, then sells removal | `submission-program-content.js:22` | Rewrite to one honest sentence |
 
-### The discovery quota — recommended change
+### The discovery quota — REQUIRED change, not optional
 
 Current: 5 discovery submissions/month free; Studio+ unlimited
 (`application-quota.js:49`, `unlimited = Boolean(profile?.is_pro)`).
 
-Since not every agency runs an open call, discovery is sometimes the only route to a
-given agency — so for those agencies, the cap is differential access.
+**This is a statutory tripwire, not just a perception risk.** California's Krekorian
+Talent Scam Prevention Act defines a regulated "talent listing service" to include
+anyone who, **for a fee**, provides *"storage or maintenance for distribution or
+disclosure to a person represented as offering an audition or employment opportunity…
+of the artist's name, photograph, website, videotape, résumé, portfolio, or other
+promotional material"* (Cal. Labor Code §1701). Paying Pholio so that more agencies
+receive your submissions maps onto that language almost word for word.
 
-**Recommendation:** make the discovery cap a flat anti-spam limit that no tier lifts,
-and move Studio+ entirely onto talent-owned artifacts. This makes invariant 2 literally
-true and printable without an asterisk.
+Triggering it means: **$50,000 surety bond** filed before operating, mandatory contract
+disclosures, a **10-business-day cancellation right with full refund**, and
+recordkeeping obligations (Lab. Code §1703 et seq.).
+
+**Required fix:** make the discovery cap a flat anti-spam limit that **no tier lifts**,
+and move Studio+ entirely onto talent-owned artifacts that never touch the submission
+pipeline. Remove `unlimited = Boolean(profile?.is_pro)`.
+
+Massachusetts separately prohibits charging a fee merely to be *listed* with an agency
+(454 CMR 24), which is a narrower but directly on-point analog.
 
 **Also required:** audit every remaining `is_pro` branch against invariant 2. The ones
 above were found in fifteen minutes; assume there are more.
@@ -96,9 +108,9 @@ above were found in fifteen minutes; assume there are more.
 |---|---|
 | **Digitals freshness engine** | Capture-dated sets with states: current / aging / stale / undated. Never label undated "current." The retention spine |
 | **Guided refresh flow** | When a set ages out, walk through which shots to retake with framing and lighting guidance. A service, not a nag |
-| **Change-triggered invalidation** | New uploads showing a materially different look (hair, weight) prompt re-verification. Look changes invalidate a set regardless of calendar |
-| **Comp card import with vision extraction** | Upload an existing agency card → extract name, measurements, agency, shot types → pre-fill the structured profile. Biggest completion-rate lever available |
-| **Technical image QA** | Objective only: exposure, focus, framing, background, resolution, shot-type verification |
+| **Change-triggered invalidation** ⚠️ | **Revised for BIPA — see C3.** Must NOT work by comparing faces across photo sets. Implement as talent self-declaration ("my look changed") plus non-biometric signals (new capture date, hair-colour tag, declared measurement change). Face-geometry comparison across images is the single highest-risk feature in this plan |
+| **Comp card import with vision extraction** ⚠️ | Upload an existing agency card → extract name, measurements, agency, shot types → pre-fill the structured profile. Biggest completion-rate lever available. **Must extract text and layout only — no face template generation or storage** |
+| **Technical image QA** ⚠️ | Objective only: exposure, focus, framing, background, resolution, shot-type verification. **Must classify the photo, never the face** — no persisted embeddings, no cross-image identity linking (see C3) |
 | **"Where this appears" preview** | One screen showing what a public visitor, a discovery agency, and a submitted-to agency each see |
 | **Image rights record** | Photographer, licence, territory, expiry. Largely already in schema; nobody offers it to talent |
 | **Refresh-once, updates-everywhere** | Refreshing digitals improves standing across every future application |
@@ -382,10 +394,208 @@ untested — the difference between "agencies want structured intake" and "agenc
 
 ---
 
+---
+
+# PART C — US Legal Compliance
+
+Researched August 2026 against all 50 states. **This is a product-compliance checklist,
+not legal advice** — statutes and cases are cited so counsel can verify. Several
+positions below are reasonable-but-untested; those are flagged explicitly in C8.
+
+## C1. The four highest-risk items
+
+| # | Risk | Verdict |
+|---|---|---|
+| 1 | **Studio+ lifting the discovery cap** → California "talent listing service" (Lab. Code §1701) | **Remove the mechanic.** See A2. $50k bond, contract disclosures, 10-day refund right if triggered |
+| 2 | **"Appearance changed between sets"** → face-geometry comparison under Illinois BIPA | **Redesign before building.** $1,000 negligent / $5,000 reckless per violation, private right of action |
+| 3 | **Comp card vision extraction** → incidental face processing | Text and layout extraction only; no face templates |
+| 4 | **Any future AI-generated or AI-enhanced imagery** → NY Fashion Workers Act digital-replica consent | Build the separate consent gate *before* shipping any such feature |
+
+## C2. Talent agency licensing — Pholio is likely outside, but the line is untested
+
+Every state regime turns on **"procuring employment" for compensation**. Relevant
+statutes: California Talent Agencies Act (Lab. Code §§1700–1700.47 — the artist
+definition **expressly includes models**; licence + **$50,000 bond**); New York GBL
+Art. 11 §§170–194 (**$10,000 bond** for modeling agencies); Florida Stat. ch. 468
+Part VII; Illinois Private Employment Agency Act; Massachusetts 454 CMR 24;
+Pennsylvania general employment-agency licensing. **Texas repealed its Talent Agency
+Act effective 1 Sept 2011** — no state regime there. Ohio, Georgia and Tennessee have
+no dedicated talent-agency licensing.
+
+**Pholio stays outside these regimes only while it never:**
+- negotiates booking terms
+- represents talent to a hiring party
+- takes any percentage of a booking or fee
+- holds itself out as securing employment
+
+There is **no case law on a submission-routing SaaS platform**. This is a
+reasonable position, not a safe harbour. Risk is highest in CA and NY.
+
+## C3. Biometric privacy — the binding design constraint
+
+**Illinois BIPA (740 ILCS 14)** excludes *photographs* from the definition of
+biometric identifier — but courts have held that a **face-geometry template extracted
+from a photo is not itself a photograph** and therefore is not excluded
+(*Monroy v. Shutterfly*, N.D. Ill. 2017). So:
+
+- Storing photos → **outside** BIPA
+- Running facial-geometry extraction or matching on those photos → **inside** BIPA
+
+*Zellmer v. Meta Platforms* (9th Cir. 2024) held a face signature is not a biometric
+identifier unless actually capable of identifying the individual — which is the legal
+basis for the design rule below. It is persuasive, **not binding on Illinois state
+courts**.
+
+Obligations if triggered (§15): published retention/destruction policy (destroy within
+3 years of last interaction), **written informed consent before collection** (electronic
+signature suffices as of Pub. Act 103-0769, Aug 2024), no sale or disclosure, reasonable
+security. Damages: **$1,000 per negligent / $5,000 per reckless violation plus fees**.
+The 2024 amendment made repeat collection by the same method a *single* violation,
+which reduces but does not remove exposure.
+
+Parallel regimes: **Texas CUBI** (Bus. & Com. Code §503.001 — same conduct, AG-only
+enforcement, up to $25,000 per violation); **Colorado CPA** biometric amendment (eff.
+1 July 2025, AG-only); **Washington MHMDA** (broader than HB 1493 — includes facial
+imagery, and carries a private right of action via the state Consumer Protection Act).
+
+### The design rule
+
+> **Classify the photo, never the face.** Image quality, exposure, blur, framing,
+> background and shot-type detection must operate as generic computer-vision
+> classification that never produces or persists a per-person biometric template and
+> cannot re-identify an individual. **No stored face embeddings. No cross-image
+> identity linking.**
+
+Document this architecture decision explicitly — it is the compliance rationale.
+
+Freshness tracking, the spec registry, and eligibility pre-filtering need **only
+metadata and non-biometric classification** — capture dates, shot-type tags, resolution,
+quality scores. None of them require touching biometric identification.
+
+If appearance-change detection is ever built with face comparison, it must be an
+explicit opt-in feature with its own BIPA-style notice, consent and retention flow, and
+should compare-and-discard rather than persist templates.
+
+## C4. State privacy laws
+
+Roughly 19–20 states have comprehensive privacy statutes in force as of August 2026
+(CA, VA, CO, CT, UT, IA, IN, TN, MT, OR, TX, FL, DE, NH, NJ, NE, MN, MD, RI, KY), all
+Virginia-style: access, correction, deletion, portability, opt-out of sale and targeted
+advertising, **opt-in consent for sensitive data**, and a privacy notice.
+
+- A bare photograph is generally **not** sensitive data (CCPA and VCDPA both carve out
+  photos). It becomes sensitive **once processed into a biometric template used to
+  identify someone** — the same line as C3.
+- Most states exempt businesses below ~$25M revenue / 100,000 consumers. CCPA's
+  2026 inflation-adjusted threshold is **$26,625,000**.
+- **Texas and Nebraska have no revenue or volume threshold** — they exempt only
+  federally-defined small businesses. **Texas obligations can apply at any size.**
+- A truthful privacy notice is required regardless of threshold; every state AG can act
+  on a materially false privacy claim under general deceptive-practices law.
+
+## C5. Minors
+
+COPPA applies to services directed to under-13s or with actual knowledge of collecting
+their data. Pholio's 18+ posture keeps it outside — **provided under-18 use is never
+knowingly permitted or facilitated.** The FTC's 25 Feb 2026 COPPA Policy Statement
+encourages age-assurance technology and offers enforcement discretion where verification
+data is not retained or repurposed.
+
+Keep the DOB field plus affirmative 18+ attestation as the baseline. If age-assurance is
+added, **do not retain or repurpose that data**.
+
+Allowing minors later would trigger the full child-performer regime state by state — NY
+Child Performer Permit, employer Certificate to Employ, and **15% of gross earnings into
+a trust account** (NY EPTL Art. 7; 12 NYCRR §186), plus Coogan-style statutes in CA,
+LA and others. That is a dedicated compliance build, not a toggle. This reinforces the
+A4 removal of off-platform minor talent records.
+
+## C6. Right of publicity and likeness
+
+No federal right; state-by-state statute and common law. NY Civil Rights Law §§50–51
+(written consent required for advertising or trade use). Cal. Civil Code §3344.
+Post-mortem terms vary widely (NY 40 years, CA 70, Indiana 100).
+
+Three consents must be **separate**, not bundled:
+
+1. Transmission of images to the specific agency the talent applies to — inherent in the
+   submission action, but capture it explicitly
+2. **Any Pholio-initiated use** — marketing, success stories, social posts, investor
+   materials. Separate opt-in, never covered by general ToS acceptance
+3. **Any AI-generated or enhanced likeness** — per NY Fashion Workers Act, must be
+   separate and specific, stating scope, purpose, pay and duration. Routine colour
+   correction and minor retouching are excluded. A power of attorney cannot authorise it
+
+Related 2024–26 developments: Cal. AB 1836 (deceased performers, eff. 1 Jan 2026),
+AB 2602 (living performers, performances fixed on/after 1 Jan 2025), Tennessee ELVIS
+Act (adds voice).
+
+Third-party AI vendors processing images must be scoped to **processing only**, never
+publicity use.
+
+## C7. FTC
+
+- **Deception (§5).** No claim implying Studio+ improves visibility, ranking, review
+  speed, or selection odds. No success-rate or discovery-odds claim without
+  substantiation. The FTC's **December 2025 Consumer Alert on virtual casting-call
+  scams** states plainly that paying to get a job is a scam signal — a live enforcement
+  posture, directly relevant to how any paid tier is worded.
+- **Endorsement Guides** (16 C.F.R. Part 255, rev. 2023). Testimonials and agency logos
+  must be truthful and substantiated; cannot publish only favourable reviews; material
+  connections disclosed.
+- **Auto-renewal.** The FTC's 2024 click-to-cancel rule was **vacated by the Eighth
+  Circuit on 8 July 2025**, but **ROSCA (15 U.S.C. §8403) remains fully in force**:
+  clear and conspicuous disclosure before billing, express informed consent, and a
+  simple cancellation mechanism. The FTC issued a fresh ANPRM in March 2026 (comments
+  closed April 2026), so build Studio+ billing to the ROSCA standard now rather than
+  betting on non-enforcement.
+
+## C8. Where the law is genuinely unsettled
+
+State these honestly rather than assuming safety:
+
+- Whether a submission-routing platform with no negotiation and no commission is a
+  "talent agency" under CA/NY/FL/IL/MA — **no case law on point**
+- Whether image-quality and shot-type classifiers that cannot re-identify a person fall
+  outside BIPA — rests on *Zellmer*, persuasive but not binding on Illinois state courts,
+  and Illinois plaintiffs' firms have not conceded it
+- Whether NY's Fashion Workers Act "Model Management Company" definition could reach a
+  platform rather than only the agencies on it — untested, no DOL platform guidance
+- The final shape of FTC negative-option rulemaking
+
+## C9. Accessibility
+
+No DOJ Title III web regulation exists for private commercial sites as of August 2026 —
+the 2024 rule and its April 2026 extension apply to **Title II government entities**.
+But Title III litigation is high-frequency: **~4,300+ website accessibility suits in
+2024**, with courts treating **WCAG 2.1/2.2 Level AA** as the de facto standard.
+
+Target WCAG 2.1/2.2 AA across the portfolio builder, comp card viewer, and PDF exports —
+alt text, contrast, keyboard navigation, labelled forms, accessible exports. An
+image-heavy consumer platform is a standard target profile.
+
+## C10. Compliance additions to the build
+
+Beyond the A2 fixes, these are required work:
+
+- Written biometric retention/destruction policy **if** any face-derived feature ships
+- Separate consent flows: agency transmission · Pholio marketing use · AI likeness
+- Privacy notice covering the ~20 comprehensive-privacy states, with access, correction,
+  deletion, portability and opt-out rights
+- ROSCA-standard Studio+ billing: pre-purchase disclosure, express consent, self-service
+  cancellation
+- WCAG 2.1/2.2 AA across talent-facing surfaces and PDF output
+- Marketing copy review against FTC deception and endorsement standards
+- Age attestation retained; any future age-assurance data not repurposed
+
+---
+
 # Sequencing
 
-**Now — compliance.** A2 fixes 1–8, 10, 11. Mostly one-line changes. Until these ship,
-the stated principle is not true and the disclosure text tells users the opposite.
+**Now — compliance.** A2 fixes 1–8, 10, 11, **plus removing the Studio+ discovery-cap
+lift** (C1 item 1 — a statutory tripwire, not a preference). Mostly one-line changes.
+Until these ship, the stated principle is not true and the disclosure text tells users
+the opposite.
 
 **Next — removals.** A4 removal list plus A3 removals. Reduces surface area roughly
 30–40% with no loss to anything that helps validate the business.
