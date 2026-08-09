@@ -301,16 +301,84 @@ has makeup."* Legally clean, and only possible because of the registry.
 - **Agencies:** *"Every applicant arrives conforming to your spec, current, and
   comparable — and you never have to write a rejection email again."*
 
-## B6. Competitive warning
+## B6. Snapcast teardown — completed 2026-08-08
 
-**Snapcast** (`getsnapcast.com`) already runs white-labeled standardized intake for
-**Ford and State Management**, collecting a common field set across agency instances.
-This is the closest direct competitor found in any research pass. A user review suggests
-thin adoption ("very few agencies use this app").
+**SnapCast Corp**, Boonton NJ. White-labeled intake at `{agency}.getsnapcast.com`.
+Confirmed live at **Ford Models, State Management, Nomad Management, and 28 Models**.
+Ford applicants have a Snapcast account created automatically and are told Ford will
+review their Snapcast profile — the same open-call→account conversion Pholio is built
+around.
 
-**Do a teardown before committing.** Sign up as talent; observe the agency-side flow if
-possible. If they have built the registry concept, the wedge narrows to capture and
-freshness. If they are a form with a shared schema, the gap is as wide as it appears.
+### Finding 1 — they standardized downward, not per-agency
+
+Three agency instances compared field by field:
+
+| | Ford | Nomad | 28 Models |
+|---|---|---|---|
+| Photo count | 4 | 4 | 4 |
+| Shots | close-up, profile, waist-up, full length | close-up, waist-up, full length, profile | close-up, waist-up, full length, shoulder-up, profile |
+| File limit | 3MB | 3MB | 3MB |
+| Instructions | no makeup, form-fitting, skinny jeans + tank | no makeup, hair pulled back, don't pose, plain white wall | unedited, plain background, natural light, no filters |
+
+**One template, resold.** Snapcast did not encode each agency's real requirements — it
+imposed its own and made agencies conform. It structurally cannot serve Elite (6 shots
+including a "personality picture"), Storm or Models 1 (3 shots, explicit swimwear ban),
+or any agency whose published spec differs from Snapcast's four.
+
+**The Spec Registry thesis is intact.** Nobody has built it, including the one company
+already occupying this niche.
+
+### Finding 2 — monetization inverts every invariant in A1
+
+From their Terms of Service, verbatim:
+
+> "Your profile information is visible only to those agents to whom you submit within
+> the 30-day period… At the expiry of the 30-day period, your profile then goes into a
+> SnapCast general population ('GenPoP') folder where it remains—free of charge—for an
+> additional 30-day period of time, during which it is visible to all agents and scouts
+> in the SnapCast network."
+
+After 60 days, **premium is required for continued visibility to agencies and for
+updating your own profile.** Paying to be seen, and paying to stay current. This is the
+Casting Networks class-action shape.
+
+### Finding 3 — the talent side has already collapsed
+
+**2.1 / 5 across 48 reviews.** Recurring complaints: six months with no result, premium
+called a "complete waste of money," broken password recovery, profile images not
+viewable, and that the app "appears to be attempting to profit off young people
+interested in modeling careers." Same trajectory as ModelManagement.com (2.0/5), Nine9
+(BBB "D"), and Model Mayhem.
+
+### Finding 4 — lineage
+
+The app is "licensed software of **Bookt, LLC**" — the dead talent app identified in
+earlier research ($4.99/mo, last shipped July 2020, three ratings). Snapcast is the same
+operator's second attempt, failing on the talent side the same way.
+
+### What this changes
+
+**Positive, and substantive.** Ford, State Management, Nomad and 28 Models each placed a
+third-party white-labeled intake link on their own channels. That is real evidence for
+the assumption everything else rests on — **agencies will do this.** It no longer rests
+solely on one FWB relationship.
+
+**The wedge is unoccupied.** Snapcast holds the distribution idea but shipped a generic
+form with pay-to-be-seen attached. Per-agency specs, guided capture, freshness, and
+portability are untouched.
+
+**It is a live demonstration of the cost of violating A1.** Snapcast charges for
+visibility and for profile updates and has 2.1 stars with users calling it predatory.
+The compliance fixes in A2 are therefore also the competitive differentiator: *"we never
+charge you to be seen, and never to update your profile"* can be pointed at a real
+example.
+
+### Open question
+
+Those four agencies accepted Snapcast's template rather than their own published specs.
+Whether Elite or Storm would accept a standardized form, or insist on their own, is
+untested — the difference between "agencies want structured intake" and "agencies want
+*their* structured intake." Ask FWB and agency #2 directly.
 
 ---
 
