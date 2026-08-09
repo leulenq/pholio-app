@@ -36,7 +36,6 @@ const AgencyCastingDetail = lazy(() => import('./domains/agency/pages/CastingDet
 const AgencyMessages = lazy(() => import('./domains/agency/pages/MessagesPage'));
 const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
-const AgencyAnalytics = lazy(() => import('./domains/agency/pages/AnalyticsPage'));
 const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
@@ -141,7 +140,6 @@ function App() {
               <Route path="/dashboard/agency/casting/:boardId" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
               <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
-              <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
               <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
               <Route path="/dashboard/agency/team" element={<AgencyTeam />} />
               <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />

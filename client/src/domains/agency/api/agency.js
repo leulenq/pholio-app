@@ -310,31 +310,6 @@ export async function inviteTalent(profileId, queryLogId = null) {
  * Get all boards
  */
 /**
- * Season Report aggregates. The endpoint returns { success, analytics } (not
- * the standardized { success, data } envelope), so unwrap here.
- */
-export async function getAgencyAnalytics(range = 90) {
-  const res = await apiClient.get(`/analytics?range=${range}`);
-  return res?.analytics || res;
-}
-
-/**
- * Season analytics — the aggregate behind the Season surface.
- *
- * Sends the browser's IANA timezone as a fallback. The server prefers the
- * agency timezone saved during setup, so historic DST boundaries stay correct.
- */
-export async function getSeasonAnalytics({ range = 90, boardId = null, signal } = {}) {
-  const params = new URLSearchParams({
-    range: String(range),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-  });
-  if (boardId) params.set('board', boardId);
-  const res = await apiClient.get(`/analytics/season?${params.toString()}`, { signal });
-  return res?.data || res;
-}
-
-/**
  * Replace the full set of boards a roster member sits on.
  *
  * @param {string} membershipId

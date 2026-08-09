@@ -17,7 +17,6 @@ const ALL_PERMISSIONS = [
   "org.edit_settings",
   "org.complete_onboarding",
   "org.export_data",
-  "org.view_analytics",
   "org.view_activity",
   "org.transfer_ownership",
   "team.view",
@@ -91,7 +90,6 @@ const ALL_PERMISSIONS = [
 const VIEWER_PERMISSIONS = [
   "org.view",
   "account.accept_legal",
-  "org.view_analytics",
   "org.view_activity",
   "team.view",
   "discover.search",

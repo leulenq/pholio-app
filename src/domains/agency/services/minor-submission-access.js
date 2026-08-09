@@ -30,7 +30,6 @@ const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
   ["GET", "/api/agency/messages/threads", "filtered_collection"],
   ["GET", "/api/agency/messages/unread-count", "filtered_collection"],
   ["GET", "/api/agency/activity", "filtered_collection"],
-  ["GET", "/api/agency/analytics/season", "filtered_collection"],
   ["GET", "/api/agency/boards", "filtered_collection"],
   ["GET", "/api/agency/boards/:boardId/candidates", "filtered_collection"],
   ["POST", "/api/agency/boards/:boardId/rank", "filtered_collection"],

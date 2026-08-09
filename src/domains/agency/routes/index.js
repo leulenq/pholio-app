@@ -12,7 +12,6 @@ router.use(require("./casting"));
 router.use(require("./tags"));
 router.use(require("./messages"));
 router.use(require("./overview"));
-router.use(require("./analytics"));
 router.use(require("./notifications"));
 router.use(require("./activity"));
 router.use(require("./open-call"));
