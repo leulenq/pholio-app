@@ -15,7 +15,7 @@
  *   4. Did they send a real package? → the frozen submission package, the book,
  *                                      and digitals-set coverage
  *   5. What else do we know?         → professional record + market position
- *   6. What do I do next?            → follow-ups, interviews, conversation
+ *   6. What do I do next?            → conversation
  *
  * Privacy posture — this module composes existing audience DTOs, it does not
  * invent a wider one:
@@ -367,7 +367,7 @@ async function buildAvailability(db, { agencyId, profile }) {
 async function buildStanding(db, { agencyId, application }) {
   const applicationId = application.id;
 
-  const [board, tags, notes, activities, interviews, reminders, messageStats] =
+  const [board, tags, notes, activities, messageStats] =
     await Promise.all([
       application.board_id
         ? db("boards")
@@ -384,17 +384,6 @@ async function buildStanding(db, { agencyId, application }) {
         .where({ application_id: applicationId })
         .orderBy("created_at", "desc")
         .limit(TIMELINE_LIMIT),
-      (await tableExists(db, "interviews"))
-        ? db("interviews")
-            .where({ application_id: applicationId, agency_id: agencyId })
-            .orderBy("proposed_datetime", "desc")
-        : Promise.resolve([]),
-      (await tableExists(db, "reminders"))
-        ? db("reminders")
-            .where({ application_id: applicationId, agency_id: agencyId })
-            .whereNot("status", "cancelled")
-            .orderBy("reminder_date", "asc")
-        : Promise.resolve([]),
       (await tableExists(db, "messages"))
         ? db("messages")
             .where({ application_id: applicationId })
@@ -418,8 +407,6 @@ async function buildStanding(db, { agencyId, application }) {
     tags,
     notes,
     timeline,
-    interviews,
-    reminders,
     messages: {
       total: messageStats.length,
       unread_from_talent: inboundUnread,

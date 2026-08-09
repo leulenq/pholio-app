@@ -149,10 +149,6 @@ export const talentApi = {
       options,
     ),
 
-  // Interviews
-  getInterviews: () => apiClient.get('/interviews'),
-  respondToInterview: (id, body) => apiClient.post(`/interviews/${id}/respond`, body),
-
   // Messages (per application)
   getApplicationMessages: (id) => apiClient.get(`/applications/${id}/messages`),
   sendApplicationMessage: (id, message) =>

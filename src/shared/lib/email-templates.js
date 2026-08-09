@@ -668,7 +668,7 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName }) {
 
   const bodyHtml = `
     ${buildBodyCopy(
-      `<strong style="color:${BRAND.text};">${safeContact}</strong> — <strong style="color:${BRAND.text};">${safeAgency}</strong> is ready. Pholio replaces the scattered inbox with a pipeline you can actually run: applicants, boards, interviews, messages, and signed talent in one auditable workspace.`,
+      `<strong style="color:${BRAND.text};">${safeContact}</strong> — <strong style="color:${BRAND.text};">${safeAgency}</strong> is ready. Pholio replaces the scattered inbox with a pipeline you can actually run: applicants, boards, messages, and signed talent in one auditable workspace.`,
     )}
     ${buildStatRow([
       { value: "Inbox", label: "Applicants" },
@@ -697,9 +697,9 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName }) {
       },
       {
         icon: "◉",
-        title: "Roster & interviews",
+        title: "Roster & messages",
         description:
-          "Coordinate callbacks, schedule interviews, and message talent with magic-link replies.",
+          "Track who you are considering and message talent with magic-link replies.",
       },
     ])}
     ${buildSectionLabel("Launch checklist")}

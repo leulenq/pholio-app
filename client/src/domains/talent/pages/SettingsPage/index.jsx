@@ -786,7 +786,6 @@ const NOTIFICATION_ROWS = [
 /** Time-sensitive by nature — the notification service will not suppress these. */
 const ALWAYS_ON_ROWS = [
   ['Messages from agencies', 'A booker writing to you always reaches you.'],
-  ['Interview times', 'Scheduled meetings, changes, and cancellations always reach you.'],
 ];
 
 function NotificationsMovement({ settings, isLoading }) {
@@ -1337,7 +1336,7 @@ function AccountMovement({ settings }) {
         <ul className="set-danger__list">
           <li>Your book, every image in it, and any comp card built from them</li>
           <li>Submissions, drafts, and the history behind each one</li>
-          <li>Messages and interview records with agencies</li>
+          <li>Messages with agencies</li>
           <li>Your profile, your public link, and this sign-in</li>
         </ul>
         <p className="set-danger__fine">

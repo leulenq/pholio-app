@@ -1,30 +1,23 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AlertTriangle, CalendarClock, Mail, Phone, Plus, X } from 'lucide-react';
+import { Mail, Phone, Plus, X } from 'lucide-react';
 import { addTag, removeTag } from '../../api/agency';
 import { StageTrack } from '../status/StageProgress';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
-import { Fact, Ledger, Quiet, Sheet } from './DossierPrimitives';
-import { fmtAgo, fmtDate, fmtDateTime, followUps, activityVerb, titleCase } from './dossierModel';
+import { Fact, Ledger, Sheet } from './DossierPrimitives';
+import { fmtAgo, fmtDate, activityVerb } from './dossierModel';
 import './dossier.css';
 
 /**
  * The Standing Rail — everything about this submission's life inside THIS
  * agency: where it sits on the ladder, how long it has been sitting, which
- * board it was filed to, how it is tagged, what is owed on it, and how to
- * reach the person.
+ * board it was filed to, how it is tagged, and how to reach the person.
  *
  * The ladder is dated on purpose. "In review" is not information; "in review
  * for eleven days, last opened a week ago" is the thing that makes a booker
  * act.
  */
-
-const INTERVIEW_TYPES = {
-  video_call: 'Video',
-  phone_call: 'Phone',
-  in_person: 'In person',
-};
 
 function TagStrip({ applicationId, tags }) {
   const qc = useQueryClient();
@@ -89,7 +82,6 @@ function TagStrip({ applicationId, tags }) {
 
 export function StandingRail({ dossier, applicationId }) {
   const { application, standing, compliance, contact } = dossier;
-  const work = followUps(standing);
 
   const ladder = [
     { label: 'Submitted', at: standing?.submitted_at },
@@ -133,46 +125,6 @@ export function StandingRail({ dossier, applicationId }) {
           />
         </Ledger>
         <TagStrip applicationId={applicationId} tags={standing?.tags || []} />
-      </Sheet>
-
-      <Sheet title="Owed" tone="rail">
-        {work.overdue.length === 0 && work.upcoming.length === 0 && !work.nextInterview && (
-          <Quiet>Nothing outstanding. Set a follow-up in the record below.</Quiet>
-        )}
-        {work.overdue.length > 0 && (
-          <ul className="dx-owed dx-owed--late">
-            {work.overdue.map((r) => (
-              <li key={r.id}>
-                <AlertTriangle size={13} aria-hidden />
-                <span className="dx-owed__title">{r.title}</span>
-                <span className="dx-owed__when">due {fmtDate(r.reminder_date)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {work.upcoming.length > 0 && (
-          <ul className="dx-owed">
-            {work.upcoming.map((r) => (
-              <li key={r.id}>
-                <CalendarClock size={13} aria-hidden />
-                <span className="dx-owed__title">{r.title}</span>
-                <span className="dx-owed__when">{fmtDate(r.reminder_date)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {work.interviews.length > 0 && (
-          <Ledger>
-            {work.interviews.slice(0, 3).map((i) => (
-              <Fact
-                key={i.id}
-                label={INTERVIEW_TYPES[i.interview_type] || titleCase(i.interview_type)}
-                value={fmtDateTime(i.proposed_datetime)}
-                note={i.status ? ` ${titleCase(i.status)}` : null}
-              />
-            ))}
-          </Ledger>
-        )}
       </Sheet>
 
       {compliance?.is_minor && (

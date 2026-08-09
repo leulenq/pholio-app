@@ -358,21 +358,6 @@ const ACTIVITY_VERBS = {
 
 export const activityVerb = (type) => ACTIVITY_VERBS[type] || titleCase(type);
 
-/** Open follow-ups, split so overdue work reads first. */
-export function followUps(standing) {
-  const reminders = (standing?.reminders || []).filter((r) => r.status !== 'completed');
-  const now = Date.now();
-  const overdue = reminders.filter((r) => new Date(r.reminder_date).getTime() < now);
-  const upcoming = reminders.filter((r) => new Date(r.reminder_date).getTime() >= now);
-  const interviews = (standing?.interviews || []).filter(
-    (i) => !['cancelled', 'declined'].includes(String(i.status)),
-  );
-  const nextInterview = interviews
-    .filter((i) => new Date(i.proposed_datetime).getTime() >= now)
-    .sort((a, b) => new Date(a.proposed_datetime) - new Date(b.proposed_datetime))[0] || null;
-  return { overdue, upcoming, interviews, nextInterview };
-}
-
 /* -------------------------------------------------------------- position */
 
 /**

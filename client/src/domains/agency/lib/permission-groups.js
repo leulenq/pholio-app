@@ -82,18 +82,6 @@ export const PERMISSION_GROUPS = [
       { key: 'messages.send', label: 'Send messages' },
     ],
   },
-  {
-    id: 'interviews',
-    label: 'Interviews & reminders',
-    permissions: [
-      { key: 'interviews.schedule', label: 'Schedule interviews' },
-      { key: 'interviews.update', label: 'Update interviews' },
-      { key: 'interviews.complete', label: 'Complete interviews' },
-      { key: 'interviews.cancel', label: 'Cancel interviews' },
-      { key: 'reminders.create', label: 'Create reminders' },
-      { key: 'reminders.delete', label: 'Delete reminders' },
-    ],
-  },
 ];
 
 export const DANGEROUS_PERMISSION_KEYS = new Set([

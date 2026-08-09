@@ -195,20 +195,6 @@ export default function OverviewPage() {
     : applicationsPayload?.data || [];
   const standing = bucketCounts(applicationsList);
 
-  // Interviews awaiting the talent's response — the clearest "ball in your court" signal.
-  const { data: interviewsPayload } = useQuery({
-    queryKey: ['talent-interviews'],
-    queryFn: () => talentApi.getInterviews(),
-    staleTime: 60 * 1000,
-    retry: 1,
-  });
-  const interviewsList = Array.isArray(interviewsPayload)
-    ? interviewsPayload
-    : interviewsPayload?.data || [];
-  const interviewsNeedingResponse = interviewsList.filter(
-    (iv) => iv.status === 'pending' || iv.status === 'rescheduled',
-  ).length;
-
   const firstName = profile?.first_name || '';
   const imageCount = Array.isArray(images) ? images.length : 0;
   const greeting = getGreetingByTime();
@@ -543,21 +529,6 @@ export default function OverviewPage() {
                       <p className="ov-stat-label">Profile views (30d)</p>
                     </div>
                   </div>
-
-                  {interviewsNeedingResponse > 0 && (
-                    <PholioButton
-                      to="/dashboard/talent/applications"
-                      variant="meta"
-                      tone="dark"
-                      className="ov-standing-action"
-                    >
-                      <span>
-                        {interviewsNeedingResponse}{' '}
-                        {interviewsNeedingResponse === 1 ? 'interview needs' : 'interviews need'} your response
-                      </span>
-                      <ArrowUpRight size={13} aria-hidden />
-                    </PholioButton>
-                  )}
 
                 </>
               )}

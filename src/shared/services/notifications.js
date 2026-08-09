@@ -9,7 +9,6 @@ const NOTIFICATION_TYPES = {
   AGENCY_PROFILE_VIEW: "agency_profile_view",
   APPLICATION_SUBMITTED: "application_submitted",
   APPLICATION_STATUS: "application_status",
-  INTERVIEW_SCHEDULED: "interview_scheduled",
   MESSAGE_RECEIVED: "message_received",
   PROFILE_NOT_SUBMISSION_READY: "profile_not_submission_ready",
   CONFIRMATION: "confirmation",
@@ -39,8 +38,8 @@ function serializeMetadata(metadata) {
 /**
  * Respect the talent's in-app notification preferences for the two opt-out-able
  * categories. Defaults are ON, so a missing/failed lookup never suppresses.
- * Time-sensitive categories (messages, interviews) are intentionally not gated
- * here — a booker reaching out or a scheduled interview always reaches the bell.
+ * Time-sensitive categories (messages) are intentionally not gated here — a
+ * booker reaching out always reaches the bell.
  *
  * @param {string} userId
  * @param {"profileViews"|"applicationUpdates"} prefKey

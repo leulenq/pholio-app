@@ -632,13 +632,12 @@ describe("GET /api/agency/applications/:id/dossier", () => {
     expect(body.availability.commitments[0].option_tier).toBe(1);
   });
 
-  test("carries standing with this agency: ladder dates, board, tags, work owed", () => {
+  test("carries standing with this agency: ladder dates, board, tags", () => {
     expect(body.application.status).toBe("shortlisted");
     expect(body.standing.board.name).toBe("Women");
     expect(body.standing.days_since_submitted).toBeGreaterThanOrEqual(10);
     expect(body.standing.tags.map((t) => t.tag)).toContain("milan-ready");
     expect(body.standing.timeline[0].metadata.new_status).toBe("shortlisted");
-    expect(body.standing.reminders).toHaveLength(1);
     expect(body.standing.messages.unread_from_talent).toBe(1);
     expect(body.standing.invited).toBe(false);
   });

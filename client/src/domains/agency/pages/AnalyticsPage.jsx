@@ -552,7 +552,7 @@ function DeskLens({ data }) {
   const { desk, meta } = data;
   if (!desk) return null;
 
-  const { latency, team, interviews, reminders } = desk;
+  const { latency, team } = desk;
 
   return (
     <>
@@ -634,118 +634,6 @@ function DeskLens({ data }) {
         />
       </Panel>
 
-      <Panel
-        span={4}
-        title="Interview response"
-        action={<Link className="sv-panel-link" to="/dashboard/agency/interviews">Open interviews</Link>}
-        reading={
-          interviews?.total
-            ? `${interviews.total} scheduled · ${interviews.answered} answered`
-            : undefined
-        }
-        note={
-          interviews?.medianLeadDays != null
-            ? `Median ${interviews.medianLeadDays} days of notice.`
-            : undefined
-        }
-        empty={interviews?.total ? null : 'Interview measures appear once meetings are scheduled.'}
-        table={
-          <VizTable
-            caption="Interviews by status"
-            columns={['Status', 'Count']}
-            rows={[
-              ['Accepted', interviews?.accepted ?? 0],
-              ['Declined', interviews?.declined ?? 0],
-              ['Awaiting reply', interviews?.pending ?? 0],
-              ['Completed', interviews?.completed ?? 0],
-              ['Cancelled', interviews?.cancelled ?? 0],
-            ]}
-          />
-        }
-      >
-        <Meter
-          label="Accepted of answered"
-          value={interviews?.acceptRate}
-          caption={`${interviews?.accepted ?? 0} accepted, ${interviews?.declined ?? 0} declined`}
-          tone="good"
-        />
-        <DistributionBars
-          items={[
-            { key: 'accepted', label: 'Accepted', value: interviews?.accepted ?? 0 },
-            { key: 'declined', label: 'Declined', value: interviews?.declined ?? 0 },
-            { key: 'pending', label: 'Awaiting reply', value: interviews?.pending ?? 0 },
-            { key: 'completed', label: 'Completed', value: interviews?.completed ?? 0 },
-          ]}
-          labelWidth={104}
-        />
-      </Panel>
-
-      <Panel
-        span={4}
-        title="Interview format"
-        reading={interviews?.byType?.length ? 'How the agency meets talent' : undefined}
-        empty={interviews?.byType?.length ? null : 'Formats appear once interviews are scheduled.'}
-        table={
-          <VizTable
-            caption="Interviews by format"
-            columns={['Format', 'Count']}
-            rows={(interviews?.byType || []).map((t) => [humanize(t.type), t.count])}
-          />
-        }
-      >
-        <DistributionBars
-          items={(interviews?.byType || []).map((t) => ({
-            key: t.type,
-            label: humanize(t.type),
-            value: t.count,
-          }))}
-          labelWidth={104}
-        />
-      </Panel>
-
-      <Panel
-        span={4}
-        title="Follow-ups"
-        action={<Link className="sv-panel-link" to="/dashboard/agency/reminders">Open reminders</Link>}
-        reading={
-          reminders
-            ? `${reminders.open} open${reminders.overdue ? ` · ${reminders.overdue} overdue` : ''}`
-            : undefined
-        }
-        empty={
-          reminders && (reminders.open || reminders.completedInWindow)
-            ? null
-            : 'Follow-up health appears once reminders are set.'
-        }
-        table={
-          <VizTable
-            caption="Reminder health"
-            columns={['Measure', 'Value']}
-            rows={[
-              ['Open', reminders?.open ?? 0],
-              ['Overdue', reminders?.overdue ?? 0],
-              ['Completed in window', reminders?.completedInWindow ?? 0],
-              ['Completed on time', pct(reminders?.onTimeRate)],
-            ]}
-          />
-        }
-      >
-        <Meter
-          label="Cleared on time"
-          value={reminders?.onTimeRate}
-          caption={`${reminders?.completedInWindow ?? 0} completed in this window`}
-          tone={reminders?.onTimeRate != null && reminders.onTimeRate < 50 ? 'bad' : 'good'}
-        />
-        <DistributionBars
-          items={[
-            { key: 'open', label: 'Open', value: reminders?.open ?? 0 },
-            { key: 'overdue', label: 'Overdue', value: reminders?.overdue ?? 0 },
-            { key: 'done', label: 'Completed', value: reminders?.completedInWindow ?? 0 },
-          ]}
-          labelWidth={104}
-          emphasis="Overdue"
-        />
-      </Panel>
     </>
   );
 }

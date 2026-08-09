@@ -10,8 +10,6 @@ router.use(require("./talent-dossier"));
 router.use(require("./team-rbac"));
 router.use(require("./casting"));
 router.use(require("./tags"));
-router.use(require("./interviews"));
-router.use(require("./reminders"));
 router.use(require("./messages"));
 router.use(require("./overview"));
 router.use(require("./analytics"));

@@ -35,9 +35,7 @@ const AgencyCasting = lazy(() => import('./domains/agency/pages/CastingPage'));
 const AgencyCastingDetail = lazy(() => import('./domains/agency/pages/CastingDetailPage'));
 const AgencyMessages = lazy(() => import('./domains/agency/pages/MessagesPage'));
 const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'));
-const AgencyInterviews = lazy(() => import('./domains/agency/pages/InterviewsPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
-const AgencyReminders = lazy(() => import('./domains/agency/pages/RemindersPage'));
 const AgencyAnalytics = lazy(() => import('./domains/agency/pages/AnalyticsPage'));
 const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
@@ -143,8 +141,6 @@ function App() {
               <Route path="/dashboard/agency/casting/:boardId" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
               <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
-              <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
-              <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
               <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
               <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
               <Route path="/dashboard/agency/team" element={<AgencyTeam />} />

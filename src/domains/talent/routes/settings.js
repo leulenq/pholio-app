@@ -75,7 +75,7 @@ function consentDisclosureHash(purpose) {
 // job exists anywhere in the codebase), `marketing`, `newMessages`,
 // `inAppApplications` and `emailNotifications`. None had a consumer, and
 // `newMessages` contradicted an explicit decision documented in
-// notifications.js: messages and interviews are never gated, because a booker
+// notifications.js: messages are never gated, because a booker
 // reaching out always has to reach the talent.
 const DEFAULT_NOTIFICATIONS = {
   profileViews: true,

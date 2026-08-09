@@ -29,7 +29,6 @@ import { sendBlockerLabel, sendBlockerTarget } from '../../../shared/utils/sendR
 import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { talentApi } from '../api/talent';
 import { canWithdrawApplication, statusConfig } from '../utils/applicationStatus';
-import ApplicationInterviews from './ApplicationInterviews';
 import ApplicationMessages from './ApplicationMessages';
 import './ApplicationsView.css';
 
@@ -694,8 +693,6 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
           <p className="app-detail__note-text">{app.note}</p>
         </div>
       )}
-
-      <ApplicationInterviews applicationId={app.id} />
 
       <div className="app-detail__actions">
         <PholioButton
