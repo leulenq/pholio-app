@@ -43,8 +43,6 @@ const pdfRoutes = require("./domains/pdf/routes/pdf");
 const agencyDomainRoutes = require("./domains/agency/routes/index");
 const proRoutes = require("./routes/pro");
 const stripeRoutes = require("./routes/stripe");
-const chatRoutes = require("./routes/chat");
-const scoutRoutes = require("./routes/scout");
 const apiRoutes = require("./routes/api");
 const publicRoutes = require("./routes/api/public");
 const portfolioRoutes = require("./routes/portfolio");
@@ -815,11 +813,6 @@ app.use("/", authRoutes);
 
 // Magic-link message replies (token auth, no login required)
 app.use("/", require("./domains/messaging/routes/message-reply"));
-
-// High-frequency API routes (chat/scout - used in onboarding flow)
-// These are moved higher to reduce middleware processing overhead
-app.use("/", chatRoutes);
-app.use("/", scoutRoutes);
 
 // API Routes
 app.use("/", internalAgencyRequestRoutes);
