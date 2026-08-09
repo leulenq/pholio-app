@@ -40,7 +40,6 @@ const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
 const AgencyReminders = lazy(() => import('./domains/agency/pages/RemindersPage'));
 const AgencyAnalytics = lazy(() => import('./domains/agency/pages/AnalyticsPage'));
 const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
-const AgencyCalendar = lazy(() => import('./domains/agency/pages/BookingDeskPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
@@ -144,7 +143,6 @@ function App() {
               <Route path="/dashboard/agency/casting/:boardId" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
               <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
-              <Route path="/dashboard/agency/calendar" element={<AgencyCalendar />} />
               <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
               <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
               <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />

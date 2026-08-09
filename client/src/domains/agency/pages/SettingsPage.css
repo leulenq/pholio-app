@@ -234,11 +234,6 @@ body.is-agency textarea.st-textarea,
 /* ---------- CHIPS (divisions / markets) ---------- */
 
 /* ---------- COMMISSION SPLIT ---------- */
-.st-split { display: flex; flex-direction: column; gap: 12px; }
-.st-split-bar { display: flex; height: 42px; border-radius: 10px; overflow: hidden; border: 1px solid #ece4d4; }
-.st-split-mother, .st-split-placement { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; letter-spacing: .04em; }
-.st-split-mother { background: rgba(201,165,90,.16); color: #9a7b3c; }
-.st-split-placement { background: #16130D; color: #FAF8F5; }
 
 /* ---------- REPRESENTATION TERMS ---------- */
 .st-terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }

@@ -556,6 +556,18 @@ router.post("/api/agency/talent-records", requireRole("AGENCY"), async (req, res
     const agencyId = getSessionAgencyId(req.session);
     const actorUserId = getSessionActorUserId(req.session);
     const isMinor = value.isMinor ?? calculateMinor(value.dateOfBirth);
+    // Pholio is adults-only. Storing an off-platform minor against a "pending"
+    // consent status created a child record the platform had no lawful basis
+    // to hold and no mechanism to resolve — and knowingly collecting it is the
+    // thing that would pull Pholio into COPPA and the state child-performer
+    // regimes. Reject at intake instead.
+    if (isMinor) {
+      return res.status(422).json({
+        error: "minor_talent_not_supported",
+        message:
+          "Pholio does not hold records for talent under 18. Keep this person's record in your own system.",
+      });
+    }
     const recordId = uuidv4();
     const membershipId = uuidv4();
 
@@ -624,13 +636,24 @@ router.patch("/api/agency/talent-records/:recordId", requireRole("AGENCY"), asyn
     }
     if (Object.hasOwn(value, "boardHint")) update.board_hint = value.boardHint || null;
     if (Object.hasOwn(value, "market")) update.market = value.market || null;
+    // An edit must not turn an adult record into a minor one either — that is
+    // the same collection by a different door.
+    const becomesMinor = Object.hasOwn(value, "dateOfBirth")
+      ? (value.isMinor ?? calculateMinor(value.dateOfBirth))
+      : Object.hasOwn(value, "isMinor")
+        ? value.isMinor
+        : false;
+    if (becomesMinor) {
+      return res.status(422).json({
+        error: "minor_talent_not_supported",
+        message:
+          "Pholio does not hold records for talent under 18. Keep this person's record in your own system.",
+      });
+    }
     if (Object.hasOwn(value, "dateOfBirth")) {
       update.date_of_birth = value.dateOfBirth || null;
-      const isMinor = value.isMinor ?? calculateMinor(value.dateOfBirth);
-      update.is_minor = isMinor;
-      update.minor_consent_status = isMinor
-        ? (current.minor_consent_status === "verified" ? "verified" : "pending")
-        : "not_required";
+      update.is_minor = false;
+      update.minor_consent_status = "not_required";
     } else if (Object.hasOwn(value, "isMinor")) {
       update.is_minor = value.isMinor;
     }

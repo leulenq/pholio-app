@@ -61,12 +61,11 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: 'calendar',
-    label: 'Roster & Booking Desk',
+    id: 'roster',
+    label: 'Roster',
     permissions: [
       { key: 'roster.manage_status', label: 'Manage roster status' },
       { key: 'roster.add_talent', label: 'Add talent to roster' },
-      { key: 'calendar.manage', label: 'Manage options, holds, and bookings' },
     ],
   },
   {

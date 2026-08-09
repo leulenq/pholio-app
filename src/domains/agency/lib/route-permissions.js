@@ -215,34 +215,6 @@ const ROUTE_PERMISSION_RULES = [
     permission: "roster.manage_status",
   },
 
-  // Booking Desk calendar. Talent-declared bookouts are included by the read
-  // endpoint but remain immutable through these agency routes.
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/commitments$/,
-    permission: "calendar.view",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/commitments$/,
-    permission: "calendar.manage",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
-    permission: "calendar.manage",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/commitments\/[^/]+\/confirm$/,
-    permission: "calendar.manage",
-  },
-  {
-    method: "DELETE",
-    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
-    permission: "calendar.manage",
-  },
-
   // Applications — bulk before parameterized
   {
     method: "POST",

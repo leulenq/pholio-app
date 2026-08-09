@@ -294,26 +294,6 @@ export async function updateRosterMembership(membershipId, data) {
   return apiClient.patch(`/roster-memberships/${membershipId}`, data);
 }
 
-export async function getCommitments({ start, end }) {
-  return apiClient.get(`/commitments?${new URLSearchParams({ start, end })}`);
-}
-
-export async function createCommitment(data) {
-  return apiClient.post('/commitments', data);
-}
-
-export async function updateCommitment(id, data) {
-  return apiClient.patch(`/commitments/${id}`, data);
-}
-
-export async function confirmCommitment(id, releaseConflictIds = []) {
-  return apiClient.post(`/commitments/${id}/confirm`, { releaseConflictIds });
-}
-
-export async function releaseCommitment(id) {
-  return apiClient.delete(`/commitments/${id}`);
-}
-
 /**
  * Invite talent to apply. Pass the originating search's queryLogId so the
  * backend can attribute the invite back to the query (WS6.5 telemetry); it is

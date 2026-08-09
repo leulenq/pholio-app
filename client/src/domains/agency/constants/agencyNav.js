@@ -1,5 +1,5 @@
 import {
-  LayoutGrid, Activity, Inbox, Clapperboard, CalendarClock, CalendarDays,
+  LayoutGrid, Activity, Inbox, Clapperboard, CalendarClock,
   Telescope, Building2, Users, BookOpenText,
 } from 'lucide-react';
 
@@ -27,7 +27,6 @@ export const AGENCY_NAV_GROUPS = [
       { label: 'Interviews',  to: '/dashboard/agency/interviews',  icon: CalendarClock, permission: 'interviews.view'        },
       { label: 'Scout',       to: '/dashboard/agency/discover',    icon: Telescope,     permission: 'discover.search'        },
       { label: 'Roster',      to: '/dashboard/agency/roster',      icon: Users,         permission: 'roster.view'            },
-      { label: 'Booking Desk', to: '/dashboard/agency/calendar',   icon: CalendarDays,  permission: 'calendar.view'          },
     ],
   },
   {

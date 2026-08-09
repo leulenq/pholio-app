@@ -6,7 +6,6 @@ if (process.env.PHOLIO_SAFE_TEST_RUNNER !== "1") {
   require("dotenv").config({ path: path.join(ROOT_DIR, ".env") });
 }
 
-const COMMISSION_RATE = parseFloat(process.env.COMMISSION_RATE || "0.25");
 const MAX_UPLOAD_MB = parseFloat(process.env.MAX_UPLOAD_MB || "25");
 
 function readEnv(...keys) {
@@ -112,7 +111,6 @@ module.exports = {
   sessionSecret: resolveSessionSecret(),
   dbClient: (process.env.DB_CLIENT || "sqlite3").toLowerCase(),
   databaseUrl: process.env.DATABASE_URL || "sqlite://./dev.sqlite3",
-  commissionRate: Number.isFinite(COMMISSION_RATE) ? COMMISSION_RATE : 0.25,
   uploadsDir: rootUploads,
   isServerless,
   maxUploadBytes: Number.isFinite(MAX_UPLOAD_MB)

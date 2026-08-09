@@ -5,7 +5,6 @@ router.use(require("./legal"));
 router.use(require("./setup"));
 router.use(require("./roster"));
 router.use(require("./roster-data"));
-router.use(require("./commitments"));
 router.use(require("./inbox"));
 router.use(require("./talent-dossier"));
 router.use(require("./team-rbac"));
