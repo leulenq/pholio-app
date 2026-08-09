@@ -780,3 +780,31 @@
   `main` was 5 commits stale here, so a baseline worktree made three pre-existing
   failures look like fresh regressions and cost a real detour. `git stash` on the
   working tree is the honest comparison.
+## 2026-08-09 — Removing a feature means removing what it claimed
+
+- The removal phase kept turning up copy that outlived the code. The agency
+  onboarding email promised "schedule interviews"; the talent notification
+  settings listed interview times as an always-on category; the data-export
+  description claimed interview records. Deleting a router does not retract a
+  promise made in an email template. Grep the feature's *vocabulary*, not just
+  its identifiers.
+- Delete-by-index-range is how you remove the wrong function. Cutting
+  `agency-notifications.js` from the first interview helper to
+  `notifyAgencyNewMessage` also took `notifyAgencyApplicationWithdrawn`, which
+  sat between them — caught only because a whole suite failed to load. When
+  slicing a file between two anchors, list what is actually in the span first.
+- Order the removals so each one shrinks the next. `casting_briefs` was read
+  only by the matching engine; `season.queries.js` was the last reader of the
+  retired interviews and reminders tables. Removing the reader first turns a
+  delicate surgical edit into a plain deletion. When a slice would mean editing
+  a file the next slice deletes, do them in the other order.
+- Drop a table only when the plan says dormant *and* the code agrees.
+  `casting_briefs` had zero writers and no rows, so a drop with a rebuilding
+  `down()` is honest. `interviews` and `reminders` hold real history and stay —
+  application erasure still deletes from them, so retiring the feature does not
+  quietly weaken a talent's erasure request.
+- A "remove X" instruction can still be blocked on a product decision. The plan
+  removes all AI ranking but keeps Discover, and Discover orders by the score
+  being removed. That is not an effort problem, and guessing the replacement
+  ordering would have been inventing product. Ship what is unambiguous, and put
+  the open decision in front of the user with the house precedent attached.

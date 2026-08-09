@@ -1,98 +1,125 @@
-# Product plan 2026-08 — Phase 1: compliance
+# Product plan 2026-08 — implementation log
 
-Source: [`docs/pholio-product-plan-2026-08.md`](../docs/pholio-product-plan-2026-08.md), section
-**Sequencing → "Now — compliance"**. Scope is A2 fixes 1–8, 10, 11 plus the C1 discovery-cap
-tripwire. Removals (A4/A3), defects (A5), and the Part B wedge are deliberately **not** in
-this phase.
+Source: [`docs/pholio-product-plan-2026-08.md`](../docs/pholio-product-plan-2026-08.md).
+Working through its **Sequencing** section in order: compliance → removals → defects →
+the wedge.
 
-## The rule being enforced
+---
+
+# Phase 1 — Compliance ✅ shipped
+
+A2 fixes 1–8, 10, 11 plus the C1 discovery-cap tripwire. The governing rule is now true
+in code:
 
 > Anything an agency sees is identical for every talent. Payment may only change what the
 > talent keeps for themselves.
 
-## Items
+- [x] **A2-1** Agency directory truncated to 20 for free users
+- [x] **A2-2/3** Comp card watermark (reading `"ZipSite"`) on free cards
+- [x] **A2-4** QR code Studio+ only
+- [x] **A2-5** Agency logo Studio+ only (render **and** the three upload/set/delete routes)
+- [x] **A2-6** Socials hyperlinked for Studio+ only
+- [x] **A2-7** "Advanced" stats Studio+ only — and the whole extended-content block with it
+- [x] **A2-8** Social URL generation degraded for free users
+- [x] **A2-10** Open-call submissions capped at 3/month
+- [x] **A2-11** Quota rationale contradicted itself
+- [x] **C1-1** Studio+ lifted the discovery cap (Cal. Lab. Code §1701 tripwire)
+- [x] **Sweep** `pool-status.js` gated *discovery visibility* on `is_pro` — found by grepping
+      the flag rather than the plan's line numbers, exactly as A2 predicted
 
-- [x] **A2-1** Agency directory truncated to 20 for free users — `talent/routes/agencies.js`
-- [x] **A2-2/3** Comp card watermark (reading `"ZipSite"`) on free cards — comp card templates + `pdf.js`
-- [x] **A2-4** QR code Studio+ only — `compcard.ejs`, `compcard-standard.ejs`
-- [x] **A2-5** Agency logo Studio+ only — `compcard.ejs` + the three `/api/pdf/agency-logo*` routes
-- [x] **A2-6** Socials hyperlinked for Studio+ only — `compcard.ejs`
-- [x] **A2-7** "Advanced" stats block and styling Studio+ only — `compcard.ejs`
-- [x] **A2-8** Social URL generation degrades for free users — `shared/lib/social-helpers.js`
-- [x] **A2-10** Open-call submissions capped at 3/month — `open-call-claims.js`, `applications.js`
-- [x] **A2-11** Quota rationale contradicts itself — `submission-program-content.js`
-- [x] **C1-1** Studio+ lifts the discovery cap (Cal. Lab. Code §1701 tripwire) — `application-quota.js`
-- [x] **Sweep** Remaining `is_pro` branches against invariant 2 — the plan says "assume there are more"
+**Deliberately out of scope:** A2-9 (the plan rates it acceptable), PDF theme and
+card-design gating and the talent's own analytics window (A1 lists both as legitimate
+Studio+).
 
-### Not in scope, deliberately
+---
 
-- **A2-9** (`routes/portfolio.js:478`, different public portfolio layout for paid users) — the plan
-  rates this acceptable while portfolios are talent-owned artifacts.
-- PDF theme gating (`isProTheme`) and `pdf_customizations` — A1 lists "multiple card designs" as
-  legitimate Studio+.
-- `talent/routes/intel.js` 7-vs-90-day analytics window — A1 lists "the talent's own portfolio
-  analytics" as legitimate Studio+. Its removal belongs to the A3 removal phase, not here.
+# Phase 2 — Removals 🔄 in progress
 
-## Review
+## Shipped
 
-All eleven items done. The governing rule is now true in code: nothing an agency
-receives varies with the talent's plan.
+- [x] **Booking Desk** — commitments write API, calendar page + test, nav, `calendar.view` /
+      `calendar.manage`. `talent_commitments` kept: the dossier, roster-data and (then) the
+      matching engine read it defensively. Nothing writes it.
+- [x] **Commission code** — `commissionRate` (zero readers) and the dead `.st-split*` CSS.
+- [x] **Off-platform minor records** — intake now rejects under-18 with 422 instead of
+      storing `minor_consent_status: "pending"`; an edit cannot turn an adult record minor.
+- [x] **Match scoring / AI ranking engine** — the whole `domains/matching` tree, its three
+      routes, `matching.*` permissions, the Fit Briefs panel and board view switch.
+- [x] **`casting_briefs`** — dormant with zero writers, dropped with a `down()` that rebuilds
+      the schema.
+- [x] **Interviews and reminders as a scheduling system** — both routers, the talent-side
+      responder, both pages, the dossier Owed sheet, the follow-up tab, eleven permissions,
+      and the copy that promised any of it. `meeting_requested` survives as a *status*, so an
+      agency can still say it wants to meet.
+- [x] **Agency market analytics** — season query layer, both analytics endpoints (including
+      the older one buried in `inbox.js`), the Season page and its 13 viz components,
+      `org.view_analytics`. This was the last reader of the retired interviews/reminders
+      tables.
+- [x] **Legacy archetype / vibe / market-fit AI** — the onboarding chat engine and the Scout
+      image analyser (already unreachable), plus the archetype vocabulary and mock
+      photo-analysis modules. Two of these were non-compliant, not merely unused: Scout
+      scored *facial symmetry*, and the chat engine derived a vibe score and market tags from
+      it. The compliant shot classifier is untouched.
 
-**Reach.** `GET /api/talent/agencies` returned the first 20 agencies
-alphabetically to free users and all of them to Studio+. The slice is gone, and
-with it the profile lookup that existed only to read `is_pro`.
+## Still open
 
-**The comp card.** Bigger than the plan's list. Beyond the watermark (which read
-`"ZipSite"`), the QR code, the agency logo, hyperlinked socials and the
-"advanced" stat styling, `isPro` also gated the entire extended-content block —
-languages, nationality, union membership, physical characteristics,
-specializations, notable work and representation. Free users fell through to an
-`else` branch rendering socials as plain text and nothing else. All of it now
-renders for everyone; the watermark is deleted from all three templates
-(`compcard`, `compcard-standard`, `compcard-composed`) along with its CSS and the
-`watermark` local that `pdf.js` passed at three render sites. The three
-`/api/pdf/agency-logo*` endpoints lost their Studio+ gate too — rendering a logo
-nobody could set would have been a half fix.
+- [ ] **Residual match scoring** — `services/match-scoring.js`, `routes/recalculate-board-scores.js`,
+      `services/discover-rerank.js` and the `boards.recalculate_scores` permission. **Blocked on
+      a product decision** (see below), not on effort.
+- [ ] **Roster memberships and board standings as an ongoing system of record** — the plan's
+      wording is a change of role, not a delete, and it does not say what replaces them.
+- [ ] **Intel / analytics pages inferring intent from view counts** (A3) — `talent/routes/intel.js`
+      and `IntelPage`.
+- [ ] **"Verified adult" state with no verification behind it** (A3).
+- [ ] **Gamification and profile-strength theatre** (A3). The reveal page is already gone —
+      `/reveal` and `/dashboard/talent/reveal` are redirects only.
 
-**The quota — the statutory item.** `unlimited = Boolean(profile?.is_pro)` is
-gone; `FREE_MONTHLY_APPLICATION_LIMIT` is now
-`MONTHLY_DISCOVERY_SUBMISSION_LIMIT`, flat at 5 for every account, with the
-Cal. Lab. Code §1701 reasoning recorded at the constant. The 3/month open-call
-exemption cap is removed entirely — `OPEN_CALL_EXEMPT_MONTHLY_CAP` and
-`countExemptThisMonth` deleted, along with the `open_call_exemption_cap_reached`
-path. Open-call abuse stays structurally bounded: a claim needs an arrival on
-that agency's own live link, and one claim per (agency, profile) can ever be
-consumed.
+## The decision blocking residual match scoring
 
-**The claims.** A limit that no tier lifts must not be sold against.
-`upgradeRequired: true` is gone from both 403 responses; the self-contradicting
-disclosure ("keeps agency inboxes high-quality" followed by selling its removal)
-is one honest sentence; `"Unlimited discovery submissions"` is off the Studio+
-upsell; and `ApplicationsView` no longer renders "Unlimited" for paid accounts.
+A4 **keeps** Discover ("Invite to Apply — from opt-in talent discovery") while the removal
+list kills "match scoring and all AI ranking". Discover currently orders results by a
+computed `match_score` via `discover-rerank.js`. Removing the score without deciding the
+replacement ordering would leave the surface with no defined order.
 
-**Beyond the list.** `pool-status.js` derived `DISCOVERABLE` from
-`profile.is_pro && profile.is_discoverable` — agency-side visibility as a
-purchased state, invariant 2 and 7 both. Now keyed on consent alone. It has no
-callers today, which is precisely why it was worth fixing rather than leaving to
-be re-wired.
+There is a house precedent for the answer. `talent/routes/agencies.js` carried this comment
+before this branch touched it:
 
-### Verification
+> Match scoring is intentionally absent until it is backed by real signals. A stable
+> directory order is more useful than fabricated affinity.
 
-- Backend: `npm test` — 186 suites / 2478 tests passing, identical to the
-  pre-change baseline taken at this HEAD (5 failing suites, 39 failing tests,
-  all pre-existing: seed-dependent `app`/`notifications`/`overview-backend`/
-  `intel` and `password-changed-notification`).
-- Client: `npm run lint` clean (one pre-existing warning in an untouched file),
-  `npm run build` succeeds, `vitest` matches baseline — the 2 `ProfilePage`
-  failures reproduce identically with the changes stashed.
-- Tests updated to the new contract rather than deleted: the retired
-  "reports unlimited accounts" case became "applies the same limit to a paid
-  account", and "the monthly exemption cap downgrades further invited
-  submissions" became "invited submissions stay exempt with no monthly ceiling"
-  — both now guard the compliance property directly.
+Applying that to Discover means: keep search and filtering on real facts (eligibility,
+boards, location), drop the score and the rerank, and order deterministically. That is a
+product call worth making explicitly rather than inferring.
 
-### Next phase
+---
 
-Per the plan's sequencing, next is **removals** (A4 agency list + A3 talent
-list), then **defects** (A5), then the Part B wedge. None started — all involve
-deleting live surfaces or building new features.
+# Phase 3 — Defects (A5) — not started
+
+Application status machine (`booked` → `represented` consolidation, `NOTIFY_STATUSES`
+missing `represented`), the submission-receipt gap in `inbox.js`, blocked agencies not
+enforcing, the safety report passing the reporter's own `user_id` as target, and account
+deletion reporting success when `fullyErased: false`.
+
+# Phase 4 — The wedge (Part B) — not started
+
+Spec Registry → Spec Builder → talent-side preflight → guided capture → freshness engine →
+auto-close.
+
+---
+
+## Verification standard used throughout
+
+Every slice is checked against a baseline taken at this branch's own HEAD (not the local
+`main` ref, which is stale — see `lessons.md`). Backend `npm test` holds at **5 pre-existing
+failing suites / 39 failing tests** across every commit: seed-dependent `app`,
+`notifications`, `overview-backend`, `intel`, plus `password-changed-notification`.
+`same-origin-app` flakes under parallel load on a 5s migration hook and passes in isolation.
+Client: lint clean bar one pre-existing warning in an untouched file, build succeeds, vitest
+holds at the pre-existing `ProfilePage` timeouts.
+
+## Tables deliberately left in place
+
+`talent_commitments`, `interviews`, `reminders`. Only `casting_briefs` was dropped, because
+the plan calls it dormant and it had zero writers and no rows. The others hold real history;
+application erasure still deletes from all of them, so a talent's erasure request is honoured
+in full.
