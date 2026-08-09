@@ -10,7 +10,8 @@ const MINOR_ACCESS_ERROR = "MINOR_SUBMISSION_ACCESS_DENIED";
 // Audited agency surfaces that can expose or mutate a submitted minor's data.
 // `application_guard` paths carry an application id and are blocked centrally;
 // `filtered_collection` paths apply applyMinorSubmissionFilter at query time;
-// roster paths additionally bind through source_application_id.
+// Historical representation records are purged separately below when a
+// guardian revokes access.
 const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
   ["GET", "/api/agency/applications", "filtered_collection"],
   ["GET", "/api/agency/applications/:applicationId/details", "application_guard"],
@@ -34,8 +35,6 @@ const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
   ["GET", "/api/agency/boards/:boardId/candidates", "filtered_collection"],
   ["POST", "/api/agency/boards/:boardId/rank", "filtered_collection"],
   ["POST", "/api/agency/boards/:boardId/candidates/:profileId/decision", "source_application_guard"],
-  ["GET", "/api/agency/roster", "source_application_guard"],
-  ["GET", "/api/agency/roster/:membershipId", "source_application_guard"],
   ["GET", "/api/agency/export", "admin_permission_and_filter"],
   ["POST", "/dashboard/agency/applications/:applicationId/:action", "application_guard"],
 ]);

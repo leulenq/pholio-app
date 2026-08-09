@@ -76,7 +76,7 @@ function displayPublicUrl(url) {
 
 /**
  * Hairline sparkline for the site ledger. Deliberately axis-less and
- * tooltip-less — shape only. The readable chart lives on /analytics.
+ * tooltip-less; the accessible chart appears in the website section below.
  */
 function SiteSparkline({ series, animate = true }) {
   const width = 220;
@@ -170,7 +170,7 @@ export default function OverviewPage() {
     isAnalyticsLoading,
     refetch: refetchAnalytics,
     isAnalyticsRefetching,
-  } = useAnalytics(30, { includeAdvanced: isPro });
+  } = useAnalytics(30);
 
   const {
     data: applicationsPayload,
@@ -774,11 +774,6 @@ export default function OverviewPage() {
                 </div>
               )}
 
-              <div className="ov-website-footer">
-                <Link to="/dashboard/talent/analytics" className="ov-website-intel">
-                  Full analytics <ArrowUpRight size={12} aria-hidden />
-                </Link>
-              </div>
             </div>
           </motion.section>
         )}

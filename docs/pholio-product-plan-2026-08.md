@@ -124,13 +124,20 @@ above were found in fifteen minutes; assume there are more.
   Built already; unsurfaced.
 - **Freshness language:** three honest states. "Declared unretouched," never
   "unretouched."
+- **Intel and portfolio analytics:** keep the talent-owned surface, but report only
+  observable first-party facts: visits, referrers, shared-link opens, card pulls,
+  image impressions/opens, submission states, and period comparisons above stated
+  sample floors. Never translate view count, dwell, or referral source into inferred
+  intent, attention quality, market demand, career momentum, or a causal diagnosis.
+- **Verified-adult context:** keep the private adult-only layer, backed by an actual
+  identity-document and matching-selfie age check. Store only the verification result
+  and audit state; redact provider evidence after evaluation. Creator context remains
+  private unless separately shared for a named submission or confirmed job.
 
 ### Remove
 
 - Legacy AI analysis producing archetype / vibe / market-fit / potential
   (`src/routes/chat.js`, `src/routes/scout.js`)
-- Intel and analytics pages inferring intent from view counts
-- "Verified adult" state with no verification behind it
 - Gamification, reveal page, and profile-strength theatre not tied to a real recipient
   requirement
 

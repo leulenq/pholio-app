@@ -808,3 +808,13 @@
   being removed. That is not an effort problem, and guessing the replacement
   ordering would have been inventing product. Ship what is unambiguous, and put
   the open decision in front of the user with the house precedent attached.
+- Natural-language search and AI ranking are separate product capabilities.
+  When removing match scores and ranking from Discover, preserve the written
+  brief as an input method: parse it into declared factual constraints, apply
+  those constraints strictly, and use a stable directory order for survivors.
+  Do not silently collapse a natural-language workflow into name-only search.
+- A plan item that says to remove misleading claims does not necessarily authorize
+  deleting the product surface. For Intel/analytics, preserve the user-facing
+  capability and replace unsupported intent/attention conclusions with true,
+  attributable data. For "verified adult," build the missing verification layer
+  instead of deleting the state the product needs.

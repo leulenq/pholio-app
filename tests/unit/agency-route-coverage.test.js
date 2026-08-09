@@ -98,11 +98,8 @@ describe("agency route permission coverage", () => {
     const expectations = [
       ["POST", "/api/agency/open-call/links", "open_call.manage"],
       ["PATCH", "/api/agency/open-call/links/abc", "open_call.manage"],
-      ["POST", "/api/agency/roster/abc/measured", "roster.manage_status"],
-      ["DELETE", "/api/agency/roster/abc/measured", "roster.manage_status"],
       ["PATCH", "/api/agency/setup/profile", "org.complete_onboarding"],
       ["POST", "/api/agency/setup/complete", "org.complete_onboarding"],
-      ["POST", "/api/agency/import-jobs", "org.complete_onboarding"],
       ["POST", "/api/agency/messages/read-all", "messages.mark_read"],
     ];
 

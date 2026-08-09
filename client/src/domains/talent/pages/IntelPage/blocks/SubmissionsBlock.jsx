@@ -56,8 +56,7 @@ function finding({ steps, weakest, scope, days }) {
   return (
     <Finding
       figure={pct(weakest.rate)}
-      tag="biggest drop-off"
-      tone={weakest.rate < 0.34 ? 'warn' : null}
+      tag="largest observed drop"
     >
       of <Emph>{weakest.denominator}</Emph> {STEP_WORD[weakest.from]} submissions were{' '}
       <Emph>{STEP_WORD[weakest.to]}</Emph>
@@ -86,7 +85,7 @@ export default function SubmissionsBlock({ submissions, days }) {
   return (
     <Block
       id="iv-submissions"
-      question={<>Where do my submissions <em>die</em>?</>}
+      question={<>What happened after I <em>submitted</em>?</>}
       finding={finding({ steps, weakest: submissions.weakest, scope, days })}
       aside={
         <PholioToggleGroup role="group" aria-label="Submission window">

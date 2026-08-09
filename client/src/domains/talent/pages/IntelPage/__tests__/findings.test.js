@@ -4,16 +4,16 @@ import { mostConsequential, allDormant } from '../findings';
 describe('mostConsequential', () => {
   /**
    * The shipped bug: momentum compared agency reviews only, so a period where
-   * intent collapsed 54 → 0 was headlined "Level" — the largest type on the
+   * activity collapsed 54 → 0 was headlined "Level" — the largest type on the
    * page asserting nothing had changed.
    */
   it('headlines a collapse over a larger percentage swing', () => {
     const top = mostConsequential([
       { key: 'agency', now: 0, then: 0, weight: 3 },
       { key: 'sent', now: 6, then: 1, weight: 2 }, // +500%
-      { key: 'intent', now: 0, then: 54, weight: 1 },
+      { key: 'activity', now: 0, then: 54, weight: 1 },
     ]);
-    expect(top.key).toBe('intent');
+    expect(top.key).toBe('activity');
     expect(top.shape).toBe('collapse');
   });
 
@@ -21,7 +21,7 @@ describe('mostConsequential', () => {
     expect(
       mostConsequential([
         { key: 'agency', now: 0, then: 2, weight: 3 },
-        { key: 'intent', now: 0, then: 99, weight: 1 },
+        { key: 'activity', now: 0, then: 99, weight: 1 },
       ]).key,
     ).toBe('agency');
   });
@@ -30,7 +30,7 @@ describe('mostConsequential', () => {
     expect(
       mostConsequential([
         { key: 'agency', now: 3, then: 0, weight: 3 },
-        { key: 'intent', now: 10, then: 9, weight: 1 },
+        { key: 'activity', now: 10, then: 9, weight: 1 },
       ]).shape,
     ).toBe('breakout');
   });
@@ -39,7 +39,7 @@ describe('mostConsequential', () => {
     expect(
       mostConsequential([
         { key: 'agency', now: 4, then: 2, weight: 3 },
-        { key: 'intent', now: 60, then: 54, weight: 1 },
+        { key: 'activity', now: 60, then: 54, weight: 1 },
       ]).key,
     ).toBe('agency');
   });

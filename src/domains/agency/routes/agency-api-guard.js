@@ -18,7 +18,6 @@ const AGENCY_ONBOARDING_ALLOW = [
   { method: "GET", path: "/setup" },
   { method: "PATCH", pathPrefix: "/setup/" },
   { method: "POST", path: "/setup/complete" },
-  { method: "POST", path: "/import-jobs" },
   // The setup flow invites bookers before the workspace opens. Only the
   // onboarding-complete gate is lifted here; role and route-permission checks
   // below still apply to these calls.

@@ -15,7 +15,7 @@
  *   - gender_presentation → onboarding GenderTiles / casting routes
  *   - hair_color / eye_color → onboarding CastingMeasurements option lists
  *   - boards → src/shared/constants/booking-lanes.js lane slugs
- *   - location.market → src/domains/talent/services/intel/market-resolve.js
+ *   - location.market → src/domains/talent/services/market-resolve.js
  *
  * Tier / relaxation policy (spec §6):
  *   tier: 'client_gate'  — booker's stated requirement; never auto-shown as a
@@ -33,7 +33,7 @@
  */
 
 const { BOOKING_LANE_SLUGS } = require("../../../../shared/constants/booking-lanes");
-const { MARKET_LABELS } = require("../../../talent/services/intel/market-resolve");
+const { MARKET_LABELS } = require("../../../talent/services/market-resolve");
 
 // ── Constraint operators (shared by every numeric/age/measurement object) ────
 
@@ -66,7 +66,7 @@ const EYE_COLOR = ["brown", "blue", "green", "hazel", "gray", "amber"];
 // Boards = booking lane slugs (src/shared/constants/booking-lanes.js).
 const BOARDS = Array.from(BOOKING_LANE_SLUGS).sort();
 
-// Markets = canonical industry slugs (market-resolve.js).
+// Markets = canonical industry slugs (talent/services/market-resolve.js).
 const MARKETS = Object.keys(MARKET_LABELS).sort();
 
 const UNION = ["union", "non_union", "either"];

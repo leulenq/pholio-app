@@ -2859,6 +2859,46 @@
   gap: 12px;
 }
 
+.adultVerificationPanel,
+.adultContextFields {
+  display: grid;
+  gap: 16px;
+  max-width: 680px;
+}
+
+.adultVerificationPanel p,
+.adultContextPrivacy,
+.adultVerificationConfirmed p {
+  margin: 0;
+  color: var(--ag-text-2, #6b6560);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.adultVerificationConfirmed {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.12));
+  border-radius: 12px;
+  background: var(--ag-surface-0, #faf8f5);
+  color: var(--ag-text-0, #1a1815);
+}
+
+.adultVerificationConfirmed strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+.adultVerificationPrivacyLink {
+  width: fit-content;
+  color: var(--ag-text-2, #6b6560);
+  font-size: 13px;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 560px) {
   .bookoutFormDates {
     grid-template-columns: 1fr;

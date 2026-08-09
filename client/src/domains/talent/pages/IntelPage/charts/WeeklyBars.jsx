@@ -13,7 +13,7 @@ const GAP = 3;
  * One measure, weekly, as real counts.
  *
  * Two measures of different scale never share an axis here — agency events and
- * intent events get their own small multiple over the same weeks instead. That
+ * profile activity gets its own small multiple over the same weeks instead. That
  * is the correct answer to what the old Trajectory did, which was to fold four
  * event types into a single weighted "momentum" index (reviews ×8, advances ×5,
  * pulls ×3, visits ×1). Nobody can act on "momentum 47"; everybody can act on
@@ -84,7 +84,7 @@ const SERIES = [
   { key: 'reviews', label: 'Agency reviews', rampIndex: 4 },
   { key: 'advances', label: 'Advances', rampIndex: 3 },
   { key: 'sent', label: 'Submissions sent', rampIndex: 2 },
-  { key: 'intent', label: 'Intent events', rampIndex: 1 },
+  { key: 'activity', label: 'Profile activity', rampIndex: 1 },
 ];
 
 export default function WeeklyBars({ weeks, halfWeeks }) {

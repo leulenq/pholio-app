@@ -38,7 +38,6 @@ async function injectSocialFields(profile) {
   profile.youtube_followers = null;
   profile.youtube_engagement = null;
 
-  profile.onlyfans_url = null;
   profile.portfolio_url = null;
 
   for (const acct of accounts) {
@@ -66,8 +65,6 @@ async function injectSocialFields(profile) {
       profile.youtube_verified = acct.verified;
       profile.youtube_followers = acct.follower_count;
       profile.youtube_engagement = acct.engagement_rate;
-    } else if (acct.platform === "onlyfans") {
-      profile.onlyfans_url = acct.url;
     } else if (acct.platform === "portfolio") {
       profile.portfolio_url = acct.url;
     }
@@ -119,7 +116,6 @@ async function saveProfileSocialFields(profileId, data) {
     { name: "tiktok", handleKey: "tiktok_handle", urlKey: "tiktok_url" },
     { name: "twitter", handleKey: "twitter_handle", urlKey: "twitter_url" },
     { name: "youtube", handleKey: "youtube_handle", urlKey: "youtube_url" },
-    { name: "onlyfans", handleKey: null, urlKey: "onlyfans_url" },
     { name: "portfolio", handleKey: null, urlKey: "portfolio_url" }
   ];
 

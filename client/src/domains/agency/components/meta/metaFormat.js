@@ -18,7 +18,6 @@
  * the next caller to build a slightly different one.
  */
 
-import { normalizeScore, resolveTier, MATCH_TIER_LABELS } from '../../lib/matchTier';
 import { normalizeLocation, formatLocation } from '../../../../shared/utils/locationFormat';
 
 /* Locale is pinned. Left to the runtime, the same roster renders "12 Mar" for
@@ -237,30 +236,6 @@ export function ageFigure(profile, now = Date.now()) {
 
   return { value: String(years), unit: 'yrs', sub: null };
 }
-
-/**
- * A score out of 100.
- *
- * Bands and labels come from lib/matchTier.js, which already declares itself
- * the one place they are defined ("Adjust here only"). Re-deriving them here
- * would have recreated the exact drift this module exists to remove — an
- * earlier draft of this file did precisely that with ≥85/≥70/≥50 bands
- * against matchTier's ≥90/≥80/≥70, which would have put two different
- * verdicts on the same talent in two panels.
- */
-export function scoreFigure(score) {
-  /* `Number(null)` is 0 and `Number('')` is 0, both finite, and
-     `normalizeScore` folds both to 0. Without this guard an UNSCORED talent
-     renders as "0 — Low", which is not a missing value but a false claim
-     about them. */
-  if (score == null || score === '') return null;
-  if (!Number.isFinite(Number(score))) return null;
-
-  const clamped = normalizeScore(score);
-  return { value: String(clamped), unit: null, sub: null, tier: resolveTier(clamped) };
-}
-
-export { resolveTier as scoreTier, MATCH_TIER_LABELS as SCORE_TIER_LABELS };
 
 /* ============================================================
    FRESHNESS — recency that is actionable

@@ -21,12 +21,7 @@ const PAD_L = 30;
 const PAD_R = 12;
 
 /**
- * Is intent-bearing attention rising or falling?
- *
- * One measure on one axis: card pulls, share-link opens and qualified visits —
- * the events where someone did something beyond arriving. Raw reach is
- * deliberately not plotted; it is the number that inflates and decides nothing,
- * so it is reported as context beneath instead.
+ * Recorded profile activity over time: visits, card pulls and shared-link opens.
  *
  * The prior window of equal length is drawn behind in grey. That is the whole
  * comparison — no second y-axis, no index, no cohort estimate.
@@ -54,7 +49,7 @@ export default function IntentTrend({ series, annotations, agencyDays, priorLabe
   const hasPrior = rows.some((r) => r.prior != null);
   const max = Math.max(
     1,
-    ...rows.map((r) => Math.max(Number(r.intent) || 0, Number(r.prior) || 0)),
+    ...rows.map((r) => Math.max(Number(r.activity) || 0, Number(r.prior) || 0)),
   );
 
   const plotW = Math.max(0, width - PAD_L - PAD_R);
@@ -65,7 +60,7 @@ export default function IntentTrend({ series, annotations, agencyDays, priorLabe
   const line = (key) =>
     rows.map((r, i) => `${x(i).toFixed(1)},${y(r[key]).toFixed(1)}`).join(' L');
 
-  const area = `M${PAD_L},${PAD_T + plotH} L${line('intent')} L${(PAD_L + plotW).toFixed(1)},${PAD_T + plotH} Z`;
+  const area = `M${PAD_L},${PAD_T + plotH} L${line('activity')} L${(PAD_L + plotW).toFixed(1)},${PAD_T + plotH} Z`;
 
   const active = cursor.index != null ? rows[cursor.index] : null;
   // Gridlines only where a whole count sits — no half-events on the axis.
@@ -95,7 +90,7 @@ export default function IntentTrend({ series, annotations, agencyDays, priorLabe
           onBlur={() => cursor.setIndex(null)}
           tabIndex={0}
           role="application"
-          aria-label="Intent-bearing attention per day. Use arrow keys to step through days."
+          aria-label="Recorded profile activity per day. Use arrow keys to step through days."
         >
           {width > 0 && (
             <svg ref={svgRef} width={width} height={H}>
@@ -134,7 +129,7 @@ export default function IntentTrend({ series, annotations, agencyDays, priorLabe
                 transition={{ duration: 0.8, ease: EASE }}
               />
               <motion.path
-                d={`M${line('intent')}`}
+                d={`M${line('activity')}`}
                 fill="none" stroke={RAMP[2]} strokeWidth="2"
                 strokeLinejoin="round" strokeLinecap="round"
                 initial={reduce ? { pathLength: 1 } : { pathLength: 0 }}
@@ -171,7 +166,7 @@ export default function IntentTrend({ series, annotations, agencyDays, priorLabe
                     stroke={INK} strokeWidth="1" strokeOpacity="0.35"
                   />
                   <circle
-                    cx={x(cursor.index)} cy={y(active.intent)} r="5"
+                    cx={x(cursor.index)} cy={y(active.activity)} r="5"
                     fill={RAMP[2]} stroke={SURFACE} strokeWidth="2"
                   />
                 </>
@@ -183,7 +178,7 @@ export default function IntentTrend({ series, annotations, agencyDays, priorLabe
             <Tooltip xPct={(x(cursor.index) / width) * 100}>
               <span className="iv-tip-date">{weekdayDate(active.date)}</span>
               <span className="iv-tip-line">
-                <b>{active.intent}</b> intent {active.intent === 1 ? 'event' : 'events'}
+                <b>{active.activity}</b> recorded {active.activity === 1 ? 'event' : 'events'}
               </span>
               {active.prior != null && (
                 <span className="iv-tip-sub">{active.prior} in the prior window</span>

@@ -313,6 +313,18 @@ describe("Public portfolio analytics integrity", () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("Unsupported analytics event");
   });
+
+  test("rejects retired image-attention events", async () => {
+    const profile = await knex("profiles")
+      .where({ user_id: TALENT_USER_ID })
+      .first();
+    const res = await request(app)
+      .post(`/portfolio/${profile.slug}/event`)
+      .send({ eventType: "image_dwell", imageId: "retired", dwellMs: 5000 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Unsupported analytics event");
+  });
 });
 
 describe("Demo seed: activities", () => {

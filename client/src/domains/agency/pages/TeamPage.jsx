@@ -101,7 +101,7 @@ export default function TeamPage() {
         <EmptyErrorState
           variant="compact"
           title="Could not load your team"
-          body="The team roster did not load. Try again to refresh."
+          body="The team list did not load. Try again to refresh."
           retry={{ label: 'Try again', onClick: () => refetch() }}
         />
       ) : activeCount === 0 && pending.length === 0 ? (

@@ -469,13 +469,6 @@ body.is-agency .dc-bar-input:focus {
   min-width: 0;
 }
 
-/* layout only — mount handles visual design; sits in-flow beside the name
-   (corner overlays on photos are a banned pattern) */
-.dc-card-score {
-  flex: none;
-  margin-left: auto;
-}
-
 .dc-card-featured {
   flex: none;
   align-self: baseline;

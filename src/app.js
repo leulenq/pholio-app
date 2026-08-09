@@ -825,7 +825,7 @@ app.use("/", guardianConsentRoutes);
 // Casting onboarding API must run before requireActiveAccount so stale/deleted
 // sessions do not block new Google/email sign-up at POST /onboarding/entry.
 app.use("/", onboardingRoutes);
-app.use("/", requireActiveAccount(), agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
+app.use("/", requireActiveAccount(), agencyDomainRoutes); // Agency domain routes (inbox, overview, casting, Discover)
 
 // Application/onboarding routes mounted above (casting API)
 

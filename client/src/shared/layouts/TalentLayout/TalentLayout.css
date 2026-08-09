@@ -557,7 +557,7 @@
   transition: background 0.35s var(--tl-ease);
 }
 
-/* ─── Light tone (cream pages: profile, book, market, intel, settings) ─── */
+/* ─── Light tone (cream pages: profile, book, market, messages, settings) ─── */
 .tl-root--tone-light {
   --tl-sweep: linear-gradient(to right, transparent, var(--tl-gold), transparent);
 }

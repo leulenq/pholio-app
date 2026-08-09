@@ -429,7 +429,9 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
   const [duration, setDuration] = React.useState('');
   const [captured, setCaptured] = React.useState('');
   const today = dateToInput(new Date());
-  const submit = () => {
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
     const trimmed = url.trim();
     if (!trimmed) { pholioToast.error('Add a video URL'); return; }
     onSubmit({
@@ -439,15 +441,17 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
       captured_at: dateInputToIso(captured) || undefined,
     });
   };
+
   return createPortal(
     <div className="mw-modal-overlay" onClick={onCancel}>
-      <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Add motion" onClick={(e) => e.stopPropagation()}>
+      <form className="mw-modal" role="dialog" aria-modal="true" aria-label="Add motion" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <header className="mw-modal__head">
           <h3 className="mw-modal__title">Add a motion asset</h3>
           <PholioIconButton
             label="Cancel"
             className="mw-modal__close"
             onClick={onCancel}
+            type="button"
           >
             <X size={16} aria-hidden="true" />
           </PholioIconButton>
@@ -455,7 +459,7 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
         <p className="mw-modal__body">Link a showreel or clip by URL — your stills pipeline is untouched.</p>
         <label className="mw-modal__field">
           <span className="mw-meta">Video URL</span>
-          <input type="url" placeholder="https://…" value={url} onChange={(e) => setUrl(e.target.value)} className="mw-modal__input" />
+          <input type="url" placeholder="https://…" value={url} onChange={(e) => setUrl(e.target.value)} className="mw-modal__input" autoFocus />
         </label>
         <label className="mw-modal__field">
           <span className="mw-meta">Label</span>
@@ -473,11 +477,11 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
         </div>
         <div className="mw-modal__actions">
           <PholioButton type="button" variant="secondary" onClick={onCancel}>Cancel</PholioButton>
-          <PholioButton variant="primary" disabled={busy || !url.trim()} onClick={submit}>
+          <PholioButton type="submit" variant="primary" disabled={busy || !url.trim()}>
             {busy ? 'Adding…' : 'Add motion'}
           </PholioButton>
         </div>
-      </div>
+      </form>
     </div>,
     document.body
   );

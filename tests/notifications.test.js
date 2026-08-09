@@ -47,7 +47,7 @@ describe("notifications service", () => {
       type: "agency_profile_view",
       title: "Agency viewed your profile",
       body: "First view",
-      routeTarget: "/dashboard/talent/analytics",
+      routeTarget: "/dashboard/talent",
       groupKey,
       reopenOnRepeat: true,
     });
@@ -57,7 +57,7 @@ describe("notifications service", () => {
       type: "agency_profile_view",
       title: "Agency viewed your profile",
       body: "Second view",
-      routeTarget: "/dashboard/talent/analytics",
+      routeTarget: "/dashboard/talent",
       groupKey,
       reopenOnRepeat: true,
     });

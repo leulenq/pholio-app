@@ -63,8 +63,8 @@ function IntelError({ onRetry }) {
  * Intel — the talent-facing intelligence hub.
  *
  * The page is a short sequence of questions, in the order a working model asks
- * them: what do I do now, where are my submissions dying, can I send today, is
- * anyone real looking, am I leading with the right frame, am I gaining ground.
+ * them: what needs attention, what happened after submitting, whether the
+ * package is current, how the profile was used, and which frames were opened.
  * Each block states its finding in one line and puts the chart underneath as
  * the evidence for it. Blocks are deliberately not equally weighted — the
  * decision stack leads, and the rest support it.

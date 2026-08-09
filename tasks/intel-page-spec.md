@@ -1,4 +1,8 @@
-# Intel — Ground-Up Spec (v2, 2026-07-01)
+# Intel — Factual Analytics Spec (v3, 2026-08-09)
+
+This revision supersedes any v2 language below that infers intent, audience
+identity, quality, demand, causality, or career momentum from behavioral events.
+Intel reports observable first-party activity and submission outcomes only.
 
 The talent-facing intelligence hub, designed from a blank slate. The old
 analytics page is not a reference, and neither is its data plumbing: this spec
@@ -13,27 +17,27 @@ rendering and a defined meaning.
 
 A working model never asks their booker for pageviews. They ask:
 
-1. **"Am I getting requested?"** — is anyone with buying power pulling my materials?
-2. **"Are my materials working?"** — does attention convert into next steps?
-3. **"Where are my submissions dying?"** — what stage, and why?
-4. **"What's holding me back?"** — the one thing a booker would tell me to fix.
+1. **"What happened around my profile?"** — visits, shared-link opens and card pulls.
+2. **"What happened after I submitted?"** — recorded reads and status changes.
+3. **"Are my materials current?"** — capture dates and package readiness.
+4. **"Which frames were opened?"** — impressions and opens, without a quality claim.
 
 Generic SaaS metrics (sessions, bounce, retention cohorts, invented
 "engagement scores") answer none of these and instantly read as fake to
 anyone from the industry. Every number on this page must pass one test:
 **would a booker mention it to their talent across the desk?**
 
-### The signal hierarchy
-Not all attention is equal. The page is organized top-down by signal value —
-the inverse of a normal analytics dashboard, and the whole point:
+### Recorded event types
+Event types are shown separately. Their order or color never implies viewer
+quality, purchasing intent, or likelihood of an outcome:
 
 | Tier | Signal |
 |---|---|
 | 1 | A booker reviewed your submission |
 | 2 | A submission advanced (shortlisted / requested more / meeting) |
 | 3 | Your comp card was pulled or your shared link was opened |
-| 4 | A qualified visit (real dwell, external referrer, images actually viewed) |
-| 5 | Raw reach (social taps, passing traffic) |
+| 4 | A public or shared-link profile visit |
+| 5 | An image impression or open |
 
 ---
 
@@ -43,14 +47,13 @@ This is the data the page is designed around. Some of it exists, most of it
 must be captured; §6 sequences that. The design does not bend to today's
 tables.
 
-- **Classified attention.** Every portfolio/profile view resolved to a viewer
+- **Request context.** Every portfolio/profile view resolved to a known context:
   class: `agency` (authenticated agency user, or arrival via a submission),
-  `client/casting` (arrival via a shared package link), `public` (social,
-  search, direct), `self` (excluded). Plus per-visit depth: dwell time, images
-  opened, scroll reach, actions taken (card pull, contact, save).
-- **Image-level attention.** Per-image impressions, lightbox opens, dwell,
-  zoom, and attribution ("this image was on screen when the card was pulled").
-  The book is the product; the page must know which frames carry it.
+  `shared` (arrival via a shared package link; recipient identity unknown),
+  `public` (social, search, direct), `self` (excluded). A shared token never
+  proves the visitor is the named recipient, a client, or casting.
+- **Image-level activity.** Per-image impressions and lightbox opens. Dwell is
+  not used as a proxy for interest or quality.
 - **Market resolution.** Attention resolved to industry markets (NYC, LA,
   Paris, Milan, London, Tokyo, home region) — the industry thinks in markets
   and stays, not in "countries."
@@ -60,9 +63,8 @@ tables.
 - **Card & link lifecycle.** Card generations and pulls by version/theme;
   per-recipient share tokens: opened, re-opened days later (re-opens are
   filing behavior — a strong tell), forwarded.
-- **Discovery demand.** Appearances in agency-side discovery/scout searches:
-  which filters matched, whether the profile was opened from results. This is
-  the closest thing to "the market is searching for someone like you."
+- **Discovery activity.** Authenticated agency profile opens may be counted in
+  aggregate. Search-result impressions are not presented as demand.
 - **Materials currency.** Dated digitals, dated (versioned) measurements, comp
   card version vs latest photo/stat change — judged against real industry
   windows (digitals ≤ 3 months; stats reconfirmed ≤ 90 days).

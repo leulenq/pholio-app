@@ -13,7 +13,7 @@ import {
 import BoardSelect from '../components/BoardSelect';
 import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
 import ReviewRoom from '../components/review/ReviewRoom';
-import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, MatchScore, StatusCell } from '../components/ui';
+import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, StatusCell } from '../components/ui';
 import { DivisionMark } from '../components/status';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
@@ -69,7 +69,6 @@ const INITIAL_FILTERS = {
   talent: [],
   source: [],
   locations: [],
-  matchTier: null,
 };
 
 function mapRow(p) {
@@ -83,7 +82,6 @@ function mapRow(p) {
     photo: img ? (img.public_url || img.path) : null,
     status,
     appliedAt: p.application_created_at,
-    match: p.match_score ?? null,
     slug: p.slug,
     type: p.archetype || 'editorial',
   };
@@ -99,7 +97,6 @@ function mapCandidate(c) {
     photo: c.avatar || null,
     status: c.backendStatus || 'submitted',
     appliedAt: c.created_at,
-    match: c.score ?? null,
     slug: c.slug,
     type: c.archetype || 'editorial',
   };
@@ -194,9 +191,6 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
         ) : (
           <span className="ap-card-img ap-card-img--empty">{initials(a.name)}</span>
         )}
-        {a.match != null && (
-          <MatchScore score={a.match} size="xs" tone="overlay" className="ap-card-match" />
-        )}
         {!decided && (
           <PickButton
             name={a.name}
@@ -270,7 +264,6 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
         </div>
       </div>
       <Moment value={a.appliedAt} className="ap-applied" />
-      <span className="ap-score-cell">{a.match != null && <MatchScore score={a.match} size="xs" tone="overlay" />}</span>
       <span className="ap-status">
         {isNew(a.status)
           ? <span className="ap-status-quiet">Submitted</span>
@@ -341,7 +334,6 @@ function ApplicationsPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const [q, setQ] = useState('');
-  const [sort, setSort] = useState('recent');
   const [view, setView] = useState(() => {
     try {
       return localStorage.getItem(VIEW_KEY) === 'ledger' ? 'ledger' : 'book';
@@ -508,15 +500,6 @@ function ApplicationsPage() {
     setVisibleCount(PAGE_SIZE);
   };
 
-  const setMatchTierFilter = (tier) => {
-    setFilters((prev) => ({
-      ...prev,
-      matchTier: prev.matchTier === tier ? null : tier,
-    }));
-    setFocusedIndex(-1);
-    setVisibleCount(PAGE_SIZE);
-  };
-
   const resetFilters = () => {
     setFilters(INITIAL_FILTERS);
     setFocusedIndex(-1);
@@ -529,7 +512,6 @@ function ApplicationsPage() {
     c += filters.talent.length;
     c += filters.source.length;
     c += filters.locations.length;
-    if (filters.matchTier) c += 1;
     return c;
   }, [filters]);
 
@@ -582,20 +564,13 @@ function ApplicationsPage() {
       list = list.filter((a) => a.city && filters.locations.includes(a.city));
     }
 
-    // Match tier filter
-    if (filters.matchTier) {
-      const minScore = filters.matchTier === 'exceptional' ? 85 : filters.matchTier === 'strong' ? 70 : 50;
-      list = list.filter((a) => (a.match || 0) >= minScore);
-    }
-
     // Search query
     if (q.trim()) {
       const s = q.toLowerCase();
       list = list.filter((a) => a.name.toLowerCase().includes(s) || (a.city || '').toLowerCase().includes(s));
     }
-    return [...list].sort((a, b) =>
-      sort === 'match' ? (b.match || 0) - (a.match || 0) : new Date(b.appliedAt) - new Date(a.appliedAt));
-  }, [applicants, tab, filters, q, sort]);
+    return [...list].sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
+  }, [applicants, tab, filters, q]);
 
   const total = applicants.length;
   // The lead hero figure = what's actually on the desk: submissions still
@@ -634,7 +609,6 @@ function ApplicationsPage() {
   }, []);
   const changeTab = useCallback((next) => { setTab(next); resetTriage(); }, [resetTriage]);
   const changeQuery = useCallback((next) => { setQ(next); resetTriage(); }, [resetTriage]);
-  const changeSort = useCallback((next) => { setSort(next); resetTriage(); }, [resetTriage]);
   const changeBoard = useCallback((next) => { setBoardId(next); resetTriage(); }, [resetTriage]);
 
   const focusRow = useCallback((i) => {
@@ -978,10 +952,6 @@ function ApplicationsPage() {
               aria-label="Search submissions"
             />
           </div>
-          <div className="ap-seg" role="group" aria-label="Sort submissions">
-            <button type="button" className={sort === 'recent' ? 'is-on' : ''} aria-pressed={sort === 'recent'} onClick={() => changeSort('recent')}>Newest</button>
-            <button type="button" className={sort === 'match' ? 'is-on' : ''} aria-pressed={sort === 'match'} onClick={() => changeSort('match')}>Match</button>
-          </div>
           <div className="ap-seg" role="group" aria-label="View">
             <button
               type="button"
@@ -1177,37 +1147,6 @@ function ApplicationsPage() {
                     </div>
                   )}
 
-                  {/* MATCH GROUP */}
-                  <div className="ap-filter-group">
-                    <span className="ap-filter-group-label">MATCH</span>
-                    <label className="ap-filter-option">
-                      <input
-                        type="radio"
-                        name="matchTier"
-                        checked={filters.matchTier === 'exceptional'}
-                        onChange={() => setMatchTierFilter('exceptional')}
-                      />
-                      <span>Exceptional (85+)</span>
-                    </label>
-                    <label className="ap-filter-option">
-                      <input
-                        type="radio"
-                        name="matchTier"
-                        checked={filters.matchTier === 'strong'}
-                        onChange={() => setMatchTierFilter('strong')}
-                      />
-                      <span>Strong (70+)</span>
-                    </label>
-                    <label className="ap-filter-option">
-                      <input
-                        type="radio"
-                        name="matchTier"
-                        checked={filters.matchTier === 'fair'}
-                        onChange={() => setMatchTierFilter('fair')}
-                      />
-                      <span>Fair (50+)</span>
-                    </label>
-                  </div>
                 </div>
               </motion.div>
             )}

@@ -6,7 +6,6 @@ import {
   X, ChevronLeft, ChevronRight, ArrowUpRight, Camera,
 } from 'lucide-react';
 import { getApplicationDetails } from '../../api/agency';
-import { resolveTier, MATCH_TIER_LABELS, normalizeScore } from '../../lib/matchTier';
 import { getStatusLabel } from '../ui/StatusText';
 import {
   DIGITALS_SLOTS, frameForSlot,
@@ -202,8 +201,6 @@ export default function ReviewRoom({
   const isMinor = Boolean(profile?.is_minor);
   const age = profile?.age ?? null;
 
-  const score = application?.match_score ?? row?.match ?? null;
-  const tier = score != null ? resolveTier(score) : null;
 
   const images = useMemo(() => {
     const list = Array.isArray(profile?.images) ? profile.images.filter((i) => imageSrc(i)) : [];
@@ -440,14 +437,6 @@ export default function ReviewRoom({
                   <Stamp>{getStatusLabel(status)}</Stamp>
                 )}
               </div>
-            </div>
-            <div className="rv-hero-side">
-              {score != null && (
-                <div className="rv-match">
-                  <span className="rv-match-score">{normalizeScore(score)}</span>
-                  <span className="rv-match-tier">{MATCH_TIER_LABELS[tier]}</span>
-                </div>
-              )}
             </div>
           </div>
 

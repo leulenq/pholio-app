@@ -14,9 +14,8 @@ import {
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import BoardIdentityEditor from '../components/BoardIdentityEditor';
-import { StatusText, MatchScore } from '../components/ui';
+import { StatusText } from '../components/ui';
 import { DivisionMark } from '../components/status';
-import { normalizeScore, resolveTier, MATCH_TIER_LABELS } from '../lib/matchTier';
 import {
   resolveBoardIdentity, boardIdentityStyle, resolveBoardType, BOARD_VOCAB,
 } from '../lib/board-identity';
@@ -68,34 +67,7 @@ function toTalent(c) {
     type: c.archetype || 'editorial',
     status: c.backendStatus || 'submitted',
     location: c.location || null,
-    match: c.score ?? null,
   };
-}
-
-/* ---- Fit readout (page-scoped) ------------------------------------------
-   The board fit for THIS surface only: a hairline meter under the photo plus
-   plain inline text. Tier logic is the shared matchTier resolver; only the
-   presentation is local. The global MatchScore chip is untouched elsewhere. */
-function FitLine({ score }) {
-  if (score == null) return null;
-  const n = normalizeScore(score);
-  const tier = resolveTier(n);
-  return (
-    <span className={`fit-line fit-line--${tier}`} aria-label={`Board fit ${n}, ${MATCH_TIER_LABELS[tier]}`}>
-      Fit <span className="fit-num">{n}</span>
-      <span className="fit-tier"> — {MATCH_TIER_LABELS[tier]}</span>
-    </span>
-  );
-}
-
-function FitMeter({ score }) {
-  if (score == null) return <span className="fit-meter fit-meter--none" aria-hidden="true" />;
-  const n = normalizeScore(score);
-  return (
-    <span className={`fit-meter fit-meter--${resolveTier(n)}`} aria-hidden="true">
-      <i style={{ width: `${n}%` }} />
-    </span>
-  );
 }
 
 function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, onPass, busy }) {
@@ -133,7 +105,6 @@ function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, on
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="rr-photo" style={{ backgroundImage: c.avatar ? `url(${c.avatar})` : 'none' }}>
-        <MatchScore score={c.score} size="xs" tone="overlay" className="rr-card-match" />
         {showActions && (
           <div className="rr-acts" onClick={(e) => e.stopPropagation()}>
             {column === 'new' && (
@@ -233,7 +204,6 @@ function Shelf({ title, items, onOpen }) {
                   />
                   <span className="rr-shelf-name">{c.name}</span>
                   <DivisionMark division={c.archetype || 'editorial'} size="sm" />
-                  {c.score != null && <MatchScore score={c.score} size="xs" tone="overlay" />}
                 </button>
               </li>
             ))}
@@ -304,7 +274,7 @@ function CastingDetailPage() {
     || (newFace.isPending && newFace.variables) || (pass.isPending && pass.variables)
     || (stageMove.isPending && stageMove.variables?.applicationId) || null;
 
-  // Bucket every candidate once; columns keep the backend's score ordering.
+  // Bucket every candidate once; the backend supplies a stable chronology.
   const buckets = useMemo(() => {
     const b = { new: [], shortlist: [], signed: [], file: [], passed: [] };
     candidates.forEach((c) => b[classify(c.backendStatus)].push(c));

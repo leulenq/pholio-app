@@ -18,7 +18,7 @@ function finding({ recent, prior, halfWeeks }) {
   const candidates = [
     {
       key: 'agency',
-      noun: 'agency attention',
+      noun: 'agency reviews',
       detail: 'reviews and advances',
       now: recent.reviews + recent.advances,
       then: prior.reviews + prior.advances,
@@ -33,11 +33,11 @@ function finding({ recent, prior, halfWeeks }) {
       weight: 2,
     },
     {
-      key: 'intent',
-      noun: 'intent',
-      detail: 'card pulls, link opens and visits that lasted',
-      now: recent.intent,
-      then: prior.intent,
+      key: 'activity',
+      noun: 'profile activity',
+      detail: 'profile visits, card pulls and shared-link opens',
+      now: recent.activity,
+      then: prior.activity,
       weight: 1,
     },
   ];
@@ -92,14 +92,14 @@ function finding({ recent, prior, halfWeeks }) {
 }
 
 export default function MomentumBlock({ momentum, tier }) {
-  const question = <>Am I <em>gaining ground</em>?</>;
+  const question = <>How has my <em>activity changed</em>?</>;
 
   if (tier === 'free') {
     return (
       <Block id="iv-momentum" question={question}>
         <Withheld title="Twelve-week momentum">
           Every week&rsquo;s real counts — submissions sent, agencies that opened you, advances,
-          intent events — recent half against the half before.
+          recorded profile activity — recent half against the half before.
         </Withheld>
       </Block>
     );
@@ -107,7 +107,7 @@ export default function MomentumBlock({ momentum, tier }) {
   if (!momentum) return null;
 
   const weeks = Array.isArray(momentum.weeks) ? momentum.weeks : [];
-  const anything = weeks.some((w) => w.sent + w.reviews + w.advances + w.intent > 0);
+  const anything = weeks.some((w) => w.sent + w.reviews + w.advances + w.activity > 0);
   const { recent, prior, halfWeeks } = momentum;
 
   return (
@@ -122,7 +122,7 @@ export default function MomentumBlock({ momentum, tier }) {
             <Stat value={recent.sent} label={`sent · ${delta(recent.sent, prior.sent)}`} />
             <Stat value={recent.reviews} label={`reviews · ${delta(recent.reviews, prior.reviews)}`} />
             <Stat value={recent.advances} label={`advances · ${delta(recent.advances, prior.advances)}`} />
-            <Stat value={recent.intent} label={`intent · ${delta(recent.intent, prior.intent)}`} />
+            <Stat value={recent.activity} label={`profile activity · ${delta(recent.activity, prior.activity)}`} />
           </StatRow>
           <WeeklyBars weeks={weeks} halfWeeks={halfWeeks} />
         </>

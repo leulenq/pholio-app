@@ -279,7 +279,7 @@
 .rr-cardwrap--drag .rr-card { box-shadow: 0 22px 48px rgba(20, 18, 14, 0.22); border-color: #E2DAC9; }
 .rr-col--over { background: color-mix(in srgb, var(--bd-ink, #16130D) 4%, transparent); border-radius: 12px; }
 
-/* Rail card — photo-led, fit meter as a baseline, plain-text metadata. */
+/* Rail card — photo-led, plain-text metadata. */
 .rr-card {
   background: #FFFFFF; border: 1px solid #ECE4D4; border-radius: 12px; overflow: hidden;
   cursor: pointer;
@@ -292,12 +292,6 @@
 .rr-photo {
   position: relative; aspect-ratio: 3 / 4;
   background-size: cover; background-position: center top; background-color: #E7E2D8;
-}
-.rr-card-match.match-score {
-  position: absolute; top: 0; right: 0;
-  border-radius: 0;
-  border-top-width: 0; border-right-width: 0;
-  box-shadow: none; z-index: 2;
 }
 .rr-acts {
   position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 6px; padding: 10px;
@@ -324,21 +318,6 @@
 .rr-card-meta { display: block; font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase; color: #6B6560; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rr-card-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 8px; }
 .rr-card-status { font-size: 11px; }
-
-/* ---------- FIT (page-scoped match score) ----------
-   Board fit for this surface only: a hairline meter under the photo and a
-   plain inline readout. No floating chip; gold only for the exceptional few. */
-.fit-meter { display: block; height: 3px; background: rgba(26, 24, 21, 0.08); }
-.fit-meter i { display: block; height: 100%; background: rgba(26, 24, 21, 0.4); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-.fit-meter--exceptional i { background: var(--ag-gold); }
-.fit-meter--strong i { background: rgba(26, 24, 21, 0.62); }
-.fit-meter--fair i { background: rgba(26, 24, 21, 0.38); }
-.fit-meter--low i { background: rgba(26, 24, 21, 0.18); }
-
-.fit-line { font-size: 12px; font-weight: 600; color: #2D2A26; white-space: nowrap; }
-.fit-num { font-variant-numeric: tabular-nums; }
-.fit-line--exceptional .fit-num { color: #8A6420; }
-.fit-tier { font-weight: 500; color: #6B6560; }
 
 /* ---------- SHELVES — kept on file / passed ---------- */
 .rr-shelves { margin-top: 34px; border-top: 1px solid var(--ag-rule); }
@@ -394,7 +373,7 @@
 
 /* ---------- REDUCED MOTION ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .sg-folio, .rr-card, .sg-new, .rr-act, .fit-meter i, .rr-shelf-chev { transition: none; }
+  .sg-folio, .rr-card, .sg-new, .rr-act, .rr-shelf-chev { transition: none; }
   .sg-folio:hover, .rr-card:hover, .sg-new:hover, .rr-act:hover { transform: none; }
   .sg-folio--skeleton, .rr-card--skeleton { animation: none; }
 }

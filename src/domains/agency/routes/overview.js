@@ -10,20 +10,16 @@ const { getSessionAgencyId } = require("../services/context");
 const {
   getPendingReview,
   getActiveCastings,
-  getRosterSize,
-  getPlacementRate,
   getPipeline,
-  getTalentMix,
   getAlerts,
   getPulse,
-  getActiveUtilization,
 } = require("../queries/overview.queries");
 
 /**
  * GET /api/agency/overview
  *
- * Returns aggregated KPI, pipeline, talent mix, pulse, and alert data
- * for the Agency Overview tab. All 9 queries run in parallel.
+ * Returns aggregated intake KPIs, pipeline, pulse, and alert data
+ * for the Agency Overview tab.
  *
  * Auth: requireRole('AGENCY')
  */
@@ -38,23 +34,15 @@ router.get("/api/agency/overview", requireRole("AGENCY"), async (req, res) => {
     const [
       pendingReview,
       activeCastings,
-      rosterSize,
-      placementRate,
       pipeline,
-      talentMix,
       alerts,
       pulse,
-      utilization,
     ] = await Promise.all([
       getPendingReview(knex, agencyId),
       getActiveCastings(knex, agencyId),
-      getRosterSize(knex, agencyId),
-      getPlacementRate(knex, agencyId),
       getPipeline(knex, agencyId),
-      getTalentMix(knex, agencyId),
       getAlerts(knex, agencyId),
       getPulse(knex, agencyId),
-      getActiveUtilization(knex, agencyId),
     ]);
 
     return res.json({
@@ -63,12 +51,8 @@ router.get("/api/agency/overview", requireRole("AGENCY"), async (req, res) => {
         kpis: {
           pendingReview,
           activeCastings,
-          rosterSize,
-          placementRate,
-          utilization,
         },
         pipeline,
-        talentMix,
         alerts,
         pulse,
       },

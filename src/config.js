@@ -89,21 +89,6 @@ if (stripeWebhookSecret && !stripeWebhookSecret.startsWith("whsec_")) {
   );
 }
 
-// Discover engine selector. DISCOVER_ENGINE takes precedence when set to a
-// recognized value; DISCOVER_HYBRID=true remains a legacy alias for 'hybrid'.
-const DISCOVER_ENGINES = ["launch", "hybrid", "browse"];
-function resolveDiscoverEngine() {
-  const raw = (process.env.DISCOVER_ENGINE || "").trim().toLowerCase();
-  if (DISCOVER_ENGINES.includes(raw)) return raw;
-  if (
-    process.env.DISCOVER_HYBRID === "true" ||
-    process.env.DISCOVER_HYBRID === "1"
-  ) {
-    return "hybrid";
-  }
-  return "hybrid";
-}
-
 module.exports = {
   port: Number(process.env.PORT || 3000),
   nodeEnv,
@@ -166,7 +151,7 @@ module.exports = {
   // Groq AI configuration
   groq: {
     apiKey: process.env.GROQ_API_KEY,
-    // Text/JSON: query understanding, rerank, chat. GROQ_TEXT_MODEL is the
+    // Text/JSON: natural-language brief parsing. GROQ_TEXT_MODEL is the
     // rollback lever (deprecated defaults trigger a startup warning below).
     textModel: groqTextModel,
     // Vision: every image-analysis path (Scout, portfolio classification,
@@ -187,10 +172,6 @@ module.exports = {
     // level) only if GROQ_VISION_MODEL is swapped for a non-reasoning model.
     visionReasoningEffort: process.env.GROQ_VISION_REASONING_EFFORT || "none",
   },
-  // OpenAI — Discover semantic search embeddings (text-embedding-3-small)
-  openai: {
-    apiKey: process.env.OPENAI_API_KEY,
-  },
   // Content moderation (WS10 — manual review queue at launch).
   // provider: 'heuristic' (default) or 'hive'. With provider=hive and no
   // HIVE_API_KEY the pipeline logs once and degrades to the heuristic.
@@ -205,32 +186,6 @@ module.exports = {
     hiveThreshold:
       parseFloat(process.env.MODERATION_HIVE_FLAG_THRESHOLD) || 0.5,
     hiveTimeoutMs: parseInt(process.env.MODERATION_HIVE_TIMEOUT_MS, 10) || 8000,
-  },
-  // Hybrid Discover retrieval (multi-channel + RRF + Groq rerank)
-  discover: {
-    // Engine selector (WS5). Values: 'launch' | 'hybrid' | 'browse'.
-    // Precedence: DISCOVER_ENGINE wins when set to a valid value; otherwise the
-    // legacy DISCOVER_HYBRID=true is honored as an alias for 'hybrid'. Default
-    // 'hybrid' during rollout — flip to 'launch' once WS8 exit criteria are green.
-    engine: resolveDiscoverEngine(),
-    // Launch mode activates only below this eligible-pool size; above it the
-    // engine logs and falls through to hybrid (filter-first at scale).
-    corpusThreshold:
-      parseInt(process.env.DISCOVER_CORPUS_THRESHOLD, 10) || 2500,
-    hybrid:
-      process.env.DISCOVER_HYBRID === "true" ||
-      process.env.DISCOVER_HYBRID === "1",
-    retrievalTopK: parseInt(process.env.DISCOVER_RETRIEVAL_TOP_K, 10) || 80,
-    rerankTopK: parseInt(process.env.DISCOVER_RERANK_TOP_K, 10) || 50,
-    rerankProvider: process.env.DISCOVER_RERANK_PROVIDER || "groq",
-    minRerankScore: parseFloat(process.env.DISCOVER_MIN_RERANK_SCORE) || 40,
-    rrfK: parseInt(process.env.DISCOVER_RRF_K, 10) || 60,
-    // Legacy single-vector fusion (deprecated when hybrid on)
-    maxDistance: parseFloat(process.env.DISCOVER_MAX_DISTANCE) || 0.55,
-    fusionTextWeight:
-      parseFloat(process.env.DISCOVER_FUSION_TEXT_WEIGHT) || 0.6,
-    fusionImageWeight:
-      parseFloat(process.env.DISCOVER_FUSION_IMAGE_WEIGHT) || 0.4,
   },
   // Cloudflare R2 configuration
   r2: {

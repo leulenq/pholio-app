@@ -52,16 +52,16 @@ export const STAGE_INK = {
   settled: RAMP[4],
 };
 
-/** Viewer quality, strongest first — agency attention is the deepest ink. */
+/** Viewer source categories. Color distinguishes provenance, not quality. */
 export const VIEWER_INK = {
   agency: RAMP[4],
-  client: RAMP[2],
+  shared: RAMP[2],
   public: RAMP[0],
 };
 
 export const VIEWER_LABEL = {
   agency: 'Agency',
-  client: 'Client',
+  shared: 'Shared link',
   public: 'Public',
 };
 

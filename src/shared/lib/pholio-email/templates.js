@@ -25,7 +25,7 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName } = {}) {
     blocks: [
       heading("Your board is ready."),
       goldRule(),
-      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, roster review, messaging, and casting work.`),
+      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, messaging, discovery, and casting work.`),
       button("Open agency workspace", `${appUrl()}/dashboard/agency`),
       signoff(),
     ],
@@ -46,7 +46,7 @@ function buildAgencyActivationEmailHtml({ contactName, agencyName, activationUrl
       heading("Your access is granted."),
       goldRule(),
       paragraph(`${greet(contactName)} ${agencyName ? strong(agencyName) : "your agency"} has been reviewed and accepted into Pholio.`),
-      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, and decide how your roster arrives — most of it is confirmation rather than new information."),
+      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, configure intake, and invite your team — most of it is confirmation rather than new information."),
       button("Set your password", activationUrl),
       note(`This link expires in ${expiresMinutes || 60} minutes and can be used once. If it has lapsed, request a new one from the sign-in page or reply to this email.`),
       signoff(),

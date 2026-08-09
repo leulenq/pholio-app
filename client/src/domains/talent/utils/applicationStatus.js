@@ -91,7 +91,7 @@ export function statusConfig(status) {
       group: 'signed',
       icon: Check,
       next: "You're represented — expect onboarding details directly from the agency.",
-      detail: 'The agency has taken you onto its roster.',
+      detail: 'The agency has offered you representation.',
     },
     declined: {
       label: 'Not Selected',

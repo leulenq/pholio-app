@@ -199,7 +199,7 @@ export function DecisionDock({ applicationId, status, slug, compact = false }) {
             disabled={actions.isPending}
             onClick={() => actions.accept.mutate()}
           >
-            <Check size={15} aria-hidden /> Sign to the roster
+            <Check size={15} aria-hidden /> Offer representation
           </button>
         )
       )}

@@ -37,14 +37,10 @@ const { reconcile } = require("./extract-values");
 // ─────────────────────────────────────────────────────────────────────────────
 // Prompt-injection input hardening (SEC-0.9)
 //
-// Talent-authored free text (look_descriptor, castingNotes, bio) and the
-// agency's own query flow into Groq prompts on the Discover feature, so both are
-// an untrusted-input surface. Two jobs, shared from this module so there is a
-// single source of truth:
-//   1. FENCE tokens wrap untrusted candidate data in the reranker prompt so the
-//      model can tell DATA from instructions (see discover-rerank.js).
-//   2. sanitizeUntrustedText() neutralizes obvious injection control phrases and
-//      any attempt to FORGE the fence tokens, before interpolation.
+// Agency-authored query text flows into the Discover parser and remains an
+// untrusted-input surface. sanitizeUntrustedText() is retained as the shared
+// boundary helper for prompt-backed parsing and neutralizes obvious injection
+// control phrases before interpolation.
 // This is a conservative denylist: it redacts high-signal injection sequences to
 // "[filtered]" without scrubbing legitimate casting vocabulary.
 // ─────────────────────────────────────────────────────────────────────────────

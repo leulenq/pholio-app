@@ -260,13 +260,6 @@ describe("GET /api/agency/overview — response shape", () => {
     expect(typeof kpis.activeCastings.count).toBe("number");
     expect(typeof kpis.activeCastings.closingToday).toBe("number");
 
-    expect(typeof kpis.rosterSize.count).toBe("number");
-    expect(Array.isArray(kpis.rosterSize.trend)).toBe(true);
-    expect(kpis.rosterSize.trend).toHaveLength(7);
-    expect(typeof kpis.rosterSize.changeThisMonth).toBe("number");
-
-    expect(typeof kpis.placementRate.current).toBe("number");
-    expect(typeof kpis.placementRate.lastSeason).toBe("number");
   });
 
   test("pipeline is an array; each entry has label/count/sharePct", () => {
@@ -276,16 +269,6 @@ describe("GET /api/agency/overview — response shape", () => {
       expect(typeof entry.label).toBe("string");
       expect(typeof entry.count).toBe("number");
       expect(typeof entry.sharePct).toBe("number");
-    }
-  });
-
-  test("talentMix is an array; each entry has name/count/pct", () => {
-    const { talentMix } = res.body.data;
-    expect(Array.isArray(talentMix)).toBe(true);
-    for (const entry of talentMix) {
-      expect(typeof entry.name).toBe("string");
-      expect(typeof entry.count).toBe("number");
-      expect(typeof entry.pct).toBe("number");
     }
   });
 
@@ -305,33 +288,16 @@ describe("GET /api/agency/overview — response shape", () => {
     expect(pulse).toBeDefined();
     expect(typeof pulse.newToday).toBe("number");
     expect(typeof pulse.closingWeek).toBe("number");
-    expect(typeof pulse.idleTalent).toBe("number");
     expect(typeof pulse.discoverableCount).toBe("number");
     expect(typeof pulse.newTalentWeek).toBe("number");
-    // avgMatchScore may be null when no submitted apps exist
-    expect(
-      pulse.avgMatchScore === null || typeof pulse.avgMatchScore === "number",
-    ).toBe(true);
-  });
-
-  test("kpis.utilization present with correct shape", () => {
-    const { utilization } = res.body.data.kpis;
-    expect(utilization).toBeDefined();
-    expect(typeof utilization.active).toBe("number");
-    expect(typeof utilization.total).toBe("number");
-    expect(typeof utilization.pct).toBe("number");
+    expect(pulse).not.toHaveProperty("avgMatchScore");
   });
 
   test("no field is null except oldestDaysAgo when pendingReview.count is 0", () => {
-    const { kpis, pipeline, talentMix, alerts } = res.body.data;
+    const { kpis, pipeline, alerts } = res.body.data;
 
     expect(kpis.activeCastings.count).not.toBeNull();
     expect(kpis.activeCastings.closingToday).not.toBeNull();
-    expect(kpis.rosterSize.count).not.toBeNull();
-    expect(kpis.rosterSize.trend).not.toBeNull();
-    expect(kpis.rosterSize.changeThisMonth).not.toBeNull();
-    expect(kpis.placementRate.current).not.toBeNull();
-    expect(kpis.placementRate.lastSeason).not.toBeNull();
 
     if (kpis.pendingReview.count === 0) {
       expect(kpis.pendingReview.oldestDaysAgo).toBeNull();
@@ -340,7 +306,6 @@ describe("GET /api/agency/overview — response shape", () => {
     }
 
     expect(pipeline).not.toBeNull();
-    expect(talentMix).not.toBeNull();
     expect(alerts).not.toBeNull();
   });
 });
@@ -373,27 +338,8 @@ describe("query functions — zero state (fresh agency with no data)", () => {
     });
   });
 
-  test("getRosterSize returns count:0, 7-zero trend, changeThisMonth:0", async () => {
-    const result = await queries.getRosterSize(knex, freshAgencyId);
-    expect(result.count).toBe(0);
-    expect(result.trend).toHaveLength(7);
-    expect(result.trend.every((v) => v === 0)).toBe(true);
-    expect(result.changeThisMonth).toBe(0);
-  });
-
-  test("getPlacementRate returns { current: 0, lastSeason: 0 }", async () => {
-    expect(await queries.getPlacementRate(knex, freshAgencyId)).toEqual({
-      current: 0,
-      lastSeason: 0,
-    });
-  });
-
   test("getPipeline returns []", async () => {
     expect(await queries.getPipeline(knex, freshAgencyId)).toEqual([]);
-  });
-
-  test("getTalentMix returns []", async () => {
-    expect(await queries.getTalentMix(knex, freshAgencyId)).toEqual([]);
   });
 
   test("getAlerts returns []", async () => {
@@ -519,36 +465,12 @@ describe("query functions — data correctness", () => {
     expect(result.closingToday).toBe(1);
   });
 
-  test("rosterSize count matches accepted+non-null-accepted_at in DB", async () => {
-    const [row] = await knex("applications")
-      .where({ agency_id: AGENCY_USER_ID, status: "accepted" })
-      .whereNotNull("accepted_at")
-      .count("* as count");
-    const expected = parseInt(row.count, 10); // 2
-    const result = await queries.getRosterSize(knex, AGENCY_USER_ID);
-    expect(result.count).toBe(expected);
-  });
-
-  test("development is an advancing pipeline state, not signed roster talent", async () => {
-    const roster = await queries.getRosterSize(knex, AGENCY_USER_ID);
-    expect(roster.count).toBe(2);
-
+  test("development is an advancing pipeline state", async () => {
     const pipeline = await queries.getPipeline(knex, AGENCY_USER_ID);
     const development = pipeline.find(
       (stage) => stage.label === "New Face — Development",
     );
     expect(development).toMatchObject({ count: 1 });
-  });
-
-  test("rosterSize trend[6] equals rosterSize.count", async () => {
-    const result = await queries.getRosterSize(knex, AGENCY_USER_ID);
-    expect(result.trend[6]).toBe(result.count);
-  });
-
-  test("rosterSize trend has exactly 7 elements, all non-negative", async () => {
-    const result = await queries.getRosterSize(knex, AGENCY_USER_ID);
-    expect(result.trend).toHaveLength(7);
-    expect(result.trend.every((v) => v >= 0)).toBe(true);
   });
 
   test("pipeline contains submitted and declined stages", async () => {
@@ -582,15 +504,6 @@ describe("query functions — data correctness", () => {
     expect(warning.link).toBe("/dashboard/agency/casting");
   });
 
-  test("placementRate values are integers in range 0–100", async () => {
-    const result = await queries.getPlacementRate(knex, AGENCY_USER_ID);
-    expect(result.current).toBeGreaterThanOrEqual(0);
-    expect(result.current).toBeLessThanOrEqual(100);
-    expect(result.lastSeason).toBeGreaterThanOrEqual(0);
-    expect(result.lastSeason).toBeLessThanOrEqual(100);
-    expect(Number.isInteger(result.current)).toBe(true);
-    expect(Number.isInteger(result.lastSeason)).toBe(true);
-  });
 });
 
 // ─── getPulse — zero state ────────────────────────────────────────────────────
@@ -611,8 +524,7 @@ describe("getPulse — zero state", () => {
     const result = await queries.getPulse(knex, freshPulseAgencyId);
     expect(result.newToday).toBe(0);
     expect(result.closingWeek).toBe(0);
-    expect(result.idleTalent).toBe(0);
-    expect(result.avgMatchScore).toBeNull();
+    expect(result).not.toHaveProperty("avgMatchScore");
     expect(result.discoverableCount).toBeGreaterThanOrEqual(0);
     expect(result.newTalentWeek).toBeGreaterThanOrEqual(0);
   });
@@ -705,28 +617,4 @@ describe("getPulse — data correctness", () => {
     expect(result.closingWeek).toBeGreaterThanOrEqual(1);
   });
 
-  test("idleTalent counts accepted talent with no recent board activity", async () => {
-    const result = await queries.getPulse(knex, PULSE_AGENCY_ID);
-    expect(result.idleTalent).toBeGreaterThanOrEqual(1);
-  });
-});
-
-// ─── getActiveUtilization — zero state ───────────────────────────────────────
-
-describe("getActiveUtilization — zero state", () => {
-  let freshUtilAgencyId;
-
-  beforeAll(async () => {
-    freshUtilAgencyId = uuidv4();
-    await knex("users").insert({
-      id: freshUtilAgencyId,
-      email: `fresh-util-${Date.now()}@test.local`,
-      role: "AGENCY",
-    });
-  });
-
-  test("returns { active: 0, total: 0, pct: 0 } for fresh agency", async () => {
-    const result = await queries.getActiveUtilization(knex, freshUtilAgencyId);
-    expect(result).toEqual({ active: 0, total: 0, pct: 0 });
-  });
 });

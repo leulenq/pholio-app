@@ -1105,8 +1105,6 @@ router.post(
               id: uuidv4(),
               board_id: board.id,
               application_id: applicationId,
-              match_score: null,
-              match_details: null,
               created_at: trx.fn.now(),
               updated_at: trx.fn.now(),
             })),

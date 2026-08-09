@@ -8,7 +8,6 @@ import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
-import MatchScore from './ui/MatchScore';
 import { DivisionMark } from './status';
 import { MetaLine, Place } from './meta';
 import './TalentPanel.css';
@@ -110,7 +109,6 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
     slug: profileHydrated?.slug || talent.slug,
     portfolioUrl: profileHydrated?.portfolioUrl,
   });
-  const matchScore = talent.match ?? profileHydrated?.matchScore ?? null;
   const isPipeline = Boolean(talent.applicationId);
   const status = profileHydrated?.status || talent.status;
 
@@ -199,9 +197,6 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
             </>
           )}
 
-          {matchScore != null && (
-            <MatchScore score={matchScore} size="sm" tone="overlay" className="tp-hero-match" />
-          )}
 
           <div className="tp-hero-controls">
             {talent.applicationId && (

@@ -28,15 +28,11 @@ const {
   writeImpressionEvents,
   writeInviteEvent,
 } = require("../services/discover/query-log");
-const {
-  recordDiscoveryImpressions,
-  recordProfileEvent,
-} = require("../../talent/services/intel/capture");
+const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const {
   createDiscoverRateLimit,
 } = require("../../../shared/middleware/discover-rate-limit");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
-const { recalculateBoardScores } = require("./recalculate-board-scores");
 const {
   mapApplicationStatusToCastingStage,
   mapCastingStageToApplicationStatus,
@@ -79,9 +75,6 @@ const {
   computeAge,
   isMinorProfile,
 } = require("../../../shared/lib/talent-age");
-const {
-  syncRosterMembershipForApplication,
-} = require("../services/roster-memberships");
 const {
   applyMinorSubmissionFilter,
 } = require("../services/minor-submission-access");
@@ -301,7 +294,7 @@ router.get(
   },
 );
 
-// GET /api/agency/boards/:boardId - Get board details with requirements and weights
+// GET /api/agency/boards/:boardId - Get board details with requirements
 router.get(
   "/api/agency/boards/:boardId",
   requireRole("AGENCY"),
@@ -321,11 +314,6 @@ router.get(
 
       // Get requirements
       const requirements = await knex("board_requirements")
-        .where({ board_id: boardId })
-        .first();
-
-      // Get scoring weights
-      const scoring_weights = await knex("board_scoring_weights")
         .where({ board_id: boardId })
         .first();
 
@@ -357,7 +345,6 @@ router.get(
       return res.json({
         ...board,
         requirements: parsedRequirements,
-        scoring_weights,
       });
     } catch (error) {
       console.error("[Boards API] Error fetching board:", error);
@@ -392,7 +379,6 @@ router.post(
         is_active = true,
         sort_order = 0,
         requirements,
-        scoring_weights,
         brand_color,
         plate_style,
         board_type,
@@ -466,27 +452,6 @@ router.post(
           updated_at: knex.fn.now(),
         });
       }
-
-      // Create default scoring weights
-      const defaultWeights = scoring_weights || {
-        age_weight: 0,
-        height_weight: 0,
-        measurements_weight: 0,
-        body_type_weight: 0,
-        comfort_weight: 0,
-        experience_weight: 0,
-        skills_weight: 0,
-        location_weight: 0,
-        social_reach_weight: 0,
-      };
-
-      await knex("board_scoring_weights").insert({
-        id: require("crypto").randomUUID(),
-        board_id: board.id,
-        ...defaultWeights,
-        created_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
-      });
 
       return res.json(board);
     } catch (error) {
@@ -741,94 +706,10 @@ router.put(
         });
       }
 
-      // Recalculate match scores for all applications in this board
-      await recalculateBoardScores(boardId, agencyId);
-
       return res.json({ success: true });
     } catch (error) {
       console.error("[Boards API] Error updating requirements:", error);
       return res.status(500).json({ error: "Failed to update requirements" });
-    }
-  },
-);
-
-// PUT /api/agency/boards/:boardId/weights - Update scoring weights
-router.put(
-  "/api/agency/boards/:boardId/weights",
-  requireRole("AGENCY"),
-  async (req, res, next) => {
-    try {
-      const { boardId } = req.params;
-      const agencyId = req.session.userId;
-      const weights = req.body;
-
-      // Verify board belongs to agency
-      const board = await knex("boards")
-        .where({ id: boardId, agency_id: agencyId })
-        .first();
-
-      if (!board) {
-        return res.status(404).json({ error: "Board not found" });
-      }
-
-      // Validate weights (0-5)
-      const weightFields = [
-        "age_weight",
-        "height_weight",
-        "measurements_weight",
-        "body_type_weight",
-        "comfort_weight",
-        "experience_weight",
-        "skills_weight",
-        "location_weight",
-        "social_reach_weight",
-      ];
-      const weightsData = {};
-      weightFields.forEach((field) => {
-        if (weights[field] !== undefined) {
-          const val = parseFloat(weights[field]);
-          weightsData[field] = Math.max(0, Math.min(5, val));
-        }
-      });
-
-      // Check if weights exist
-      const existing = await knex("board_scoring_weights")
-        .where({ board_id: boardId })
-        .first();
-
-      if (existing) {
-        await knex("board_scoring_weights")
-          .where({ board_id: boardId })
-          .update({
-            ...weightsData,
-            updated_at: knex.fn.now(),
-          });
-      } else {
-        await knex("board_scoring_weights").insert({
-          id: require("crypto").randomUUID(),
-          board_id: boardId,
-          age_weight: 0,
-          height_weight: 0,
-          measurements_weight: 0,
-          body_type_weight: 0,
-          comfort_weight: 0,
-          experience_weight: 0,
-          skills_weight: 0,
-          location_weight: 0,
-          social_reach_weight: 0,
-          ...weightsData,
-          created_at: knex.fn.now(),
-          updated_at: knex.fn.now(),
-        });
-      }
-
-      // Recalculate match scores
-      await recalculateBoardScores(boardId, agencyId);
-
-      return res.json({ success: true });
-    } catch (error) {
-      console.error("[Boards API] Error updating weights:", error);
-      return res.status(500).json({ error: "Failed to update weights" });
     }
   },
 );
@@ -880,12 +761,8 @@ router.post(
         return res.status(404).json({ error: "Board not found" });
       }
 
-      // Get requirements and weights
+      // Get requirements
       const requirements = await knex("board_requirements")
-        .where({ board_id: boardId })
-        .first();
-
-      const weights = await knex("board_scoring_weights")
         .where({ board_id: boardId })
         .first();
 
@@ -913,22 +790,6 @@ router.post(
           id: require("crypto").randomUUID(),
           board_id: newBoardId,
           ...newReq,
-          created_at: knex.fn.now(),
-          updated_at: knex.fn.now(),
-        });
-      }
-
-      // Copy weights
-      if (weights) {
-        const newWeights = { ...weights };
-        delete newWeights.id;
-        delete newWeights.board_id;
-        delete newWeights.created_at;
-        delete newWeights.updated_at;
-        await knex("board_scoring_weights").insert({
-          id: require("crypto").randomUUID(),
-          board_id: newBoardId,
-          ...newWeights,
           created_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
@@ -985,7 +846,6 @@ router.get(
           }),
           "applications.status as application_status",
           "applications.id as application_id",
-          "applications.match_score as match_score",
           "applications.created_at as application_created_at",
         ])
         .innerJoin("applications", (join) => {
@@ -1181,7 +1041,6 @@ router.get(
           ...submitted,
           application_status: profile.application_status,
           application_id: profile.application_id,
-          match_score: profile.match_score,
           application_created_at: profile.application_created_at,
           submission_package: submissionPackage || null,
           tags: tagsByApplication[profile.application_id] || [],
@@ -1252,8 +1111,6 @@ router.post(
     try {
       const { applicationId } = req.params;
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
-
       const application = await knex.transaction(async (trx) => {
         const row = await trx("applications")
           .where({ id: applicationId, agency_id: agencyId })
@@ -1267,12 +1124,6 @@ router.post(
           declined_at: null,
           updated_at: trx.fn.now(),
         });
-        await syncRosterMembershipForApplication(
-          trx,
-          { ...row, accepted_at: acceptedAt },
-          "accepted",
-          { actorUserId },
-        );
         await logActivity(
           req,
           trx,
@@ -1342,7 +1193,6 @@ router.patch(
     try {
       const { applicationId } = req.params;
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
       const requestedStatus =
         req.body?.status || mapCastingStageToApplicationStatus(req.body?.stage);
 
@@ -1394,12 +1244,6 @@ router.patch(
               : null,
           updated_at: trx.fn.now(),
         });
-        await syncRosterMembershipForApplication(
-          trx,
-          { ...row, accepted_at: acceptedAt },
-          requestedStatus,
-          { actorUserId },
-        );
         await logActivity(
           req,
           trx,
@@ -1613,8 +1457,6 @@ router.post(
     try {
       const { applicationIds } = req.body;
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
-
       if (
         !applicationIds ||
         !Array.isArray(applicationIds) ||
@@ -1640,12 +1482,6 @@ router.post(
         });
 
         for (const app of rows) {
-          await syncRosterMembershipForApplication(
-            trx,
-            { ...app, accepted_at: acceptedAt },
-            "accepted",
-            { actorUserId },
-          );
           await logActivity(
             req,
             trx,
@@ -1683,7 +1519,6 @@ router.patch(
     try {
       const { applicationIds, status, stage } = req.body || {};
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
       const requestedStatus =
         status || mapCastingStageToApplicationStatus(stage);
 
@@ -1743,15 +1578,6 @@ router.patch(
         });
 
         for (const application of rows) {
-          await syncRosterMembershipForApplication(
-            trx,
-            {
-              ...application,
-              accepted_at: application.accepted_at || acceptedAt,
-            },
-            requestedStatus,
-            { actorUserId },
-          );
           await logActivity(
             req,
             trx,
@@ -3199,7 +3025,6 @@ router.get(
         application: {
           id: application.id,
           status: application.status,
-          match_score: application.match_score,
           created_at: application.created_at,
           accepted_at: application.accepted_at,
           declined_at: application.declined_at,
@@ -3339,7 +3164,6 @@ router.get(
           "applications.id as application_id",
           "applications.status as application_status",
           "applications.created_at as application_created_at",
-          "applications.match_score as app_match",
           "profiles.id as profile_id",
           "profiles.first_name",
           "profiles.last_name",
@@ -3392,7 +3216,6 @@ router.get(
           height: app.height_cm || null,
           age: ageFrom(app.date_of_birth),
           profileImage: imageByProfile[app.profile_id] || null,
-          matchScore: app.app_match ? Math.round(app.app_match) : null,
           isNew: isNew,
           slug: app.slug,
           createdAt: app.application_created_at,
@@ -3496,7 +3319,7 @@ router.get(
 const discoverLimiter = createDiscoverRateLimit();
 
 // GET /api/agency/discover - Get discoverable talent (for React frontend)
-// Supports optional ?q= parameter for multi-vector semantic search via pgvector.
+// Supports optional ?q= natural-language briefs parsed into factual constraints.
 router.get(
   "/api/agency/discover",
   discoverLimiter,
@@ -3534,18 +3357,10 @@ router.get(
         delete result._launch;
       }
 
-      // Intel Capture v2 — discovery demand ("the market is searching for
-      // someone like you"). Aggregate only: no agency identity on the event.
       const shownIds = (result?.profiles || [])
         .map((p) => p?.id)
         .filter(Boolean);
       if (shownIds.length) {
-        const filterKeys = Object.keys(req.query).filter(
-          (k) => !["page", "limit", "offset"].includes(k),
-        );
-        recordDiscoveryImpressions(shownIds, {
-          filters: filterKeys.length ? filterKeys : null,
-        });
         // Attribute impressions to the logged query (launch engine only).
         if (queryLogId) {
           writeImpressionEvents(knex, queryLogId, shownIds).catch(() => {});
@@ -3586,6 +3401,13 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
+      recordProfileEvent({
+        profile,
+        action: "discovery_open",
+        req,
+        viewerClass: "agency",
+      });
+
       // Get visible images only (moderation + agency-exclusion filtered).
       await ensureModerationColumnChecked(knex);
       const imageQuery = knex("images").where({ profile_id: profileId });
@@ -3607,15 +3429,6 @@ router.get(
           console.error("[Discover Preview] Notification failed:", err),
         );
       }
-
-      // Intel Capture v2 — profile opened from discovery results (aggregate
-      // only; the agency identity is never stored on the event).
-      recordProfileEvent({
-        profile,
-        action: "discovery_open",
-        req,
-        viewerClass: "agency",
-      });
 
       // Static-allowlist DTO — never spread the raw discoverable profile row.
       const social = await loadSocialAccountsForProfile(profileId);

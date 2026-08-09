@@ -663,12 +663,12 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName }) {
     eyebrow: "Command center",
     title: safeAgency,
     subtitle:
-      "Your house is on Pholio. Review submissions, run castings, discover talent, and manage your roster — one premium surface built for scouts, bookers, and principals.",
+      "Your house is on Pholio. Review submissions, run castings, and discover opt-in talent — one premium surface built for scouts, bookers, and principals.",
   });
 
   const bodyHtml = `
     ${buildBodyCopy(
-      `<strong style="color:${BRAND.text};">${safeContact}</strong> — <strong style="color:${BRAND.text};">${safeAgency}</strong> is ready. Pholio replaces the scattered inbox with a pipeline you can actually run: applicants, boards, messages, and signed talent in one auditable workspace.`,
+      `<strong style="color:${BRAND.text};">${safeContact}</strong> — <strong style="color:${BRAND.text};">${safeAgency}</strong> is ready. Pholio replaces the scattered submission inbox with applicants, boards, messages, and representation decisions in one auditable workspace.`,
     )}
     ${buildStatRow([
       { value: "Inbox", label: "Applicants" },
@@ -681,25 +681,25 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName }) {
         icon: "◎",
         title: "Applicant pipeline",
         description:
-          "Review submissions with match scores, notes, tags, and status — from first look to signed.",
+          "Review submissions with notes, tags, and status — from first look to signed.",
       },
       {
         icon: "◇",
         title: "Discover & invite",
         description:
-          "Semantic search across talent. Invite the right faces without leaving the platform.",
+          "Search talent in natural language and invite suitable people without leaving the platform.",
       },
       {
         icon: "◈",
         title: "Casting boards",
         description:
-          "Run live castings with requirements, scoring weights, and board-level intelligence.",
+          "Run live castings with declared requirements and a shared board-level workflow.",
       },
       {
         icon: "◉",
-        title: "Roster & messages",
+        title: "Decisions & messages",
         description:
-          "Track who you are considering and message talent with magic-link replies.",
+          "Record representation decisions and message talent with magic-link replies.",
       },
     ])}
     ${buildSectionLabel("Launch checklist")}
@@ -728,7 +728,7 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName }) {
     ${buildCtaButton({ href: `${appUrl}/dashboard/agency`, label: "Enter agency dashboard" })}
     ${buildTextCta({ href: `${appUrl}/dashboard/agency/settings`, label: "Configure house settings →" })}
     ${buildConciergeNote(
-      `White-glove onboarding for ${safeAgency}? Reply to this email — our team can help migrate boards, roster exports, and team structure.`,
+      `Need onboarding help for ${safeAgency}? Reply to this email — our team can help configure boards, intake, and team access.`,
     )}`;
 
   return getWelcomeEmailShell({

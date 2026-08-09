@@ -1,11 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import MatchScore from '../ui/MatchScore';
 import { MetaLine, Place } from '../meta';
 
 const DRAG_THRESHOLD = 6;
 
-// Horizontal media strip of talent (headshots + match) — content-backed, scrollable.
+// Horizontal media strip of talent — content-backed and scrollable.
 export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
   const stripRef = useRef(null);
 
@@ -97,9 +96,6 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
             <button key={t.id} type="button" className="ov-strip-card" onClick={() => onSelect(t)}>
               <span className="ov-strip-photo">
                 <span className="ov-strip-img" style={{ backgroundImage: t.photo ? `url(${t.photo})` : 'none' }} />
-                {t.match != null && (
-                  <MatchScore score={t.match} size="xs" tone="overlay" className="ov-strip-match" />
-                )}
               </span>
               <span className="ov-strip-name">{t.name}</span>
               <MetaLine size="sm" className="ov-strip-meta">

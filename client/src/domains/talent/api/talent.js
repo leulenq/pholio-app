@@ -42,6 +42,10 @@ export const talentApi = {
   deleteBookout: (id) => apiClient.delete(`/bookouts/${encodeURIComponent(id)}`),
   // Stats-currency one-tap nudge — touches measurements_updated_at only.
   confirmMeasurementsCurrent: () => apiClient.post('/measurements/still-accurate', {}),
+  getAgeVerification: (options) => apiClient.get('/age-verification', options),
+  createAgeVerificationSession: () => apiClient.post('/age-verification/session', {}),
+  getAdultContext: (options) => apiClient.get('/adult-context', options),
+  updateAdultContext: (data) => apiClient.put('/adult-context', data),
 
   refineBio: (body) => apiClient.post('/bio/refine', body),
   generateBio: (body = {}) => apiClient.post('/bio/generate', body),
@@ -80,19 +84,14 @@ export const talentApi = {
 
   // Analytics
   getAnalytics: (days) => apiClient.get(`/analytics${days ? `?days=${days}` : ''}`),
-  getActivity: () => apiClient.get('/activity'),
-
-  // Intel (talent intelligence hub — composed payload + per-day scrub detail)
-  // The talent's own zone travels with the request so timing findings ("attention
-  // lands Thursday afternoons") are stated in their clock, not UTC.
   getIntel: (days, tz) => {
     const params = new URLSearchParams();
-    if (days) params.set('days', String(days));
+    if (days) params.set('days', days);
     if (tz) params.set('tz', tz);
-    const qs = params.toString();
-    return apiClient.get(`/intel${qs ? `?${qs}` : ''}`);
+    return apiClient.get(`/intel${params.size ? `?${params.toString()}` : ''}`);
   },
-  getIntelDay: (date) => apiClient.get(`/intel/day/${date}`),
+  getIntelDay: (date) => apiClient.get(`/intel/day/${encodeURIComponent(date)}`),
+  getActivity: () => apiClient.get('/activity'),
 
   // Notifications (high-signal bell center)
   getNotifications: (options = {}) => {
@@ -104,9 +103,6 @@ export const talentApi = {
   markAllNotificationsRead: () =>
     apiClient.post('/notifications/read-all', {}),
   getSummary: () => apiClient.get('/summary'),
-  getTimeseries: (days = 30) => apiClient.get(`/timeseries?days=${days}`),
-  getSessions: (days = 30) => apiClient.get(`/sessions?days=${days}`),
-
   // Applications
   getApplications: () => apiClient.get('/applications'),
   getApplicationQuota: () => apiClient.get('/applications/quota'),

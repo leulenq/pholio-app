@@ -3,7 +3,7 @@
  *
  * Every attention event is resolved to a viewer class before it is stored:
  *   agency  — authenticated agency session (or agency-side discovery)
- *   client  — arrival via a per-recipient share token
+ *   shared  — arrival via a share token (recipient identity is not inferred)
  *   public  — social / search / direct traffic
  *   self    — the talent themselves (never written; excluded everywhere)
  *
@@ -16,10 +16,10 @@
 
 const crypto = require("crypto");
 const knex = require("../../../../shared/db/knex");
-const { resolveMarketFromIp } = require("./market-resolve");
+const { resolveMarketFromIp } = require("../market-resolve");
 const { isMinorProfile } = require("../../../../shared/lib/talent-age");
 
-const VIEWER_CLASSES = new Set(["agency", "client", "public", "self"]);
+const VIEWER_CLASSES = new Set(["agency", "shared", "client", "public", "self"]);
 
 function requestIp(req) {
   return (
@@ -58,7 +58,8 @@ function deriveSource({ referrer, shareToken, viewerClass }) {
 
 /**
  * Resolve the viewer class for a request against a profile.
- * Share-token arrival counts as client/casting even when anonymous.
+ * A share-token arrival is known only as a shared-link visit. It does not prove
+ * the visitor is a client, casting director, or the person named on the link.
  */
 function resolveViewerClass(profile, req, shareToken = null) {
   const sessionUserId = req?.session?.userId;
@@ -66,7 +67,7 @@ function resolveViewerClass(profile, req, shareToken = null) {
     return "self";
   }
   if (req?.session?.role === "AGENCY") return "agency";
-  if (shareToken) return "client";
+  if (shareToken) return "shared";
   return "public";
 }
 

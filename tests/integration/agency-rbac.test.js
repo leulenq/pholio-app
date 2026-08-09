@@ -215,8 +215,8 @@ async function createMinimalSchema() {
     }
   }
 
-  // Signing an application syncs a roster membership row (roster-memberships
-  // service), and the roster detail route reads memberships + commitments.
+  // Retain the historical membership table in this hand-built schema so tests
+  // exercise the same deletion/cascade environment as migrated databases.
   if (!(await knex.schema.hasTable("roster_memberships"))) {
     await knex.schema.createTable("roster_memberships", (t) => {
       t.string("id", 36).primary();
@@ -948,10 +948,9 @@ describe("agency applications cross-tenant isolation", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Roster-detail and discover-preview DTO isolation (audit P0-3 leak class).
-// Both previously spread a RAW profile row (+ owner email) to the agency.
+// Discover-preview DTO isolation (audit P0-3 leak class).
 // ---------------------------------------------------------------------------
-describe("agency roster/preview DTO isolation", () => {
+describe("agency discover-preview DTO isolation", () => {
   const ROSTER_PROFILE = uuidv4();
   const ROSTER_APP = uuidv4();
   const ROSTER_MEMBERSHIP = uuidv4();
@@ -1038,8 +1037,7 @@ describe("agency roster/preview DTO isolation", () => {
       status: "accepted",
     });
 
-    // Roster is membership-backed: production signing creates this row via
-    // syncRosterMembershipForApplication, so the fixture mirrors it.
+    // Historical membership fixture: production no longer creates or reads it.
     await knex("roster_memberships").insert({
       id: ROSTER_MEMBERSHIP,
       agency_id: AGENCY_ID,
@@ -1094,36 +1092,6 @@ describe("agency roster/preview DTO isolation", () => {
       membershipId: MEMBERSHIP.owner,
       membershipRole: "OWNER",
     });
-
-  test("roster detail returns a shaped DTO, no owner email, agency-hidden image filtered", async () => {
-    const withCookie = await ownerSession();
-    const res = await withCookie(
-      request(app).get(`/api/agency/roster/${ROSTER_PROFILE}`),
-    );
-
-    expect(res.status).toBe(200);
-    // Membership-backed contract: { success, data: { membership, talent, … } }.
-    expect(res.body.data.membership.id).toBe(ROSTER_MEMBERSHIP);
-    const keys = collectAllKeys(res.body.data);
-    // Submission audience: age/archetype allowed, but account identity never is.
-    const NEVER = [
-      "owner_email",
-      "user_email",
-      "email",
-      "phone",
-      "guardian_email",
-      "date_of_birth",
-      "ip_address",
-      "photo_embedding",
-      "source_agency_id",
-      "exclude_from_agency",
-      "moderation_status",
-    ];
-    expect(NEVER.filter((k) => keys.has(k))).toEqual([]);
-    // Only the visible image survives applyImageVisibility.
-    expect(res.body.data.talent.images).toHaveLength(1);
-    expect(res.body.data.talent.images[0].id).toBe(VISIBLE_IMG);
-  });
 
   test("discover preview of an adult returns a discovery DTO with no forbidden keys", async () => {
     const withCookie = await ownerSession();

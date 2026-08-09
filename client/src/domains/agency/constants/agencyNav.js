@@ -1,6 +1,6 @@
 import {
   LayoutGrid, Activity, Inbox, Clapperboard,
-  Telescope, Building2, Users,
+  Telescope, Building2,
 } from 'lucide-react';
 
 /** Collapse toggle sits after this group label in the rail. */
@@ -25,7 +25,6 @@ export const AGENCY_NAV_GROUPS = [
       { label: 'Submissions', to: '/dashboard/agency/submissions', icon: Inbox,         permission: 'applications.view_list' },
       { label: 'Signing',     to: '/dashboard/agency/signing',     icon: Clapperboard,  permission: 'boards.view'            },
       { label: 'Scout',       to: '/dashboard/agency/discover',    icon: Telescope,     permission: 'discover.search'        },
-      { label: 'Roster',      to: '/dashboard/agency/roster',      icon: Users,         permission: 'roster.view'            },
     ],
   },
   {

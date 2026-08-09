@@ -56,14 +56,6 @@ export function saveSetupTeam(payload = { skipped: true }) {
   return request('/setup/team', { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
-export function saveSetupRoster(payload) {
-  return request('/setup/roster', { method: 'PATCH', body: JSON.stringify(payload) });
-}
-
-export function createImportJob(payload) {
-  return request('/import-jobs', { method: 'POST', body: JSON.stringify(payload) });
-}
-
 export function saveSetupOpenCall(payload) {
   return request('/setup/open-call', { method: 'PATCH', body: JSON.stringify(payload) });
 }

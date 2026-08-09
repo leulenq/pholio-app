@@ -16,8 +16,8 @@ const InstagramCallbackPage = lazy(() => import('./domains/auth/pages/InstagramC
 const OverviewPage = lazy(() => import('./domains/talent/pages/OverviewPage'));
 const ProfilePage = lazy(() => import('./domains/talent/pages/ProfilePage'));
 const MediaPage = lazy(() => import('./domains/talent/pages/MediaPage'));
-const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const ApplicationsPage = lazy(() => import('./domains/talent/pages/ApplicationsPage'));
+const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const MessagesPage = lazy(() => import('./domains/talent/pages/MessagesPage'));
 const ApplyPage = lazy(() => import('./domains/talent/pages/ApplyPage'));
 
@@ -36,7 +36,6 @@ const AgencyCastingDetail = lazy(() => import('./domains/agency/pages/CastingDet
 const AgencyMessages = lazy(() => import('./domains/agency/pages/MessagesPage'));
 const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
-const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
@@ -113,7 +112,7 @@ function App() {
             <Route path="/dashboard/talent" element={<OverviewPage />} />
             <Route path="/dashboard/talent/profile" element={<ProfilePage />} />
             <Route path="/dashboard/talent/media" element={<MediaPage />} />
-            <Route path="/dashboard/talent/analytics" element={<IntelPage />} />
+            <Route path="/dashboard/talent/analytics" element={<Navigate to="/dashboard/talent/intel" replace />} />
             <Route path="/dashboard/talent/intel" element={<IntelPage />} />
             <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
             <Route path="/dashboard/talent/messages" element={<MessagesPage />} />
@@ -139,7 +138,7 @@ function App() {
               <Route path="/dashboard/agency/casting" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/casting/:boardId" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
-              <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
+              <Route path="/dashboard/agency/roster" element={<Navigate to="/dashboard/agency/submissions" replace />} />
               <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
               <Route path="/dashboard/agency/team" element={<AgencyTeam />} />
               <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />

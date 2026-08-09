@@ -63,18 +63,27 @@ Studio+).
 
 ## Still open
 
-- [ ] **Residual match scoring** — `services/match-scoring.js`, `routes/recalculate-board-scores.js`,
-      `services/discover-rerank.js` and the `boards.recalculate_scores` permission. **Blocked on
-      a product decision** (see below), not on effort.
-- [ ] **Roster memberships and board standings as an ongoing system of record** — the plan's
-      wording is a change of role, not a delete, and it does not say what replaces them.
-- [ ] **Intel / analytics pages inferring intent from view counts** (A3) — `talent/routes/intel.js`
-      and `IntelPage`.
-- [ ] **"Verified adult" state with no verification behind it** (A3).
+- [x] **Residual match scoring** — removed board score calculation/recalculation, scoring
+      weights, score permissions and displays, Discover retrieval/reranking, rollout config,
+      evaluation scripts and score-bearing API fields. Discover still accepts a natural-language
+      brief: it converts the brief into declared factual constraints, filters strictly on those
+      facts, and orders survivors deterministically by name, city or newest with stable tie-breaks.
+- [x] **Roster memberships and board standings as an ongoing system of record** — Pholio now
+      ends at the representation decision. The roster page, CRUD routes, membership-sync
+      writers, standing editor, roster permissions, setup migration path, dossier comparisons,
+      and roster-derived overview KPIs are gone. Application outcomes and applicant-routing
+      boards remain; agencies continue onboarding and roster operations in their own systems.
+- [ ] **Intel / analytics pages inferring intent from view counts** (A3) — revise, do not
+      remove. Keep Intel and analytics as talent-owned tools, restore the surface, and replace
+      unsupported intent/attention/momentum claims with attributable first-party traffic,
+      application outcomes, material usage, and clearly labeled factual trends.
+- [ ] **"Verified adult" state with no verification behind it** (A3) — build a real age-
+      verification layer behind the state; do not remove the capability. Adult-context data
+      remains private and requires explicit, opportunity-specific sharing consent.
 - [ ] **Gamification and profile-strength theatre** (A3). The reveal page is already gone —
       `/reveal` and `/dashboard/talent/reveal` are redirects only.
 
-## The decision blocking residual match scoring
+## Residual match-scoring decision — resolved
 
 A4 **keeps** Discover ("Invite to Apply — from opt-in talent discovery") while the removal
 list kills "match scoring and all AI ranking". Discover currently orders results by a
@@ -87,9 +96,11 @@ before this branch touched it:
 > Match scoring is intentionally absent until it is backed by real signals. A stable
 > directory order is more useful than fabricated affinity.
 
-Applying that to Discover means: keep search and filtering on real facts (eligibility,
-boards, location), drop the score and the rerank, and order deterministically. That is a
-product call worth making explicitly rather than inferring.
+Confirmed product direction: **natural-language Discover stays**. The language parser may
+translate a written brief into declared factual constraints; it may not produce affinity,
+similarity, suitability or face-based ranking. Discover keeps filtering on real facts
+(eligibility, boards, location and declared measurements), drops scores and reranking, and
+orders matching talent deterministically.
 
 ---
 
@@ -110,16 +121,38 @@ auto-close.
 ## Verification standard used throughout
 
 Every slice is checked against a baseline taken at this branch's own HEAD (not the local
-`main` ref, which is stale — see `lessons.md`). Backend `npm test` holds at **5 pre-existing
-failing suites / 39 failing tests** across every commit: seed-dependent `app`,
+`main` ref, which is stale — see `lessons.md`). Before the Intel removal, backend `npm test`
+held at **5 pre-existing failing suites / 39 failing tests**: seed-dependent `app`,
 `notifications`, `overview-backend`, `intel`, plus `password-changed-notification`.
 `same-origin-app` flakes under parallel load on a 5s migration hook and passes in isolation.
-Client: lint clean bar one pre-existing warning in an untouched file, build succeeds, vitest
-holds at the pre-existing `ProfilePage` timeouts.
+The Intel suite and its 18 failures are now intentionally gone; the current count is recorded
+below. Client lint keeps one pre-existing warning in an untouched file.
+
+The residual-score slice's focused backend checks pass **167/167**, with **12/12** focused
+client tests passing. The full local run reported
+the same 5/39 baseline plus **2 Puppeteer raster tests** because Chrome 146 is not installed in
+the local Puppeteer cache (6 suites / 41 tests total); that environmental PDF failure is outside
+this slice.
+
+The roster-role slice's focused backend contracts pass **138/138** (120 route/DTO/RBAC/setup
+checks plus the 18-endpoint minor-access inventory), and focused agency client tests pass
+**95/95**. Client lint has only the same untouched React Hook Form compiler warning and the
+production build succeeds. The quiet full backend run returns the same local **6 suites / 41
+tests** described above, with no roster-slice regression.
+
+The Intel/intent-analytics slice's focused public tracking checks pass **3/3** and its route
+modules load cleanly. Full client Vitest passes **189/189**, lint has only the same untouched
+React Hook Form warning, and the production build succeeds. The full backend run passes
+**1,913 tests** and reports **5 suites / 23 tests** failing: the prior local 6/41 count minus
+the intentionally deleted Intel suite and its 18 already-failing tests. The remaining failures
+are unchanged (`app`, `notifications`, `overview-backend`, `password-changed-notification`,
+and the two Chrome-less Puppeteer raster tests).
 
 ## Tables deliberately left in place
 
-`talent_commitments`, `interviews`, `reminders`. Only `casting_briefs` was dropped, because
-the plan calls it dormant and it had zero writers and no rows. The others hold real history;
-application erasure still deletes from all of them, so a talent's erasure request is honoured
-in full.
+`talent_commitments`, `interviews`, `reminders`, `talent_records`, `roster_memberships`,
+`roster_board_standings`, `agency_import_jobs`, `profile_events`, and `share_tokens`. Only
+`casting_briefs` was dropped, because
+the plan calls it dormant and it had zero writers and no rows. The others may hold real history;
+their product readers and writers are retired, while existing cascade and application-erasure
+paths continue to remove linked talent data.

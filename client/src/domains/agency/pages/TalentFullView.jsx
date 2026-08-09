@@ -12,7 +12,6 @@ import { CalendarLine } from '../components/dossier/CalendarLine';
 import { DigitalsSet } from '../components/dossier/DigitalsSet';
 import { TheBook } from '../components/dossier/TheBook';
 import {
-  PositionRecord,
   ProfessionalRecord,
   RepresentationRecord,
 } from '../components/dossier/RecordPanels';
@@ -33,8 +32,8 @@ import '../components/dossier/dossier.css';
  * columns carry the package, the record, and the decision.
  *
  * Region order is a booker's order, not a database's:
- *   plate → readouts → package → who they are professionally → position →
- *   representation → the record, with standing and what's owed pinned right.
+ *   plate → readouts → package → who they are professionally →
+ *   representation → the record, with standing pinned right.
  */
 
 function DossierSkeleton() {
@@ -179,7 +178,7 @@ export default function TalentFullView() {
     );
   }
 
-  const { talent, application, standing, availability, position, representation } = data;
+  const { talent, application, standing, availability, representation } = data;
   const name = talentName(talent);
 
   return (
@@ -262,15 +261,6 @@ export default function TalentFullView() {
 
             <Sheet id="dx-professional" title="The professional record">
               <ProfessionalRecord talent={talent} />
-            </Sheet>
-
-            <Sheet id="dx-position" title="Against our book">
-              <PositionRecord
-                position={position}
-                talent={talent}
-                board={standing?.board}
-                matchScore={application?.match_score}
-              />
             </Sheet>
 
             <Sheet id="dx-representation" title="Representation">

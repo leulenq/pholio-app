@@ -1,14 +1,10 @@
 /**
- * Market resolution — the industry thinks in markets and stays, not countries
- * (tasks/intel-page-spec.md §2). Resolves an IP (via shared geolocation) to an
- * industry market slug at write time. Only the market slug is ever persisted;
- * raw IP / city / coordinates are discarded here.
+ * Resolve free-text or geolocated cities to the industry market vocabulary.
+ * This supports declared profile data and Discover's factual market filter.
  */
 
-const { getIPGeolocation } = require("../../../../shared/lib/geolocation");
+const { getIPGeolocation } = require("../../../shared/lib/geolocation");
 
-// City → market slug. Metro satellites map onto the industry market they
-// belong to (a booker in Santa Monica is "LA").
 const CITY_MARKETS = {
   "new york": "new-york",
   brooklyn: "new-york",
@@ -106,21 +102,11 @@ const MARKET_LABELS = {
   lagos: "Lagos",
 };
 
-/**
- * Map already-resolved geo data to a market slug. Falls back to the lowercase
- * ISO country code when the city is not a recognised industry market, so the
- * frontend can still label it ("elsewhere in France") without ever holding
- * city-level precision.
- */
 function marketFromGeo(geo) {
   if (!geo) return null;
-  const city = String(geo.city || "")
-    .trim()
-    .toLowerCase();
+  const city = String(geo.city || "").trim().toLowerCase();
   if (city && CITY_MARKETS[city]) return CITY_MARKETS[city];
-  const country = String(geo.country || "")
-    .trim()
-    .toLowerCase();
+  const country = String(geo.country || "").trim().toLowerCase();
   return country && /^[a-z]{2}$/.test(country) ? country : null;
 }
 
@@ -129,8 +115,6 @@ function marketLabel(slug) {
   return MARKET_LABELS[slug] || null;
 }
 
-// Small in-process cache so a browsing session doesn't hit the geo API once
-// per event. Serverless instances get a fresh (empty) cache — acceptable.
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_MAX = 500;
 const ipMarketCache = new Map();
@@ -144,7 +128,6 @@ async function resolveMarketFromIp(ipAddress) {
   const market = marketFromGeo(geo);
 
   if (ipMarketCache.size >= CACHE_MAX) {
-    // Drop the oldest entry (Map preserves insertion order).
     const oldest = ipMarketCache.keys().next().value;
     ipMarketCache.delete(oldest);
   }

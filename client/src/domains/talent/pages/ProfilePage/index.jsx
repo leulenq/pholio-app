@@ -35,6 +35,7 @@ import { DisciplineSection } from './DisciplineSection';
 import { MeasurementsSection } from './MeasurementsSection';
 import { AvailabilitySection } from './AvailabilitySection';
 import { SocialSection } from './SocialSection';
+import { VerifiedAdultSection } from './VerifiedAdultSection';
 import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import PholioButton, {
   PholioIconButton,
@@ -61,15 +62,6 @@ const UNION_OPTIONS = [
   { value: 'Equity (UK)', label: 'Equity (UK)' },
   { value: 'ACTRA', label: 'ACTRA' },
   { value: 'UAD', label: 'Union des artistes (UDA)' }
-];
-
-const COMFORT_LEVEL_OPTIONS = [
-  { value: 'Swimwear', label: 'Swimwear' },
-  { value: 'Lingerie', label: 'Lingerie' },
-  { value: 'Implied Nudity', label: 'Implied Nudity' },
-  { value: 'Artistic Nudity', label: 'Artistic Nudity' },
-  { value: 'Fitness/Athletic', label: 'Fitness / Athletic' },
-  { value: 'Body Paint', label: 'Body Paint' }
 ];
 
 const AVAILABILITY_OPTIONS = [
@@ -1236,27 +1228,6 @@ export default function ProfilePage() {
              />
           </div>
 
-          {/* Comfort Levels */}
-          <div className={styles.formRow}>
-            <Controller
-              name="comfort_levels"
-              control={control}
-              render={({ field }) => (
-                <PholioMultiSelect
-                  label="Comfort Levels"
-                  id="comfort_levels"
-                  options={COMFORT_LEVEL_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.comfort_levels}
-                  placeholder="Select what you're comfortable with"
-                />
-              )}
-            />
-          </div>
-
-
-
           {/* Administrative Details */}
           <div className={`${styles.formGrid3} ${styles.formRow}`}>
             <Controller
@@ -1539,50 +1510,7 @@ export default function ProfilePage() {
           )}
         </Section>
 
-        {/* Verified-Adult Creator Context — conditional on 18+ and verified */}
-        {!isMinor && (
-          <Section
-            id="verified-adult"
-            title="Verified-Adult Creator Context"
-            titleEmphasis="Creator"
-            description="Verified adults only. Share boundaries and creator links so agencies don’t pitch mismatched work — and you stay in control."
-            showDivider={false}
-          >
-            <div className={styles.formRow}>
-              <Controller
-                name="comfort_levels"
-                control={control}
-                render={({ field }) => (
-                  <PholioMultiSelect
-                    label="Content Boundaries"
-                    id="comfort_levels"
-                    options={COMFORT_LEVEL_OPTIONS}
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={errors.comfort_levels}
-                    placeholder="Select content you're comfortable with"
-                  />
-                )}
-              />
-            </div>
-            <div className={`${styles.formRow} ${styles.platformOnlyfans}`}>
-              <Controller
-                name="onlyfans_url"
-                control={control}
-                render={({ field }) => (
-                  <PholioInput
-                    label="OnlyFans"
-                    id="onlyfans_url"
-                    type="text"
-                    placeholder="onlyfans.com/username"
-                    {...field}
-                    error={errors.onlyfans_url}
-                  />
-                )}
-              />
-            </div>
-          </Section>
-        )}
+        <VerifiedAdultSection dateOfBirth={values.date_of_birth} />
 
         <Section
           id="contact"

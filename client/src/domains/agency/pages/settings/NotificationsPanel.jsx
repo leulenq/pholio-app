@@ -14,7 +14,6 @@ const VIEWS = [
   { value: 'overview', label: 'Overview' },
   { value: 'applicants', label: 'Submissions' },
   { value: 'casting', label: 'Signing' },
-  { value: 'roster', label: 'Roster' },
 ];
 
 export default function NotificationsPanel({ profile, canManage }) {
@@ -22,7 +21,9 @@ export default function NotificationsPanel({ profile, canManage }) {
   const initial = useMemo(() => ({
     notify_new_applications: profile?.notify_new_applications ?? true,
     notify_status_changes: profile?.notify_status_changes ?? true,
-    default_view: profile?.default_view || 'overview',
+    default_view: VIEWS.some(({ value }) => value === profile?.default_view)
+      ? profile.default_view
+      : 'overview',
   }), [profile]);
   const [form, setForm] = useState(initial);
   const ro = !canManage;

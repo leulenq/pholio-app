@@ -94,7 +94,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
   const isPipeline = context === 'applicants' || context === 'overview';
 
   const compCardBtn = slug && can('talent.download_comp_card') && (
-    <button className={`tact-btn${context === 'roster' ? ' tact-btn--primary' : ''}`} disabled={downloading} onClick={handleCompCard}>
+    <button className="tact-btn" disabled={downloading} onClick={handleCompCard}>
       <Download size={15} /> {downloading ? 'Preparing…' : 'Comp Card'}
     </button>
   );

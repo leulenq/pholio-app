@@ -23,7 +23,6 @@ const REQUIRED_STEPS = [
   "profile",
   "boards",
   "team",
-  "roster",
   "open_call",
   "defaults",
   "privacy",
@@ -33,7 +32,6 @@ const STEP_LABELS = {
   profile: "Agency profile",
   boards: "Boards and markets",
   team: "Team and permissions",
-  roster: "Roster path",
   open_call: "Open call routing",
   defaults: "Operating defaults",
   privacy: "Privacy and minors",
@@ -127,15 +125,12 @@ function setupStepData(state, key) {
 
 function setupIncludesMinorData(state) {
   const boardData = setupStepData(state, "boards");
-  const rosterData = setupStepData(state, "roster");
   const openCallData = setupStepData(state, "open_call");
 
   return Boolean(
     state.agency.minorDataAcknowledgedAt ||
       boardData.acceptsMinors ||
-      rosterData.includesMinors ||
       openCallData.acceptsMinors ||
-      state.importJobs.some((job) => job.includesMinors) ||
       state.openCallLinks.some((link) => link.acceptsMinors || link.guardianConsentRequired),
   );
 }
@@ -145,7 +140,7 @@ function setupIncludesMinorData(state) {
  *
  * Setup must confirm what Pholio already holds rather than re-interrogate an
  * agency it has already reviewed, so the request supplies the pre-fill for
- * boards, roster path, timezone, and the contact of record.
+ * boards, timezone, and the contact of record.
  */
 function mapOnFile(row) {
   if (!row) return null;
@@ -158,8 +153,6 @@ function mapOnFile(row) {
       .join(", "),
     agencyType: row.agency_type,
     boards: parseMaybeJson(row.primary_boards, []) || [],
-    migrationInterest: row.migration_interest,
-    rosterSizeRange: row.roster_size_range,
     teamSizeRange: row.team_size_range,
     timezone: row.timezone,
     contactName: row.contact_name,
@@ -169,7 +162,7 @@ function mapOnFile(row) {
 }
 
 async function loadSetupState(agencyId) {
-  const [agency, steps, boards, importJobs, openCallLinks, team, onFile] =
+  const [agency, steps, boards, openCallLinks, team, onFile] =
     await Promise.all([
       knex("agencies").where({ id: agencyId }).first(),
       knex("agency_setup_steps").where({ agency_id: agencyId }),
@@ -177,14 +170,6 @@ async function loadSetupState(agencyId) {
         .where({ agency_id: agencyId })
         .orderBy("sort_order", "asc")
         .orderBy("created_at", "asc"),
-      knex.schema.hasTable("agency_import_jobs").then((has) =>
-        has
-          ? knex("agency_import_jobs")
-              .where({ agency_id: agencyId })
-              .orderBy("created_at", "desc")
-              .limit(10)
-          : [],
-      ),
       knex.schema.hasTable("agency_open_call_links").then((has) =>
         has
           ? knex("agency_open_call_links")
@@ -257,13 +242,6 @@ async function loadSetupState(agencyId) {
       email: member.email,
       name: [member.first_name, member.last_name].filter(Boolean).join(" "),
       avatarUrl: member.avatar_url || null,
-    })),
-    importJobs: importJobs.map((job) => ({
-      id: job.id,
-      sourceType: job.source_type,
-      status: job.status,
-      includesMinors: !!job.includes_minors,
-      createdAt: job.created_at,
     })),
     openCallLinks: openCallLinks.map((link) => ({
       id: link.id,
@@ -391,66 +369,6 @@ router.patch(
       const skipped = boolValue(req.body?.skipped);
       await knex.transaction(async (trx) => {
         await markSetupStep(trx, agencyId, "team", "complete", actorUserId, { skipped });
-      });
-      return res.json({ success: true, data: await loadSetupState(agencyId) });
-    } catch (error) {
-      return next(error);
-    }
-  },
-);
-
-router.post(
-  "/api/agency/import-jobs",
-  requireRole("AGENCY"),
-  requireAgencyMembershipRole("OWNER", "ADMIN"),
-  async (req, res, next) => {
-    try {
-      const agencyId = getSessionAgencyId(req);
-      const actorUserId = getSessionActorUserId(req);
-      const sourceType = cleanString(req.body?.sourceType || req.body?.source_type, 80) || "concierge";
-      const includesMinors = boolValue(req.body?.includesMinors || req.body?.includes_minors);
-      const status = includesMinors ? "needs_review" : "uploaded";
-      const jobId = uuidv4();
-
-      await knex.transaction(async (trx) => {
-        await trx("agency_import_jobs").insert({
-          id: jobId,
-          agency_id: agencyId,
-          requested_by_user_id: actorUserId,
-          source_type: sourceType,
-          status,
-          original_filename: cleanString(req.body?.originalFilename || req.body?.original_filename, 255),
-          mapping: jsonForDb(req.body?.mapping || null),
-          validation_summary: jsonForDb({ intakeOnly: true, notes: cleanString(req.body?.notes, 500) }),
-          includes_minors: includesMinors,
-          created_at: trx.fn.now(),
-          updated_at: trx.fn.now(),
-        });
-        await markSetupStep(trx, agencyId, "roster", includesMinors ? "in_review" : "complete", actorUserId, {
-          importJobId: jobId,
-          sourceType,
-          includesMinors,
-        });
-      });
-
-      return res.status(201).json({ success: true, data: await loadSetupState(agencyId) });
-    } catch (error) {
-      return next(error);
-    }
-  },
-);
-
-router.patch(
-  "/api/agency/setup/roster",
-  requireRole("AGENCY"),
-  requireAgencyMembershipRole("OWNER", "ADMIN"),
-  async (req, res, next) => {
-    try {
-      const agencyId = getSessionAgencyId(req);
-      const actorUserId = getSessionActorUserId(req);
-      const path = cleanString(req.body?.path || "blank", 40);
-      await knex.transaction(async (trx) => {
-        await markSetupStep(trx, agencyId, "roster", "complete", actorUserId, { path });
       });
       return res.json({ success: true, data: await loadSetupState(agencyId) });
     } catch (error) {

@@ -358,24 +358,6 @@ const ACTIVITY_VERBS = {
 
 export const activityVerb = (type) => ACTIVITY_VERBS[type] || titleCase(type);
 
-/* -------------------------------------------------------------- position */
-
-/**
- * Market position, expressed against this agency's own book — the only
- * comparison a booker can act on.
- */
-export function positionRead(position, talent) {
-  if (!position || !position.roster_size) return null;
-  // One plain-English line only — the ledger beneath it carries the numbers, so
-  // repeating market and board counts here would just be the same fact twice.
-  if (position.height_percentile == null || position.track_peers < 2) return null;
-  return [
-    `Taller than ${position.height_percentile}% of your ${position.track_peers} active ${
-      TRACK_LABELS[talent?.stats_track]?.toLowerCase() || 'roster'
-    } talent`,
-  ];
-}
-
 /* ------------------------------------------------------------ asset guard */
 
 /**

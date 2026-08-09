@@ -7,13 +7,12 @@ describe('getTalentHeaderTone', () => {
     expect(getTalentHeaderTone('/dashboard/talent/')).toBe('dark');
   });
 
-  it('uses light tone for cream paper work pages, including Intel', () => {
-    expect(getTalentHeaderTone('/dashboard/talent/intel')).toBe('light');
-    expect(getTalentHeaderTone('/dashboard/talent/analytics')).toBe('light');
+  it('uses light tone for cream paper work pages', () => {
     expect(getTalentHeaderTone('/dashboard/talent/messages')).toBe('light');
     expect(getTalentHeaderTone('/dashboard/talent/media')).toBe('light');
     expect(getTalentHeaderTone('/dashboard/talent/profile')).toBe('light');
     expect(getTalentHeaderTone('/dashboard/talent/applications')).toBe('light');
+    expect(getTalentHeaderTone('/dashboard/talent/intel')).toBe('light');
     expect(getTalentHeaderTone('/dashboard/talent/settings/subscription')).toBe('light');
   });
 });

@@ -10,7 +10,7 @@ const FLAG_TEXT = {
   unseen: 'barely shown',
 };
 
-function finding({ cardFront, best, images, ranked }) {
+function finding({ cardFront, images, ranked }) {
   if (!cardFront) {
     return (
       <Finding verdict="Unranked" tag="not enough views">
@@ -19,19 +19,16 @@ function finding({ cardFront, best, images, ranked }) {
     );
   }
   const front = images.find((i) => i.id === cardFront.id);
-  const top = images.find((i) => i.id === best?.id);
-
   if (cardFront.rank === 1) {
     return (
-      <Finding verdict="Yes" tag="leading correctly" tone="good">
-        your card front is also the most-opened frame, at <Emph>{pct(front?.openRate)}</Emph>
+      <Finding verdict="#1" tag="open rate">
+        your card front was opened from the grid <Emph>{pct(front?.openRate)}</Emph> of the time
       </Finding>
     );
   }
   return (
-    <Finding figure={`#${cardFront.rank}`} tag={`of ${ranked} ranked`} tone="warn">
-      your card front opens at <Emph>{pct(front?.openRate)}</Emph> — your strongest frame
-      opens at <Emph>{pct(top?.openRate)}</Emph>
+    <Finding figure={`#${cardFront.rank}`} tag={`of ${ranked} shown enough`}>
+      your card front was opened from the grid <Emph>{pct(front?.openRate)}</Emph> of the time
     </Finding>
   );
 }
@@ -79,14 +76,13 @@ function Frame({ frame, index, max }) {
 }
 
 export default function BookBlock({ book, tier }) {
-  const question = <>Am I leading with my <em>strongest</em> frame?</>;
+  const question = <>Which frames are viewers <em>opening</em>?</>;
 
   if (tier === 'free') {
     return (
       <Block id="iv-book" question={question}>
-        <Withheld title="The book, ranked">
-          Every frame ranked by the share of viewers who opened it — the evidence for choosing
-          your card front.
+        <Withheld title="Frame activity">
+          How often each frame was shown and opened, with low-sample comparisons withheld.
         </Withheld>
       </Block>
     );
@@ -97,7 +93,7 @@ export default function BookBlock({ book, tier }) {
   if (images.length === 0) {
     return (
       <Block id="iv-book" question={question}>
-        <NotYet threshold="0 frames">add frames and this starts ranking them</NotYet>
+        <NotYet threshold="0 frames">add frames and this starts recording their activity</NotYet>
       </Block>
     );
   }
@@ -125,7 +121,7 @@ export default function BookBlock({ book, tier }) {
           a rank drawn from three views would be noise wearing a number
         </NotYet>
       ) : (
-        <Figure caption="bar · open rate, relative to your best frame">
+        <Figure caption="bar · observed open rate from the portfolio grid">
           <div className="iv-frames">
             {ordered.map((frame, i) => (
               <Frame key={frame.id} frame={frame} index={i} max={max} />

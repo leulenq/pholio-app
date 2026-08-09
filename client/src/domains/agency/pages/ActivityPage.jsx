@@ -93,7 +93,7 @@ export default function ActivityPage() {
     <div className="ac-page">
       <header className="ac-header">
         <h1 className="ac-page-title">Activity</h1>
-        <p className="ac-page-sub">Every movement across your roster, newest first</p>
+        <p className="ac-page-sub">Every submission and casting movement, newest first</p>
       </header>
 
       {!isLoading && !isError && activities.length > 0 && (
@@ -121,7 +121,7 @@ export default function ActivityPage() {
         <EmptyErrorState
           variant="section"
           title="Could not load activity"
-          body="Your roster activity did not load. Try again to refresh the feed."
+          body="Your agency activity did not load. Try again to refresh the feed."
           retry={{ label: 'Try again', onClick: () => refetch() }}
         />
       ) : activities.length === 0 ? (

@@ -241,7 +241,7 @@ export async function getProfilePreview(profileId) {
 }
 
 /**
- * Get full profile details for a discoverable talent (Discover + Roster via separate endpoint)
+ * Get full profile details for a discoverable talent.
  */
 export async function fetchProfileDetails(profileId) {
   return apiClient.get(`/profiles/${profileId}/details`);
@@ -257,41 +257,12 @@ export async function getApplicationDetails(applicationId) {
 
 /**
  * The talent dossier — the aggregate read behind the expanded talent view.
- * One request carries identity, canonical stats, representation, availability,
- * standing with this agency, the book, the submitted package, roster position,
- * and the working record. Unwrapped by apiClient to the `data` payload.
+ * One request carries identity, canonical stats, representation, application
+ * standing, the book, the submitted package, and the working record. Unwrapped
+ * by apiClient to the `data` payload.
  */
 export async function getTalentDossier(applicationId) {
   return apiClient.get(`/applications/${applicationId}/dossier`);
-}
-
-/**
- * Get full agency roster
- */
-export async function fetchRoster(params = {}) {
-  const queryString = new URLSearchParams(
-    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
-  ).toString();
-  return apiClient.get(`/roster${queryString ? `?${queryString}` : ''}`);
-}
-
-/**
- * Get roster profile — bypasses is_discoverable filter, includes booking stats
- */
-export async function fetchRosterProfile(profileId) {
-  return apiClient.get(`/roster/${profileId}`);
-}
-
-export async function createTalentRecord(data) {
-  return apiClient.post('/talent-records', data);
-}
-
-export async function updateTalentRecord(recordId, data) {
-  return apiClient.patch(`/talent-records/${recordId}`, data);
-}
-
-export async function updateRosterMembership(membershipId, data) {
-  return apiClient.patch(`/roster-memberships/${membershipId}`, data);
 }
 
 /**
@@ -309,18 +280,8 @@ export async function inviteTalent(profileId, queryLogId = null) {
 /**
  * Get all boards
  */
-/**
- * Replace the full set of boards a roster member sits on.
- *
- * @param {string} membershipId
- * @param {Array<{boardId: string, standing: string, isPrimary?: boolean}>} boards
- */
-export async function updateRosterBoards(membershipId, boards) {
-  return apiClient.put(`/roster-memberships/${membershipId}/boards`, { boards });
-}
-
 export async function getBoards(type) {
-  // `type` is optional: 'division' for standing boards (Women, Editorial),
+  // `type` is optional: 'division' for agency boards (Women, Editorial),
   // 'package' for casting boards. Omitted returns both, as before.
   return apiClient.get(type ? `/boards?type=${encodeURIComponent(type)}` : '/boards');
 }
@@ -748,8 +709,6 @@ export default {
   fetchProfileDetails,
   getApplicationDetails,
   getTalentDossier,
-  fetchRoster,
-  fetchRosterProfile,
   inviteTalent,
   getBoards,
   getCastingBoardPipeline,

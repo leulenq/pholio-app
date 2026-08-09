@@ -709,7 +709,7 @@ function PresenceMovement({ settings, isLoading }) {
             <Row title="Public portfolio" description="Let your book be viewed at its public link, outside your account.">
               <Toggle label="Public portfolio" checked={!!settings?.isPublic} disabled={mutation.isPending || minorLocked} onChange={() => update({ isPublic: !settings?.isPublic })} />
             </Row>
-            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio scout and roster search.">
+            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio Discover search.">
               <Toggle label="Agency discovery" checked={!!settings?.isDiscoverable} disabled={mutation.isPending || minorLocked} onChange={() => update({ isDiscoverable: !settings?.isDiscoverable })} />
             </Row>
             {/*

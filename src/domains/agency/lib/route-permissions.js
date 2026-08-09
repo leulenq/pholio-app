@@ -64,11 +64,6 @@ const ROUTE_PERMISSION_RULES = [
     permission: "org.complete_onboarding",
   },
   {
-    method: "POST",
-    pattern: /^\/api\/agency\/import-jobs$/,
-    permission: "org.complete_onboarding",
-  },
-  {
     method: "GET",
     pattern: /^\/api\/agency\/activity$/,
     permission: "org.view_activity",
@@ -154,55 +149,6 @@ const ROUTE_PERMISSION_RULES = [
     method: "GET",
     pattern: /^\/api\/agency\/profiles\/[^/]+\/details$/,
     permission: "discover.view_details",
-  },
-
-  // Roster
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/roster$/,
-    permission: "roster.view",
-  },
-  // Measured-in-person confirmation is the only write path for the
-  // measured_in_person_at / measured_by_agency_id state (roster.js). Keep the
-  // measured rules ABOVE the generic /roster/:id GET so they win by specificity
-  // for their unsafe methods.
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/roster\/[^/]+\/measured$/,
-    permission: "roster.manage_status",
-  },
-  {
-    method: "DELETE",
-    pattern: /^\/api\/agency\/roster\/[^/]+\/measured$/,
-    permission: "roster.manage_status",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/roster\/[^/]+$/,
-    permission: "roster.view_profile",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/talent-records$/,
-    permission: "roster.add_talent",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/talent-records\/[^/]+$/,
-    permission: "roster.add_talent",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/roster-memberships\/[^/]+$/,
-    permission: "roster.manage_status",
-  },
-  {
-    // Replaces the set of boards a talent sits on, and their standing on each.
-    // Same authority as changing their roster status: it decides who this
-    // agency represents, and on which board.
-    method: "PUT",
-    pattern: /^\/api\/agency\/roster-memberships\/[^/]+\/boards$/,
-    permission: "roster.manage_status",
   },
 
   // Applications — bulk before parameterized
@@ -336,11 +282,6 @@ const ROUTE_PERMISSION_RULES = [
   },
   {
     method: "POST",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/calculate-scores$/,
-    permission: "boards.recalculate_scores",
-  },
-  {
-    method: "POST",
     pattern: /^\/api\/agency\/boards\/[^/]+\/duplicate$/,
     permission: "boards.duplicate",
   },
@@ -348,11 +289,6 @@ const ROUTE_PERMISSION_RULES = [
     method: "PUT",
     pattern: /^\/api\/agency\/boards\/[^/]+\/requirements$/,
     permission: "boards.edit_requirements",
-  },
-  {
-    method: "PUT",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/weights$/,
-    permission: "boards.edit_weights",
   },
   {
     method: "GET",

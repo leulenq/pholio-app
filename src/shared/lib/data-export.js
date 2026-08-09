@@ -51,6 +51,7 @@ const GENERIC_EXPORT_KEYS = [
   "minor_permits",
   "confirmed_job_safety",
   "adult_context",
+  "age_verifications",
   "profile_field_visibility",
   "csam_escalations",
   "reports_filed",
@@ -62,6 +63,8 @@ const GENERIC_EXPORT_KEYS = [
   "comp_card_presets",
   "notifications",
   "onboarding_analytics",
+  "profile_events",
+  "share_tokens",
 ];
 
 // Drift guard: every inventory entry must be accounted for exactly once.

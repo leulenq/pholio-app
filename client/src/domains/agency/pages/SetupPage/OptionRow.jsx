@@ -4,7 +4,7 @@ import { Check } from 'lucide-react';
 /**
  * One ruled, selectable row — the single selection affordance for this flow.
  *
- * Boards, agency type, roster path, and the open-call choice all use it, so the
+ * Boards, agency type, and the open-call choice all use it, so the
  * paper reads as one list vocabulary rather than a mix of checkboxes, chips,
  * and dropdowns. A real input carries the semantics; the row is its label.
  */

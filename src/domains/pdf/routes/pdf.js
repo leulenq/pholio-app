@@ -41,9 +41,7 @@ const {
   validateLayout,
 } = require("../layouts");
 const { requireRole } = require("../../auth/middleware/require-auth");
-const {
-  recordProfileEvent,
-} = require("../../talent/services/intel/capture");
+const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const knex = require("../../../shared/db/knex");
 const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
 const { buildCanonicalStats } = require("../../../shared/lib/stats-formatter");
@@ -2356,9 +2354,6 @@ router.get("/pdf/:slug", async (req, res, next) => {
         console.error("[PDF Download] Error logging download analytics:", err);
         // Don't block response - analytics is non-critical
       });
-
-      // Intel Capture v2 — a card pull is a Tier-3 intent event. Self pulls
-      // (the talent generating their own card) are dropped inside capture.
       recordProfileEvent({
         profile,
         action: "card_pull",
@@ -3644,14 +3639,12 @@ router.get("/p/:slug", async (req, res) => {
     } catch {
       /* analytics is observability, not behavior */
     }
-    // Intel Capture v2 — physical card tap/scan is a Tier-3 link open.
     recordProfileEvent({
       profile,
       action: "link_open",
       req,
       metadata: { via: "card_short_link" },
     });
-
     return res.redirect(302, `/portfolio/${encodeURIComponent(profile.slug)}`);
   } catch (error) {
     console.warn("[compcard-link] lookup failed:", error.message);
