@@ -20,7 +20,7 @@ const STEPS = [
   { key: "sent", label: "Sent" },
   { key: "opened", label: "Opened" },
   { key: "advanced", label: "Advanced" },
-  { key: "settled", label: "Signed or kept" },
+  { key: "settled", label: "Represented or kept" },
 ];
 
 /**
@@ -31,7 +31,7 @@ const STEPS = [
 function ladder(flow) {
   if (!flow) return [];
   const settled =
-    (Number(flow.outcomes?.signed) || 0) +
+    (Number(flow.outcomes?.represented) || 0) +
     (Number(flow.outcomes?.keptOnFile) || 0);
   const counts = {
     sent: Number(flow.entered) || 0,

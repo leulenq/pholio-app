@@ -172,6 +172,16 @@ const TALENT_DATA_INVENTORY = [
     exportMode: "full",
   },
   {
+    key: "application_spec_snapshots",
+    table: "application_spec_snapshots",
+    scope: "application",
+    column: "application_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes:
+      "Immutable, score-free record of the published agency revision and advisory findings used when the talent sent an application.",
+  },
+  {
     key: "application_submission_consent_events",
     table: "application_submission_consent_events",
     scope: "profile",

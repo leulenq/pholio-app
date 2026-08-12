@@ -90,7 +90,7 @@
   border-radius: 8px;
   padding: 11px 13px;
   outline: none;
-  box-shadow: none;
+  box-shadow: none !important;
   transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   box-sizing: border-box;
@@ -103,8 +103,9 @@
   outline-offset: 0 !important;
   border-color: var(--ag-gold, #C9A55A) !important;
   background: #ffffff !important;
+  box-shadow: none !important;
 }
-.st-input:disabled { background: #f5f4f2; color: #8a8073; cursor: not-allowed; box-shadow: none; }
+.st-input:disabled { background: #f5f4f2; color: #8a8073; cursor: not-allowed; box-shadow: none !important; }
 body.is-agency textarea.st-textarea,
 .st-input.st-textarea {
   resize: none;
@@ -144,6 +145,21 @@ body.is-agency textarea.st-textarea,
 .st-logo-frame { width: 76px; height: 76px; flex: none; border-radius: 14px; border: 1px dashed #d8cfbb; background: #fff; color: #c3b89f; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .st-logo-frame img { width: 100%; height: 100%; object-fit: contain; }
 .st-logo-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.st-logo-actions .pholio-btn--tertiary,
+.st-color-actions .pholio-btn--tertiary,
+.st-opencall-actions .pholio-btn--tertiary {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px 6px !important;
+}
+.st-logo-actions .pholio-btn--tertiary:hover:not(:disabled),
+.st-color-actions .pholio-btn--tertiary:hover:not(:disabled),
+.st-opencall-actions .pholio-btn--tertiary:hover:not(:disabled) {
+  border: none !important;
+  background: transparent !important;
+  color: var(--ag-gold, #C9A55A) !important;
+}
 
 .st-color-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .st-color-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
@@ -208,9 +224,44 @@ body.is-agency textarea.st-textarea,
 .st-opencall-create .st-input { flex: 1; }
 .st-opencall-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .st-opencall-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 14px 16px; background: #fff; border: 1px solid #ece4d4; border-radius: 12px; }
-.st-opencall-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.st-opencall-head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
 .st-opencall-label { font-size: 13.5px; font-weight: 600; color: #16130D; }
-.st-opencall-url { font-size: 12px; color: #8a8073; word-break: break-all; }
+.st-opencall-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.st-opencall-badge--active { background: rgba(22, 163, 74, 0.08); color: #15803d; }
+.st-opencall-badge--paused { background: rgba(26, 24, 21, 0.06); color: #6b6256; }
+
+.st-opencall-url {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #4a443c;
+  background: #f7f4ed;
+  border: 1px solid #e8e0d0;
+  border-radius: 6px;
+  padding: 4px 9px;
+  margin: 4px 0 6px;
+  text-decoration: none;
+  width: fit-content;
+  max-width: 100%;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.st-opencall-url code { font-family: inherit; word-break: break-all; }
+.st-opencall-url:hover {
+  border-color: var(--ag-gold, #C9A55A);
+  background: #ffffff;
+  color: #16130D;
+}
+.st-opencall-ext { opacity: 0.5; flex: none; }
+.st-opencall-url:hover .st-opencall-ext { opacity: 1; color: var(--ag-gold, #C9A55A); }
+
 .st-opencall-funnel { font-size: 12px; color: var(--ag-text-2); margin-top: 3px; }
 .st-opencall-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: none; }
 .st-opencall-confirm { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-width: 260px; }
@@ -258,3 +309,33 @@ body.is-agency textarea.st-textarea,
 @media (max-width: 560px) {
   .st-grid-2 { grid-template-columns: 1fr; }
 }
+
+/* ---------- OPEN CALL BRIEF ---------- */
+/* The brief an agency writes per link, and its state on the link list. */
+
+.st-brief { display: flex; flex-direction: column; gap: 14px; margin: 12px 0 16px; }
+.st-brief-lead { display: block; margin: 14px 0 4px; }
+
+.st-brief-deadline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.st-brief-date { width: auto; flex: 0 1 190px; }
+
+.st-opencall-brief-state {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ag-text-2, #6B6560);
+  margin-top: 4px;
+}
+/* Not a badge — a sentence. A link with no brief is incomplete, not "invalid". */
+.st-opencall-brief-state--missing { color: #8f6b32; }
+
+/* The row stacks once its brief editor is open, so the form gets full width. */
+.st-opencall-row--editing { flex-direction: column; }
+.st-opencall-row--editing .st-opencall-actions { align-self: flex-start; }
+
+.st-opencall-brief-edit {
+  width: 100%;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #ece4d4;
+}
+.st-opencall-brief-edit-actions { display: flex; gap: 8px; }

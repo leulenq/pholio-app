@@ -84,6 +84,29 @@ const {
 const {
   buildOpenCallDisclosure,
 } = require("../../../shared/lib/submission-disclosure-content");
+const {
+  snapshotApplicationSpec,
+} = require("../../spec-registry/preflight-service");
+
+async function recordAdvisorySpecSnapshot(
+  trx,
+  payload,
+  snapshot = snapshotApplicationSpec,
+) {
+  try {
+    // PostgreSQL marks the whole transaction failed after any SQL error. Keep
+    // advisory registry work inside a savepoint so rolling it back leaves the
+    // application transaction usable; SQLite uses the same nested-transaction
+    // contract.
+    return await trx.transaction((registryTrx) => snapshot(registryTrx, payload));
+  } catch (registryError) {
+    console.warn("[SpecRegistry] Submission snapshot unavailable", {
+      applicationId: payload.applicationId,
+      code: registryError.code || "SPEC_REGISTRY_SNAPSHOT_FAILED",
+    });
+    return null;
+  }
+}
 
 function serializeClaim(claim) {
   return {
@@ -777,6 +800,8 @@ router.post(
           mediaSetId: submissionPackage?.mediaSetId,
           digitalSlotPicks: submissionPackage?.digitalSlotPicks,
           compCardPresetId: submissionPackage?.compCardPresetId,
+          specRegistryRevisionId:
+            submissionPackage?.specRegistryRevisionId,
           note,
         },
       });
@@ -837,6 +862,22 @@ router.post(
           "Your submission package is not ready to send.",
         errors: canonicalPackageValidation.errors,
       });
+    }
+    const registryImageIds = [
+      ...new Set(
+        Object.values(normalizedSubmissionReferences.digitalSlotPicks || {})
+          .filter((imageId) => packageImageIdSet.has(imageId)),
+      ),
+    ];
+    if (registryImageIds.length === 0) {
+      registryImageIds.push(
+        ...packageImages
+          .filter(
+            (image) =>
+              String(image.image_type || "").toLowerCase() === "digital",
+          )
+          .map((image) => image.id),
+      );
     }
 
     // 3. Create (or revive a withdrawn) application, snapshot the exact
@@ -1000,8 +1041,9 @@ router.post(
           }
         }
 
+        const submissionRequestId = uuidv4();
         await trx("application_submission_requests").insert({
-          id: uuidv4(),
+          id: submissionRequestId,
           profile_id: profile.id,
           agency_id: agencyId,
           idempotency_key: idempotencyKey,
@@ -1062,6 +1104,23 @@ router.post(
           await consumeClaim(trx, openCallClaim.id, applicationId);
           disclosureSnapshot.openCall = buildOpenCallDisclosure(agency.name);
         }
+
+        await trx("application_submission_requests")
+          .where({ id: submissionRequestId })
+          .update({ application_id: applicationId });
+
+        // Registry evaluation is an immutable send-time audit, never a send
+        // gate. An unmapped agency or transient registry failure cannot stop
+        // the application transaction.
+        await recordAdvisorySpecSnapshot(trx, {
+          applicationId,
+          submissionRequestId,
+          profileId: profile.id,
+          agencyId,
+          imageIds: registryImageIds,
+          expectedRevisionId:
+            normalizedSubmissionReferences.specRegistryRevisionId,
+        });
 
         await recordSubmissionDisclosureConsent(trx, {
           applicationId,
@@ -1184,6 +1243,8 @@ router.post(
               compCard,
               digitalSlotPicks:
                 normalizedSubmissionReferences.digitalSlotPicks,
+              specRegistryRevisionId:
+                normalizedSubmissionReferences.specRegistryRevisionId,
               imageIds: packageImages.map((image) => image.id),
               images: packageImages.map(snapshotSubmissionImage),
               profile: buildSubmissionProfileSnapshot(submissionProfile, {
@@ -2370,3 +2431,6 @@ router.post(
 );
 
 module.exports = router;
+module.exports._test = {
+  recordAdvisorySpecSnapshot,
+};

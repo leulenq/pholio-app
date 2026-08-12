@@ -11,8 +11,8 @@ function delta(now, then) {
 
 /**
  * The headline is whichever measure moved most consequentially — weighted so
- * that agency attention outranks raw intent, but a collapse to zero outranks
- * both. This is what stops a 54 → 0 intent crash being reported as "Level".
+ * that recorded submission events outrank profile activity, while a change to
+ * or from zero remains visible instead of being buried in the stat row.
  */
 function finding({ recent, prior, halfWeeks }) {
   const candidates = [
@@ -97,7 +97,7 @@ export default function MomentumBlock({ momentum, tier }) {
   if (tier === 'free') {
     return (
       <Block id="iv-momentum" question={question}>
-        <Withheld title="Twelve-week momentum">
+        <Withheld title="Twelve-week activity">
           Every week&rsquo;s real counts — submissions sent, agencies that opened you, advances,
           recorded profile activity — recent half against the half before.
         </Withheld>

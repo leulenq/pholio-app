@@ -18,11 +18,47 @@ process.env.SMTP_USER = "test-user";
 process.env.SMTP_PASS = "test-pass";
 
 const {
+  buildApplicationStatusEmailHtml,
   buildGuardianConsentEmailHtml,
 } = require("../../src/shared/lib/pholio-email");
 const {
+  sendApplicationStatusEmail,
   sendGuardianConsentEmail,
 } = require("../../src/shared/lib/email");
+
+describe("application status email", () => {
+  beforeEach(() => {
+    mockSendMail.mockClear();
+  });
+
+  test("renders completed representation separately from an offer or decline", () => {
+    const html = buildApplicationStatusEmailHtml({
+      talentName: "Mia Voss",
+      agencyName: "North Star Models",
+      status: "represented",
+    });
+
+    expect(html).toContain("Your representation is confirmed.");
+    expect(html).toContain("representation agreement is complete");
+    expect(html).not.toContain("is not moving forward");
+  });
+
+  test("sends a representation-confirmed subject", async () => {
+    await sendApplicationStatusEmail({
+      to: "talent@example.com",
+      talentName: "Mia Voss",
+      agencyName: "North Star Models",
+      status: "represented",
+    });
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Representation confirmed by North Star Models",
+        html: expect.stringContaining("representation agreement is complete"),
+      }),
+    );
+  });
+});
 
 describe("guardian consent email", () => {
   beforeEach(() => {

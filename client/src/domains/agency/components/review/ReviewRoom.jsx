@@ -12,6 +12,10 @@ import {
 } from '../../../../shared/utils/profileReadinessImages';
 import { SHOT_LABELS, normalizeShotSlug } from '../../../../shared/constants/frameTaxonomy';
 import { formatLocation } from '../../../../shared/utils/locationFormat';
+import {
+  OFFERED_APPLICATION_STATUSES,
+  REPRESENTED_APPLICATION_STATUSES,
+} from '../../../../shared/constants/applicationStatus';
 import { ImageLightbox } from '../ImageLightbox';
 import { DecisionConfirmation } from './DecisionConfirmation';
 import './ReviewRoom.css';
@@ -33,7 +37,12 @@ import './ReviewRoom.css';
      Esc                     close lightbox → close room
    ──────────────────────────────────────────────────────────────────── */
 
-const DECIDED = new Set(['represented', 'booked', 'accepted', 'signed', 'declined', 'passed']);
+const DECIDED = new Set([
+  ...OFFERED_APPLICATION_STATUSES,
+  ...REPRESENTED_APPLICATION_STATUSES,
+  'declined',
+  'passed',
+]);
 
 /* ── helpers ─────────────────────────────────────────────────────── */
 

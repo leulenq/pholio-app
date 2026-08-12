@@ -376,39 +376,3 @@ export const calculateProfileStrength = (data) => {
     digitalsReadiness: digitals,
   };
 };
-
-export const getStrengthUI = (score, isRequiredComplete = false) => {
-  if (!isRequiredComplete) {
-    return {
-      label: 'Build your package',
-      color: '#C0392B',
-      message: 'Add missing essentials.',
-      status: 'locked',
-    };
-  }
-
-  if (score < 85) {
-    return {
-      label: 'Essentials complete',
-      color: '#C9A55A',
-      message: 'Add look details and contact to strengthen your package.',
-      status: 'improvement',
-    };
-  }
-
-  if (score < 100) {
-    return {
-      label: 'Strong package',
-      color: '#2D8A56',
-      message: 'Your profile matches what bookers look for when shortlisting.',
-      status: 'improvement',
-    };
-  }
-
-  return {
-    label: 'Agency grade',
-    color: '#C9A55A',
-    message: 'Complete and current — ready for agency review.',
-    status: 'perfect',
-  };
-};

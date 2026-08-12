@@ -818,3 +818,28 @@
   capability and replace unsupported intent/attention conclusions with true,
   attributable data. For "verified adult," build the missing verification layer
   instead of deleting the state the product needs.
+
+## 2026-08-09 — Honor the requested research method before loading domain guidance
+
+- When the user explicitly asks for web research, treat that as a method constraint:
+  ground the work in current primary web sources and the real repository. Do not
+  pre-empt it with a local domain skill, even when that skill would normally match
+  the topic. Keep source-backed findings separate from implementation judgment.
+
+## 2026-08-10 — “Implement” means inventory the whole product path
+
+- A durable dataset is not a complete product slice when the stated outcome includes live
+  comparisons inside Pholio. Before declaring implementation complete, inventory the full path:
+  authored source, publication, database model, runtime API, matching semantics, user surface,
+  send-time audit, and release verification. If a layer is intentionally deferred, name it before
+  building rather than silently narrowing the request to the most foundational artifact.
+
+## 2026-08-11 — Independent editors inside a page form are not forms
+
+- Before adding a focused editor to an existing page, inspect its ancestor semantics. A local
+  `<form>` inside the profile's page-wide `<form>` is invalid HTML and can turn a harmless Enter
+  key into the wrong submit action. Use a labelled group with an explicit button, intercept Enter
+  only for the local single-line fields, and add a `form form` regression assertion.
+- A new database-backed UI is not locally complete until migrations and publication have been
+  applied to the database serving the dev process. Treat an advisory API's missing-table 503 as a
+  release-state defect to diagnose, not as a frontend retry problem.

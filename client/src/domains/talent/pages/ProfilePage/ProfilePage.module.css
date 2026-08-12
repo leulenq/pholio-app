@@ -2899,6 +2899,199 @@
   text-underline-offset: 3px;
 }
 
+/* ───────────── PHOLIO × STRIPE CO-BRANDED SYSTEM ───────────── */
+.pholioAgeVerifyCard {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 26px 28px;
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.12));
+  border-radius: 14px;
+  background: var(--ag-surface-0, #faf8f5);
+  max-width: 680px;
+  box-shadow: 0 4px 24px -10px rgba(99, 91, 255, 0.08);
+}
+
+.pholioStripeAccentBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ag-gold, #b8956a) 0%, #635bff 100%);
+}
+
+.pholioAgeVerifyHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pholioStripeBrandLine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ag-text-2, #6b6560);
+  letter-spacing: -0.01em;
+}
+
+.coBrandSep {
+  color: var(--ag-gold, #b8956a);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.stripeText {
+  color: #635bff;
+  font-weight: 600;
+}
+
+.pholioAgeVerifyTitleGroup h4 {
+  margin: 6px 0 6px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ag-text-0, #1a1815);
+  letter-spacing: -0.01em;
+}
+
+.pholioAgeVerifyTitleGroup p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.pholioAgeVerifyActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+/* Modal UI */
+.pholioAgeVerifyModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(26, 24, 21, 0.55);
+}
+
+.pholioAgeVerifyModal {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-width: 480px;
+  background: var(--ag-surface-1, #ffffff);
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.12));
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.2);
+  padding: 30px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.pholioAgeVerifyModalHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pholioAgeVerifyModalHead h3 {
+  margin: 6px 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ag-text-0, #1a1815);
+  letter-spacing: -0.01em;
+}
+
+.pholioAgeVerifyModalHead p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.pholioAgeVerifyModalClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ag-text-2, #6b6560);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pholioAgeVerifyModalClose:hover {
+  background: rgba(26, 24, 21, 0.05);
+  color: var(--ag-text-0, #1a1815);
+}
+
+.pholioAgeVerifyDisclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--ag-surface-0, #faf8f5);
+  border-radius: 10px;
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.08));
+}
+
+.pholioAgeVerifyDisclosure p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.pholioAgeVerifyDisclosure strong {
+  color: var(--ag-text-0, #1a1815);
+}
+
+.pholioAgeVerifyConsentRow {
+  padding-top: 4px;
+}
+
+.pholioAgeVerifyModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ag-border, rgba(26, 24, 21, 0.08));
+}
+
+.pholioAgeVerifyModalActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pholioAgeVerifyPrivacyLink {
+  font-size: 12.5px;
+  color: var(--ag-text-2, #6b6560);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pholioAgeVerifyPrivacyLink:hover {
+  color: #635bff;
+}
+
 @media (max-width: 560px) {
   .bookoutFormDates {
     grid-template-columns: 1fr;

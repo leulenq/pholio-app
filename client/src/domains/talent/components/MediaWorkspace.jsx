@@ -391,7 +391,7 @@ function UploadDatePrompt({ count, onConfirm, onSkip, onCancel }) {
   const [value, setValue] = React.useState('');
   const today = dateToInput(new Date());
   return createPortal(
-    <div className="mw-modal-overlay" onClick={onCancel}>
+    <div className="mw-modal-overlay mw-root" onClick={onCancel}>
       <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Shoot date" onClick={(e) => e.stopPropagation()}>
         <header className="mw-modal__head">
           <h3 className="mw-modal__title">When were these shot?</h3>
@@ -443,7 +443,7 @@ function MotionAddPrompt({ onSubmit, onCancel, busy }) {
   };
 
   return createPortal(
-    <div className="mw-modal-overlay" onClick={onCancel}>
+    <div className="mw-modal-overlay mw-root" onClick={onCancel}>
       <form className="mw-modal" role="dialog" aria-modal="true" aria-label="Add motion" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <header className="mw-modal__head">
           <h3 className="mw-modal__title">Add a motion asset</h3>
@@ -507,7 +507,7 @@ function BulkReclassifyModal({ sets, onConfirm, onCancel, busy }) {
   };
 
   return createPortal(
-    <div className="mw-modal-overlay" onClick={onCancel}>
+    <div className="mw-modal-overlay mw-root" onClick={onCancel}>
       <div className="mw-modal" role="dialog" aria-modal="true" aria-label="Bulk reclassify" onClick={(e) => e.stopPropagation()}>
         <header className="mw-modal__head">
           <h3 className="mw-modal__title">Bulk reclassify frames</h3>

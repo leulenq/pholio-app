@@ -6,7 +6,7 @@ import { AlertCircle, Bookmark, Calendar, Camera, Check, Clock, X } from 'lucide
 //           Values: 'pending' | 'accepted' | 'file' | 'closed'
 //
 // `group` — drives industry-true standing counts in bucketCounts().
-//           Values: 'inReview' | 'advancing' | 'signed' | 'closed'
+//           Values: 'inReview' | 'advancing' | 'represented' | 'closed'
 //           KEY RULE: shortlisted and kept_on_file are soft-yes outcomes and
 //           MUST be in group:'advancing', never in group:'closed'.
 export function statusConfig(status) {
@@ -76,22 +76,22 @@ export function statusConfig(status) {
       detail: 'The agency has taken you on for development before full representation.',
     },
     accepted: {
-      label: 'Representation',
-      short: 'Moving forward',
+      label: 'Offer / Moving Forward',
+      short: 'Offer',
       tone: 'accepted',
-      group: 'signed',
+      group: 'advancing',
       icon: Check,
-      next: 'The agency wants to move forward with representation — expect direct follow-up.',
-      detail: 'The agency will contact you about representation and next steps.',
+      next: 'The agency wants to move forward — review the offer and agreement directly with them.',
+      detail: 'An offer is not yet a completed representation agreement.',
     },
-    booked: {
+    represented: {
       label: 'Represented',
-      short: 'Signed',
+      short: 'Represented',
       tone: 'accepted',
-      group: 'signed',
+      group: 'represented',
       icon: Check,
       next: "You're represented — expect onboarding details directly from the agency.",
-      detail: 'The agency has offered you representation.',
+      detail: 'You and the agency have completed the representation agreement.',
     },
     declined: {
       label: 'Not Selected',
@@ -164,17 +164,17 @@ export function statusConfig(status) {
 }
 
 // Count applications by industry-true standing group.
-// Returns { inReview, advancing, signed, closed } — never buries a soft-yes
+// Returns { inReview, advancing, represented, closed } — never buries a soft-yes
 // outcome (shortlisted, kept_on_file) alongside rejections.
 //
 // Groups:
 //   inReview  — pending, submitted, reviewing (agency has not decided)
 //   advancing — shortlisted, requested_more, meeting_requested, development,
-//               kept_on_file (soft yes; NON-terminal)
-//   signed    — accepted, booked             (positive outcome)
+//               accepted, kept_on_file (soft yes / offer; NON-terminal)
+//   represented — represented                (agreement complete)
 //   closed    — declined, passed, rejected, archived, withdrawn
 export function bucketCounts(applications = []) {
-  const counts = { inReview: 0, advancing: 0, signed: 0, closed: 0 };
+  const counts = { inReview: 0, advancing: 0, represented: 0, closed: 0 };
   for (const app of applications) {
     const group = statusConfig(app.status).group;
     if (group in counts) counts[group] += 1;

@@ -27,11 +27,13 @@ const phylloRouter = require("./phyllo-routes");
 const representationsRouter = require("./representations");
 const fieldVisibilityRouter = require("./field-visibility");
 const availabilityRouter = require("./availability");
+const specRegistryRouter = require("./spec-registry");
 
 router.use(requireTalentLegalAcceptance());
 
 // Mount API routes
 router.use("/api/talent/media", mediaRouter);
+router.use("/api/talent/spec-registry", specRegistryRouter);
 router.use("/api/talent", representationsRouter);
 router.use("/api/talent", profileRouter);
 router.use("/api/talent", analyticsRouter);

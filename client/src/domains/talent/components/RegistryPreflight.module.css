@@ -1,0 +1,247 @@
+.preflight {
+  margin: 0 0 28px;
+  padding: 24px;
+  border: 1px solid rgba(26, 24, 21, 0.12);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1a1815;
+  animation: preflightEnter 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes preflightEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.1);
+}
+
+.title {
+  margin: 0;
+  color: #0f172a;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.65rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.provenance,
+.caution,
+.coverage,
+.empty,
+.state p,
+.rowDetail {
+  color: #4b5563;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.provenance {
+  margin: 10px 0 0;
+}
+
+.caution {
+  margin: 8px 0 0;
+}
+
+.coverage {
+  margin: 12px 0 0;
+  color: #1a1815;
+}
+
+.ledger {
+  display: grid;
+}
+
+.routeChoice {
+  display: grid;
+  gap: 8px;
+  padding: 18px 0 2px;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.1);
+}
+
+.routeChoice label {
+  color: #4b5563;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.routeChoice p {
+  margin: 0 0 14px;
+  color: #4b5563;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.routeSelect {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 36px 10px 12px;
+  border: 1px solid rgba(26, 24, 21, 0.18);
+  border-radius: 3px;
+  background: #ffffff;
+  color: #1a1815;
+  font: 400 0.875rem/1.35 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.routeSelect:focus {
+  border-color: #b8956a;
+  outline: 2px solid rgba(184, 149, 106, 0.18);
+  outline-offset: 2px;
+}
+
+.group {
+  padding: 20px 0 0;
+}
+
+.group + .group {
+  margin-top: 20px;
+  border-top: 1px solid rgba(26, 24, 21, 0.1);
+}
+
+.groupTitle {
+  margin: 0 0 8px;
+  color: #1a1815;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.08);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowCopy {
+  min-width: 0;
+}
+
+.rowTitle {
+  margin: 0;
+  color: #1a1815;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.rowDetail {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.rowAction:global(.pholio-btn) {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding-right: 0;
+  padding-left: 0;
+  color: #75501b;
+  white-space: normal;
+  text-align: right;
+}
+
+.sourceAction:global(.pholio-btn) {
+  margin-top: 18px;
+  padding-right: 0;
+  padding-left: 0;
+  color: #75501b;
+}
+
+.loading,
+.state {
+  padding: 20px 0 0;
+}
+
+.loading p,
+.state p {
+  margin: 0;
+}
+
+.state p + p {
+  margin-top: 8px;
+}
+
+.state :global(.pholio-btn) {
+  margin-top: 16px;
+}
+
+.skeletonList {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.skeletonList span {
+  display: block;
+  width: 100%;
+  height: 42px;
+  border-radius: 8px;
+  background: #f5f4f2;
+  animation: preflightSkeleton 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes preflightSkeleton {
+  from { opacity: 0.62; }
+  to { opacity: 1; }
+}
+
+.empty {
+  margin: 20px 0 0;
+}
+
+@media (max-width: 640px) {
+  .preflight {
+    padding: 20px;
+  }
+
+  .row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .rowAction:global(.pholio-btn) {
+    align-self: flex-start;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preflight,
+  .skeletonList span {
+    animation: none;
+  }
+}

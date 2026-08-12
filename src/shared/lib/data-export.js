@@ -41,6 +41,7 @@ const GENERIC_EXPORT_KEYS = [
   "moderation_queue",
   "image_model_releases",
   "application_submission_boards",
+  "application_spec_snapshots",
   "application_submission_consent_events",
   "talent_submission_packages",
   "social_accounts",

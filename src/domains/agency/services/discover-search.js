@@ -29,6 +29,9 @@ const {
 const {
   loadSocialAccountsForProfiles,
 } = require("../../../shared/lib/social-accounts");
+const {
+  getTalentUserIdsBlockingAgency,
+} = require("../../../shared/lib/blocked-agencies");
 
 function mergeFilters(queryParams, parsedFilters) {
   const merged = { ...parsedFilters };
@@ -296,6 +299,9 @@ async function browseSearch(knex, context) {
   } = context;
 
   const query = applyDiscoverFilters(baseDiscoverQuery(knex), filters);
+  if (context.blockedTalentUserIds?.size) {
+    query.whereNotIn("profiles.user_id", [...context.blockedTalentUserIds]);
+  }
   let rows;
   let totalCount;
   let understanding = null;
@@ -419,6 +425,10 @@ async function searchDiscoverableTalent(knex, options) {
     experience_level,
   });
   const filters = mergeFilters(explicitFilters, {});
+  const blockedTalentUserIds = await getTalentUserIdsBlockingAgency(
+    knex,
+    agencyId,
+  );
 
   return browseSearch(knex, {
     filters,
@@ -428,6 +438,7 @@ async function searchDiscoverableTalent(knex, options) {
     offset,
     applicationMap: await fetchApplicationMap(knex, agencyId),
     agencyId,
+    blockedTalentUserIds,
     q: q.trim(),
   });
 }

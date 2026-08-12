@@ -53,4 +53,11 @@ function isModerator(user) {
   return false;
 }
 
-module.exports = { isModerator, VALID_REPORT_REASONS };
+function isSelfTargetReport({ reporterUserId, targetType, targetId }) {
+  return (
+    targetType === 'user' &&
+    String(targetId || '').trim() === String(reporterUserId || '').trim()
+  );
+}
+
+module.exports = { isModerator, isSelfTargetReport, VALID_REPORT_REASONS };

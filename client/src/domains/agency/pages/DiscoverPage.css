@@ -129,9 +129,7 @@
   align-items: center;
   height: 66px;
   gap: 14px;
-  /* No right padding — the submit is a flush cap on the pill, not an object
-     floating inside it. */
-  padding: 0 0 0 22px;
+  padding: 0 16px 0 22px;
   border-radius: 999px;
   background: #000000;
   /* Transparent, not absent: the shell keeps its 1px so nothing shifts, and the
@@ -256,7 +254,7 @@ body.is-agency .dc-bar-input:focus {
 .dc-bar-ph--in  { opacity: 1; }
 .dc-bar-ph--out { opacity: 0; }
 
-/* clear — bare × with no background */
+/* clear — bare icon only with no background */
 .dc-bar-clear {
   display: flex;
   align-items: center;
@@ -266,11 +264,11 @@ body.is-agency .dc-bar-input:focus {
   height: 24px;
   background: transparent;
   border: none;
-  color: rgba(244, 241, 234, 0.32);
+  color: rgba(244, 241, 234, 0.45);
   cursor: pointer;
   transition: color 0.2s ease;
 }
-.dc-bar-clear:hover { color: rgba(244, 241, 234, 0.8); }
+.dc-bar-clear:hover { color: #ffffff; }
 
 /* ============================================================
    INLINE PREDICTION (ghost completion)
@@ -972,43 +970,35 @@ body.is-agency .dc-bar-input:focus {
   color: rgba(250, 248, 245, 0.46);
 }
 
-/* ── submit — the pill's right cap ──
-   Not a circle sitting inside the field: the last 70px of the bar IS the
-   button, sharing the shell's radius. No divider — the cap is defined by the
-   gold arriving, not by a rule drawn next to it. It arms itself: a bare arrow
-   while the field is empty, solid gold the moment there is something to
-   search, so the fill itself is the state. */
+/* ── submit — borderless, backgroundless inline icon ── */
 .dc-bar-go {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  align-self: stretch;
-  width: 70px;
+  align-self: center;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: none;
-  border-radius: 0 999px 999px 0;
+  border-radius: 50%;
   background: transparent;
-  color: rgba(230, 198, 128, 0.42);
+  color: rgba(230, 198, 128, 0.35);
   cursor: pointer;
-  transition:
-    background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    color 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.2s ease;
 }
-.dc-bar-go svg { transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+.dc-bar-go svg { transition: transform 0.2s ease; }
 
 .dc-bar-go:disabled { cursor: default; }
 .dc-bar-go:not(:disabled) {
-  background-color: #e6c680;
-  color: #1a1207;
+  background: transparent;
+  color: #e6c680;
 }
-.dc-bar-go:not(:disabled):hover { background-color: #f0d491; }
-.dc-bar-go:not(:disabled):hover svg { transform: translateY(-2px); }
-.dc-bar-go:not(:disabled):active svg { transform: translateY(0); }
-.dc-bar-go:disabled:hover { color: rgba(230, 198, 128, 0.6); }
+.dc-bar-go:not(:disabled):hover { color: #ffffff; }
+.dc-bar-go:disabled:hover { color: rgba(230, 198, 128, 0.5); }
 .dc-bar-go:focus-visible {
   outline: 2px solid #e6c680;
-  outline-offset: -4px;
+  outline-offset: 2px;
 }
 
 /* example intent suggestions (replace fake chips) */

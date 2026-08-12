@@ -338,6 +338,28 @@ const ROUTE_PERMISSION_RULES = [
     permission: "open_call.manage",
   },
 
+  // Spec Builder — the requirements published against those links.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/spec-builder$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/spec-builder\/revisions$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "PUT",
+    pattern: /^\/api\/agency\/spec-builder\/draft$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/spec-builder\/publish$/,
+    permission: "open_call.manage",
+  },
+
   // Messages
   {
     method: "GET",

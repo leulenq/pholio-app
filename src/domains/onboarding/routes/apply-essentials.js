@@ -237,10 +237,8 @@ router.post(
       }
 
       // Process and store image
-      const { publicUrl: storedPath } = await processImage(
-        req.file,
-        profile.id,
-      );
+      const processed = await processImage(req.file, profile.id);
+      const storedPath = processed.publicUrl;
       const countResult = await knex("images")
         .where({ profile_id: profile.id })
         .count({ total: "*" })
@@ -251,6 +249,14 @@ router.post(
         id: uuidv4(),
         profile_id: profile.id,
         path: storedPath,
+        public_url: storedPath,
+        storage_key: processed.storageKey || null,
+        absolute_path: processed.absolutePath || null,
+        delivery_mime_type: processed.deliveryMimeType || null,
+        delivery_size_bytes: processed.deliverySizeBytes ?? null,
+        delivery_width_px: processed.deliveryWidthPx ?? null,
+        delivery_height_px: processed.deliveryHeightPx ?? null,
+        delivery_metadata_recorded_at: knex.fn.now(),
         label: "Portfolio image",
         sort: nextSort,
       });

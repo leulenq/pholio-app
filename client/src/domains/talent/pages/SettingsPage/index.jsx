@@ -386,7 +386,7 @@ export default function SettingsPage() {
       case 'privacy':
         return <PrivacyMovement settings={settings} isLoading={isLoading} />;
       case 'legal':
-        return <LegalMovement settings={settings} />;
+        return <LegalMovement />;
       case 'account':
         return <AccountMovement settings={settings} />;
       default:
@@ -678,14 +678,36 @@ function IdentityMovement({ settings }) {
 function PresenceMovement({ settings, isLoading }) {
   const { profile } = useAuth();
   const mutation = useSettingsMutation({ onSuccess: () => toast.success('Presence updated') });
+  const agencyDirectoryQuery = useQuery({
+    queryKey: ['agency-privacy-directory'],
+    queryFn: talentApi.getAgencyPrivacyDirectory,
+  });
   const [blockInput, setBlockInput] = useState('');
   const minorLocked = isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
   const blockedAgencies = settings?.blockedAgencies || [];
+  const agencyDirectory = Array.isArray(agencyDirectoryQuery.data)
+    ? agencyDirectoryQuery.data
+    : [];
+  const agencyById = new Map(agencyDirectory.map((agency) => [agency.id, agency]));
+
+  const normalizedAgencyIdentity = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/$/, '');
 
   const update = (payload) => mutation.mutate(payload);
   const addBlock = () => {
-    const value = blockInput.trim();
-    if (!value) return;
+    const entered = blockInput.trim();
+    if (!entered) return;
+    const needle = normalizedAgencyIdentity(entered);
+    const matchedAgency = agencyDirectory.find((agency) => [
+      agency.id,
+      agency.name,
+      agency.agency_website,
+    ].some((identity) => normalizedAgencyIdentity(identity) === needle));
+    const value = matchedAgency?.id || entered;
     update({ blockedAgencies: [...new Set([...blockedAgencies, value])] });
     setBlockInput('');
   };
@@ -745,7 +767,13 @@ function PresenceMovement({ settings, isLoading }) {
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBlock(); } }}
             placeholder="Agency name or domain"
             aria-label="Agency to block"
+            list="agency-block-options"
           />
+          <datalist id="agency-block-options">
+            {agencyDirectory.map((agency) => (
+              <option key={agency.id} value={agency.name} />
+            ))}
+          </datalist>
           <PholioButton type="button" variant="secondary" onClick={addBlock} disabled={!blockInput.trim() || mutation.isPending}>
             <Plus size={15} aria-hidden="true" /> Block
           </PholioButton>
@@ -754,8 +782,8 @@ function PresenceMovement({ settings, isLoading }) {
           <ul className="set-blocklist">
             {blockedAgencies.map((agency) => (
               <li key={agency}>
-                <span>{agency}</span>
-                <button type="button" onClick={() => removeBlock(agency)} disabled={mutation.isPending} aria-label={`Unblock ${agency}`}>
+                <span>{agencyById.get(agency)?.name || agency}</span>
+                <button type="button" onClick={() => removeBlock(agency)} disabled={mutation.isPending} aria-label={`Unblock ${agencyById.get(agency)?.name || agency}`}>
                   <X size={13} aria-hidden="true" /> Remove
                 </button>
               </li>
@@ -1213,7 +1241,7 @@ function PrivacyMovement({ settings, isLoading }) {
 
 /* --- VIII · Legal & safety ----------------------------------------- */
 
-function LegalMovement({ settings }) {
+function LegalMovement() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
@@ -1275,9 +1303,6 @@ function LegalMovement({ settings }) {
       <ReportDialog
         open={reportOpen}
         onClose={() => setReportOpen(false)}
-        targetType="user"
-        targetId={profile?.user_id || settings?.user?.id || profile?.id || 'talent-settings'}
-        targetLabel="Pholio settings"
       />
     </Movement>
   );
@@ -1295,7 +1320,15 @@ function AccountMovement({ settings }) {
   });
   const remove = useMutation({
     mutationFn: talentApi.deleteAccount,
-    onSuccess: (result) => { purgeApplyDraftStorage(); toast.success('Account deleted'); window.location.href = result?.redirect || '/login'; },
+    onSuccess: (result) => {
+      purgeApplyDraftStorage();
+      if (result?.fullyErased) {
+        toast.success('Account deleted');
+      } else {
+        toast.warning('Your Pholio account was removed. Provider deletion is still pending.');
+      }
+      window.location.href = result?.redirect || '/login';
+    },
     onError: (error) => toast.error(error?.message || 'Unable to delete account'),
   });
 

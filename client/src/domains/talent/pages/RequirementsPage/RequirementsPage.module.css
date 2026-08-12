@@ -1,0 +1,221 @@
+.page {
+  min-height: 100%;
+  padding: 48px clamp(24px, 5vw, 76px) 104px;
+  background: #faf9f7;
+  color: #0f172a;
+}
+
+.masthead {
+  max-width: 720px;
+  margin-bottom: 40px;
+  animation: requirementsEnter 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.masthead h1,
+.detailHeader h2 {
+  margin: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.masthead h1 {
+  font-size: 2.4rem;
+  line-height: 1.12;
+}
+
+.masthead p,
+.detailHeader p,
+.directoryState p,
+.detailEmpty p {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.masthead p {
+  max-width: 65ch;
+  margin: 14px 0 0;
+  color: #4b5563;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.32fr) minmax(0, 0.68fr);
+  border-top: 1px solid rgba(26, 24, 21, 0.12);
+}
+
+.directory {
+  min-width: 0;
+  padding: 24px 32px 24px 0;
+  border-right: 1px solid rgba(26, 24, 21, 0.12);
+}
+
+.directory h2,
+.detailHeader h2 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.routeList {
+  display: grid;
+  gap: 2px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.routeButton:global(.pholio-btn) {
+  display: grid;
+  justify-content: start;
+  width: 100%;
+  min-height: 58px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #4b5563;
+  text-align: left;
+  white-space: normal;
+}
+
+.routeButton:global(.pholio-btn):hover,
+.routeButton:global(.pholio-btn):focus-visible {
+  border-color: rgba(201, 165, 90, 0.32);
+  background: rgba(201, 165, 90, 0.06);
+  color: #1a1815;
+}
+
+.routeButtonSelected:global(.pholio-btn) {
+  border-color: rgba(26, 24, 21, 0.18);
+  background: #ffffff;
+  color: #1a1815;
+}
+
+.routeName,
+.routeMarket {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.routeName {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.routeMarket {
+  margin-top: 3px;
+  color: #64748b;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.directoryLoading,
+.directoryState {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.directoryLoading p,
+.directoryState p {
+  margin: 0;
+  color: #4b5563;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.directoryLoading span {
+  display: block;
+  height: 48px;
+  border-radius: 8px;
+  background: #f5f4f2;
+  animation: requirementsSkeleton 1.2s ease-in-out infinite alternate;
+}
+
+.directoryState :global(.pholio-btn) {
+  justify-self: start;
+  margin-top: 4px;
+}
+
+.detail {
+  min-width: 0;
+  padding: 24px 0 24px 40px;
+}
+
+.detailHeader {
+  margin-bottom: 18px;
+}
+
+.detailHeader h2 {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.8rem;
+  font-weight: 400;
+}
+
+.detailHeader p {
+  margin: 5px 0 0;
+  color: #4b5563;
+}
+
+.detailEmpty {
+  padding: 28px 0;
+}
+
+.detailEmpty p {
+  margin: 0;
+  color: #4b5563;
+}
+
+@keyframes requirementsEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes requirementsSkeleton {
+  from { opacity: 0.62; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 800px) {
+  .page {
+    padding: 32px 20px 88px;
+  }
+
+  .masthead {
+    margin-bottom: 28px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .directory {
+    padding: 20px 0;
+    border-right: 0;
+    border-bottom: 1px solid rgba(26, 24, 21, 0.12);
+  }
+
+  .detail {
+    padding: 24px 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masthead,
+  .directoryLoading span {
+    animation: none;
+  }
+}

@@ -8,7 +8,7 @@ import { updateAgencySettings } from '../../api/agency';
 // The two events Pholio persists today, in agency language.
 const LIVE = [
   { id: 'notify_new_applications', label: 'New talent submissions', desc: 'When talent is scouted or applies to your board.' },
-  { id: 'notify_status_changes', label: 'Pipeline movement', desc: 'When talent advances a stage — shortlisted, in review, signed.' },
+  { id: 'notify_status_changes', label: 'Pipeline movement', desc: 'When talent advances a stage — shortlisted, offered, represented.' },
 ];
 const VIEWS = [
   { value: 'overview', label: 'Overview' },

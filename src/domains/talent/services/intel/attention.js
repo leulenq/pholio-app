@@ -32,7 +32,6 @@ async function loadIntelEvents(profileId, since, before = null) {
     "session_id",
     "market",
     "image_id",
-    "dwell_ms",
     "share_token_id",
     "source",
     "occurred_at",
@@ -355,22 +354,19 @@ function sourceRows(intelEvents, sessions) {
 /** Image-level attention for The Book, Ranked (zone 5). */
 function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
   const imageEvents = intelEvents.filter(
-    (e) => e.image_id && e.action.startsWith("image_"),
+    (e) => e.image_id && (e.action === "image_impression" || e.action === "image_open"),
   );
   const byImage = new Map();
   for (const e of imageEvents) {
     const entry =
-      byImage.get(e.image_id) || { impressions: 0, opens: 0, dwellMs: 0 };
+      byImage.get(e.image_id) || { impressions: 0, opens: 0 };
     if (e.action === "image_impression") entry.impressions += 1;
     if (e.action === "image_open") entry.opens += 1;
-    if (e.action === "image_dwell" && Number.isFinite(Number(e.dwell_ms))) {
-      entry.dwellMs += Number(e.dwell_ms);
-    }
     byImage.set(e.image_id, entry);
   }
 
   const scored = images.map((img) => {
-    const a = byImage.get(img.id) || { impressions: 0, opens: 0, dwellMs: 0 };
+    const a = byImage.get(img.id) || { impressions: 0, opens: 0 };
     return {
       id: img.id,
       url: img.public_url || img.path,
@@ -380,13 +376,11 @@ function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
       isPrimary: Boolean(img.is_primary),
       impressions: a.impressions,
       opens: a.opens,
-      dwellMs: a.dwellMs,
-      // Open rate is the honest, comparable metric: of the people who saw this
-      // frame in the grid, how many opened it. The previous ranking multiplied
+      // Open rate is an observable metric: of the sessions where this frame
+      // appeared in the grid, how many opened it. The previous ranking multiplied
       // opens, dwell and impressions into a unitless "score" that could not be
       // checked against anything or compared between two frames.
       openRate: a.impressions > 0 ? a.opens / a.impressions : null,
-      avgDwellMs: a.opens > 0 ? Math.round(a.dwellMs / a.opens) : null,
     };
   });
 
@@ -398,7 +392,7 @@ function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
 
   if (!calibrating && rankable.length >= 2) {
     [...rankable]
-      .sort((a, b) => b.openRate - a.openRate || b.avgDwellMs - a.avgDwellMs)
+      .sort((a, b) => b.openRate - a.openRate || b.opens - a.opens)
       .forEach((img, i) => {
         img.rank = i + 1;
       });
@@ -407,7 +401,7 @@ function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
       img.flags = [];
       if (img.rank === 1) img.flags.push("most_opened");
       if (img.rank === rankable.length && rankable.length >= 3) {
-        img.flags.push("most_skipped");
+        img.flags.push("least_opened");
       }
       if (img.impressions < SEEN) img.flags.push("unseen");
     }

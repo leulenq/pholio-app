@@ -4,14 +4,11 @@ import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { buildReadinessLists } from '../components/profileReadinessItems';
 
 /**
- * useProfileStrength Hook
- *
- * Provides the "official" profile strength score from the backend (score field)
- * and derives per-field gap data client-side for the audit UI.
- * Used by Header, Overview, and Sidebar headers.
+ * Derives factual submission requirements and optional profile context.
+ * No percentage or qualitative strength label is exposed.
  */
-export function useProfileStrength() {
-  const { completeness, profile, images, isLoading } = useAuth();
+export function useProfileReadiness() {
+  const { profile, images, isLoading } = useAuth();
 
   const auditData = useMemo(() => {
     const strength = calculateProfileStrength({ ...profile, images: images ?? [] });
@@ -25,19 +22,16 @@ export function useProfileStrength() {
       isRequiredComplete: strength.isRequiredComplete,
       topGaps,
       totalGaps: missingRequired.length + missingImprove.length,
+      missingRequiredCount: missingRequired.length,
     };
   }, [profile, images]);
 
   return {
-    score: completeness?.percentage ?? 0,
-    label: completeness?.label ?? 'Beginner',
-    nextSteps: completeness?.nextSteps ?? [],
-    coreReady: completeness?.coreReady ?? false,
-    isComplete: completeness?.isComplete ?? false,
     isLoading,
     fieldCompletion: auditData.fieldCompletion,
     topGaps: auditData.topGaps,
     totalGaps: auditData.totalGaps,
+    missingRequiredCount: auditData.missingRequiredCount,
     isRequiredComplete: auditData.isRequiredComplete,
   };
 }

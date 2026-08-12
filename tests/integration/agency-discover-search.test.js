@@ -61,6 +61,7 @@ function parsedBrief(hard, softQuery = "") {
 async function createSchema() {
   await knex.schema.createTable("profiles", (table) => {
     table.string("id", 36).primary();
+    table.string("user_id", 36);
     table.string("slug");
     table.string("first_name");
     table.string("last_name");
@@ -109,6 +110,16 @@ async function createSchema() {
     table.timestamp("created_at").nullable();
     table.timestamp("updated_at").nullable();
   });
+  await knex.schema.createTable("agencies", (table) => {
+    table.string("id", 36).primary();
+    table.string("name");
+    table.string("slug");
+  });
+  await knex.schema.createTable("talent_user_settings", (table) => {
+    table.string("id", 36).primary();
+    table.string("user_id", 36);
+    table.text("privacy_preferences");
+  });
 }
 
 async function seedProfiles() {
@@ -151,6 +162,7 @@ async function seedProfiles() {
     },
   ].map((row, index) => ({
     ...row,
+    user_id: uuidv4(),
     date_of_birth: "1995-01-01",
     profile_status: "active",
     is_discoverable: true,
@@ -172,10 +184,17 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await knex("talent_user_settings").del();
+  await knex("agencies").del();
   await knex("applications").del();
   await knex("images").del();
   await knex("social_accounts").del();
   await knex("profiles").del();
+  await knex("agencies").insert({
+    id: AGENCY_ID,
+    name: "North Star Models",
+    slug: "north-star-models",
+  });
   await seedProfiles();
   mockParsedBrief = parsedBrief(emptyHard());
 });
@@ -239,6 +258,25 @@ describe("agency Discover directory", () => {
       "Editorial",
       "Runway",
     ]);
+  });
+
+  test("blocked talent are excluded before Discover pagination and totals", async () => {
+    const blocked = await knex("profiles")
+      .where({ slug: "bella-commercial" })
+      .first();
+    await knex("talent_user_settings").insert({
+      id: uuidv4(),
+      user_id: blocked.user_id,
+      privacy_preferences: JSON.stringify({ blockedAgencies: [AGENCY_ID] }),
+    });
+
+    const result = await searchDiscoverableTalent(knex, { agencyId: AGENCY_ID });
+
+    expect(result.profiles.map((profile) => profile.last_name)).toEqual([
+      "Editorial",
+      "Runway",
+    ]);
+    expect(result.pagination.total).toBe(2);
   });
 
   test("semantic ranking is permanently disabled", () => {

@@ -15,12 +15,12 @@ const STEP_WORD = {
   sent: 'sent',
   opened: 'opened',
   advanced: 'advanced',
-  settled: 'signed or kept',
+  settled: 'represented or kept',
 };
 
 /** Outcomes, ordered best → worst so the stack reads as a ranking. */
 const OUTCOMES = [
-  { key: 'signed', label: 'Signed', ink: RAMP[4] },
+  { key: 'represented', label: 'Represented', ink: RAMP[4] },
   { key: 'keptOnFile', label: 'Kept on file', ink: RAMP[3] },
   { key: 'inMotion', label: 'In motion', ink: RAMP[2] },
   { key: 'awaiting', label: 'Awaiting', ink: RAMP[0] },

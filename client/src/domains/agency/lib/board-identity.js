@@ -192,11 +192,11 @@ export function resolveBoardType(board) {
 /** Vocabulary per board type — signing language vs packaging language. */
 export const BOARD_VOCAB = {
   division: {
-    decided: 'Signed',
-    decidedLower: 'signed',
-    column: 'Signed',
-    action: 'Sign',
-    toast: 'Signed to the board',
+    decided: 'Represented',
+    decidedLower: 'represented',
+    column: 'Represented',
+    action: 'Offer',
+    toast: 'Marked represented',
   },
   package: {
     decided: 'Confirmed',

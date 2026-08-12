@@ -115,9 +115,10 @@ describe("GET /api/talent/overview", () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/overview"),
     );
-    expect(res.body).toHaveProperty("profileStrength");
     expect(res.body).toHaveProperty("nextPriority");
     expect(res.body).toHaveProperty("activityStream");
+    expect(res.body).not.toHaveProperty("profileStrength");
+    expect(res.body).not.toHaveProperty("recommendedAgencies");
   });
 });
 

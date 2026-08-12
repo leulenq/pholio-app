@@ -232,8 +232,8 @@ audits; the operative findings are below.
 **The spec variance is real and quantified.** Elite: 6 shots including a "personality
 picture." Ford: 4. Storm / Models 1 / The Society: 3. Naming is inconsistent. Only some
 agencies ban filters in writing. Models 1 explicitly bans swimwear — evidently a
-recurring rejection driver. Almost no agency publishes technical specs; only The Society
-(5MB) and Ford (3MB) state file limits.
+recurring rejection driver. Almost no agency publishes technical specs; The Society and
+Models 1 state 5MB file limits, while Ford states 3MB.
 
 Direct from a model: *"you think you have all you need but then on one agency site they
 request an angle you didn't take, so you have to re-do the whole set of images."*

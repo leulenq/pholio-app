@@ -137,7 +137,12 @@ async function updateAdultContext(profileId, input = {}) {
   return getAdultContext(profileId);
 }
 
-async function createVerificationSession(profile) {
+async function createVerificationSession(profile, { consent = false } = {}) {
+  if (consent !== true) {
+    const error = new Error("Consent is required before starting identity verification");
+    error.code = "AGE_VERIFICATION_CONSENT_REQUIRED";
+    throw error;
+  }
   if (!stripe?.identity?.verificationSessions) {
     const error = new Error("Age verification is not configured");
     error.code = "AGE_VERIFICATION_NOT_CONFIGURED";
@@ -150,7 +155,13 @@ async function createVerificationSession(profile) {
     error.code = "DOB_REQUIRED";
     throw error;
   }
-  if (computeAge(dob) < 18) {
+  const declaredAge = computeAge(dob);
+  if (declaredAge == null) {
+    const error = new Error("Add a valid date of birth before verifying your age");
+    error.code = "DOB_REQUIRED";
+    throw error;
+  }
+  if (declaredAge < 18) {
     const error = new Error("Adult verification is available only to people aged 18 or older");
     error.code = "ADULT_ONLY";
     throw error;
@@ -167,7 +178,14 @@ async function createVerificationSession(profile) {
   }
 
   const id = crypto.randomUUID();
-  await knex("age_verifications").insert({ id, profile_id: profile.id, status: "creating" });
+  await knex("age_verifications").insert({
+    id,
+    profile_id: profile.id,
+    provider: PROVIDER,
+    status: "creating",
+    consent_version: "age-verification-v1",
+    consented_at: knex.fn.now(),
+  });
   try {
     const session = await stripe.identity.verificationSessions.create({
       type: "document",

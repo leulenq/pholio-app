@@ -35,7 +35,7 @@ export function MeasurementsSection({
   const shoeRegion = watch('shoe_region') || 'US';
   const primaryLane = watch('booking_primary_lane');
   const laneInfo = BOOKING_LANE_BY_SLUG[primaryLane];
-  const showWeight = !laneInfo || laneInfo.group !== 'fashion';
+  const showWeight = true;
 
   // Which measurement set renders. Resolved through the shared helper so the
   // stored lowercase value matches, and so a profile that has never picked a

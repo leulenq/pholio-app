@@ -219,7 +219,7 @@ describe("adult-only talent onboarding launch boundary", () => {
     expect(castingSource).toContain('req.session.role !== "TALENT"');
   });
 
-  test("gates every production account/OAuth path and disables production Instagram redirect", () => {
+  test("gates every production account/OAuth path before starting a provider redirect", () => {
     const entrySource = fs.readFileSync(
       path.join(__dirname, "../../client/src/domains/onboarding/pages/CastingEntry.jsx"),
       "utf8",
@@ -242,9 +242,10 @@ describe("adult-only talent onboarding launch boundary", () => {
       email.indexOf("createUserWithEmailAndPassword"),
     );
     expect(instagram).toContain("if (!validateAdultEligibility()) return;");
-    expect(instagram).toContain("Instagram sign-up is unavailable during this adults-only launch.");
-    expect(entrySource).not.toContain("startInstagramAuth");
-    expect(entrySource).not.toContain("isInstagramAuthConfigured");
+    expect(instagram.indexOf("if (!validateAdultEligibility()) return;")).toBeLessThan(
+      instagram.indexOf("startInstagramAuth"),
+    );
+    expect(instagram).toContain("dateOfBirth: dob");
   });
 
   test("uses America/New_York as the explicit pilot eligibility calendar", () => {

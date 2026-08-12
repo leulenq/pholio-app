@@ -36,7 +36,7 @@ const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'inReview', label: 'In Review' },
   { id: 'advancing', label: 'Advancing' },
-  { id: 'signed', label: 'Signed' },
+  { id: 'represented', label: 'Represented' },
   { id: 'closed', label: 'Closed' },
 ];
 
@@ -110,7 +110,7 @@ function firstBoard(value) {
 
 function applicationMatchesFilter(app, filter) {
   if (filter === 'all') return true;
-  // Filter ids align 1:1 with the standing groups (inReview / advancing / signed / closed),
+  // Filter ids align 1:1 with the standing groups (inReview / advancing / represented / closed),
   // so the filter row exposes the same tiers the activity legend shows.
   return statusConfig(app.status).group === filter;
 }
@@ -286,7 +286,7 @@ export default function ApplicationsView() {
     .slice(0, 6);
 
   const activeCount = applications.filter((app) => ['inReview', 'advancing'].includes(statusConfig(app.status).group)).length;
-  const acceptedCount = applications.filter((app) => statusConfig(app.status).group === 'signed').length;
+  const representedCount = applications.filter((app) => statusConfig(app.status).group === 'represented').length;
   const monthCount = applications.filter((app) => {
     if (!app.created_at) return false;
     const created = new Date(app.created_at);
@@ -352,6 +352,13 @@ export default function ApplicationsView() {
           <p className="app-standfirst">
             Open agencies, work in progress, and every submission on record.
           </p>
+          <Link
+            className="app-requirements-link"
+            to="/dashboard/talent/applications/requirements"
+          >
+            Compare published agency requirements
+            <ArrowUpRight size={14} aria-hidden />
+          </Link>
         </div>
 
         <dl className="app-market-index" aria-label="Application summary">
@@ -364,8 +371,8 @@ export default function ApplicationsView() {
             <dd>{applicationsQuery.isLoading ? '-' : activeCount}</dd>
           </div>
           <div>
-            <dt>Signed</dt>
-            <dd>{applicationsQuery.isLoading ? '-' : acceptedCount}</dd>
+            <dt>Represented</dt>
+            <dd>{applicationsQuery.isLoading ? '-' : representedCount}</dd>
           </div>
           <div>
             <dt>This Month</dt>

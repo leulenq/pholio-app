@@ -14,5 +14,6 @@ router.use(require("./overview"));
 router.use(require("./notifications"));
 router.use(require("./activity"));
 router.use(require("./open-call"));
+router.use(require("./spec-builder"));
 
 module.exports = router;

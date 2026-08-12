@@ -31,7 +31,6 @@ const pipeline = require("./pipeline");
 const materials = require("./materials");
 const conversion = require("./conversion");
 const { buildDecisions } = require("./decisions");
-const { buildSearchDemandNudges } = require("./searchability");
 
 const DELTA_MIN_PRIOR_EVENTS = 10;
 const SMALL_N_VIEWS = 20;
@@ -278,8 +277,6 @@ async function buildIntel(profile, { days, tz = "UTC" }) {
     now,
   });
 
-  const demandNudges = await buildSearchDemandNudges(profile);
-
   return {
     meta: { ...meta, smallSample, deltasSuppressed },
     decisions,
@@ -288,7 +285,7 @@ async function buildIntel(profile, { days, tz = "UTC" }) {
     attention: attentionPayload,
     book: attention.bookAttention(intelEvents, images),
     momentum,
-    demand: { nudges: demandNudges },
+    demand: null,
   };
 }
 

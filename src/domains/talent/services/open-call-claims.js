@@ -43,6 +43,32 @@ function hasOpenCallSchema(db) {
   return openCallSchemaPromise;
 }
 
+// The brief shipped after the links did. Selecting its columns unconditionally
+// would break the arrival page on a database that has the open-call schema but
+// not yet the brief migration, so the projection adapts. Checked once per
+// process, like `hasOpenCallSchema` above.
+const BRIEF_COLUMNS = [
+  "l.brief_who",
+  "l.brief_what",
+  "l.brief_eligibility",
+  "l.brief_next_steps",
+  "l.brief_deadline",
+  "l.brief_ongoing",
+  "l.brief_completed_at",
+];
+let briefColumnsPromise = null;
+function hasBriefColumns(db) {
+  if (!briefColumnsPromise) {
+    briefColumnsPromise = db.schema
+      .hasColumn("agency_open_call_links", "brief_completed_at")
+      .catch(() => {
+        briefColumnsPromise = null;
+        return false;
+      });
+  }
+  return briefColumnsPromise;
+}
+
 function claimExpiryTimestamp(from = new Date()) {
   return new Date(
     from.getTime() + CLAIM_TTL_DAYS * 24 * 60 * 60 * 1000,
@@ -86,6 +112,7 @@ async function findActiveLinkByCode(db, code) {
       "a.logo_path as agency_logo",
       "a.website as agency_website",
       "a.open_boards as agency_open_boards",
+      ...((await hasBriefColumns(db)) ? BRIEF_COLUMNS : []),
     )
     .first();
   return link || null;
@@ -300,6 +327,7 @@ module.exports = {
   CLAIM_TTL_DAYS,
   CLAIM_STATUSES,
   LINK_STATUSES,
+  hasBriefColumns,
   hasOpenCallSchema,
   claimExpiryTimestamp,
   generateOpenCallCode,

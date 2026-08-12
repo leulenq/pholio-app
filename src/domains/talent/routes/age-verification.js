@@ -45,8 +45,13 @@ router.post(
   asyncHandler(async (req, res) => {
     const profile = await ownProfile(req);
     if (!profile) return apiResponse.error(res, "Profile not found", 404);
+    if (req.body?.consent !== true) {
+      return apiResponse.error(res, "Consent is required before starting identity verification", 422, {
+        code: "AGE_VERIFICATION_CONSENT_REQUIRED",
+      });
+    }
     try {
-      const { session } = await createVerificationSession(profile);
+      const { session } = await createVerificationSession(profile, { consent: true });
       return apiResponse.success(res, { url: session.url, status: session.status }, 201);
     } catch (error) {
       const status = error.code === "DOB_REQUIRED" ? 422 : error.code === "ADULT_ONLY" ? 403 : 503;

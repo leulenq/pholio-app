@@ -100,7 +100,6 @@
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s, border-color 0.2s;
 }
 .sg-folio:hover {
-  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--bd-ink, #16130D) 38%, transparent);
   box-shadow: 0 16px 36px rgba(20, 18, 14, 0.1);
 }
@@ -285,7 +284,7 @@
   cursor: pointer;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s, border-color 0.2s;
 }
-.rr-card:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgba(20, 18, 14, 0.12); border-color: #E2DAC9; }
+.rr-card:hover { box-shadow: 0 14px 32px rgba(20, 18, 14, 0.12); border-color: #E2DAC9; }
 .rr-card:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
 .rr-card--skeleton { height: 300px; animation: sg-pulse 1.4s ease-in-out infinite; pointer-events: none; }
 

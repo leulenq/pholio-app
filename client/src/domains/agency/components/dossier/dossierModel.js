@@ -154,7 +154,7 @@ export function representationRead(representation) {
           placements.length ? ` · ${placements.length} market placement${placements.length > 1 ? 's' : ''}` : ''
         }`
       : who
-        ? `Signed with ${who}`
+        ? `Represented by ${who}`
         : 'Agency undisclosed by the talent';
   } else if (status === 'seeking') {
     detail = 'Open to signing — no active representation on record.';

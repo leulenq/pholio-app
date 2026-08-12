@@ -519,20 +519,14 @@
   color: var(--ov-gold-warm);
 }
 
-.ov-readiness-pct {
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 2.75rem;
-  font-weight: 300;
-  color: rgba(245, 240, 232, 0.32);
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.ov-readiness-pct sup {
+.ov-readiness-state {
+  max-width: 16rem;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
   font-size: 0.75rem;
-  opacity: 0.5;
-  vertical-align: super;
-  line-height: 0;
+  line-height: 1.45;
+  text-align: right;
+  color: rgba(245, 240, 232, 0.58);
 }
 
 .ov-checklist {

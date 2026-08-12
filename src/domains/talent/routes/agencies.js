@@ -23,6 +23,7 @@ router.get(
       knex,
       req.session.userId,
     );
+    const includeBlocked = req.query.includeBlocked === "1";
     const agenciesQuery = knex("agencies")
       .where({ status: "ACTIVE" })
       .select(
@@ -45,10 +46,10 @@ router.get(
       // affinity and prevents the chooser from reshuffling between requests.
       .orderBy("name", "asc")
       .orderBy("id", "asc");
-    // Blocked organizations remain visible in the dedicated draft-management
-    // list when a historical draft exists, but are never offered as a new
-    // application destination.
-    if (blockedAgencyIds.size > 0) {
+    // Settings may request the complete directory so a stored stable agency ID
+    // can be named and removed. The application chooser never offers a blocked
+    // organization as a new destination.
+    if (!includeBlocked && blockedAgencyIds.size > 0) {
       agenciesQuery.whereNotIn("id", [...blockedAgencyIds]);
     }
     const agencies = await agenciesQuery;

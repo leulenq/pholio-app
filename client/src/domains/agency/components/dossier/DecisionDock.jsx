@@ -8,6 +8,10 @@ import {
 import { getBoards } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
+import {
+  isOfferedApplicationStatus,
+  isRepresentedApplicationStatus,
+} from '../../../../shared/constants/applicationStatus';
 import './dossier.css';
 
 /**
@@ -19,8 +23,6 @@ import './dossier.css';
  * face) sits between a pass and a signing. All of them are here under their
  * real names.
  */
-const SIGNED = ['accepted', 'represented', 'signed', 'booked'];
-
 async function downloadCompCard(slug) {
   const res = await fetch(`/pdf/${slug}?download=1`, { credentials: 'include' });
   if (!res.ok) throw new Error('Comp card unavailable');
@@ -84,9 +86,10 @@ export function DecisionDock({ applicationId, status, slug, compact = false }) {
   });
 
   const s = String(status || '').toLowerCase();
-  const signed = SIGNED.includes(s);
+  const offered = isOfferedApplicationStatus(s);
+  const represented = isRepresentedApplicationStatus(s);
   const declined = s === 'declined' || s === 'passed';
-  const settled = signed || declined;
+  const settled = offered || represented || declined;
 
   const handleCompCard = async () => {
     if (!slug) return;
@@ -188,10 +191,19 @@ export function DecisionDock({ applicationId, status, slug, compact = false }) {
       )}
 
       {can('applications.accept') && (
-        signed ? (
-          <span className="dx-dock__settled"><Check size={15} aria-hidden /> Signed</span>
+        represented ? (
+          <span className="dx-dock__settled"><Check size={15} aria-hidden /> Represented</span>
         ) : declined ? (
           <span className="dx-dock__settled dx-dock__settled--off">Passed</span>
+        ) : offered ? (
+          <button
+            type="button"
+            className="dx-btn dx-btn--primary"
+            disabled={actions.isPending}
+            onClick={() => actions.confirmRepresentation.mutate()}
+          >
+            <Check size={15} aria-hidden /> Mark represented
+          </button>
         ) : (
           <button
             type="button"

@@ -29,6 +29,15 @@ function requestIp(req) {
   );
 }
 
+function isLocalOrPrivateIp(value) {
+  const ip = String(value || "").replace(/^::ffff:/, "").toLowerCase();
+  if (!ip) return true;
+  if (ip === "::1" || ip === "localhost" || ip.startsWith("127.")) return true;
+  if (ip.startsWith("10.") || ip.startsWith("192.168.")) return true;
+  const match = /^172\.(\d+)\./.exec(ip);
+  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+}
+
 function requestReferrer(req) {
   const raw = req?.headers?.["referer"] || req?.headers?.["referrer"] || null;
   return raw ? String(raw).slice(0, 512) : null;
@@ -130,6 +139,7 @@ async function recordProfileEvent({
 }) {
   try {
     if (!profile?.id || !action) return null;
+    if (!(await knex.schema.hasTable("profile_events"))) return null;
 
     const resolvedClass =
       viewerClass && VIEWER_CLASSES.has(viewerClass)
@@ -144,8 +154,9 @@ async function recordProfileEvent({
       : deriveSource({ referrer, shareToken, viewerClass: resolvedClass });
 
     let market = null;
-    if (!minor) {
-      market = await resolveMarketFromIp(requestIp(req)).catch(() => null);
+    const ip = requestIp(req);
+    if (!minor && !isLocalOrPrivateIp(ip)) {
+      market = await resolveMarketFromIp(ip).catch(() => null);
     }
 
     const row = {
@@ -204,5 +215,6 @@ module.exports = {
   resolveViewerClass,
   resolveShareToken,
   deriveSource,
+  isLocalOrPrivateIp,
   generateShareToken,
 };

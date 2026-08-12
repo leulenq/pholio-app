@@ -32,6 +32,16 @@ const {
 const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("agency open call claims", () => {
+  // Every new link carries a brief (A4 #1); these are the agency's answers.
+  const VALID_BRIEF = {
+    who: "New faces for our women's board, London.",
+    what: "Four digitals: close-up, profile, waist-up and full length.",
+    eligibility: "",
+    nextSteps: "We review weekly and reply within 30 days, either way.",
+    deadline: "",
+    ongoing: true,
+  };
+
   const userId = uuidv4();
   const profileId = uuidv4();
   const invitingAgencyId = uuidv4();
@@ -583,6 +593,41 @@ describe("agency open call claims", () => {
     expect(consumedClaim.status).toBe("consumed");
   });
 
+  test("a new open call link cannot be created without a brief", async () => {
+    const agencyAuth = await withAgencySession();
+
+    const noBrief = await agencyAuth(
+      request(app)
+        .post("/api/agency/open-call/links")
+        .set("Accept", "application/json")
+        .send({ label: "No brief" }),
+    );
+    expect(noBrief.status).toBe(400);
+    expect(noBrief.body.error).toBe("brief_required");
+
+    const undecidedDeadline = await agencyAuth(
+      request(app)
+        .post("/api/agency/open-call/links")
+        .set("Accept", "application/json")
+        .send({
+          label: "Undecided",
+          brief: { ...VALID_BRIEF, deadline: "", ongoing: false },
+        }),
+    );
+    expect(undecidedDeadline.status).toBe(400);
+    expect(undecidedDeadline.body.error).toBe("brief_deadline_required");
+
+    const created = await agencyAuth(
+      request(app)
+        .post("/api/agency/open-call/links")
+        .set("Accept", "application/json")
+        .send({ label: "Ongoing call", brief: { ...VALID_BRIEF, deadline: "", ongoing: true } }),
+    );
+    expect(created.status).toBe(200);
+    expect(created.body.data.brief.ongoing).toBe(true);
+    expect(created.body.data.needsBrief).toBe(false);
+  });
+
   test("agency link management lists, creates, and revokes with claim cascade", async () => {
     const agencyAuth = await withAgencySession();
 
@@ -590,7 +635,7 @@ describe("agency open call claims", () => {
       request(app)
         .post("/api/agency/open-call/links")
         .set("Accept", "application/json")
-        .send({ label: "Spring scouting email" }),
+        .send({ label: "Spring scouting email", brief: VALID_BRIEF }),
     );
     expect(created.status).toBe(200);
     expect(created.body.data.code).toMatch(/^[A-Za-z0-9_-]{8,32}$/);

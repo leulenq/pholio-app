@@ -756,6 +756,39 @@ describe("agency RBAC custom grants", () => {
     expect(persisted.declined_at).toBeNull();
   });
 
+  test("application status writes reject booked and allow represented", async () => {
+    const ownerCookie = await agentWithAgencySession({
+      memberUserId: OWNER_USER_ID,
+      membershipId: MEMBERSHIP.owner,
+      membershipRole: "OWNER",
+    });
+
+    const bookedResponse = await ownerCookie(
+      request(app)
+        .patch(`/api/agency/applications/${APPLICATION_ID}/status`)
+        .send({ status: "booked" }),
+    );
+    expect(bookedResponse.status).toBe(400);
+
+    const representedResponse = await ownerCookie(
+      request(app)
+        .patch(`/api/agency/applications/${APPLICATION_ID}/status`)
+        .send({ status: "represented" }),
+    );
+    expect(representedResponse.status).toBe(200);
+    expect(representedResponse.body.data).toMatchObject({
+      applicationId: APPLICATION_ID,
+      status: "represented",
+      stage: "Represented",
+    });
+
+    const persisted = await knex("applications")
+      .where({ id: APPLICATION_ID })
+      .first();
+    expect(persisted.status).toBe("represented");
+    expect(persisted.accepted_at).not.toBeNull();
+  });
+
   test("OWNER can add existing agency user to team", async () => {
     const newUserId = uuidv4();
     await knex("users").insert({

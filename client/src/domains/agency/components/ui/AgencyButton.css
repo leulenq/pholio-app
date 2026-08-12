@@ -67,14 +67,20 @@
 }
 
 .agency-btn--danger {
-  background: var(--ag-danger);
-  color: white;
+  background: var(--ag-danger, #c0563f);
+  color: #ffffff;
+  border: 1px solid var(--ag-danger, #c0563f);
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+  box-shadow: none;
 }
 
 .agency-btn--danger:hover:not(:disabled) {
-  background: #b91c1c;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  background: #a84732;
+  border-color: #a84732;
+  color: #ffffff;
+  transform: none;
+  box-shadow: none;
 }
 
 .agency-btn--success {

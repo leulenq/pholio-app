@@ -43,7 +43,7 @@ export const talentApi = {
   // Stats-currency one-tap nudge — touches measurements_updated_at only.
   confirmMeasurementsCurrent: () => apiClient.post('/measurements/still-accurate', {}),
   getAgeVerification: (options) => apiClient.get('/age-verification', options),
-  createAgeVerificationSession: () => apiClient.post('/age-verification/session', {}),
+  createAgeVerificationSession: () => apiClient.post('/age-verification/session', { consent: true }),
   getAdultContext: (options) => apiClient.get('/adult-context', options),
   updateAdultContext: (data) => apiClient.put('/adult-context', data),
 
@@ -109,12 +109,23 @@ export const talentApi = {
   getApplicationActivity: (id) => apiClient.get(`/applications/${id}/activity`),
   getApplicationPromptContext: () => apiClient.get('/applications/prompt-context'),
   getAgencies: () => apiClient.get('/agencies'),
+  getAgencyPrivacyDirectory: () => apiClient.get('/agencies?includeBlocked=1'),
   createApplication: (data) => apiClient.post('/applications', data),
   withdrawApplication: (id) => apiClient.post(`/applications/${id}/withdraw`),
   getSubmissionProgramStatus: (options) =>
     apiClient.get('/applications/submission-program-status', options),
   acknowledgeSubmissionProgram: () =>
     apiClient.post('/applications/submission-program-acknowledgment', { acknowledged: true }),
+
+  // Published agency requirements and score-free package preflight.
+  getSpecRegistryRoutes: ({ agencyId } = {}) =>
+    apiClient.get(
+      `/spec-registry/routes${agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : ''}`,
+    ),
+  getSpecRegistryRoute: (seriesId) =>
+    apiClient.get(`/spec-registry/routes/${encodeURIComponent(seriesId)}`),
+  preflightSpecRegistry: (payload = {}) =>
+    apiClient.post('/spec-registry/preflight', payload),
 
   // Application drafts (one per agency — the in-progress submission dossier)
   listDrafts: (options) =>

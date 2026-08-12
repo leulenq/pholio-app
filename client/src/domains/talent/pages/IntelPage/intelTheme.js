@@ -6,7 +6,7 @@
  * above AA on the #FAF9F7 canvas. Pale low-opacity greys are deliberately
  * absent — every label is a solid, measured colour.
  *
- * Every scale here is ORDINAL (stage, signal tier, viewer quality) or EMPHASIS
+ * Every scale here is ORDINAL (stage or event sequence) or EMPHASIS
  * (this period against the last), so the page needs no hue rotation: one warm
  * ramp runs light → deep as signal gets stronger, a warm stone carries context,
  * and a single reserved ember marks "past the line" — always beside a word,
@@ -18,7 +18,7 @@
  * scripts/validate_palette.js --ordinal.
  */
 
-/** Weakest signal → strongest. On paper, strength reads as depth. */
+/** Light → deep sequence used for ordered marks, without a quality claim. */
 export const RAMP = ['#B08D45', '#8A6A31', '#61441E', '#3D2913', '#1F1408'];
 
 export const SURFACE = '#FFFFFF';

@@ -25,8 +25,28 @@ export async function isInstagramAuthConfigured() {
   }
 }
 
-export function startInstagramAuth({ flow = 'login', next = null } = {}) {
+export async function startInstagramAuth({ flow = 'login', next = null, dateOfBirth = null } = {}) {
   const params = new URLSearchParams({ flow });
   if (next) params.set('next', next);
-  window.location.href = `/api/auth/instagram/start?${params.toString()}`;
+
+  if (flow !== 'signup') {
+    window.location.href = `/api/auth/instagram/start?${params.toString()}`;
+    return;
+  }
+
+  const response = await fetch(`/api/auth/instagram/start?${params.toString()}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-Pholio-Request': 'same-origin',
+    },
+    body: JSON.stringify({ date_of_birth: dateOfBirth }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.authorize_url) {
+    throw new Error(data.message || data.error || 'Unable to start Instagram sign-up.');
+  }
+  window.location.href = data.authorize_url;
 }

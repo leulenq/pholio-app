@@ -167,6 +167,11 @@ export async function acceptApplication(applicationId) {
   return apiClient.post(`/applications/${applicationId}/accept`);
 }
 
+/** Mark the representation agreement complete. */
+export async function confirmRepresentationApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'represented' });
+}
+
 /**
  * Decline application. Optionally accepts a reason/note payload for structured
  * pass reasons; the endpoint accepts the body even before storage is wired.
@@ -682,12 +687,34 @@ export async function getOpenCallLinks() {
   return apiClient.get('/open-call/links');
 }
 
-export async function createOpenCallLink(label) {
-  return apiClient.post('/open-call/links', { label });
+export async function createOpenCallLink(label, brief) {
+  return apiClient.post('/open-call/links', { label, brief });
 }
 
 export async function updateOpenCallLink(linkId, payload) {
   return apiClient.patch(`/open-call/links/${linkId}`, payload);
+}
+
+/*
+ * Spec Builder — the requirements an agency publishes for its open call.
+ * Everything here is advisory: it tells an applicant what is missing and never
+ * stops them sending.
+ */
+
+export async function getSpecBuilder() {
+  return apiClient.get('/spec-builder');
+}
+
+export async function saveSpecDraft(draft) {
+  return apiClient.put('/spec-builder/draft', { draft });
+}
+
+export async function publishSpecDraft() {
+  return apiClient.post('/spec-builder/publish', {});
+}
+
+export async function getSpecRevisions() {
+  return apiClient.get('/spec-builder/revisions');
 }
 
 export default {
@@ -698,6 +725,7 @@ export default {
   getApplicants,
   getApplication,
   acceptApplication,
+  confirmRepresentationApplication,
   declineApplication,
   shortlistApplication,
   keepOnFileApplication,
@@ -739,4 +767,8 @@ export default {
   getOpenCallLinks,
   createOpenCallLink,
   updateOpenCallLink,
+  getSpecBuilder,
+  saveSpecDraft,
+  publishSpecDraft,
+  getSpecRevisions,
 };

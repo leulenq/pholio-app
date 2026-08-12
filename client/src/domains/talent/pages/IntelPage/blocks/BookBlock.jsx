@@ -6,7 +6,7 @@ import { RAMP, EASE, pct } from '../intelTheme';
 
 const FLAG_TEXT = {
   most_opened: 'opened most',
-  most_skipped: 'skipped most',
+  least_opened: 'lowest observed open rate',
   unseen: 'barely shown',
 };
 

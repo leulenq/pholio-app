@@ -1,0 +1,84 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "ford-models:selected-city-online",
+  "revisionId": "ford-models:selected-city-online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": { "id": "ford-models", "name": "Ford Models", "legalName": "Ford Models, Inc.", "officialDomains": ["fordmodels.com"] },
+    "office": { "id": null, "name": null },
+    "market": { "kind": "selected_market", "code": "selected-city", "countryCodes": ["US", "FR", "ES"], "city": null },
+    "channel": { "id": "ford-models-snapcast-selected-city", "type": "agency_branded_third_party_form", "url": "https://agency.getsnapcast.com/registrants/new_ford" },
+    "divisions": { "mode": "unspecified", "values": [] },
+    "applicantTracks": { "mode": "unspecified", "values": [] },
+    "evidenceIds": ["ford-get-scouted", "ford-snapcast-form", "ford-privacy"]
+  },
+  "lifecycle": { "observedOn": "2026-08-09", "effectiveFrom": null, "effectiveUntil": null, "reviewedOn": "2026-08-09", "nextReviewOn": "2026-11-07" },
+  "rules": {
+    "shots": {
+      "count": { "minimum": 4, "maximum": 4, "basis": "derived_from_explicit_assertions", "evidenceIds": ["ford-snapcast-form"] },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        { "id": "close-up", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "Close-up", "match": { "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null }, "appliesWhen": null, "evidenceIds": ["ford-snapcast-form"], "matchability": "hybrid" },
+        { "id": "profile", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "Profile", "match": { "field": "shot.view", "operator": "equals", "value": "profile", "unit": null }, "appliesWhen": null, "evidenceIds": ["ford-snapcast-form"], "matchability": "automatic" },
+        { "id": "waist-up", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "Waist-up", "match": { "field": "shot.frame", "operator": "equals", "value": "waist_up", "unit": null }, "appliesWhen": null, "evidenceIds": ["ford-snapcast-form"], "matchability": "hybrid" },
+        { "id": "full-length", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "Full length", "match": { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null }, "appliesWhen": null, "evidenceIds": ["ford-snapcast-form"], "matchability": "hybrid" }
+      ]
+    },
+    "setWide": [
+      { "id": "no-makeup-tip", "modality": "encouraged", "basis": "explicit_text", "constraint": { "field": "appearance.makeup_level", "operator": "equals", "value": "none", "unit": null }, "appliesWhen": null, "sourceLabel": "Have a clean face with absolutely no makeup.", "evidenceIds": ["ford-get-scouted"], "matchability": "hybrid", "appliesTo": { "mode": "all_shots", "shotIds": [] } },
+      { "id": "hair-back-tip", "modality": "encouraged", "basis": "explicit_text", "constraint": { "field": "appearance.hair_state", "operator": "equals", "value": "pulled_back", "unit": null }, "appliesWhen": null, "sourceLabel": "Pull your hair back.", "evidenceIds": ["ford-get-scouted"], "matchability": "hybrid", "appliesTo": { "mode": "all_shots", "shotIds": [] } },
+      { "id": "form-fitted-clothing-tip", "modality": "encouraged", "basis": "explicit_text", "constraint": { "field": "clothing.fit", "operator": "equals", "value": "form_fitted", "unit": null }, "appliesWhen": null, "sourceLabel": "Wear a form fitting outfit like skinny jeans and a tank top.", "evidenceIds": ["ford-get-scouted"], "matchability": "hybrid", "appliesTo": { "mode": "all_shots", "shotIds": [] } }
+    ],
+    "files": [
+      { "id": "image-file-size-maximum", "modality": "required", "basis": "explicit_text", "constraint": { "field": "file.size_bytes", "operator": "lt", "value": 3000000, "unit": "byte" }, "appliesWhen": null, "sourceLabel": "File sizes must be less than 3MB.", "evidenceIds": ["ford-snapcast-form"], "matchability": "automatic", "scope": "per_file", "sourceValue": { "value": 3, "unit": "MB", "normalization": "decimal_conservative" } }
+    ],
+    "eligibility": [
+      { "id": "minimum-age-thirteen", "modality": "required", "basis": "explicit_text", "constraint": { "field": "applicant.age_years", "operator": "gte", "value": 13, "unit": "year" }, "appliesWhen": null, "sourceLabel": "Registrants may in no case be under thirteen (13) years of age.", "evidenceIds": ["ford-privacy"], "matchability": "automatic" }
+    ],
+    "applicationFields": [
+      { "id": "destination-market", "field": "application.destination_market", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Select the city closest to you", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "gender", "field": "applicant.gender", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Female / Male / Non-binary", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "first-name", "field": "applicant.first_name", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "First name", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "last-name", "field": "applicant.last_name", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Last name", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "date-of-birth", "field": "applicant.date_of_birth", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Date of birth", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "city", "field": "contact.city", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "City", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "state", "field": "contact.state_region", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "State", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "instagram", "field": "social.instagram", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Instagram", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "tiktok", "field": "social.tiktok", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "TikTok", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "youtube", "field": "social.youtube", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "YouTube URL", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "facebook", "field": "social.facebook", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Facebook", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "x", "field": "social.x", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Twitter", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "twitch", "field": "social.twitch", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Twitch", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "email", "field": "contact.email", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Email", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "phone", "field": "contact.phone", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Mobile", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "password", "field": "application.password", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Password", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "password-confirmation", "field": "application.password_confirmation", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Password confirmation", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "privacy-policy", "field": "consent.privacy_policy", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "By clicking Submit ... have read our Privacy Policy", "evidenceIds": ["ford-snapcast-form"] },
+      { "id": "terms", "field": "consent.terms_conditions", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "By clicking Submit, you agree to the SNAPCAST Terms", "evidenceIds": ["ford-snapcast-form"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "scope.receiving_office", "appliesWhen": null, "reason": "not_published", "note": "Ford's hub lists selectable cities, but does not publish which receiving office the selected-city form maps to.", "evidenceIds": ["ford-get-scouted", "ford-snapcast-form"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": "The form does not state whether one image may satisfy more than one named upload target.", "evidenceIds": ["ford-snapcast-form"] },
+    { "fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": "No background rule is published on the selected-city form or Ford's tips page.", "evidenceIds": ["ford-get-scouted", "ford-snapcast-form"] },
+    { "fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": "No filter rule is published.", "evidenceIds": ["ford-get-scouted"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": "No retouching rule is published.", "evidenceIds": ["ford-get-scouted"] },
+    { "fact": "files.mime_types", "appliesWhen": null, "reason": "not_published", "note": "The form does not publish accepted file types.", "evidenceIds": ["ford-snapcast-form"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": "The form does not publish image dimensions.", "evidenceIds": ["ford-snapcast-form"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": "The form publishes a per-file limit but no total upload limit.", "evidenceIds": ["ford-snapcast-form"] },
+    { "fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": "The form collects physical attributes but publishes no height threshold.", "evidenceIds": ["ford-snapcast-form", "ford-privacy"] },
+    { "fact": "application.guardian_fields", "appliesWhen": { "all": [{ "field": "applicant.age_years", "operator": "gte", "value": 13, "unit": "year" }, { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" }] }, "reason": "source_access_limited", "note": "Ford requires a parent or legal guardian to register for applicants under 18, but the route's conditional guardian controls were not exposed.", "evidenceIds": ["ford-privacy", "ford-snapcast-form"] },
+    { "fact": "application.unresolved_fields", "appliesWhen": null, "reason": "ambiguous", "note": "Several visible select controls have no exposed labels in the crawl, so their field identities cannot be normalized safely.", "evidenceIds": ["ford-snapcast-form"] }
+  ],
+  "evidence": [
+    { "id": "ford-get-scouted", "authority": "first_party_published", "publisher": "Ford Models, Inc.", "url": "https://fordmodels.com/get-scouted", "title": "Get Scouted | Ford Models", "locale": "en", "retrievedOn": "2026-08-09", "locator": { "kind": "section", "value": "FORD's Tips to Getting Scouted" }, "excerpt": "Select the city closest to you to begin your application.", "archivedUrl": null, "contentHash": null },
+    { "id": "ford-snapcast-form", "authority": "agency_branded_provider", "publisher": "Snapcast branded for FORD Models", "url": "https://agency.getsnapcast.com/registrants/new_ford", "title": "SNAPCAST - Become a Model", "locale": "en", "retrievedOn": "2026-08-09", "locator": { "kind": "section", "value": "Recruitment Form" }, "excerpt": "Upload images of yourself ... File sizes must be less than 3MB.", "archivedUrl": null, "contentHash": null },
+    { "id": "ford-privacy", "authority": "first_party_published", "publisher": "Ford Models, Inc.", "url": "https://fordmodels.com/privacy", "title": "Privacy Policy | Ford Models", "locale": "en", "retrievedOn": "2026-08-09", "locator": { "kind": "section", "value": "What are our policies regarding children?" }, "excerpt": "Registrants may in no case be under thirteen (13) years of age.", "archivedUrl": null, "contentHash": null }
+  ],
+  "review": { "authority": "agency_branded_provider", "method": "dual_reviewer", "reviewers": [{ "id": "web-source-review-a-20260809", "reviewedOn": "2026-08-09" }, { "id": "normalization-review-20260809", "reviewedOn": "2026-08-09" }], "notes": "The official Ford hub and Ford-branded Snapcast route were independently reviewed. Application-field requiredness follows the form-wide instruction to complete all fields; password entries describe source-form presence only and must never be ingested into the registry. The live Ford privacy policy is marked Last Updated May 2018, so its age rule should be rechecked on schedule." }
+}

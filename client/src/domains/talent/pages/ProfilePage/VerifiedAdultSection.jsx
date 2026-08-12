@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, X } from 'lucide-react';
 import { talentApi } from '../../api/talent';
 import { Section } from '../../components/profile-index';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
-import { PholioInput } from '../../../../shared/components/ui/forms';
+import { PholioInput, PholioToggle } from '../../../../shared/components/ui/forms';
 import PholioMultiSelect from '../../../../shared/components/ui/forms/PholioMultiSelect';
 import { pholioToast } from '../../../../shared/lib/pholio-toast';
 import { computeAge } from '../../../../shared/utils/talentAge';
@@ -19,12 +20,110 @@ const CONTENT_BOUNDARY_OPTIONS = [
   { value: 'Body Paint', label: 'Body Paint' },
 ];
 
+function StripeConsentModal({
+  isOpen,
+  onClose,
+  consent,
+  onConsentChange,
+  onStartVerification,
+  isPending,
+}) {
+  if (!isOpen) return null;
+
+  return createPortal(
+        <div className={styles.pholioAgeVerifyModalOverlay} onClick={onClose}>
+      <div
+        className={styles.pholioAgeVerifyModal}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Age Verification Consent"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.pholioStripeAccentBar} />
+        <div className={styles.pholioAgeVerifyModalHead}>
+          <div>
+            <div className={styles.pholioStripeBrandLine}>
+              <span>Pholio</span>
+              <span className={styles.coBrandSep}>×</span>
+              <span className={styles.stripeText}>Stripe Identity</span>
+            </div>
+            <h3>Age Verification Consent</h3>
+            <p>Handled securely by Stripe Identity</p>
+          </div>
+          <button
+            type="button"
+            className={styles.pholioAgeVerifyModalClose}
+            onClick={onClose}
+            aria-label="Close modal"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className={styles.pholioAgeVerifyDisclosure}>
+          <p>
+            <strong>ID &amp; Selfie Check:</strong> Stripe Identity verifies a government-issued ID and matching selfie to confirm you are 18 or older and match your profile birth date.
+          </p>
+          <p>
+            <strong>Privacy &amp; Data Storage:</strong> Pholio receives and stores only the pass/fail verification result and audit timestamps—never your identity document or selfie.
+          </p>
+          <p>
+            <strong>Automatic Evidence Redaction:</strong> Pholio requests immediate redaction of verification evidence by Stripe post-check.
+          </p>
+        </div>
+
+        <div className={styles.pholioAgeVerifyConsentRow}>
+          <PholioToggle
+            id="age_verification_consent"
+            checked={consent}
+            onChange={(event) => onConsentChange(event.target.checked)}
+            label="I consent to Stripe processing my identity document and selfie for this age check."
+          />
+        </div>
+
+        <div className={styles.pholioAgeVerifyModalFooter}>
+          <a
+            className={styles.pholioAgeVerifyPrivacyLink}
+            href="https://stripe.com/privacy"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Stripe Privacy Policy
+          </a>
+
+          <div className={styles.pholioAgeVerifyModalActions}>
+            <PholioButton
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={isPending}
+            >
+              Cancel
+            </PholioButton>
+            <PholioButton
+              type="button"
+              variant="primary"
+              disabled={!consent || isPending}
+              loading={isPending}
+              onClick={onStartVerification}
+            >
+              {isPending ? 'Connecting…' : 'Continue to Stripe'}
+            </PholioButton>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
 export function VerifiedAdultSection({ dateOfBirth }) {
   const queryClient = useQueryClient();
   const age = computeAge(dateOfBirth);
   const canVerify = age != null && age >= 18;
   const [contentBoundaries, setContentBoundaries] = useState(null);
   const [onlyfansUrl, setOnlyfansUrl] = useState(null);
+  const [verificationConsent, setVerificationConsent] = useState(false);
+  const [showConsentModal, setShowConsentModal] = useState(false);
 
   const verificationQuery = useQuery({
     queryKey: ['age-verification'],
@@ -120,29 +219,51 @@ export function VerifiedAdultSection({ dateOfBirth }) {
           </PholioButton>
         </div>
       ) : (
-        <div className={styles.adultVerificationPanel}>
-          <p>
-            Stripe Identity will check a government ID and matching selfie to confirm that you are 18 or older and that the birth date matches your profile. Stripe processes the document; Pholio keeps only the result and asks Stripe to redact the verification data after the check.
-          </p>
-          {status === 'processing' && <p>Your verification is being reviewed. This page will update when it is complete.</p>}
-          {status === 'failed' && <p>The check did not verify your age or the birth date did not match your profile.</p>}
-          <PholioButton
-            type="button"
-            variant="secondary"
-            loading={startVerification.isPending}
-            disabled={status === 'processing' || verificationQuery.isLoading}
-            onClick={() => startVerification.mutate()}
-          >
-            {retry ? 'Try age verification again' : 'Verify age with Stripe'}
-          </PholioButton>
-          <a
-            className={styles.adultVerificationPrivacyLink}
-            href="https://stripe.com/privacy"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Stripe privacy policy
-          </a>
+        <div className={styles.pholioAgeVerifyCard}>
+          <div className={styles.pholioStripeAccentBar} />
+          <div className={styles.pholioAgeVerifyHeader}>
+            <div className={styles.pholioAgeVerifyTitleGroup}>
+              <div className={styles.pholioStripeBrandLine}>
+                <span>Pholio</span>
+                <span className={styles.coBrandSep}>×</span>
+                <span className={styles.stripeText}>Stripe Identity</span>
+              </div>
+              <h4>Age &amp; Identity Verification</h4>
+              <p>Verify your 18+ status via Stripe Identity to store private adult creator details.</p>
+            </div>
+          </div>
+
+          {status === 'processing' && (
+            <p className={styles.adultContextPrivacy}>
+              Your verification is currently under review by Stripe. This page will update automatically.
+            </p>
+          )}
+
+          {status === 'failed' && (
+            <p className={styles.adultContextPrivacy} style={{ color: 'var(--ag-danger, #d9534f)' }}>
+              Verification check failed. Please ensure your photo ID matches your profile birth date.
+            </p>
+          )}
+
+          <div className={styles.pholioAgeVerifyActions}>
+            <PholioButton
+              type="button"
+              variant="primary"
+              disabled={status === 'processing' || verificationQuery.isLoading}
+              onClick={() => setShowConsentModal(true)}
+            >
+              {retry ? 'Try age verification again' : 'Verify age with Stripe'}
+            </PholioButton>
+          </div>
+
+          <StripeConsentModal
+            isOpen={showConsentModal}
+            onClose={() => setShowConsentModal(false)}
+            consent={verificationConsent}
+            onConsentChange={setVerificationConsent}
+            onStartVerification={() => startVerification.mutate()}
+            isPending={startVerification.isPending}
+          />
         </div>
       )}
     </Section>

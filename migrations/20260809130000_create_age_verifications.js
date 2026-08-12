@@ -16,6 +16,8 @@ exports.up = async function up(knex) {
       table.boolean("verified_over_18").notNullable().defaultTo(false);
       table.boolean("dob_matches_profile").notNullable().defaultTo(false);
       table.string("failure_code", 100).nullable();
+      table.string("consent_version", 32).nullable();
+      table.timestamp("consented_at").nullable();
       table.timestamp("verified_at").nullable();
       table.timestamp("redaction_requested_at").nullable();
       table.timestamp("redacted_at").nullable();

@@ -4,6 +4,9 @@
 
 const { randomUUID } = require("crypto");
 const knex = require("../db/knex");
+const {
+  REPRESENTED_APPLICATION_STATUSES,
+} = require("../constants/application-status");
 
 const NOTIFICATION_TYPES = {
   AGENCY_PROFILE_VIEW: "agency_profile_view",
@@ -261,12 +264,12 @@ function applicationStatusCopy(status, agencyName) {
       body: `${agency} wants to develop you as a new face before full representation.`,
     },
     accepted: {
-      title: "Representation update",
-      body: `${agency} would like to move forward with representation.`,
+      title: "Representation offer",
+      body: `${agency} would like to move forward. Review the offer and next steps directly with them.`,
     },
-    booked: {
-      title: "Booking confirmed",
-      body: `${agency} marked your application as booked.`,
+    represented: {
+      title: "Representation confirmed",
+      body: `${agency} marked your representation agreement complete.`,
     },
     declined: {
       title: "Application closed",
@@ -301,7 +304,7 @@ const NOTIFY_STATUSES = new Set([
   "meeting_requested",
   "development",
   "accepted",
-  "booked",
+  ...REPRESENTED_APPLICATION_STATUSES,
   "declined",
   "passed",
   "archived",
@@ -352,7 +355,7 @@ async function notifyTalentApplicationStatusChange({
     priority: [
       "development",
       "accepted",
-      "booked",
+      ...REPRESENTED_APPLICATION_STATUSES,
       "meeting_requested",
       "requested_more",
     ].includes(status)
@@ -512,7 +515,9 @@ async function notifyTalentConfirmation({
 
 module.exports = {
   NOTIFICATION_TYPES,
+  NOTIFY_STATUSES,
   PRIORITIES,
+  applicationStatusCopy,
   upsertUserNotification,
   createUserNotification,
   listUserNotifications,

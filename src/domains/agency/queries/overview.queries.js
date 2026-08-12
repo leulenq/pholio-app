@@ -13,7 +13,7 @@ const PIPELINE_LABEL_MAP = {
   submitted: "Submitted",
   shortlisted: "Shortlisted",
   development: "New Face — Development",
-  accepted: "Signed",
+  accepted: "Offered",
   represented: "Represented",
   passed: "Passed",
   declined: "Declined",

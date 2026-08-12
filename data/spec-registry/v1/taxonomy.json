@@ -1,0 +1,993 @@
+{
+  "$schema": "./schemas/taxonomy.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "fields": [
+    {
+      "id": "shot.frame",
+      "label": "Shot frame",
+      "description": "The source-defined amount of the applicant visible in the image; source labels remain on each rule.",
+      "category": "shot",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "full_length", "label": "Full length", "description": "A head-to-toe or source-labelled full-length frame.", "aliases": ["full body", "full-length"] },
+        { "id": "portrait_length", "label": "Portrait length", "description": "The distinct portrait-length frame named by a source; it is not automatically equivalent to a headshot.", "aliases": ["portrait length"] },
+        { "id": "close_up", "label": "Close-up", "description": "A tightly framed face or head-and-shoulders image.", "aliases": ["close up", "close-up"] },
+        { "id": "headshot", "label": "Headshot", "description": "A source-labelled headshot without assuming a tighter close-up framing.", "aliases": ["head shot"] },
+        { "id": "mid_length", "label": "Mid-length", "description": "A source-labelled mid-length frame without inferring an exact crop boundary.", "aliases": ["mid length", "mid-length"] },
+        { "id": "waist_up", "label": "Waist-up", "description": "A frame showing the applicant from approximately the waist upward.", "aliases": ["waist up", "waist-up"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "shot.view",
+      "label": "Shot view",
+      "description": "The applicant's orientation relative to the camera.",
+      "category": "shot",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "front", "label": "Front", "description": "The applicant faces the camera.", "aliases": ["front facing", "face on"] },
+        { "id": "profile", "label": "Profile", "description": "A side profile; left and right are compatible subtypes.", "aliases": ["side profile", "profile left", "profile right"] }
+      ],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "shot.purpose",
+      "label": "Shot purpose",
+      "description": "A source-defined communicative purpose that cannot always be reduced to framing or pose.",
+      "category": "shot",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "personality", "label": "Personality", "description": "An image intended to communicate personality; manual confirmation is required in v1.", "aliases": ["personality pic", "personality picture", "personality shot"] }
+      ],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "appearance.hair_state",
+      "label": "Hair state",
+      "description": "How hair is positioned for a shot.",
+      "category": "appearance",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "pulled_back", "label": "Pulled back", "description": "Hair is pulled back from the face.", "aliases": ["hair pulled back", "hair back"] },
+        { "id": "away_from_face", "label": "Away from face", "description": "Hair does not obscure the face, without requiring a specific style.", "aliases": ["hair away from face", "keeping your hair away from your face"] },
+        { "id": "up", "label": "Hair up", "description": "Hair is worn up, preserving the source's broader wording without assuming a specific tied-back style.", "aliases": ["hair up"] },
+        { "id": "down", "label": "Hair down", "description": "Hair is worn down.", "aliases": ["hair down"] },
+        { "id": "natural", "label": "Natural hair", "description": "Hair is presented in the source-described natural state; this does not imply a natural hair color.", "aliases": ["natural hair"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "appearance.hair_color",
+      "label": "Hair color",
+      "description": "A source form's generic hair-color field when the source does not say the color must be natural.",
+      "category": "appearance",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "appearance.eye_color",
+      "label": "Eye color",
+      "description": "A source form's generic eye-color field when the source does not say the color must be natural.",
+      "category": "appearance",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "appearance.makeup_level",
+      "label": "Makeup level",
+      "description": "The visible level of makeup in an image.",
+      "category": "appearance",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "none", "label": "No makeup", "description": "No visible makeup.", "aliases": ["no make-up", "without makeup"] },
+        { "id": "minimal", "label": "Minimal makeup", "description": "A minimal or natural-looking makeup presentation.", "aliases": ["natural makeup"] },
+        { "id": "styled", "label": "Styled makeup", "description": "Clearly styled or prominent makeup.", "aliases": ["full makeup"] }
+      ],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "appearance.accessory_type",
+      "label": "Accessory type",
+      "description": "An accessory category explicitly addressed by a submission source.",
+      "category": "appearance",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "large", "label": "Large accessories", "description": "Large or visually distracting accessories.", "aliases": ["large accessories", "hoop earrings", "bracelets"] },
+        { "id": "jewelry", "label": "Jewelry", "description": "Jewelry of any size when a source addresses the category generally.", "aliases": ["jewellery"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "appearance.hair_product_used",
+      "label": "Hair product used",
+      "description": "Whether hair product is visibly used or declared for the submitted image.",
+      "category": "appearance",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "appearance.natural_hair_color",
+      "label": "Natural hair color",
+      "description": "The applicant's self-reported natural hair color.",
+      "category": "appearance",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "appearance.natural_eye_color",
+      "label": "Natural eye color",
+      "description": "The applicant's self-reported natural eye color.",
+      "category": "appearance",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "expression.smile",
+      "label": "Smile visible",
+      "description": "Whether the applicant is smiling in the image.",
+      "category": "expression",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "expression.style",
+      "label": "Expression style",
+      "description": "A source-defined overall facial expression or posing direction that is not safely reducible to smile presence alone.",
+      "category": "expression",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "neutral", "label": "Neutral", "description": "A neutral facial expression without an inferred mood.", "aliases": ["neutral facial expression", "neutral expression"] },
+        { "id": "natural_relaxed", "label": "Natural and relaxed", "description": "A natural, relaxed presentation rather than an assumed formal pose.", "aliases": ["natural and relaxed", "most natural and relaxed"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "clothing.fit",
+      "label": "Clothing fit",
+      "description": "How closely clothing follows the applicant's body shape.",
+      "category": "clothing",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "form_fitted", "label": "Form-fitted", "description": "Clothing is fitted enough for body shape to be visible.", "aliases": ["form fitted", "form-fitting"] },
+        { "id": "slim_fitting", "label": "Slim-fitting", "description": "Clothing has a slim fit.", "aliases": ["slim fitting"] },
+        { "id": "baggy", "label": "Baggy", "description": "Loose clothing whose volume obscures or substantially changes the visible body outline.", "aliases": ["baggy clothing", "loose-fitting clothing"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "clothing.category",
+      "label": "Clothing category",
+      "description": "A garment category explicitly required, permitted, or prohibited by a source.",
+      "category": "clothing",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "vest_top", "label": "Vest top", "description": "A vest or tank-style top.", "aliases": ["vest top", "tank top"] },
+        { "id": "jeans", "label": "Jeans", "description": "Jeans without an inferred fit.", "aliases": [] },
+        { "id": "slim_fitting_jeans", "label": "Slim-fitting jeans", "description": "Jeans explicitly described as slim fitting.", "aliases": ["slim fitting jeans", "skinny jeans"] },
+        { "id": "swimwear", "label": "Swimwear", "description": "Swimwear submitted as clothing in an image.", "aliases": ["swimsuit", "bikini"] },
+        { "id": "underwear", "label": "Underwear", "description": "Underwear or lingerie submitted as clothing in an image.", "aliases": ["lingerie"] },
+        { "id": "high_heels", "label": "High heels", "description": "High-heeled footwear.", "aliases": ["heels"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "clothing.upper_body_state",
+      "label": "Upper-body clothing state",
+      "description": "A source-defined state describing whether the upper body is clothed, without treating the state as a garment category.",
+      "category": "clothing",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "shirtless", "label": "Shirtless", "description": "No shirt or upper-body garment is worn.", "aliases": ["without a shirt"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "clothing.style",
+      "label": "Clothing style",
+      "description": "A source-defined clothing presentation that cannot be reduced to fit or a garment category.",
+      "category": "clothing",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "favorite_outfit", "label": "Favorite outfit", "description": "An applicant-selected favorite outfit used to show personal style.", "aliases": ["favourite outfit", "your favorite outfit"] },
+        { "id": "personal_style", "label": "Personal style", "description": "Clothing selected to communicate the applicant's personal style, without requiring one garment category.", "aliases": ["your personal style"] }
+      ],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "capture.background",
+      "label": "Background",
+      "description": "The visual complexity or source-defined character of the image background.",
+      "category": "capture",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "plain", "label": "Plain", "description": "A plain, non-environmental background.", "aliases": ["plain background", "plain wall"] },
+        { "id": "uncluttered", "label": "Uncluttered", "description": "A background clear from clutter without implying a plain wall or studio backdrop.", "aliases": ["clear from clutter", "background clear from clutter"] }
+      ],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "capture.image_style",
+      "label": "Image style",
+      "description": "A source-defined overall presentation of an image that is not limited to its background, lighting, or alteration state.",
+      "category": "capture",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "clean_simple", "label": "Clean and simple", "description": "An overall clean and simple image presentation without implying a specific background.", "aliases": ["clean and simple images", "clean/simple images"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "capture.lighting",
+      "label": "Lighting",
+      "description": "The source-defined lighting conditions for submission images.",
+      "category": "capture",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "front_facing_natural_daylight", "label": "Front-facing natural daylight", "description": "Natural daylight illuminates the applicant from the front.", "aliases": ["front facing natural daylight"] },
+        { "id": "bright_natural_light", "label": "Bright natural light", "description": "Bright natural light without a stricter directional claim.", "aliases": ["bright, natural light", "bright natural light"] },
+        { "id": "natural_light", "label": "Natural light", "description": "Natural rather than artificial or heavily styled light.", "aliases": ["natural daylight"] },
+        { "id": "well_lit", "label": "Well-lit", "description": "A space with sufficient light, without inferring that the light is natural, bright, or front-facing.", "aliases": ["well lit", "well-lit space"] }
+      ],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "capture.color_mode",
+      "label": "Color mode",
+      "description": "Whether the submitted image is in color or monochrome.",
+      "category": "capture",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "color", "label": "Color", "description": "A color image rather than monochrome.", "aliases": ["colour", "in colour"] }
+      ],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "capture.device_type",
+      "label": "Capture device",
+      "description": "The type of device explicitly permitted or requested for making a submission image.",
+      "category": "capture",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "phone", "label": "Phone", "description": "A mobile phone camera.", "aliases": ["camera phone", "mobile phone"] }
+      ],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "capture.body_proportions_visible",
+      "label": "Body proportions visible",
+      "description": "Whether an image visibly shows the applicant's body proportions as requested by the source.",
+      "category": "capture",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "capture.professional_photography",
+      "label": "Professional photography",
+      "description": "Whether the image was made as professional photography.",
+      "category": "capture",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "capture.selfie",
+      "label": "Selfie",
+      "description": "Whether the submitted image is a selfie.",
+      "category": "capture",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "alteration.filter_used",
+      "label": "Filter used",
+      "description": "Whether a visual filter was applied to the image.",
+      "category": "alteration",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "alteration.effects_used",
+      "label": "Effects used",
+      "description": "Whether visual effects were applied to the image.",
+      "category": "alteration",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "alteration.retouch_used",
+      "label": "Retouching used",
+      "description": "Whether the image was retouched.",
+      "category": "alteration",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "hybrid"
+    },
+    {
+      "id": "file.count",
+      "label": "File count",
+      "description": "The total number of image files submitted through the scoped channel.",
+      "category": "file",
+      "valueType": "number",
+      "unit": "count",
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "file.size_bytes",
+      "label": "File size",
+      "description": "The size of one file or the package, normalized to bytes according to sourceValue.normalization.",
+      "category": "file",
+      "valueType": "number",
+      "unit": "byte",
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "file.mime_type",
+      "label": "File MIME type",
+      "description": "The MIME type of an uploaded file when explicitly constrained.",
+      "category": "file",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "applicant.first_name",
+      "label": "First name",
+      "description": "The applicant's first or given name.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "applicant.full_name",
+      "label": "Full name",
+      "description": "The applicant's name when the source presents one combined field and does not expose separate given- and family-name controls.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "applicant.nationality",
+      "label": "Nationality",
+      "description": "The applicant's source-form nationality value, preserved as a free string without inferring citizenship, residence, ethnicity, or work authorization.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "applicant.last_name",
+      "label": "Last name",
+      "description": "The applicant's last or family name.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "applicant.date_of_birth",
+      "label": "Date of birth",
+      "description": "The applicant's date of birth.",
+      "category": "applicant",
+      "valueType": "date",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "applicant.age_years",
+      "label": "Age",
+      "description": "The applicant's age in completed years at evaluation time.",
+      "category": "applicant",
+      "valueType": "number",
+      "unit": "year",
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "applicant.track",
+      "label": "Applicant track",
+      "description": "The source-defined application track, not an inferred statement about identity.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "women", "label": "Women", "description": "The women or source-labelled female application track.", "aliases": ["female", "female identified"] },
+        { "id": "men", "label": "Men", "description": "The men or source-labelled male application track.", "aliases": ["male"] },
+        { "id": "curve", "label": "Curve", "description": "A source-labelled curve application track.", "aliases": [] },
+        { "id": "non_binary", "label": "Non-binary", "description": "A source-labelled non-binary application track.", "aliases": ["non binary"] }
+      ],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "applicant.gender",
+      "label": "Source gender category",
+      "description": "The gender category or audience named by the source; this preserves source language and is not an inferred statement about the applicant's identity.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "male", "label": "Male", "description": "The source-labelled male category or audience.", "aliases": ["man", "men"] },
+        { "id": "female", "label": "Female", "description": "The source-labelled female category or audience.", "aliases": ["woman", "women"] },
+        { "id": "non_binary", "label": "Non-binary", "description": "The source-labelled non-binary category or audience.", "aliases": ["non binary"] },
+        { "id": "female_identified", "label": "Female identified", "description": "The source-labelled female-identified audience, preserved without inferring identity.", "aliases": ["female identified", "female-identified"] }
+      ],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "applicant.pronouns",
+      "label": "Pronouns",
+      "description": "The applicant's self-reported pronouns.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "applicant.current_representation",
+      "label": "Current representation",
+      "description": "Whether or how the applicant is currently represented.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "applicant.story",
+      "label": "Applicant story",
+      "description": "A narrative about the applicant, their background, or goals.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "applicant.message",
+      "label": "Application message",
+      "description": "A free-text message included with the application.",
+      "category": "applicant",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "applicant.height_cm",
+      "label": "Applicant height",
+      "description": "Applicant height normalized to centimeters for eligibility evaluation.",
+      "category": "applicant",
+      "valueType": "number",
+      "unit": "cm",
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "application.destination_market",
+      "label": "Destination market",
+      "description": "The office, city, or market selected to receive the scoped application; this is application routing, not the applicant's residence.",
+      "category": "application",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "application.division_interest",
+      "label": "Division interest",
+      "description": "A source-defined division or board that the applicant asks to be considered for.",
+      "category": "application",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "application.work_authorization",
+      "label": "Scoped work authorization",
+      "description": "Whether the applicant confirms lawful status to live and work in the selected territory; the value is meaningful only within the route's destination-market scope.",
+      "category": "application",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "application.password",
+      "label": "Route account password",
+      "description": "Presence of a password control used to create or access an account required by the submission route. Credential values must never be persisted in the Spec Registry.",
+      "category": "application",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "not_evaluable"
+    },
+    {
+      "id": "application.password_confirmation",
+      "label": "Route account password confirmation",
+      "description": "Presence of a password-confirmation control for the submission route. Credential values must never be persisted in the Spec Registry.",
+      "category": "application",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "not_evaluable"
+    },
+    {
+      "id": "contact.email",
+      "label": "Email",
+      "description": "The applicant's contact email address.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "contact.phone",
+      "label": "Phone",
+      "description": "The applicant's contact phone number.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "contact.address",
+      "label": "Address",
+      "description": "The applicant's street or mailing address.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "contact.city",
+      "label": "City",
+      "description": "The applicant's city or local area.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "contact.location",
+      "label": "Location",
+      "description": "A source's combined free-text location field when it does not expose separate city, region, or country controls.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "contact.country",
+      "label": "Country",
+      "description": "The applicant's country.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "contact.postal_code",
+      "label": "Postal code",
+      "description": "The applicant's ZIP or postal code.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "contact.state_region",
+      "label": "State or region",
+      "description": "The applicant's state, province, or first-level region.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "contact.preferred_method",
+      "label": "Preferred contact method",
+      "description": "The applicant's source-form selection for how the receiving organization should contact them.",
+      "category": "contact",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "social.instagram",
+      "label": "Instagram",
+      "description": "The applicant's Instagram account or URL.",
+      "category": "social",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "social.tiktok",
+      "label": "TikTok",
+      "description": "The applicant's TikTok account or URL.",
+      "category": "social",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "social.youtube",
+      "label": "YouTube",
+      "description": "The applicant's YouTube account or URL.",
+      "category": "social",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "social.facebook",
+      "label": "Facebook",
+      "description": "The applicant's Facebook account or URL.",
+      "category": "social",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "social.x",
+      "label": "X / Twitter",
+      "description": "The applicant's X or source-labelled Twitter account or URL.",
+      "category": "social",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "social.twitch",
+      "label": "Twitch",
+      "description": "The applicant's Twitch account or URL.",
+      "category": "social",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "social.account",
+      "label": "Social media account",
+      "description": "A source form's generic social-media account field when it is not limited to one named platform.",
+      "category": "social",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.height",
+      "label": "Height field",
+      "description": "A source form's height field before unit-specific normalization.",
+      "category": "measurements",
+      "valueType": "number",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.weight",
+      "label": "Weight",
+      "description": "The applicant's self-reported weight in the source form's unit.",
+      "category": "measurements",
+      "valueType": "number",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.bust",
+      "label": "Bust",
+      "description": "The applicant's self-reported bust measurement.",
+      "category": "measurements",
+      "valueType": "number",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.chest",
+      "label": "Chest",
+      "description": "The applicant's self-reported chest measurement.",
+      "category": "measurements",
+      "valueType": "number",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.waist",
+      "label": "Waist",
+      "description": "The applicant's self-reported waist measurement.",
+      "category": "measurements",
+      "valueType": "number",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.hips",
+      "label": "Hips",
+      "description": "The applicant's self-reported hip measurement.",
+      "category": "measurements",
+      "valueType": "number",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.clothing_size",
+      "label": "Clothing size",
+      "description": "The applicant's self-reported clothing size in the source form's system.",
+      "category": "measurements",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.shoe_size",
+      "label": "Shoe size",
+      "description": "The applicant's self-reported shoe size in the source form's system.",
+      "category": "measurements",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "measurements.cup_size",
+      "label": "Cup size",
+      "description": "The applicant's self-reported cup size.",
+      "category": "measurements",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "guardian.name",
+      "label": "Guardian name",
+      "description": "The parent or legal guardian's name.",
+      "category": "guardian",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "guardian.title",
+      "label": "Guardian title",
+      "description": "The source-defined honorific selected for the parent or guardian; it is preserved without inferring gender or marital status.",
+      "category": "guardian",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "mr", "label": "Mr", "description": "The source-labelled Mr title.", "aliases": ["Mr."] },
+        { "id": "mrs", "label": "Mrs", "description": "The source-labelled Mrs title.", "aliases": ["Mrs."] },
+        { "id": "miss", "label": "Miss", "description": "The source-labelled Miss title.", "aliases": [] },
+        { "id": "ms", "label": "Ms", "description": "The source-labelled Ms title.", "aliases": ["Ms."] }
+      ],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "guardian.relationship",
+      "label": "Guardian relationship",
+      "description": "The source-defined relationship of the adult completing or approving the minor's application.",
+      "category": "guardian",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [
+        { "id": "parent", "label": "Parent", "description": "The source-labelled parent relationship.", "aliases": [] },
+        { "id": "guardian", "label": "Guardian", "description": "The source-labelled guardian relationship.", "aliases": ["legal guardian"] }
+      ],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "guardian.email",
+      "label": "Guardian email",
+      "description": "The parent or legal guardian's email address.",
+      "category": "guardian",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "guardian.phone",
+      "label": "Guardian phone",
+      "description": "The parent or legal guardian's phone number.",
+      "category": "guardian",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "guardian.written_consent",
+      "label": "Written guardian consent",
+      "description": "Whether written parent or guardian consent has been provided.",
+      "category": "guardian",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "guardian.approval",
+      "label": "Guardian approval",
+      "description": "Whether a parent or legal guardian has approved the application.",
+      "category": "guardian",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "guardian.identity_document",
+      "label": "Guardian identity-document upload",
+      "description": "Presence of a route control requesting a parent or guardian identity document. The document itself must never be persisted in the Spec Registry.",
+      "category": "guardian",
+      "valueType": "string",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "not_evaluable"
+    },
+    {
+      "id": "consent.privacy_policy",
+      "label": "Privacy policy acceptance",
+      "description": "Whether the applicant accepted the scoped form's privacy policy.",
+      "category": "consent",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "consent.image_submission_authority",
+      "label": "Image submission authority",
+      "description": "Whether the submitter confirms authority to submit the images and information.",
+      "category": "consent",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "manual_confirmation"
+    },
+    {
+      "id": "consent.terms_conditions",
+      "label": "Terms and conditions acceptance",
+      "description": "Whether the applicant accepted the scoped route's terms and conditions.",
+      "category": "consent",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "consent.data_processing",
+      "label": "Application data processing consent",
+      "description": "Whether the applicant expressly consented to processing their data for the scoped application evaluation.",
+      "category": "consent",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "consent.marketing_communications",
+      "label": "Marketing communications consent",
+      "description": "Whether the applicant optionally consented to marketing communications from the receiving organization.",
+      "category": "consent",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    },
+    {
+      "id": "consent.partner_marketing",
+      "label": "Partner marketing consent",
+      "description": "Whether the applicant optionally consented to transfer of their data to contractual partners for marketing or offers.",
+      "category": "consent",
+      "valueType": "boolean",
+      "unit": null,
+      "allowedValues": [],
+      "matchabilityDefault": "automatic"
+    }
+  ],
+  "unknownFacts": [
+    { "id": "scope.receiving_office", "label": "Receiving office", "description": "The office or legal entity that receives the scoped submission." },
+    { "id": "scope.destination_markets", "label": "Destination markets", "description": "The selectable offices, cities, or markets to which the scoped route can send an application." },
+    { "id": "shots.count.minimum", "label": "Minimum shot count", "description": "The minimum number of images accepted or requested by the scoped route." },
+    { "id": "shots.count.maximum", "label": "Maximum shot count", "description": "The maximum number of images accepted by the scoped route." },
+    { "id": "shots.types", "label": "Shot types", "description": "The frames, views, or purposes requested for the image set." },
+    { "id": "shots.image_reuse", "label": "Image reuse", "description": "Whether one image may satisfy more than one named shot target." },
+    { "id": "presentation.clothing", "label": "Clothing guidance", "description": "Required, permitted, preferred, or prohibited clothing for the image set." },
+    { "id": "presentation.hair", "label": "Hair guidance", "description": "Required or preferred hair presentation for the image set." },
+    { "id": "presentation.makeup", "label": "Makeup guidance", "description": "Required or prohibited makeup presentation for the image set." },
+    { "id": "presentation.accessories", "label": "Accessory guidance", "description": "Required, permitted, or prohibited accessories for the image set." },
+    { "id": "presentation.expression", "label": "Expression guidance", "description": "Required or prohibited facial expression for the image set." },
+    { "id": "presentation.background", "label": "Background guidance", "description": "Required or preferred background for the image set." },
+    { "id": "presentation.lighting", "label": "Lighting guidance", "description": "Required or preferred lighting for the image set." },
+    { "id": "presentation.color_mode", "label": "Color-mode guidance", "description": "Whether submitted images must be in color or another mode." },
+    { "id": "presentation.filters", "label": "Filter guidance", "description": "Whether visual filters are permitted on submitted images." },
+    { "id": "presentation.effects", "label": "Effects guidance", "description": "Whether visual effects are permitted on submitted images." },
+    { "id": "presentation.retouching", "label": "Retouching guidance", "description": "Whether retouching is permitted on submitted images." },
+    { "id": "presentation.image_style", "label": "Image-style guidance", "description": "The overall presentation style requested for submitted images." },
+    { "id": "presentation.image_quality", "label": "Image-quality guidance", "description": "Published qualitative or technical image-quality expectations." },
+    { "id": "files.per_file_size", "label": "Per-file size limit", "description": "The maximum size of each submitted file." },
+    { "id": "files.total_size", "label": "Total package size", "description": "The maximum combined size of all submitted files." },
+    { "id": "files.mime_types", "label": "Accepted MIME types", "description": "The file MIME types accepted by the scoped route." },
+    { "id": "files.dimensions", "label": "Image dimensions", "description": "Published pixel-dimension constraints for submitted images." },
+    { "id": "eligibility.age", "label": "Age eligibility", "description": "A published minimum, maximum, or range for applicant age." },
+    { "id": "eligibility.height", "label": "Height eligibility", "description": "A published minimum, maximum, or range for applicant height." },
+    { "id": "application.guardian_fields", "label": "Guardian fields", "description": "Guardian information fields required or shown by the application route." },
+    { "id": "application.unresolved_fields", "label": "Unresolved application fields", "description": "Visible application controls whose labels, meanings, or requiredness cannot be resolved." },
+    { "id": "application.gated_fields", "label": "Gated application fields", "description": "Application controls or requirements downstream of an age, market, division, authentication, or similar source-access gate that could not be observed." }
+  ]
+}

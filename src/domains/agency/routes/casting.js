@@ -196,7 +196,7 @@ router.get(
           ...board,
           application_count: candidates.length,
           submitted_count: counts.Applied || 0,
-          booked_count: counts.Booked || 0,
+          represented_count: counts.Represented || 0,
         },
         stages: CASTING_PIPELINE_STAGES,
         candidates,

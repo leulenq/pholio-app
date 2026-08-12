@@ -16,7 +16,7 @@ const STEP_LABEL = {
   sent: "sent",
   opened: "opened",
   advanced: "advanced",
-  settled: "signed or kept",
+  settled: "represented or kept",
 };
 
 function plural(n, one, many) {

@@ -45,6 +45,30 @@ describe("blocked-agencies", () => {
     expect(agenciesQuery.where).toHaveBeenCalled();
   });
 
+  it("getBlockedAgencyIds resolves a stored stable agency ID", async () => {
+    const agenciesQuery = {
+      where: jest.fn().mockReturnThis(),
+      select: jest.fn().mockResolvedValue([{ id: "agency-stable-id" }]),
+    };
+    const knex = jest.fn((table) => {
+      if (table === "talent_user_settings") {
+        return {
+          where: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          first: jest.fn().mockResolvedValue({
+            privacy_preferences: { blockedAgencies: ["agency-stable-id"] },
+          }),
+        };
+      }
+      if (table === "agencies") return agenciesQuery;
+      throw new Error(`unexpected table ${table}`);
+    });
+
+    await expect(getBlockedAgencyIds(knex, "talent-user-1")).resolves.toEqual(
+      new Set(["agency-stable-id"]),
+    );
+  });
+
   it("isAgencyBlockedForTalent returns true when agency is blocked", async () => {
     const knex = jest.fn((table) => {
       if (table === "talent_user_settings") {

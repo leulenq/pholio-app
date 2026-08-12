@@ -21,7 +21,7 @@ import CreditsEditor from '../../../../shared/components/ui/forms/CreditsEditor'
 import { Controller } from 'react-hook-form';
 import ProfileNav from '../../components/ProfileNav';
 import { NAV_LABELS_BY_ID } from '../../components/profileNavItems';
-import ProfileStrengthSidebar from '../../components/ProfileStrengthSidebar';
+import ProfileReadinessSidebar from '../../components/ProfileReadinessSidebar';
 import { calculateProfileStrength } from '../../../../shared/utils/profileScoring';
 import {
   Section,
@@ -601,11 +601,11 @@ export default function ProfilePage() {
     [values, authImages, profile?.email, profile?.phone, profile?.guardian_consent_at],
   );
 
-  const profileStrength = useMemo(
+  const profileReadiness = useMemo(
     () => calculateProfileStrength(strengthValues),
     [strengthValues],
   );
-  const { isCoreReady, missingCoreItems } = profileStrength;
+  const { isCoreReady, missingCoreItems } = profileReadiness;
 
   const scrollToProfileSection = (sectionId) => {
     if (sectionId === 'media' || sectionId === 'photos-tab' || sectionId === 'hero-section') {
@@ -895,12 +895,12 @@ export default function ProfilePage() {
         </motion.div>
       </header>
 
-      {/* Profile Strength — docked right under the hero so it reads as page
+      {/* Submission checklist — docked right under the hero so it reads as page
           context, not an appendage after the whole form (mobile stacks this
           here via DOM order; desktop/tablet still pin it to the grid's third
           column via explicit grid-column on .sidebar). */}
-      <ProfileStrengthSidebar
-        strength={profileStrength}
+      <ProfileReadinessSidebar
+        readiness={profileReadiness}
         profile={readinessProfile}
         images={Array.isArray(authImages) ? authImages : []}
         isSaving={isSubmitting}

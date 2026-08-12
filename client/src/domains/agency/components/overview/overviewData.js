@@ -1,10 +1,11 @@
 // Maps the real /api/agency/overview + /overview/recent-applicants payloads into
 // render-ready shapes, with safe fallbacks for empty/new agencies.
 //
-// Pipeline statuses arrive as display labels (Submitted, Shortlisted, Booked,
+// Pipeline statuses arrive as display labels (Submitted, Shortlisted, Offered,
 // Passed, Declined); we key colors off the lowercased label.
 const PIPELINE_COLORS = {
-  booked: '#050505',
+  represented: '#050505',
+  offered: '#8A7A55',
   shortlisted: '#C9A55A',
   submitted: '#2D2A26',
   passed: '#6B6560',

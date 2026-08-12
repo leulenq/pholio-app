@@ -44,6 +44,11 @@ const {
 const {
   notifyTalentAgencyProfileView,
 } = require("../../../shared/services/notifications");
+const {
+  REPRESENTED_APPLICATION_STATUSES,
+  WRITABLE_APPLICATION_STATUSES,
+  isRepresentedApplicationStatus,
+} = require("../../../shared/constants/application-status");
 
 const { recordAuditEvent } = require("../services/audit");
 const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
@@ -270,7 +275,7 @@ router.get(
             applyMinorSubmissionFilter(knex("board_applications as ba")
               .join("applications as a", "a.id", "ba.application_id")
               .where({ "ba.board_id": board.id })
-              .whereIn("a.status", ["booked", "represented"])
+              .whereIn("a.status", REPRESENTED_APPLICATION_STATUSES)
               .count("* as count")
               .first(), { alias: "a", allowMinor: req.allowMinorSubmissions }),
           ]);
@@ -279,7 +284,6 @@ router.get(
             application_count: parseInt(count?.count || 0),
             submitted_count: parseInt(submittedCount?.count || 0),
             represented_count: parseInt(representedCount?.count || 0),
-            booked_count: parseInt(representedCount?.count || 0),
             pipeline_counts: pipelineByBoard[board.id] || [],
             preview: previewByBoard[board.id] || [],
           };
@@ -1103,7 +1107,7 @@ router.get(
   },
 );
 
-// POST /api/agency/applications/:applicationId/accept - Accept application
+// POST /api/agency/applications/:applicationId/accept - Record an offer to move forward
 router.post(
   "/api/agency/applications/:applicationId/accept",
   requireRole("AGENCY"),
@@ -1130,7 +1134,7 @@ router.post(
           applicationId,
           agencyId,
           "status_change",
-          "Representation confirmed",
+          "Representation offered",
           { old_status: row.status, new_status: "accepted" },
         );
         return row;
@@ -1177,7 +1181,7 @@ router.post(
         }
       })();
 
-      return res.json({ success: true, message: "Representation confirmed" });
+      return res.json({ success: true, message: "Representation offer recorded" });
     } catch (error) {
       console.error("[Accept Application API] Error:", error);
       return res.status(500).json({ error: "Failed to accept application" });
@@ -1202,22 +1206,7 @@ router.patch(
         });
       }
 
-      const allowedStatuses = [
-        "submitted",
-        "shortlisted",
-        "requested_more",
-        "meeting_requested",
-        "development",
-        "accepted",
-        "booked",
-        "represented",
-        "passed",
-        "declined",
-        "archived",
-        "kept_on_file",
-      ];
-
-      if (!allowedStatuses.includes(requestedStatus)) {
+      if (!WRITABLE_APPLICATION_STATUSES.includes(requestedStatus)) {
         return res
           .status(400)
           .json({ error: "Unsupported application status" });
@@ -1232,7 +1221,7 @@ router.patch(
         const acceptedAt =
           requestedStatus === "accepted"
             ? new Date()
-            : requestedStatus === "booked" || requestedStatus === "represented"
+            : isRepresentedApplicationStatus(requestedStatus)
               ? row.accepted_at || new Date()
               : null;
         await trx("applications").where({ id: applicationId }).update({
@@ -1449,7 +1438,7 @@ router.get(
   },
 );
 
-// POST /api/agency/applications/bulk-accept - Bulk accept applications
+// POST /api/agency/applications/bulk-accept - Bulk record offers to move forward
 router.post(
   "/api/agency/applications/bulk-accept",
   requireRole("AGENCY"),
@@ -1488,7 +1477,7 @@ router.post(
             app.id,
             agencyId,
             "status_change",
-            "Representation confirmed (bulk)",
+            "Representation offered (bulk)",
             {
               old_status: app.status,
               new_status: "accepted",
@@ -1534,22 +1523,7 @@ router.patch(
         });
       }
 
-      const allowedStatuses = [
-        "submitted",
-        "shortlisted",
-        "requested_more",
-        "meeting_requested",
-        "development",
-        "accepted",
-        "booked",
-        "represented",
-        "passed",
-        "declined",
-        "archived",
-        "kept_on_file",
-      ];
-
-      if (!allowedStatuses.includes(requestedStatus)) {
+      if (!WRITABLE_APPLICATION_STATUSES.includes(requestedStatus)) {
         return res
           .status(400)
           .json({ error: "Unsupported application status" });
@@ -1567,7 +1541,7 @@ router.patch(
           accepted_at:
             requestedStatus === "accepted"
               ? acceptedAt
-              : requestedStatus === "booked" || requestedStatus === "represented"
+              : isRepresentedApplicationStatus(requestedStatus)
                 ? trx.raw("COALESCE(accepted_at, CURRENT_TIMESTAMP)")
                 : null,
           declined_at:
@@ -3058,9 +3032,23 @@ router.get(
       const { profileId } = req.params;
       const agencyId = getSessionAgencyId(req);
 
-      // Get profile
-      const profile = await knex("profiles")
-        .where({ id: profileId, is_discoverable: true })
+      // An existing submission may remain on record after the talent leaves
+      // Discover. Resolve it first so its immutable package—not today's live
+      // profile—is the source of truth.
+      const application = await knex("applications")
+        .where({ profile_id: profileId, agency_id: agencyId })
+        .first();
+      if (application?.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message:
+            "The talent withdrew this submission and Pholio revoked access to its disclosure package.",
+        });
+      }
+
+      const profileQuery = knex("profiles").where({ id: profileId });
+      if (!application) profileQuery.where({ is_discoverable: true });
+      const profile = await profileQuery
         .select(
           [...new Set([
             ...selectColumnsForAudience(AUDIENCE.AGENCY_DISCOVERY, {
@@ -3079,27 +3067,62 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Check if there's an existing application for this profile
-      const application = await knex("applications")
-        .where({ profile_id: profileId, agency_id: agencyId })
-        .first();
+      const agencyBlocked = profile.user_id
+        ? await isAgencyBlockedForTalent(knex, profile.user_id, agencyId)
+        : false;
 
       // Without an application this is GENERIC discovery — a minor (no named-
       // agency guardian auth) or a profile excluding this agency must not be
       // exposed here (audit P0-3, fail closed).
-      if (!application && !isAgencyDiscoverable(profile, { agencyId })) {
+      if (
+        !application &&
+        (agencyBlocked || !isAgencyDiscoverable(profile, { agencyId }))
+      ) {
         return res
           .status(404)
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Get visible images only (moderation + agency-exclusion filtered).
-      await ensureModerationColumnChecked(knex);
-      const imageQuery = knex("images").where({ profile_id: profileId });
-      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
-        table: "images",
-      });
-      const images = await imageQuery.orderBy(["sort", "created_at"]);
+      const submissionPackages = application
+        ? await loadApplicationSubmissionPackages(knex, [
+            {
+              id: application.id,
+              profile_id: profileId,
+              slug: profile.slug,
+            },
+          ])
+        : new Map();
+      const submittedPackage = application
+        ? submissionPackages.get(application.id) || null
+        : null;
+      if (submittedPackage?.redacted) {
+        return res.status(410).json({
+          error: "submission_package_unavailable",
+          message: "This submission package is no longer available.",
+        });
+      }
+
+      // A block may leave the historical application row in place, but it must
+      // never reopen live-profile access. A frozen package is the only material
+      // the agency may continue to see.
+      if (application && agencyBlocked && !submittedPackage?.profile) {
+        return res.status(403).json({
+          error: "PROFILE_ACCESS_BLOCKED",
+          message: "This talent has blocked profile access from your agency.",
+        });
+      }
+
+      let images;
+      if (submittedPackage?.profile) {
+        images = submittedPackage.images;
+      } else {
+        await ensureModerationColumnChecked(knex);
+        const imageQuery = knex("images").where({ profile_id: profileId });
+        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        images = await imageQuery.orderBy(["sort", "created_at"]);
+      }
 
       // If application exists, get notes and tags
       let notes = [];
@@ -3117,10 +3140,14 @@ router.get(
       // Static-allowlist DTO — never spread the raw profile row and never leak
       // the owner's account email. An actual submission gets the richer (still
       // minor-safe) submission snapshot; generic discovery gets the tighter card.
-      const social = await loadSocialAccountsForProfile(profileId);
-      const profileDto = application
-        ? buildAgencySubmissionDTO(profile, { images, social })
-        : buildAgencyDiscoveryDTO(profile, { images, social });
+      const social = submittedPackage?.profile
+        ? []
+        : await loadSocialAccountsForProfile(profileId);
+      const profileDto = submittedPackage?.profile
+        ? { ...submittedPackage.profile, images }
+        : application
+          ? buildAgencySubmissionDTO(profile, { images, social })
+          : buildAgencyDiscoveryDTO(profile, { images, social });
 
       return res.json({
         application: application
@@ -3135,6 +3162,7 @@ router.get(
             }
           : null,
         profile: profileDto,
+        submissionPackage: submittedPackage,
         notes,
         tags,
       });
@@ -3245,10 +3273,10 @@ router.get(
     try {
       const agencyId = req.session.userId;
 
-      // Calculate total talent pool (signed applications + public talent).
+      // Calculate total talent pool (completed representation agreements + public talent).
       const acceptedCount = await knex("applications")
         .where({ agency_id: agencyId })
-        .whereIn("status", ["accepted", "booked", "represented"])
+        .whereIn("status", REPRESENTED_APPLICATION_STATUSES)
         .count("id as count")
         .first();
 
@@ -3395,7 +3423,11 @@ router.get(
       // Generic discovery preview — fail closed on minors (no named-agency
       // guardian auth here) and agency-excluded profiles (audit P0-3).
       const agencyId = getSessionAgencyId(req);
-      if (!isAgencyDiscoverable(profile, { agencyId })) {
+      if (
+        !isAgencyDiscoverable(profile, { agencyId }) ||
+        (profile.user_id &&
+          (await isAgencyBlockedForTalent(knex, profile.user_id, agencyId)))
+      ) {
         return res
           .status(404)
           .json({ error: "Profile not found or not discoverable" });

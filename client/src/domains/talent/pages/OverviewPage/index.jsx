@@ -22,7 +22,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
-import { useProfileStrength } from '../../hooks/useProfileStrength';
+import { useProfileReadiness } from '../../hooks/useProfileReadiness';
 import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessItems';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
@@ -155,7 +155,6 @@ export default function OverviewPage() {
   const {
     profile,
     subscription,
-    completeness,
     images,
     isLoading: profileLoading,
   } = useAuth();
@@ -222,9 +221,14 @@ export default function OverviewPage() {
       }))
     : [];
   const websiteGradientId = `ov-website-gradient-${React.useId().replace(/:/g, '')}`;
-  const readinessPct = asNum(completeness?.percentage);
-
-  const { topGaps, totalGaps, isRequiredComplete, fieldCompletion, isLoading: auditLoading } = useProfileStrength();
+  const {
+    topGaps,
+    totalGaps,
+    missingRequiredCount,
+    isRequiredComplete,
+    fieldCompletion,
+    isLoading: auditLoading,
+  } = useProfileReadiness();
   const shouldReduce = useReducedMotion();
 
   const minor = isMinorProfile(profile);
@@ -235,9 +239,6 @@ export default function OverviewPage() {
   // Digitals recency: fieldCompletion.digitals_recency is false when existing digital
   // images are older than DIGITALS_STALE_DAYS (client-side signal, no new date math).
   const isDigitalsStale = fieldCompletion?.digitals_recency === false;
-  // Cap displayed readiness at 98 when stale so it never reads as fully complete.
-  const displayReadinessPct = isDigitalsStale ? Math.min(readinessPct, 98) : readinessPct;
-
   const auditCtaLabel = minorGated
     ? 'Record guardian consent'
     : isDigitalsStale
@@ -307,9 +308,9 @@ export default function OverviewPage() {
               </div>
               <div className="ov-hero-kpi">
                 <span className="ov-hero-kpi-value">
-                  {appsPending || appsError ? '—' : standing.signed}
+                  {appsPending || appsError ? '—' : standing.represented}
                 </span>
-                <span className="ov-hero-kpi-label">Signed</span>
+                <span className="ov-hero-kpi-label">Represented</span>
               </div>
             </div>
           </motion.div>
@@ -420,10 +421,11 @@ export default function OverviewPage() {
                     Submission <em>Readiness</em>
                   </h2>
                 </div>
-                <div className="ov-readiness-pct" aria-label={`${displayReadinessPct}% complete`}>
-                  {displayReadinessPct}
-                  <sup>%</sup>
-                </div>
+                <p className="ov-readiness-state">
+                  {isRequiredComplete
+                    ? 'Required materials complete'
+                    : `${missingRequiredCount} required ${missingRequiredCount === 1 ? 'item' : 'items'} missing`}
+                </p>
               </div>
 
               <div className="ov-checklist" role="list">
@@ -431,11 +433,6 @@ export default function OverviewPage() {
                   [0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="ov-check-item" role="listitem" style={{ pointerEvents: 'none' }}>
                       <div className="ov-check-left">
-                        <span
-                          className="ov-skel"
-                          style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }}
-                          aria-hidden
-                        />
                         <span className="ov-skel ov-skel--line" style={{ width: 120 }} aria-hidden />
                       </div>
                     </div>

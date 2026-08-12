@@ -3,7 +3,7 @@
  *
  * A block's headline must be the most consequential thing that happened, not
  * whichever metric happens to sit in slot one. The momentum block shipped with
- * the opposite: it compared agency reviews only, so a period where intent
+ * the opposite: it compared agency reviews only, so a period where activity
  * collapsed 54 → 0 was headlined "Level" — the largest type on the page
  * asserting that nothing changed, while the one alarming number sat in the
  * smallest line beneath it.
@@ -16,7 +16,7 @@
 /**
  * A state change (something stopping, or starting) always outranks a swing,
  * however large. Without this, "submissions sent 1 → 6" (a 500% rise) ties with
- * "intent 54 → 0" and wins on list order — which is how the alarming fact ends
+ * "activity 54 → 0" and wins on list order — which is how the material change ends
  * up unreported.
  */
 const TIER_STATE_CHANGE = 2;

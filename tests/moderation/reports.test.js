@@ -11,7 +11,10 @@ const {
   migrate,
   dropIsolatedDatabase,
 } = require('../setup/isolated-db');
-const { isModerator } = require('../../src/shared/lib/moderation');
+const {
+  isModerator,
+  isSelfTargetReport,
+} = require('../../src/shared/lib/moderation');
 
 /* Own database, resolved before src/shared/db/knex is required anywhere.
  *
@@ -95,6 +98,24 @@ describe('report validation constants', () => {
     unexpected.forEach((t) => {
       expect(VALID_TARGET_TYPES).not.toContain(t);
     });
+  });
+});
+
+describe('safety report targets', () => {
+  it('rejects a report that targets the reporting user', () => {
+    expect(isSelfTargetReport({
+      reporterUserId: 'talent-1',
+      targetType: 'user',
+      targetId: 'talent-1',
+    })).toBe(true);
+  });
+
+  it('allows the same identifier for a non-user entity', () => {
+    expect(isSelfTargetReport({
+      reporterUserId: 'talent-1',
+      targetType: 'agency',
+      targetId: 'talent-1',
+    })).toBe(false);
   });
 });
 

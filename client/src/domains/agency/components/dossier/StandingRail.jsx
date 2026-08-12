@@ -88,7 +88,10 @@ export function StandingRail({ dossier, applicationId }) {
     { label: 'First opened', at: standing?.viewed_at },
     { label: 'Last action', at: standing?.last_action_at, note: standing?.last_action_type
       ? activityVerb(standing.last_action_type).toLowerCase() : null },
-    application?.accepted_at ? { label: 'Signed', at: application.accepted_at } : null,
+    application?.accepted_at ? { label: 'Offered', at: application.accepted_at } : null,
+    application?.status === 'represented'
+      ? { label: 'Represented', at: application.updated_at }
+      : null,
     application?.declined_at ? { label: 'Passed', at: application.declined_at } : null,
   ].filter(Boolean);
 

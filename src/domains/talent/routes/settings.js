@@ -6,7 +6,10 @@ const { requireRole } = require("../../auth/middleware/require-auth");
 const { ensureAuthProvider } = require("../../auth/services/auth-provider");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
-const { deleteUserAccount } = require("../../../shared/lib/account-deletion");
+const {
+  buildAccountDeletionResponse,
+  deleteUserAccount,
+} = require("../../../shared/lib/account-deletion");
 const { buildTalentDataExport } = require("../../../shared/lib/data-export");
 const {
   recordLegalAcceptance,
@@ -996,19 +999,16 @@ router.delete(
     // COMPLETE: if an R2/Firebase provider purge failed, `fullyErased` is
     // false and the failure was durably recorded for retry — the response
     // must not claim full erasure it hasn't verified.
-    const payload = {
-      deleted: !!result.deleted,
-      fullyErased: !!result.fullyErased,
-      erasureStatus: result.fullyErased ? "complete" : "pending_provider_purge",
-    };
+    const { payload, status: responseStatus } =
+      buildAccountDeletionResponse(result);
 
     if (!req.session) {
-      return apiResponse.success(res, payload);
+      return apiResponse.success(res, payload, responseStatus);
     }
 
     req.session.destroy(() => {
       res.clearCookie("connect.sid");
-      return apiResponse.success(res, { ...payload, redirect: "/login" });
+      return apiResponse.success(res, payload, responseStatus);
     });
   }),
 );

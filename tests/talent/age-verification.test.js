@@ -21,6 +21,7 @@ jest.mock("../../src/shared/lib/stripe", () => ({
 const knex = require("../../src/shared/db/knex");
 const {
   applyProviderSession,
+  createVerificationSession,
   getAdultContext,
   invalidateAdultVerification,
   updateAdultContext,
@@ -36,7 +37,7 @@ beforeAll(async () => {
     .select("profiles.*")
     .first();
   await knex("profiles").where({ id: profile.id }).update({ date_of_birth: "1990-04-12" });
-});
+}, 30000);
 
 afterAll(async () => {
   await knex.destroy();
@@ -53,6 +54,12 @@ async function verificationRecord(sessionId) {
   });
   return id;
 }
+
+test("starting provider verification requires affirmative consent", async () => {
+  await expect(createVerificationSession(profile)).rejects.toMatchObject({
+    code: "AGE_VERIFICATION_CONSENT_REQUIRED",
+  });
+});
 
 test("matching provider DOB verifies adulthood without storing identity document data", async () => {
   const sessionId = "vs_matching_dob";
