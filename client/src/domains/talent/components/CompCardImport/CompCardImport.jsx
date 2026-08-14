@@ -39,7 +39,7 @@ function summarySentence({ found, ambiguous, notFound }) {
   return `${parts.join(' · ')}.`;
 }
 
-export default function CompCardImport({ onApplied }) {
+export default function CompCardImport({ onApplied, onDone }) {
   const reduceMotion = useReducedMotion();
   const inputRef = useRef(null);
 
@@ -98,7 +98,7 @@ export default function CompCardImport({ onApplied }) {
       setProposal({
         fields: [],
         summary: { found: 0, ambiguous: 0, notFound: 0, total: 0 },
-        message: 'That card could not be read. You can fill your details in on the form below.',
+        message: 'That card could not be read. You can fill your details in on your profile.',
         source: {},
         shotTypes: [],
       });
@@ -141,7 +141,9 @@ export default function CompCardImport({ onApplied }) {
       }
     }
     reset();
-  }, [proposal, reset]);
+    // In the overlay this is "I'm finished", not "start again".
+    onDone?.();
+  }, [proposal, reset, onDone]);
 
   const setFieldChecked = (key, checked) =>
     setSelection((prev) => ({ ...prev, [key]: { ...prev[key], checked } }));
@@ -342,8 +344,8 @@ export default function CompCardImport({ onApplied }) {
               <section className={styles.group}>
                 <h4 className={styles.groupTitle}>Not on the card</h4>
                 <p className={styles.groupNote}>
-                  {missingFields.map((field) => field.label).join(', ')}. Add these on the form
-                  below — a card is a starting point, not the profile.
+                  {missingFields.map((field) => field.label).join(', ')}. Add these on your
+                  profile — a card is a starting point, not the profile.
                 </p>
               </section>
             )}
@@ -398,10 +400,13 @@ export default function CompCardImport({ onApplied }) {
               Added to your <em>profile</em>
             </h3>
             <p className={styles.lede}>
-              {appliedCount} field{appliedCount === 1 ? '' : 's'} from your card are now on the form
-              below. Check them over, then fill in what the card didn’t carry.
+              {appliedCount} field{appliedCount === 1 ? '' : 's'} from your card are now on your
+              profile. Check them over, then fill in what the card didn’t carry.
             </p>
             <div className={styles.actions}>
+              <PholioButton variant="primary" type="button" onClick={() => onDone?.()}>
+                Back to my profile
+              </PholioButton>
               <PholioButton
                 variant="secondary"
                 type="button"

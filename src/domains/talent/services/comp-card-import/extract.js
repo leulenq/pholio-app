@@ -136,21 +136,21 @@ async function extractCardText(buffer, { mimeType, filename } = {}) {
 const REASON_MESSAGES = Object.freeze({
   empty_file: "That file was empty. Try uploading it again.",
   unsupported_type: "Upload a PDF, JPEG, PNG or WebP comp card.",
-  pdf_unreadable: "That PDF could not be opened. You can fill the fields in below.",
+  pdf_unreadable: "That PDF could not be opened. You can fill these in on your profile.",
   pdf_no_text_layer:
-    "That PDF has no readable text — it was saved as a flat image. Upload the card as a JPEG or PNG instead, or fill the fields in below.",
-  image_unreadable: "That image could not be read. You can fill the fields in below.",
-  vision_not_configured: "Automatic reading is unavailable right now. You can fill the fields in below.",
-  vision_error: "Automatic reading did not finish. You can fill the fields in below.",
-  vision_unavailable: "Automatic reading did not finish. You can fill the fields in below.",
-  empty_completion: "Nothing readable came back from that card. You can fill the fields in below.",
-  unparseable_completion: "Nothing readable came back from that card. You can fill the fields in below.",
-  no_text_found: "No text could be read on that card. You can fill the fields in below.",
+    "That PDF has no readable text — it was saved as a flat image. Upload the card as a JPEG or PNG instead, or fill them in on your profile.",
+  image_unreadable: "That image could not be read. You can fill these in on your profile.",
+  vision_not_configured: "Automatic reading is unavailable right now. You can fill these in on your profile.",
+  vision_error: "Automatic reading did not finish. You can fill these in on your profile.",
+  vision_unavailable: "Automatic reading did not finish. You can fill these in on your profile.",
+  empty_completion: "Nothing readable came back from that card. You can fill these in on your profile.",
+  unparseable_completion: "Nothing readable came back from that card. You can fill these in on your profile.",
+  no_text_found: "No text could be read on that card. You can fill these in on your profile.",
 });
 
 function messageForReason(reason) {
   if (!reason) return null;
-  return REASON_MESSAGES[reason] || "That card could not be read. You can fill the fields in below.";
+  return REASON_MESSAGES[reason] || "That card could not be read. You can fill these in on your profile.";
 }
 
 module.exports = {

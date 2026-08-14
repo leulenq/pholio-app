@@ -1,0 +1,71 @@
+/*
+ * The dialog shell for comp card import.
+ *
+ * `backdrop-filter` here is the one permitted use: a full-screen scrim acting as
+ * a functional dimmer, not decoration on a card. The panel itself is a plain
+ * white surface — see the banned-patterns list in the root CLAUDE.md.
+ */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 22px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.panel {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  outline: none;
+}
+
+.panel:focus-visible {
+  outline: none;
+}
+
+.close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.close:hover {
+  color: #0f172a;
+  border-color: #e2e8f0;
+}
+
+.close:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .scrim {
+    padding: 16px 12px 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .close {
+    transition: none;
+  }
+}

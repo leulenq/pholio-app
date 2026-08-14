@@ -546,9 +546,40 @@
   justify-self: center;
 }
 
-/* Comp card import sits above the form, spaced like a movement. */
-.importPanel {
-  margin-bottom: 40px;
+/*
+ * Comp card import trigger. A quiet inline control, not a panel: import is a
+ * one-off act and should not hold page real estate for the profile's whole life.
+ */
+.importTriggerRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 28px;
+}
+
+.importTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid #E2E8F0;
+  border-radius: 3px;
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.importTrigger:hover {
+  color: #1A1815;
+  border-color: rgba(201, 165, 90, 0.5);
+}
+
+.importTrigger:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 2px;
 }
 
 .rightSidebar {

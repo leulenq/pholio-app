@@ -189,6 +189,6 @@ describe('the flow never dead-ends', () => {
     render(<CompCardImport />);
     uploadCard();
 
-    await screen.findByText(/fill your details in on the form below/i);
+    await screen.findByText(/fill your details in on your profile/i);
   });
 });

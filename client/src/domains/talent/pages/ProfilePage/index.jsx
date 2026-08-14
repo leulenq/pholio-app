@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { pholioToast } from '../../../../shared/lib/pholio-toast';
 import { motion } from 'framer-motion';
-import { Menu, X, Camera } from 'lucide-react';
+import { Menu, X, Camera, FileUp } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { profileSchema } from '../../../../schemas/profileSchema';
@@ -36,7 +36,7 @@ import { MeasurementsSection } from './MeasurementsSection';
 import { AvailabilitySection } from './AvailabilitySection';
 import { SocialSection } from './SocialSection';
 import { VerifiedAdultSection } from './VerifiedAdultSection';
-import CompCardImport from '../../components/CompCardImport/CompCardImport';
+import CompCardImportOverlay from '../../components/CompCardImport/CompCardImportOverlay';
 import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import PholioButton, {
   PholioIconButton,
@@ -146,6 +146,7 @@ export default function ProfilePage() {
   const [guardianLinkSent, setGuardianLinkSent] = useState(false);
   const [guardianSentTo, setGuardianSentTo] = useState('');
   const [readinessAuditOpen, setReadinessAuditOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [gateItemsExpanded, setGateItemsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const pageRef = useRef(null);
@@ -947,13 +948,27 @@ export default function ProfilePage() {
         {/* Center - Form Fields */}
         <main className={styles.centerContent}>
           {/*
-            Sits above the form, not inside it: applying an import writes through
-            its own endpoint and then rehydrates this form, so it must not be able
-            to submit the profile form itself.
+            Import is a one-off act, so it lives behind a trigger rather than
+            occupying the page. The trigger sits outside the form: applying an
+            import writes through its own endpoint and then rehydrates this form,
+            so it must not be able to submit the profile form itself.
           */}
-          <div className={styles.importPanel}>
-            <CompCardImport onApplied={reloadProfile} />
+          <div className={styles.importTriggerRow}>
+            <button
+              type="button"
+              className={styles.importTrigger}
+              onClick={() => setImportOpen(true)}
+            >
+              <FileUp size={15} strokeWidth={1.5} aria-hidden="true" />
+              Start from an existing comp card
+            </button>
           </div>
+
+          <CompCardImportOverlay
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            onApplied={reloadProfile}
+          />
 
           <form
             id="profile-form"
