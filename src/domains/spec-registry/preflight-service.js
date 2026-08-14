@@ -82,6 +82,11 @@ function routeDto(revision, referenceDate) {
     revisionId: spec.revisionId,
     revision: spec.revision,
     datasetVersion: revision.datasetVersion || null,
+    // Provenance, and only provenance: "agency" means a Pholio agency wrote
+    // this spec themselves, "editorial" means Pholio researched it from their
+    // public site. It says nothing about whether the talent can submit — an
+    // agency can be on Pholio while Pholio still researched their spec.
+    origin: revision.origin === "agency" ? "agency" : "editorial",
     organization: {
       id: scope.organization.id,
       name: scope.organization.name,
@@ -361,14 +366,55 @@ async function resolveRevisions(db, { agencyId, seriesId, seriesIds } = {}) {
   };
 }
 
+/**
+ * Which of these series a talent can actually submit to through Pholio.
+ *
+ * The registry deliberately carries the whole researched market — Elite, Ford,
+ * Storm, Models 1, The Society — because that dataset is the product's moat,
+ * not just the agencies who happen to have signed up. But most of those cannot
+ * receive a Pholio application, and a directory that presents both kinds
+ * identically tells a talent to build a package for a destination Pholio
+ * cannot deliver to.
+ *
+ * The predicate is the `spec_registry_agency_routes` mapping to a live
+ * `agencies` row — not who authored the spec. A Pholio agency whose spec
+ * Pholio researched is still a real destination.
+ */
+async function deliverableSeriesIds(db, seriesIds) {
+  if (!seriesIds.length) return new Map();
+  const rows = await db("spec_registry_agency_routes as r")
+    .join("agencies as a", "a.id", "r.agency_id")
+    .whereIn("r.series_id", seriesIds)
+    .where("a.status", "ACTIVE")
+    .select("r.series_id", "a.id as agency_id", "a.name as agency_name");
+  return new Map(
+    rows.map((row) => [
+      row.series_id,
+      { agencyId: row.agency_id, agencyName: row.agency_name },
+    ]),
+  );
+}
+
 async function listRegistryRoutes(db, options = {}) {
   const referenceDate = options.referenceDate || utcDate(options.clock);
   const resolved = await resolveRevisions(db, { agencyId: options.agencyId });
+  const routes = resolved.revisions.map((revision) => routeDto(revision, referenceDate));
+  const deliverable = await deliverableSeriesIds(
+    db,
+    routes.map((route) => route.seriesId),
+  );
   return {
     available: resolved.available,
     datasetVersion: resolved.datasetVersion,
     resolution: resolved.resolution,
-    routes: resolved.revisions.map((revision) => routeDto(revision, referenceDate)),
+    routes: routes.map((route) => {
+      const match = deliverable.get(route.seriesId) || null;
+      return {
+        ...route,
+        acceptsPholioSubmissions: Boolean(match),
+        pholioAgencyId: match?.agencyId || null,
+      };
+    }),
   };
 }
 

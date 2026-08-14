@@ -235,6 +235,11 @@ async function getCurrentRevision(db, seriesId) {
       datasetVersion: null,
       sourcePath: null,
       manifestStatus: null,
+      // Who stands behind this spec. An agency-authored series was written by
+      // a real Pholio agency that receives submissions here; an editorial one
+      // was researched from a public site and Pholio cannot deliver to it.
+      // The talent has to be able to tell those apart.
+      origin: "agency",
       ...mapRoute(authored),
       payload: parseJsonColumn(authored.payload_json, null),
     };
@@ -258,6 +263,7 @@ async function getCurrentRevision(db, seriesId) {
     datasetVersion: dataset.datasetVersion,
     sourcePath: row.source_path,
     manifestStatus: row.manifest_status,
+    origin: series?.origin || "editorial",
     ...mapRoute(row),
     payload: parseJsonColumn(row.payload_json, null),
   };

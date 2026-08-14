@@ -65,6 +65,12 @@ export function readRoute(route) {
     sourceCheckedOn: route.sourceCheckedOn ?? null,
     sourceFreshness: route.sourceFreshness ?? null,
     evaluationMode: route.evaluationMode ?? null,
+    // Whether Pholio can actually deliver an application here, as opposed to
+    // merely knowing what this agency publishes. The registry carries the whole
+    // researched market on purpose — that dataset is the point — but a talent
+    // must never build a package against a destination Pholio cannot send to
+    // and only find out at the end.
+    acceptsPholioSubmissions: route.acceptsPholioSubmissions === true,
   };
 }
 
@@ -72,6 +78,18 @@ export function readRoutes(payload) {
   return (Array.isArray(payload?.routes) ? payload.routes : [])
     .map(readRoute)
     .filter(Boolean);
+}
+
+/**
+ * Submission destinations first, reference entries second. Both are useful —
+ * knowing you already satisfy Storm is worth something even though Storm is not
+ * on Pholio — but only one of them ends in an application.
+ */
+export function partitionRoutes(routes) {
+  return {
+    submittable: routes.filter((route) => route.acceptsPholioSubmissions),
+    reference: routes.filter((route) => !route.acceptsPholioSubmissions),
+  };
 }
 
 /** A single published requirement, as `findingDto` sends it. */
