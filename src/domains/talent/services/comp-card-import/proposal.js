@@ -29,6 +29,14 @@
  * `services/digitals-freshness.js` anything at all.
  */
 
+const {
+  canonicalDressSize,
+  canonicalEyeColor,
+  canonicalHairColor,
+  canonicalShoeRegion,
+  titleCase,
+} = require("./vocabulary");
+
 const MEASUREMENT_SOURCE_IMPORT = "comp_card_import";
 
 /**
@@ -151,6 +159,30 @@ function measurementField(spec, reading, extra = {}) {
   };
 }
 
+/**
+ * A field whose profile control only accepts a fixed set of values.
+ *
+ * Snaps the card's wording to the profile's vocabulary. When nothing matches, the
+ * field is not found — but the note quotes the card, so the talent knows the import
+ * read it and why it was not used, and can set it by hand.
+ */
+function vocabularyField(spec, parsed, canonicalise) {
+  if (!parsed?.value && !parsed?.raw) return notFound(spec);
+
+  const canonical = canonicalise(parsed.value ?? parsed.raw);
+  if (canonical) {
+    return textField(spec, canonical, parsed.sourceLine);
+  }
+
+  const printed = String(parsed.value ?? parsed.raw).trim();
+  return {
+    ...notFound(spec),
+    note: printed
+      ? `Your card says “${printed}”, which isn’t one of the ${spec.label.toLowerCase()} options. Set it on the form below.`
+      : undefined,
+  };
+}
+
 function textField(spec, value, evidence, confidence = "high") {
   if (value == null || value === "") return notFound(spec);
   return {
@@ -183,9 +215,11 @@ function buildProposal(parsed, source = {}) {
       fields.push(
         reading
           ? measurementField(spec, reading, {
+              // The profile's region toggle is US/UK/EU; the parser works in
+              // lowercase. Writing "us" leaves the toggle showing nothing.
               extras:
-                spec.key === "shoe_size" && reading.unit
-                  ? { shoe_region: reading.unit }
+                spec.key === "shoe_size" && canonicalShoeRegion(reading.unit)
+                  ? { shoe_region: canonicalShoeRegion(reading.unit) }
                   : undefined,
             })
           : notFound(spec),
@@ -212,7 +246,15 @@ function buildProposal(parsed, source = {}) {
         fields.push(
           card.agency?.text
             ? {
-                ...textField(spec, card.agency.text, card.agency.text, card.agency.confidence),
+                // A registry match keeps the registry's own spelling. Free text off
+                // the card gets recased, preserving acronyms — IMG stays IMG,
+                // "SILENT MODELS" becomes "Silent Models".
+                ...textField(
+                  spec,
+                  card.agency.matchedRegistry ? card.agency.text : titleCase(card.agency.text),
+                  card.agency.text,
+                  card.agency.confidence,
+                ),
                 note: card.agency.matchedRegistry
                   ? "Matches an agency already on Pholio."
                   : "Read from the card. Check the spelling before you confirm.",
@@ -220,31 +262,24 @@ function buildProposal(parsed, source = {}) {
             : notFound(spec),
         );
         break;
+      // The three closed-vocabulary fields. A value the profile's select does not
+      // offer is reported as not found, naming what the card said, rather than
+      // written as something the control cannot display.
       case "hair_color":
-        fields.push(
-          appearance.hair?.value
-            ? textField(spec, appearance.hair.value, appearance.hair.sourceLine)
-            : notFound(spec),
-        );
+        fields.push(vocabularyField(spec, appearance.hair, canonicalHairColor));
         break;
       case "eye_color":
-        fields.push(
-          appearance.eyes?.value
-            ? textField(spec, appearance.eyes.value, appearance.eyes.sourceLine)
-            : notFound(spec),
-        );
+        fields.push(vocabularyField(spec, appearance.eyes, canonicalEyeColor));
         break;
       case "dress_size":
-        fields.push(
-          appearance.dress?.value
-            ? textField(spec, appearance.dress.value, appearance.dress.sourceLine)
-            : notFound(spec),
-        );
+        fields.push(vocabularyField(spec, appearance.dress, canonicalDressSize));
         break;
       case "suit_size":
+        // Free text on the profile, so the card's own value stands — just not
+        // shouted, since cards typeset everything in caps.
         fields.push(
           appearance.suit?.value
-            ? textField(spec, appearance.suit.value, appearance.suit.sourceLine)
+            ? textField(spec, titleCase(appearance.suit.value), appearance.suit.sourceLine)
             : notFound(spec),
         );
         break;
@@ -324,7 +359,9 @@ function buildProfileUpdate(proposal, acceptances = {}) {
         continue;
       }
       value = option.value;
-      if (spec.key === "shoe_size" && option.unit) update.shoe_region = option.unit;
+      if (spec.key === "shoe_size" && canonicalShoeRegion(option.unit)) {
+        update.shoe_region = canonicalShoeRegion(option.unit);
+      }
     } else if (field.status === "found") {
       // The talent may correct a value, but a numeric field must stay numeric.
       if (spec.type !== "text") {

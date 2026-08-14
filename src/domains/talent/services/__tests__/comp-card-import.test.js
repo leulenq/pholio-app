@@ -45,6 +45,16 @@ const {
   buildProfileUpdate,
   MEASUREMENT_SOURCE_IMPORT,
 } = require("../comp-card-import/proposal");
+const {
+  EYE_COLORS,
+  EYE_SYNONYMS,
+  HAIR_COLORS,
+  HAIR_SYNONYMS,
+  canonicalEyeColor,
+  canonicalHairColor,
+  titleCase,
+  titlePersonName,
+} = require("../comp-card-import/vocabulary");
 const { extractCardText, messageForReason } = require("../comp-card-import/extract");
 const { importCompCard } = require("../comp-card-import");
 const { collapseLetterSpacing, extractPdfText } = require("../../../../shared/lib/pdf-text");
@@ -507,6 +517,129 @@ describe("the flow never dead-ends", () => {
     expect(proposal.source.method).toBe("vision");
     expect(proposal.message).toBeTruthy();
     expect(proposal.fields.every((field) => field.status === "not_found")).toBe(true);
+  });
+});
+
+describe("profile vocabulary", () => {
+  // These fields are selects on the profile. A value outside their options does
+  // not display as itself — it displays as nothing, so the import looks broken.
+  const cardWith = (appearance) => ({
+    name: null,
+    agency: null,
+    measurements: {},
+    appearance,
+    shotTypes: [],
+    lineCount: 1,
+  });
+
+  test("shades collapse to the option the profile actually offers", () => {
+    const proposal = buildProposal(
+      cardWith({
+        hair: { value: "dark brown", sourceLine: "HAIR Dark Brown" },
+        eyes: { value: "light blue", sourceLine: "EYES Light Blue" },
+      }),
+      { method: "pdf_text" },
+    );
+    expect(proposal.fields.find((f) => f.key === "hair_color")).toMatchObject({
+      status: "found",
+      value: "Brown",
+    });
+    expect(proposal.fields.find((f) => f.key === "eye_color")).toMatchObject({
+      status: "found",
+      value: "Blue",
+    });
+  });
+
+  test("every proposed colour is one the profile control can display", () => {
+    for (const [raw, expected] of Object.entries(HAIR_SYNONYMS)) {
+      expect(HAIR_COLORS).toContain(expected);
+      expect(canonicalHairColor(raw)).toBe(expected);
+    }
+    for (const [raw, expected] of Object.entries(EYE_SYNONYMS)) {
+      expect(EYE_COLORS).toContain(expected);
+      expect(canonicalEyeColor(raw)).toBe(expected);
+    }
+  });
+
+  test("a colour with no option is not found, and says what the card printed", () => {
+    // "Other" would technically store, but it throws the information away and
+    // pre-fills something meaningless.
+    const proposal = buildProposal(
+      cardWith({ hair: { value: "bald", sourceLine: "HAIR Bald" } }),
+      { method: "pdf_text" },
+    );
+    const hair = proposal.fields.find((f) => f.key === "hair_color");
+    expect(hair.status).toBe("not_found");
+    expect(hair.note).toMatch(/bald/);
+  });
+
+  test("a dress size is never converted between systems", () => {
+    // EU 36 sits between US 4 and US 6 depending on the house. Guessing writes a
+    // wrong size that looks right.
+    const proposal = buildProposal(
+      cardWith({ dress: { value: "36", sourceLine: "DRESS 36" } }),
+      { method: "pdf_text" },
+    );
+    const dress = proposal.fields.find((f) => f.key === "dress_size");
+    expect(dress.status).toBe("not_found");
+    expect(dress.note).toMatch(/36/);
+
+    const ok = buildProposal(cardWith({ dress: { value: "8", sourceLine: "DRESS 8" } }), {});
+    expect(ok.fields.find((f) => f.key === "dress_size")).toMatchObject({
+      status: "found",
+      value: "8",
+    });
+  });
+
+  test("shoe region is applied in the profile's own casing", () => {
+    const parsed = {
+      name: null,
+      agency: null,
+      measurements: { shoe: interpretMeasurement("10.5", "shoe") },
+      appearance: {},
+      shotTypes: [],
+      lineCount: 1,
+    };
+    const proposal = buildProposal(parsed, {});
+    const { update } = buildProfileUpdate(proposal, { shoe_size: 10.5 });
+    // The toggle values are US/UK/EU; "us" leaves it showing nothing.
+    expect(update.shoe_region).toBe("US");
+  });
+});
+
+describe("capitalisation", () => {
+  test("a card's all-caps name becomes a name", () => {
+    expect(titlePersonName("ELIAS VANCE")).toBe("Elias Vance");
+    expect(titlePersonName("MCKENNA REID")).toBe("McKenna Reid");
+    expect(titlePersonName("O'BRIEN")).toBe("O'Brien");
+  });
+
+  test("the acronym rule applies to agencies but never to people", () => {
+    // "Ng" is a surname, not an initialism.
+    expect(titlePersonName("NG")).toBe("Ng");
+    expect(titleCase("IMG MODELS")).toBe("IMG Models");
+    expect(titleCase("DNA MODEL MANAGEMENT")).toBe("DNA Model Management");
+    expect(titleCase("SILENT MODELS")).toBe("Silent Models");
+    expect(titleCase("NEXT MANAGEMENT")).toBe("Next Management");
+  });
+
+  test("casing somebody chose is left alone", () => {
+    expect(titleCase("d'management group")).toBe("d'management group");
+    expect(titlePersonName("van der Berg")).toBe("van der Berg");
+  });
+
+  test("a registry agency keeps the registry's spelling, free text gets recased", () => {
+    const matched = buildProposal(
+      { name: null, agency: { text: "Next Management", agencyId: "a1", matchedRegistry: true, confidence: "high" }, measurements: {}, appearance: {}, shotTypes: [], lineCount: 1 },
+      {},
+    );
+    expect(matched.fields.find((f) => f.key === "current_agency").value).toBe("Next Management");
+
+    const freeText = buildProposal(
+      { name: null, agency: { text: "SILENT MODELS", agencyId: null, matchedRegistry: false, confidence: "low" }, measurements: {}, appearance: {}, shotTypes: [], lineCount: 1 },
+      {},
+    );
+    expect(freeText.fields.find((f) => f.key === "current_agency").value).toBe("Silent Models");
   });
 });
 

@@ -18,6 +18,7 @@ const {
   detectCardSystem,
   interpretMeasurement,
 } = require("./units");
+const { titlePersonName } = require("./vocabulary");
 
 /**
  * Printed labels, mapped to profile fields.
@@ -170,14 +171,10 @@ function looksLikeName(text) {
 
 /**
  * Cards set names in caps for the layout, not because that is the person's name.
- * Recase an all-caps candidate; leave anything already mixed-case alone, since
- * that casing was a choice ("McKenna", "van der Berg").
+ * Recase an all-caps candidate; anything already mixed-case is left alone.
  */
 function titleCaseName(text) {
-  if (!text || text !== text.toUpperCase()) return text;
-  return text
-    .toLowerCase()
-    .replace(/(^|[\s'’\-])(\p{L})/gu, (_, boundary, letter) => boundary + letter.toUpperCase());
+  return titlePersonName(text);
 }
 
 /**

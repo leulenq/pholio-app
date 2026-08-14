@@ -183,12 +183,49 @@ the talent keeps for themselves.
 | `src/domains/ai/comp-card-vision.js` | OCR fallback. Transcription only, output filtered |
 | `src/domains/talent/services/comp-card-import/units.js` | Unit resolution; ambiguity as a result |
 | `.../comp-card-import/parse-card.js` | Labels, name, agency, shot-type captions |
+| `.../comp-card-import/vocabulary.js` | Snapping card wording to the profile's option sets |
 | `.../comp-card-import/proposal.js` | Proposal shape; validated apply |
 | `.../comp-card-import/extract.js` | Orchestration; every failure returns a usable result |
+| `client/.../CompCardImport/CompCardImportOverlay.jsx` | The dialog it opens in |
 | `src/domains/talent/routes/comp-card-import.js` | Endpoints. In-memory upload, no gate |
 | `migrations/20260814140000_create_comp_card_imports.js` | Proposal + `measurements_source` |
 
-## 8. Known limits
+## 8. The profile's vocabulary is a closed set
+
+Most of the fields import writes are **selects**, not free text: hair colour, eye
+colour, dress size, and the shoe-region toggle each accept a fixed list of values.
+A value outside that list does not render as itself — the control renders *empty*.
+So an import that wrote the card's own wording ("dark brown", "hazel", "us") would
+look to the talent like it had silently done nothing, which is worse than plainly
+not finding the field.
+
+`vocabulary.js` therefore snaps every such value to the profile's own options, and
+the review screen shows both: the canonical value in the field, and the card's
+original wording on the evidence line beneath it, so the transformation is visible
+rather than silent.
+
+Two deliberate refusals:
+
+- **A value with no honest home is not forced into "Other."** "Bald" is not a hair
+  colour and "heterochromia" is not one of six eye colours. Those come back as not
+  found, with a note quoting the card, because "Other" discards the information
+  while looking like a successful import.
+- **Dress sizes are never converted between systems.** A card printing `36` is
+  almost certainly EU, but EU 36 lands between US 4 and US 6 depending on the
+  house. Guessing writes a wrong size that looks right.
+
+Casing follows the same logic. Cards typeset everything in capitals, so an all-caps
+value is recased — but people and organisations need different rules. "NG" is the
+surname Ng, while "IMG" and "DNA" are initialisms that must keep their capitals, so
+the acronym list applies to agency names only and never to a person's. An agency
+matched against the registry keeps the registry's own spelling rather than anything
+inferred.
+
+**These lists mirror inline JSX in `MeasurementsSection.jsx`.** They are duplicated
+because the client options have no server-visible export; the test suite pins the
+pairing, but if the options change, change both.
+
+## 9. Known limits
 
 Recorded because a limit that is not written down gets rediscovered as a bug.
 
