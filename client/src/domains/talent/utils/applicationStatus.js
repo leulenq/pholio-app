@@ -120,6 +120,19 @@ export function statusConfig(status) {
       next: 'This submission is closed. Keep your book current for future outreach.',
       detail: 'The agency did not move forward with this submission.',
     },
+    // Distinct from `passed`: the agency made no decision, and saying it did
+    // would put a verdict in its mouth. The label names the silence and the
+    // guidance tells the talent what to do about it, which is the whole
+    // point of closing these automatically.
+    closed_no_response: {
+      label: 'No Response',
+      short: 'Closed',
+      tone: 'closed',
+      group: 'closed',
+      icon: AlertCircle,
+      next: 'Treat this as a pass. Keep your book current and keep submitting.',
+      detail: 'The agency did not respond within its review window.',
+    },
     archived: {
       label: 'Closed',
       short: 'Closed',
@@ -172,7 +185,8 @@ export function statusConfig(status) {
 //   advancing — shortlisted, requested_more, meeting_requested, development,
 //               accepted, kept_on_file (soft yes / offer; NON-terminal)
 //   represented — represented                (agreement complete)
-//   closed    — declined, passed, rejected, archived, withdrawn
+//   closed    — declined, passed, rejected, archived, withdrawn,
+//               closed_no_response (review window lapsed, no decision made)
 export function bucketCounts(applications = []) {
   const counts = { inReview: 0, advancing: 0, represented: 0, closed: 0 };
   for (const app of applications) {

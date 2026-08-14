@@ -286,6 +286,9 @@ async function createMinimalSchema() {
       t.float("match_score").nullable();
       t.timestamp("accepted_at").nullable();
       t.timestamp("declined_at").nullable();
+      // Auto-close review window anchor: a status write resets it.
+      t.timestamp("status_changed_at").nullable();
+      t.timestamp("auto_closed_at").nullable();
       t.timestamp("created_at").defaultTo(knex.fn.now());
       t.timestamp("updated_at").defaultTo(knex.fn.now());
     });
@@ -298,6 +301,12 @@ async function createMinimalSchema() {
     if (!(await knex.schema.hasColumn("applications", "declined_at"))) {
       await knex.schema.alterTable("applications", (t) => {
         t.timestamp("declined_at").nullable();
+      });
+    }
+    if (!(await knex.schema.hasColumn("applications", "status_changed_at"))) {
+      await knex.schema.alterTable("applications", (t) => {
+        t.timestamp("status_changed_at").nullable();
+        t.timestamp("auto_closed_at").nullable();
       });
     }
   }

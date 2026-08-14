@@ -49,6 +49,9 @@ const {
   WRITABLE_APPLICATION_STATUSES,
   isRepresentedApplicationStatus,
 } = require("../../../shared/constants/application-status");
+const {
+  resolveWindowDays,
+} = require("../../../shared/lib/application-auto-close");
 
 const { recordAuditEvent } = require("../services/audit");
 const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
@@ -1231,6 +1234,9 @@ router.patch(
             requestedStatus === "declined" || requestedStatus === "passed"
               ? trx.fn.now()
               : null,
+          // Resets the auto-close review window: the agency just moved this,
+          // so its silence starts again from here.
+          status_changed_at: trx.fn.now(),
           updated_at: trx.fn.now(),
         });
         await logActivity(
@@ -1548,6 +1554,9 @@ router.patch(
             requestedStatus === "declined" || requestedStatus === "passed"
               ? trx.fn.now()
               : null,
+          // Resets the auto-close review window, same as the single-status
+          // path — a bulk triage is still the agency acting.
+          status_changed_at: trx.fn.now(),
           updated_at: trx.fn.now(),
         });
 
@@ -1758,6 +1767,9 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
         notify_new_applications: agency.notify_new_applications,
         notify_status_changes: agency.notify_status_changes,
         default_view: agency.default_view,
+        application_review_window_days: resolveWindowDays(
+          agency.application_review_window_days,
+        ),
         onboarding: {
           started_at: agency.onboarding_started_at || null,
           completed_at: agency.onboarding_completed_at || null,
@@ -1991,8 +2003,12 @@ router.put(
   async (req, res, next) => {
     try {
       const agencyId = getSessionAgencyId(req);
-      const { notify_new_applications, notify_status_changes, default_view } =
-        req.body;
+      const {
+        notify_new_applications,
+        notify_status_changes,
+        default_view,
+        application_review_window_days: reviewWindowDays,
+      } = req.body;
 
       const updateData = {};
       if (notify_new_applications !== undefined)
@@ -2001,6 +2017,19 @@ router.put(
         updateData.notify_status_changes = !!notify_status_changes;
       if (default_view !== undefined)
         updateData.default_view = default_view || null;
+      if (reviewWindowDays !== undefined) {
+        // 0 disables auto-close for this agency. The upper bound keeps the
+        // window from being set so far out that it silently disables it while
+        // appearing to be on.
+        const days = Number(reviewWindowDays);
+        if (!Number.isInteger(days) || days < 0 || days > 365) {
+          return res.status(400).json({
+            error:
+              "application_review_window_days must be a whole number of days between 0 and 365 (0 turns auto-close off).",
+          });
+        }
+        updateData.application_review_window_days = days;
+      }
 
       updateData.updated_at = knex.fn.now();
       await knex("agencies").where({ id: agencyId }).update(updateData);

@@ -279,6 +279,13 @@ function applicationStatusCopy(status, agencyName) {
       title: "Application closed",
       body: `${agency} passed on this application.`,
     },
+    // Says how to treat it, not what the agency decided — because it did not
+    // decide. Naming the silence is the point: vague copy here would recreate
+    // the not-knowing that auto-close exists to end.
+    closed_no_response: {
+      title: "Application closed — no response",
+      body: `${agency} did not respond within its review window. Treat this as a pass and keep going.`,
+    },
     archived: {
       title: "Application archived",
       body: `${agency} archived this application.`,
@@ -309,6 +316,7 @@ const NOTIFY_STATUSES = new Set([
   "passed",
   "archived",
   "kept_on_file",
+  "closed_no_response",
 ]);
 
 async function notifyTalentApplicationSubmitted({
