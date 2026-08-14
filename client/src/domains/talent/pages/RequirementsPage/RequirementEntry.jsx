@@ -58,13 +58,38 @@ function FindingList({ findings }) {
   );
 }
 
-function FindingGroup({ title, findings }) {
+/**
+ * `collapsed` groups open on demand.
+ *
+ * Against real registry data one agency's "confirm yourself" group runs to 33
+ * entries — every application field they publish. Rendered inline that buries
+ * the one thing the talent has to act on and pushes the provenance line off the
+ * bottom of the entry. What is still needed stays open; the long, lower-urgency
+ * groups announce their size and wait to be asked.
+ */
+function FindingGroup({ title, findings, collapsed = false }) {
   if (!findings.length) return null;
+
+  const heading = (
+    <>
+      {title} <span className={styles.findingGroupCount}>{findings.length}</span>
+    </>
+  );
+
+  if (collapsed) {
+    return (
+      <details className={styles.findingGroup}>
+        <summary className={styles.findingGroupSummary}>
+          <h4 className={styles.findingGroupTitle}>{heading}</h4>
+        </summary>
+        <FindingList findings={findings} />
+      </details>
+    );
+  }
+
   return (
     <section className={styles.findingGroup}>
-      <h4 className={styles.findingGroupTitle}>
-        {title} <span className={styles.findingGroupCount}>{findings.length}</span>
-      </h4>
+      <h4 className={styles.findingGroupTitle}>{heading}</h4>
       <FindingList findings={findings} />
     </section>
   );
@@ -89,7 +114,20 @@ export default function RequirementEntry({
   const coverage = evaluation ? readShotCoverage(evaluation.shotCoverage) : null;
   const checkedOn = formatRegistryDate(route.sourceCheckedOn);
   const freshness = readFreshnessNotice(route);
-  const missing = groups?.attention?.map((finding) => finding.label) ?? [];
+  /*
+    The headline pair has to be about one thing. "Covers 2 of 3" counts shot
+    slots, so the line under it names the shots that are missing — not the file
+    limits and social handles that also need attention. Against real registry
+    data the unfiltered list read "Missing: Image count · Close-up · Waist-up ·
+    Instagram · TikTok · YouTube URL · Facebook · Twitter · Twitch" beneath a
+    count of four, which is two different questions in one sentence. Everything
+    else is still shown, in the full check below, under its own heading.
+  */
+  const missing =
+    groups?.attention
+      ?.filter((finding) => finding.categoryKey === 'shots')
+      .map((finding) => finding.label) ?? [];
+  const otherAttention = groups?.attention?.length ? groups.attention.length - missing.length : 0;
   const exporting = exportState?.status === 'pending';
 
   return (
@@ -123,9 +161,15 @@ export default function RequirementEntry({
               <p className={styles.entryCoverage}>{coverageSentence(coverage)}</p>
               {missing.length ? (
                 <p className={styles.entryMissing}>Missing: {missing.join(' · ')}</p>
-              ) : coverage?.published ? (
+              ) : coverage?.published && !otherAttention ? (
                 <p className={styles.entryComplete}>
                   Everything this agency publishes is covered.
+                </p>
+              ) : null}
+              {otherAttention ? (
+                <p className={styles.entryComplete}>
+                  {otherAttention} other published requirement
+                  {otherAttention === 1 ? '' : 's'} to check.
                 </p>
               ) : null}
             </>
@@ -219,9 +263,9 @@ export default function RequirementEntry({
                 </p>
               ) : null}
               <FindingGroup title="Still needed" findings={groups.attention} />
-              <FindingGroup title="Confirm yourself" findings={groups.confirm} />
-              <FindingGroup title="Published guidance" findings={groups.guidance} />
-              <FindingGroup title="Already covered" findings={groups.included} />
+              <FindingGroup title="Confirm yourself" findings={groups.confirm} collapsed />
+              <FindingGroup title="Published guidance" findings={groups.guidance} collapsed />
+              <FindingGroup title="Already covered" findings={groups.included} collapsed />
             </>
           ) : (
             <p className={styles.detailEmpty}>

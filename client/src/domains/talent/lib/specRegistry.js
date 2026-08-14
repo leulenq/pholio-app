@@ -110,6 +110,11 @@ export function readEvaluationFor(payload, seriesId) {
 export function readFinding(finding) {
   return {
     id: finding.id,
+    // The machine-readable bucket (`shots`, `files`, `eligibility`,
+    // `applicationFields`, …). `category` is its display name; a surface that
+    // wants to reason about *which* kind of requirement this is has to read the
+    // key, not the label.
+    categoryKey: finding.categoryKey ?? null,
     category: finding.category || null,
     outcome: finding.outcome,
     severity: finding.severity ?? null,

@@ -119,6 +119,16 @@ function actionForFinding(categoryKey, field, sourceUrl) {
   return sourceUrl ? { href: sourceUrl, label: "View agency source" } : null;
 }
 
+/**
+ * What Pholio knows about this requirement, stated as a fact.
+ *
+ * Two surfaces render this: the apply workspace, where the talent really is
+ * sending a package to a Pholio agency, and the requirements directory, where
+ * nothing is sent at all — most of those agencies cannot receive a Pholio
+ * submission. So the guidance says what is true of the talent's set and stops
+ * there; the instruction ("confirm before sending") belongs to the surface
+ * where sending is a real action, and the apply workspace supplies it.
+ */
 function guidanceForOutcome(item) {
   const label = item.sourceLabel || "this published item";
   const requiresAttention = ATTENTION_MODALITIES.has(item.modality);
@@ -134,13 +144,13 @@ function guidanceForOutcome(item) {
   if (item.outcome === "violates") {
     if (!requiresAttention) {
       return isPreference
-        ? `The agency publishes “${label}” as guidance. Your current package differs, but this does not prevent sending.`
-        : `“${label}” is published as optional information. Your current package differs, but this does not prevent sending.`;
+        ? `The agency publishes “${label}” as guidance. Your current package differs, which is worth knowing but is not a requirement.`
+        : `“${label}” is published as optional information. Your current package differs, which is worth knowing but is not a requirement.`;
     }
-    return `Your current package conflicts with “${label}”. Review it before sending.`;
+    return `Your current package conflicts with “${label}”. Check it against the agency’s own page.`;
   }
   if (item.outcome === "unknown") {
-    return "Pholio cannot verify this from your saved profile or selected images. Confirm it before sending.";
+    return "Pholio cannot verify this from your saved profile or selected images. Confirm it yourself.";
   }
   if (item.outcome === "satisfied") {
     return "Matched by a confirmed fact in your current package.";

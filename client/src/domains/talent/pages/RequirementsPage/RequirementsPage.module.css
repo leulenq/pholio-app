@@ -207,6 +207,29 @@
   margin-bottom: 20px;
 }
 
+/* The disclosure affordance is the native marker plus the count; no chevron
+   graphic, and nothing that reads as a chip. */
+.findingGroupSummary {
+  margin-bottom: 10px;
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.findingGroupSummary::marker {
+  color: #94a3b8;
+}
+
+.findingGroupSummary:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.findingGroupSummary .findingGroupTitle {
+  display: inline;
+  margin: 0;
+}
+
 .findingGroupTitle {
   margin: 0 0 10px;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

@@ -69,15 +69,17 @@ const eliteEvaluation = {
   findings: [
     {
       id: 'shots:close-up-profile',
+      categoryKey: 'shots',
       sourceLabel: 'close-up profile, hair pulled back',
       outcome: 'missing',
       severity: 'attention',
       requiresAttention: true,
       category: 'Shots',
-      guidance: 'Your current package has no confirmed match for this.',
+      guidance: 'Your current package has no confirmed match for “close-up profile, hair pulled back”.',
     },
     {
       id: 'shots:personality',
+      categoryKey: 'shots',
       sourceLabel: 'personality shot',
       outcome: 'missing',
       severity: 'attention',
@@ -86,14 +88,50 @@ const eliteEvaluation = {
     },
     {
       id: 'shots:full-length',
+      categoryKey: 'shots',
       sourceLabel: 'full-length',
       outcome: 'satisfied',
       severity: null,
       requiresAttention: false,
       category: 'Shots',
     },
+    // Not a shot. Real registry data puts file limits and social handles in
+    // this same flat list, and they must not land in the headline that counts
+    // shot slots.
+    {
+      id: 'files:maximum-image-count',
+      categoryKey: 'files',
+      sourceLabel: 'Image count',
+      outcome: 'violates',
+      severity: 'attention',
+      requiresAttention: true,
+      category: 'Files',
+    },
+    {
+      id: 'applicationFields:instagram',
+      categoryKey: 'applicationFields',
+      sourceLabel: 'Instagram',
+      outcome: 'missing',
+      severity: 'attention',
+      requiresAttention: true,
+      category: 'Application fields',
+    },
+    // Verbatim from `guidanceForOutcome` in preflight-service.js. Written to
+    // state what Pholio knows rather than to instruct a send, because this
+    // surface sends nothing.
+    {
+      id: 'setWide:hair',
+      categoryKey: 'setWide',
+      sourceLabel: 'Hair pulled back',
+      outcome: 'unknown',
+      severity: null,
+      requiresAttention: false,
+      category: 'Presentation',
+      guidance:
+        'Pholio cannot verify this from your saved profile or selected images. Confirm it yourself.',
+    },
   ],
-  summary: { needsAttention: 2, informational: 0, confirm: 0, included: 4 },
+  summary: { needsAttention: 4, informational: 0, confirm: 0, included: 4 },
   shotCoverage: { selected: 5, published: 6, matched: 4 },
 };
 
@@ -151,13 +189,45 @@ describe('RequirementsPage', () => {
     ).toBeInTheDocument();
   });
 
+  test('keeps the headline about shots, and counts the rest separately', async () => {
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
+    const elite = entryFor('Elite Models');
+    await waitFor(() => {
+      expect(within(elite).getByText('Your current set covers 4 of 6.')).toBeInTheDocument();
+    });
+
+    // "covers 4 of 6" counts shot slots, so the line beneath it names shots.
+    // A file limit and a social handle under the same heading would be two
+    // different questions in one sentence.
+    const missing = within(elite).getByText(/^Missing:/);
+    expect(missing).toHaveTextContent('close-up profile, hair pulled back');
+    expect(missing).not.toHaveTextContent('Image count');
+    expect(missing).not.toHaveTextContent('Instagram');
+
+    // Still surfaced, just not conflated with the shot count.
+    expect(
+      within(elite).getByText('2 other published requirements to check.'),
+    ).toBeInTheDocument();
+  });
+
   test('never frames a reference agency as somewhere a package is sent', async () => {
+    const user = userEvent.setup();
     renderPage();
     await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
 
     // "Prepare this package for Elite" is wrong when nothing is sent.
     expect(screen.queryByText(/prepare this package/i)).not.toBeInTheDocument();
+
+    // Open the full check so the server-supplied guidance is actually on the
+    // page — asserting the absence of send-framing against a collapsed panel
+    // would pass for the wrong reason.
+    const elite = entryFor('Elite Models');
+    await user.click(within(elite).getByRole('button', { name: /see requirements/i }));
+    expect(within(elite).getByText(/Confirm it yourself\./)).toBeInTheDocument();
     expect(screen.queryByText(/before sending/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/prevent sending/i)).not.toBeInTheDocument();
   });
 
   test('keeps one directory and marks each entry inline, rather than splitting the list', async () => {
