@@ -654,6 +654,7 @@ app.use("/api/public/open-call", authLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
+app.use("/api/talent/comp-card-import", uploadLimiter);
 app.use(["/onboarding/scout", "/casting/scout"], uploadLimiter);
 app.use(talentAiWriterLimiter);
 app.use((req, res, next) => {
