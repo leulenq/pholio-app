@@ -4,20 +4,25 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
-import { readEvaluationFor, readRoutes } from '../../lib/specRegistry';
-import RequirementEntry from './RequirementEntry';
+import { buildSpecMatrix, readEvaluationFor, readRoutes } from '../../lib/specRegistry';
+import SpecMatrix from './SpecMatrix';
+import AgencyPlate from './AgencyPlate';
 import styles from './RequirementsPage.module.css';
 
 /**
  * Agency requirements.
  *
- * One directory of every agency whose requirements Pholio has catalogued, with
- * the full check shown for all of them — customer agency or not. The talent's
- * question is identical either way (*what does this agency want, and am I
- * ready?*), and withholding the answer to protect a business boundary is
- * exactly the pattern Pholio differentiates against. Which agencies can receive
- * a Pholio application is carried per entry, where it is decision-relevant,
- * rather than by splitting the list into two labelled groups.
+ * The grid is the surface and the per-agency plate hangs off it, rather than a
+ * list of agencies with a detail view bolted on. That is the whole argument of
+ * this page: a directory answers "what does Elite want?" one agency at a time,
+ * which is not the question a talent has. Theirs is "what should I shoot next",
+ * and it is only answerable across every agency at once.
+ *
+ * Which agencies can receive a Pholio application is carried per entry, where
+ * it is decision-relevant, rather than by splitting the market into two
+ * labelled groups — that split would make the customer list look thin beside
+ * the researched one and front-load a distinction talent do not care about
+ * until the moment they act.
  */
 
 /**
@@ -59,18 +64,12 @@ function saveBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
-function DirectoryLoading() {
-  return (
-    <div className={styles.state} role="status" aria-live="polite">
-      <p>Loading published requirements…</p>
-    </div>
-  );
-}
-
 export default function RequirementsPage() {
   const { images, profile } = useAuth();
   const reduceMotion = useReducedMotion();
   const [exports, setExports] = useState({});
+  const [selectedSeriesId, setSelectedSeriesId] = useState(null);
+  const [hoveredShot, setHoveredShot] = useState(null);
   const imageIds = useMemo(() => activeImageIds(images, profile), [images, profile]);
 
   const routesQuery = useQuery({
@@ -81,6 +80,10 @@ export default function RequirementsPage() {
   });
   const routes = useMemo(() => readRoutes(routesQuery.data), [routesQuery.data]);
   const seriesIds = useMemo(() => routes.map((route) => route.seriesId), [routes]);
+  const submittableCount = useMemo(
+    () => routes.filter((route) => route.acceptsPholioSubmissions).length,
+    [routes],
+  );
 
   const preflightQuery = useQuery({
     queryKey: ['spec-registry-preflight', seriesIds, imageIds],
@@ -89,6 +92,35 @@ export default function RequirementsPage() {
     staleTime: 30_000,
     retry: 1,
   });
+
+  const evaluationFor = useCallback(
+    (seriesId) => readEvaluationFor(preflightQuery.data, seriesId),
+    [preflightQuery.data],
+  );
+
+  const matrix = useMemo(
+    () => buildSpecMatrix(routes, evaluationFor),
+    [routes, evaluationFor],
+  );
+
+  /*
+    One agency stands open so the plate is never an empty promise — but not
+    simply the first, because that is Elite Model Japan, which publishes no shot
+    list at all and so opens on the one plate that demonstrates nothing. Default
+    to the first agency that actually published a shot list.
+  */
+  const defaultRoute = useMemo(() => {
+    const withShots = routes.find(
+      (route) => (evaluationFor(route.seriesId)?.shotCoverage?.published ?? 0) > 0,
+    );
+    return withShots || routes[0] || null;
+  }, [routes, evaluationFor]);
+
+  const selectedRoute =
+    routes.find((route) => route.seriesId === selectedSeriesId) || defaultRoute;
+  const selectedIndex = selectedRoute
+    ? routes.findIndex((route) => route.seriesId === selectedRoute.seriesId)
+    : 0;
 
   const handleExport = useCallback(
     async (route) => {
@@ -124,8 +156,7 @@ export default function RequirementsPage() {
     talentApi.recordSpecRegistryOutboundClick(route.seriesId).catch(() => {});
   }, []);
 
-  const empty =
-    !routesQuery.isLoading && !routesQuery.isError && routes.length === 0;
+  const empty = !routesQuery.isLoading && !routesQuery.isError && routes.length === 0;
 
   return (
     <div className={styles.page}>
@@ -135,14 +166,39 @@ export default function RequirementsPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 55, damping: 16 }}
       >
-        <h1 className={styles.title}>Agency requirements</h1>
-        <p className={styles.subtitle}>
-          What each agency publishes, and how your current set measures up. Download a set
-          already prepared to their requirements, then apply wherever they take applications.
-        </p>
+        <div className={styles.mastheadCopy}>
+          {/* No eyebrow above the masthead — banned pattern 1. The italic gold
+              word carries the accent a kicker would have. */}
+          <h1 className={styles.title}>
+            Agency <em>requirements</em>
+          </h1>
+          <div className={styles.sweep} aria-hidden="true" />
+          <p className={styles.subtitle}>
+            Every agency Pholio has catalogued, and how your current set measures against
+            each one. Take a set already prepared to their requirements, then apply
+            wherever they accept applications.
+          </p>
+        </div>
+
+        {routes.length > 0 ? (
+          <dl className={styles.index}>
+            <div className={styles.indexCell}>
+              <dt className={styles.indexTerm}>Agencies catalogued</dt>
+              <dd className={styles.indexValue}>{String(routes.length).padStart(2, '0')}</dd>
+            </div>
+            <div className={styles.indexCell}>
+              <dt className={styles.indexTerm}>Accept through Pholio</dt>
+              <dd className={styles.indexValue}>{String(submittableCount).padStart(2, '0')}</dd>
+            </div>
+          </dl>
+        ) : null}
       </motion.header>
 
-      {routesQuery.isLoading ? <DirectoryLoading /> : null}
+      {routesQuery.isLoading ? (
+        <div className={styles.state} role="status" aria-live="polite">
+          <p>Loading published requirements…</p>
+        </div>
+      ) : null}
 
       {routesQuery.isError ? (
         <div className={styles.state} role="alert">
@@ -163,22 +219,26 @@ export default function RequirementsPage() {
         </div>
       ) : null}
 
-      {routes.length > 0 ? (
-        <ul className={styles.directory}>
-          {routes.map((route, index) => (
-            <RequirementEntry
-              key={route.seriesId}
-              route={route}
-              index={index}
-              evaluation={readEvaluationFor(preflightQuery.data, route.seriesId)}
-              isLoading={preflightQuery.isLoading}
-              error={preflightQuery.error}
-              exportState={exports[route.seriesId]}
-              onExport={handleExport}
-              onOutboundClick={handleOutboundClick}
-            />
-          ))}
-        </ul>
+      <SpecMatrix
+        matrix={matrix}
+        selectedSeriesId={selectedRoute?.seriesId || null}
+        onSelectAgency={setSelectedSeriesId}
+        hoveredShot={hoveredShot}
+        onHoverShot={setHoveredShot}
+      />
+
+      {selectedRoute ? (
+        <AgencyPlate
+          key={selectedRoute.seriesId}
+          route={selectedRoute}
+          index={selectedIndex}
+          evaluation={evaluationFor(selectedRoute.seriesId)}
+          isLoading={preflightQuery.isLoading}
+          error={preflightQuery.error}
+          exportState={exports[selectedRoute.seriesId]}
+          onExport={handleExport}
+          onOutboundClick={handleOutboundClick}
+        />
       ) : null}
     </div>
   );

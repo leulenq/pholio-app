@@ -115,6 +115,11 @@ export function readFinding(finding) {
     // wants to reason about *which* kind of requirement this is has to read the
     // key, not the label.
     categoryKey: finding.categoryKey ?? null,
+    // The canonical taxonomy value (`close_up`, `full_length`, `profile`).
+    // `label` is the agency's own wording and differs between agencies for the
+    // same shot; this is what makes two agencies' lists comparable.
+    matchValue: finding.matchValue ?? null,
+    field: finding.field ?? null,
     category: finding.category || null,
     outcome: finding.outcome,
     severity: finding.severity ?? null,
@@ -192,5 +197,108 @@ export function groupFindings(findings) {
     confirm: list.filter((f) => f.outcome === OUTCOME.UNKNOWN),
     guidance: list.filter((f) => f.severity === 'informational'),
     included: list.filter((f) => f.outcome === OUTCOME.SATISFIED),
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The market, as one grid.
+ *
+ * Every other view of this data answers "what does Elite want?" one
+ * agency at a time. The question a talent actually has is the inverse —
+ * *which shot should I take next* — and that is only answerable across
+ * agencies at once. B2 of the plan promises exactly this: "shoot your
+ * digitals once, we know what every agency wants."
+ * ------------------------------------------------------------------ */
+
+/** Canonical identity of a shot, independent of the agency's wording. */
+function shotKey(finding) {
+  if (!finding.matchValue) return null;
+  return `${finding.field || 'shot'}:${finding.matchValue}`;
+}
+
+/**
+ * Prefer the shortest label agencies use for a shot.
+ *
+ * Elite calls it "close-up"; Elite Models calls the same taxonomy value
+ * "Close up (hair pulled back)". The row has to be named once, and the plain
+ * one reads better as a row heading — the agency's own full wording is still
+ * shown verbatim in that agency's own plate.
+ */
+function preferredLabel(current, candidate) {
+  if (!current) return candidate;
+  return candidate.length < current.length ? candidate : current;
+}
+
+const COVERED = 'covered';
+const WANTED = 'wanted';
+const NOT_ASKED = 'not_asked';
+
+export const MATRIX_CELL = { COVERED, WANTED, NOT_ASKED };
+
+/**
+ * @param {Array} routes       from `readRoutes`
+ * @param {Map|Object} byId    seriesId -> evaluationDto
+ * @returns {{ shots: Array, columns: Array, recommendation: object|null }}
+ */
+export function buildSpecMatrix(routes, evaluationFor) {
+  const columns = routes.map((route) => ({
+    seriesId: route.seriesId,
+    agencyName: route.agencyName,
+    acceptsPholioSubmissions: route.acceptsPholioSubmissions,
+  }));
+
+  const shots = new Map();
+
+  routes.forEach((route) => {
+    const evaluation = evaluationFor(route.seriesId);
+    const findings = Array.isArray(evaluation?.findings) ? evaluation.findings : [];
+    findings.map(readFinding).forEach((finding) => {
+      if (finding.categoryKey !== 'shots') return;
+      const key = shotKey(finding);
+      if (!key) return;
+      if (!shots.has(key)) shots.set(key, { key, label: null, cells: new Map() });
+      const row = shots.get(key);
+      row.label = preferredLabel(row.label, finding.label || finding.matchValue);
+      row.cells.set(
+        route.seriesId,
+        finding.outcome === OUTCOME.SATISFIED ? COVERED : WANTED,
+      );
+    });
+  });
+
+  const rows = [...shots.values()].map((row) => {
+    const wantedBy = columns.filter((column) => row.cells.has(column.seriesId));
+    const coveredFor = wantedBy.filter((column) => row.cells.get(column.seriesId) === COVERED);
+    return {
+      key: row.key,
+      label: row.label,
+      cells: columns.map((column) => ({
+        seriesId: column.seriesId,
+        state: row.cells.get(column.seriesId) || NOT_ASKED,
+      })),
+      wantedBy: wantedBy.length,
+      coveredFor: coveredFor.length,
+      // How many agencies this one shot would newly satisfy.
+      unlocks: wantedBy.length - coveredFor.length,
+    };
+  });
+
+  // Most-demanded first: the top of the grid is where the leverage is.
+  rows.sort(
+    (left, right) =>
+      right.unlocks - left.unlocks ||
+      right.wantedBy - left.wantedBy ||
+      String(left.label).localeCompare(String(right.label)),
+  );
+
+  const best = rows.find((row) => row.unlocks > 0) || null;
+
+  return {
+    shots: rows,
+    columns,
+    /** The sentence no directory of agencies can produce. */
+    recommendation: best
+      ? { label: best.label, unlocks: best.unlocks, key: best.key }
+      : null,
   };
 }

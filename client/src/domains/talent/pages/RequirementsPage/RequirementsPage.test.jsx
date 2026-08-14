@@ -70,6 +70,8 @@ const eliteEvaluation = {
     {
       id: 'shots:close-up-profile',
       categoryKey: 'shots',
+      field: 'shot.view',
+      matchValue: 'profile',
       sourceLabel: 'close-up profile, hair pulled back',
       outcome: 'missing',
       severity: 'attention',
@@ -80,6 +82,8 @@ const eliteEvaluation = {
     {
       id: 'shots:personality',
       categoryKey: 'shots',
+      field: 'shot.frame',
+      matchValue: 'personality',
       sourceLabel: 'personality shot',
       outcome: 'missing',
       severity: 'attention',
@@ -89,6 +93,8 @@ const eliteEvaluation = {
     {
       id: 'shots:full-length',
       categoryKey: 'shots',
+      field: 'shot.frame',
+      matchValue: 'full_length',
       sourceLabel: 'full-length',
       outcome: 'satisfied',
       severity: null,
@@ -138,14 +144,32 @@ const eliteEvaluation = {
 const models1Evaluation = {
   seriesId: 'models1-uk:online',
   available: true,
-  findings: [],
+  findings: [
+    {
+      id: 'shots:full',
+      categoryKey: 'shots',
+      field: 'shot.frame',
+      matchValue: 'full_length',
+      sourceLabel: 'Full length',
+      outcome: 'satisfied',
+      requiresAttention: false,
+      category: 'Shots',
+    },
+    {
+      id: 'shots:prof',
+      categoryKey: 'shots',
+      field: 'shot.view',
+      matchValue: 'profile',
+      sourceLabel: 'Profile shot',
+      outcome: 'missing',
+      severity: 'attention',
+      requiresAttention: true,
+      category: 'Shots',
+    },
+  ],
   summary: { needsAttention: 0, informational: 0, confirm: 0, included: 3 },
   shotCoverage: { selected: 5, published: 3, matched: 3 },
 };
-
-function entryFor(name) {
-  return screen.getByRole('heading', { name, level: 3 }).closest('li');
-}
 
 describe('RequirementsPage', () => {
   beforeEach(() => {
@@ -167,7 +191,7 @@ describe('RequirementsPage', () => {
   test('checks the talent’s current agency-visible digitals, once, for every route', async () => {
     renderPage();
 
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
+    await screen.findByRole('table');
     await waitFor(() => {
       expect(talentApi.preflightSpecRegistry).toHaveBeenCalledWith({
         seriesIds: ['elite-models-na:online-general', 'models1-uk:online'],
@@ -176,221 +200,258 @@ describe('RequirementsPage', () => {
     });
   });
 
-  test('leads with what the agency published and how the set measures up', async () => {
-    renderPage();
+  describe('the matrix', () => {
+    test('aligns the same shot across agencies by taxonomy value, not by label', async () => {
+      renderPage();
+      await screen.findByRole('table');
 
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    await waitFor(() => {
-      expect(within(elite).getByText('Your current set covers 4 of 6.')).toBeInTheDocument();
-    });
-    expect(
-      within(elite).getByText('Missing: close-up profile, hair pulled back · personality shot'),
-    ).toBeInTheDocument();
-  });
-
-  test('keeps the headline about shots, and counts the rest separately', async () => {
-    renderPage();
-
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    await waitFor(() => {
-      expect(within(elite).getByText('Your current set covers 4 of 6.')).toBeInTheDocument();
+      // Elite calls it "close-up profile, hair pulled back"; Models 1 calls the
+      // same `shot.view: profile` "Profile shot". One row, not two — matching on
+      // the label would have produced two.
+      const rows = screen.getAllByRole('row').slice(1);
+      const headings = rows.map((row) => within(row).getAllByRole('rowheader')[0]?.textContent);
+      expect(headings.filter((h) => /profile/i.test(h || ''))).toHaveLength(1);
     });
 
-    // "covers 4 of 6" counts shot slots, so the line beneath it names shots.
-    // A file limit and a social handle under the same heading would be two
-    // different questions in one sentence.
-    const missing = within(elite).getByText(/^Missing:/);
-    expect(missing).toHaveTextContent('close-up profile, hair pulled back');
-    expect(missing).not.toHaveTextContent('Image count');
-    expect(missing).not.toHaveTextContent('Instagram');
+    test('leads with the shot that unlocks the most agencies', async () => {
+      renderPage();
+      await screen.findByRole('table');
 
-    // Still surfaced, just not conflated with the shot count.
-    expect(
-      within(elite).getByText('2 other published requirements to check.'),
-    ).toBeInTheDocument();
-  });
-
-  test('never frames a reference agency as somewhere a package is sent', async () => {
-    const user = userEvent.setup();
-    renderPage();
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-
-    // "Prepare this package for Elite" is wrong when nothing is sent.
-    expect(screen.queryByText(/prepare this package/i)).not.toBeInTheDocument();
-
-    // Open the full check so the server-supplied guidance is actually on the
-    // page — asserting the absence of send-framing against a collapsed panel
-    // would pass for the wrong reason.
-    const elite = entryFor('Elite Models');
-    await user.click(within(elite).getByRole('button', { name: /see requirements/i }));
-    expect(within(elite).getByText(/Confirm it yourself\./)).toBeInTheDocument();
-    expect(screen.queryByText(/before sending/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/prevent sending/i)).not.toBeInTheDocument();
-  });
-
-  test('keeps one directory and marks each entry inline, rather than splitting the list', async () => {
-    renderPage();
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-
-    // Both agencies live in a single list, not in two labelled groups.
-    const directory = screen
-      .getAllByRole('list')
-      .find((list) => within(list).queryAllByRole('heading', { level: 3 }).length === 2);
-    expect(directory).toBeTruthy();
-
-    expect(
-      within(entryFor('Elite Models')).getByText('Applies on their own site.'),
-    ).toBeInTheDocument();
-    expect(
-      within(entryFor('Models 1')).getByText('Accepts applications through Pholio.'),
-    ).toBeInTheDocument();
-  });
-
-  test('shows the full check for an agency that cannot receive a Pholio application', async () => {
-    const user = userEvent.setup();
-    renderPage();
-
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    await user.click(within(elite).getByRole('button', { name: /see requirements/i }));
-
-    expect(within(elite).getByText('Still needed')).toBeInTheDocument();
-    expect(within(elite).getByText('close-up profile, hair pulled back')).toBeInTheDocument();
-    expect(within(elite).getByText('Already covered')).toBeInTheDocument();
-  });
-
-  test('carries provenance and non-affiliation on every entry', async () => {
-    const user = userEvent.setup();
-    renderPage();
-
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    await user.click(within(elite).getByRole('button', { name: /see requirements/i }));
-
-    // A calendar date on the wire, read back to the talent — not the raw value.
-    expect(
-      within(elite).getByText(/Requirements as published by Elite Models, checked August 9, 2026\./),
-    ).toBeInTheDocument();
-    expect(within(elite).queryByText(/2026-08-09/)).not.toBeInTheDocument();
-    expect(
-      within(elite).getByText(/Pholio is not affiliated with Elite Models\./),
-    ).toBeInTheDocument();
-    expect(within(elite).getByRole('link', { name: 'View their page' })).toHaveAttribute(
-      'href',
-      'https://example.com/elite',
-    );
-  });
-
-  test('downloads a set prepared for the agency, from the same selection it checked', async () => {
-    const blob = new Blob(['zip'], { type: 'application/zip' });
-    talentApi.exportSpecRegistrySet.mockResolvedValue({
-      blob,
-      filename: 'elite-models-digitals.zip',
-      fileCount: 4,
+      // Both agencies want a profile and neither is covered → unlocks 2, the
+      // highest, so it sorts to the top and becomes the recommendation.
+      expect(
+        await screen.findByText(/would satisfy 2 more agencies/i),
+      ).toBeInTheDocument();
+      const firstRow = screen.getAllByRole('row')[1];
+      expect(within(firstRow).getAllByRole('rowheader')[0].textContent).toMatch(/profile/i);
     });
-    const createObjectURL = vi.fn(() => 'blob:fake');
-    const revokeObjectURL = vi.fn();
-    URL.createObjectURL = createObjectURL;
-    URL.revokeObjectURL = revokeObjectURL;
 
-    const user = userEvent.setup();
-    renderPage();
+    test('does not count a shot an agency never asked for', async () => {
+      renderPage();
+      await screen.findByRole('table');
 
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    await user.click(
-      within(elite).getByRole('button', { name: /download elite models-ready set/i }),
-    );
+      // Only Elite publishes a personality shot, so it can unlock exactly one.
+      const row = screen
+        .getAllByRole('row')
+        .find((r) => /personality/i.test(within(r).queryAllByRole('rowheader')[0]?.textContent || ''));
+      expect(within(row).getByText('1')).toBeInTheDocument();
+    });
 
-    await waitFor(() => {
-      expect(talentApi.exportSpecRegistrySet).toHaveBeenCalledWith({
-        seriesId: 'elite-models-na:online-general',
-        imageIds: ['active-image'],
+    test('marks a covered shot as covered rather than as leverage', async () => {
+      renderPage();
+      await screen.findByRole('table');
+
+      const row = screen
+        .getAllByRole('row')
+        .find((r) => /full[- ]length/i.test(within(r).queryAllByRole('rowheader')[0]?.textContent || ''));
+      expect(within(row).getByText('covered')).toBeInTheDocument();
+    });
+
+    test('describes every cell for a screen reader', async () => {
+      renderPage();
+      await screen.findByRole('table');
+
+      expect(
+        screen.getByText('Elite Models: full-length covered'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Models 1: .*still needed/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Models 1: does not ask for personality shot/),
+      ).toBeInTheDocument();
+    });
+
+    test('the grid is the navigation — a column head opens that agency', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByRole('table');
+
+      await user.click(screen.getByRole('button', { name: /models 1/i }));
+      expect(
+        await screen.findByRole('heading', { name: 'Models 1', level: 2 }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('the opened agency', () => {
+    test('opens on an agency that actually published a shot list', async () => {
+      renderPage();
+      // Not simply the first route — one that can demonstrate the check.
+      expect(
+        await screen.findByRole('heading', { name: 'Elite Models', level: 2 }),
+      ).toBeInTheDocument();
+      expect(await screen.findByText('4')).toBeInTheDocument();
+    });
+
+    test('names the shots still missing, and counts the rest separately', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      // "Still needed" is both this inline label and, once the check is open, a
+      // group heading — so the query names which one it means.
+      const missing = await screen.findByText('Still needed', { selector: 'strong' });
+      const line = missing.closest('p');
+      expect(line).toHaveTextContent('close-up profile, hair pulled back');
+      // The figure counts shot slots, so the line beneath it names shots — a
+      // file limit and a social handle would be a different question.
+      expect(line).not.toHaveTextContent('Image count');
+      expect(line).toHaveTextContent('2 other published requirements to check');
+    });
+
+    test('marks deliverability inline rather than splitting the market', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+      expect(screen.getByText('Applies on their own site')).toBeInTheDocument();
+    });
+
+    test('never frames a reference agency as somewhere a package is sent', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      expect(screen.queryByText(/prepare this package/i)).not.toBeInTheDocument();
+
+      // Open the full check so the server-supplied guidance is actually on the
+      // page — asserting against a collapsed panel would pass for the wrong reason.
+      await user.click(screen.getByRole('button', { name: /see the full check/i }));
+      expect(screen.getByText(/Confirm it yourself\./)).toBeInTheDocument();
+      expect(screen.queryByText(/before sending/i)).not.toBeInTheDocument();
+    });
+
+    test('shows the full check for an agency that cannot receive a Pholio application', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      await user.click(screen.getByRole('button', { name: /see the full check/i }));
+      expect(screen.getByRole('heading', { name: /Still needed/, level: 4 })).toBeInTheDocument();
+      expect(
+        screen.getByText('close-up profile, hair pulled back', { selector: 'p' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Already covered/, level: 4 })).toBeInTheDocument();
+    });
+
+    test('carries provenance and non-affiliation, without needing to be opened', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      // A calendar date on the wire, read back to the talent — not the raw value.
+      expect(
+        screen.getByText(/Requirements as published by Elite Models, checked August 9, 2026\./),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/2026-08-09/)).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/Pholio is not affiliated with Elite Models\./),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'View their page' })).toHaveAttribute(
+        'href',
+        'https://example.com/elite',
+      );
+    });
+
+    test('downloads a set prepared for the agency, from the same selection it checked', async () => {
+      const blob = new Blob(['zip'], { type: 'application/zip' });
+      talentApi.exportSpecRegistrySet.mockResolvedValue({
+        blob,
+        filename: 'elite-models-digitals.zip',
+        fileCount: 4,
       });
+      const createObjectURL = vi.fn(() => 'blob:fake');
+      URL.createObjectURL = createObjectURL;
+      URL.revokeObjectURL = vi.fn();
+
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      await user.click(screen.getByRole('button', { name: /download the elite models-ready set/i }));
+
+      await waitFor(() => {
+        expect(talentApi.exportSpecRegistrySet).toHaveBeenCalledWith({
+          seriesId: 'elite-models-na:online-general',
+          imageIds: ['active-image'],
+        });
+      });
+      expect(createObjectURL).toHaveBeenCalledWith(blob);
+      expect(
+        await screen.findByText('4 files downloaded as elite-models-digitals.zip.'),
+      ).toBeInTheDocument();
     });
-    expect(createObjectURL).toHaveBeenCalledWith(blob);
-    expect(
-      await within(elite).findByText('4 files downloaded as elite-models-digitals.zip.'),
-    ).toBeInTheDocument();
+
+    test('reports an export that could not be built instead of failing silently', async () => {
+      talentApi.exportSpecRegistrySet.mockRejectedValue(
+        new Error('None of your current images match a shot this agency publishes.'),
+      );
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      await user.click(screen.getByRole('button', { name: /download the elite models-ready set/i }));
+
+      expect(
+        await screen.findByText(
+          'None of your current images match a shot this agency publishes.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    test('records the outbound click without standing between talent and agency', async () => {
+      talentApi.recordSpecRegistryOutboundClick.mockResolvedValue({ recorded: true });
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      const link = screen.getByRole('link', { name: /apply on their site/i });
+      // Straight to the agency, not through a Pholio redirect.
+      expect(link).toHaveAttribute('href', 'https://example.com/elite');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+
+      await user.click(link);
+      expect(talentApi.recordSpecRegistryOutboundClick).toHaveBeenCalledWith(
+        'elite-models-na:online-general',
+      );
+    });
+
+    test('a failed click count never blocks the talent reaching the agency', async () => {
+      talentApi.recordSpecRegistryOutboundClick.mockRejectedValue(new Error('offline'));
+      const user = userEvent.setup();
+      renderPage();
+      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+
+      await user.click(screen.getByRole('link', { name: /apply on their site/i }));
+      await waitFor(() => expect(talentApi.recordSpecRegistryOutboundClick).toHaveBeenCalled());
+      expect(screen.getByRole('button', { name: /see the full check/i })).toBeEnabled();
+    });
   });
 
-  test('reports an export that could not be built instead of failing silently', async () => {
-    talentApi.exportSpecRegistrySet.mockRejectedValue(
-      new Error('None of your current images match a shot this agency publishes.'),
-    );
-    const user = userEvent.setup();
-    renderPage();
+  describe('page states', () => {
+    test('offers a retry when the directory itself fails to load', async () => {
+      talentApi.getSpecRegistryRoutes.mockReset();
+      // The directory query is configured `retry: 1`, so the error only reaches
+      // the surface after two failed attempts.
+      talentApi.getSpecRegistryRoutes.mockRejectedValueOnce(new Error('offline'));
+      talentApi.getSpecRegistryRoutes.mockRejectedValueOnce(new Error('offline'));
+      talentApi.getSpecRegistryRoutes.mockResolvedValueOnce({ routes: [] });
+      const user = userEvent.setup();
+      renderPage();
 
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    await user.click(
-      within(elite).getByRole('button', { name: /download elite models-ready set/i }),
-    );
+      await screen.findByRole('alert', {}, { timeout: 3_000 });
+      await user.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(
+        await screen.findByText('No agency requirements are catalogued yet.'),
+      ).toBeInTheDocument();
+    });
 
-    expect(
-      await within(elite).findByText(
-        'None of your current images match a shot this agency publishes.',
-      ),
-    ).toBeInTheDocument();
-  });
+    test('shows the empty state without checking or drawing a grid', async () => {
+      talentApi.getSpecRegistryRoutes.mockResolvedValue({ routes: [] });
+      renderPage();
 
-  test('records the outbound click without standing between talent and agency', async () => {
-    talentApi.recordSpecRegistryOutboundClick.mockResolvedValue({ recorded: true });
-    const user = userEvent.setup();
-    renderPage();
-
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    const link = within(elite).getByRole('link', { name: /apply on their site/i });
-    // Straight to the agency, not through a Pholio redirect.
-    expect(link).toHaveAttribute('href', 'https://example.com/elite');
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
-
-    await user.click(link);
-    expect(talentApi.recordSpecRegistryOutboundClick).toHaveBeenCalledWith(
-      'elite-models-na:online-general',
-    );
-  });
-
-  test('a failed click count never blocks the talent reaching the agency', async () => {
-    talentApi.recordSpecRegistryOutboundClick.mockRejectedValue(new Error('offline'));
-    const user = userEvent.setup();
-    renderPage();
-
-    await screen.findByRole('heading', { name: 'Elite Models', level: 3 });
-    const elite = entryFor('Elite Models');
-    await user.click(within(elite).getByRole('link', { name: /apply on their site/i }));
-
-    await waitFor(() => expect(talentApi.recordSpecRegistryOutboundClick).toHaveBeenCalled());
-    expect(within(elite).getByRole('button', { name: /see requirements/i })).toBeEnabled();
-  });
-
-  test('offers a retry when the directory itself fails to load', async () => {
-    talentApi.getSpecRegistryRoutes.mockReset();
-    // The directory query is configured `retry: 1`, so the error only reaches
-    // the surface after two failed attempts.
-    talentApi.getSpecRegistryRoutes.mockRejectedValueOnce(new Error('offline'));
-    talentApi.getSpecRegistryRoutes.mockRejectedValueOnce(new Error('offline'));
-    talentApi.getSpecRegistryRoutes.mockResolvedValueOnce({ routes: [] });
-    const user = userEvent.setup();
-    renderPage();
-
-    await screen.findByRole('alert', {}, { timeout: 3_000 });
-    await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(
-      await screen.findByText('No agency requirements are catalogued yet.'),
-    ).toBeInTheDocument();
-  });
-
-  test('shows the empty directory state without checking anything', async () => {
-    talentApi.getSpecRegistryRoutes.mockResolvedValue({ routes: [] });
-    renderPage();
-
-    expect(
-      await screen.findByText('No agency requirements are catalogued yet.'),
-    ).toBeInTheDocument();
-    expect(talentApi.preflightSpecRegistry).not.toHaveBeenCalled();
+      expect(
+        await screen.findByText('No agency requirements are catalogued yet.'),
+      ).toBeInTheDocument();
+      expect(talentApi.preflightSpecRegistry).not.toHaveBeenCalled();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
   });
 });

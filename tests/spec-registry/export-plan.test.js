@@ -253,3 +253,38 @@ describe("spec-correct export — plan", () => {
     });
   });
 });
+
+/**
+ * The matrix depends on `matchValue` reaching the client. Agencies publish the
+ * same shot under different words — Elite's "close-up" and Elite Models'
+ * "Close up (hair pulled back)" are one `shot.frame: close_up` — so the label
+ * cannot align one agency's list against another's and the taxonomy value must.
+ */
+describe("spec-correct export — findings carry the canonical shot value", () => {
+  const { findingDto } = require("../../src/domains/spec-registry/preflight-service");
+
+  test("a shot slot exposes the taxonomy value it matches on", () => {
+    const dto = findingDto(
+      "shots",
+      {
+        id: "close-up",
+        sourceLabel: "close-up",
+        field: "shot.frame",
+        matchValue: "close_up",
+        outcome: "missing",
+        modality: "requested",
+      },
+      "https://example.test",
+    );
+    expect(dto).toMatchObject({ field: "shot.frame", matchValue: "close_up" });
+  });
+
+  test("a requirement with no taxonomy value reports none rather than guessing", () => {
+    const dto = findingDto(
+      "files",
+      { id: "max-size", sourceLabel: "Max 5mb", field: "file.size_bytes", outcome: "satisfied" },
+      "https://example.test",
+    );
+    expect(dto.matchValue).toBeNull();
+  });
+});

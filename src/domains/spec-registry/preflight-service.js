@@ -186,6 +186,10 @@ function findingDto(categoryKey, item, sourceUrl) {
     basis: item.basis,
     matchability: item.matchability,
     field: item.field,
+    // Lets a surface align one agency's shot list with another's. Agencies
+    // publish the same shot under different words; the taxonomy value is what
+    // makes them comparable.
+    matchValue: item.matchValue ?? null,
     sourceLabel: item.sourceLabel || titleCaseToken(item.field || item.id),
     guidance: guidanceForOutcome(item),
     target:

@@ -361,6 +361,12 @@ function makeResult(rule, outcome, extra = {}) {
     basis: rule.basis ?? null,
     field:
       rule.constraint?.field ?? rule.match?.field ?? rule.field ?? null,
+    // The canonical taxonomy value a shot slot matches on — `close_up`,
+    // `full_length`, `profile`. Agencies label the same shot differently
+    // ("close-up" / "Close up (hair pulled back)"), so the label cannot be used
+    // to line one agency's requirements up against another's. This can, and
+    // that comparison is the whole point of carrying fifty agencies.
+    matchValue: rule.match?.value ?? null,
     outcome,
     evidenceIds: Array.isArray(rule.evidenceIds) ? rule.evidenceIds : [],
     ...extra,
