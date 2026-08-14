@@ -959,8 +959,8 @@ export default function ProfilePage() {
               className={styles.importTrigger}
               onClick={() => setImportOpen(true)}
             >
-              <FileUp size={15} strokeWidth={1.5} aria-hidden="true" />
-              Start from an existing comp card
+              <FileUp size={13} strokeWidth={1.5} aria-hidden="true" />
+              Import an existing card
             </button>
           </div>
 

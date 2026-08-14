@@ -85,7 +85,7 @@ describe('the review screen', () => {
     await screen.findByText(/what the card/i);
 
     expect(screen.getByLabelText('First name value')).toHaveValue('Mara');
-    expect(screen.getByText(/on the card: MARA OKONKWO/)).toBeInTheDocument();
+    expect(screen.getByText(/on the card — MARA OKONKWO/)).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /first name/i })).toBeChecked();
   });
 
@@ -136,7 +136,7 @@ describe('the review screen', () => {
     uploadCard();
 
     await screen.findByText(/not on the card/i);
-    expect(screen.getByText(/Hips\./)).toBeInTheDocument();
+    expect(screen.getByText('Hips')).toBeInTheDocument();
   });
 
   test('measurement provenance is stated before anything is applied', async () => {

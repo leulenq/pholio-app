@@ -16,6 +16,7 @@ vi.mock('lucide-react', () => {
     return IconMock;
   };
   return {
+    FileUp: makeIconMock('FileUp'),
     Instagram: makeIconMock('Instagram'),
     PlaySquare: makeIconMock('PlaySquare'),
     Trash2: makeIconMock('Trash2'),

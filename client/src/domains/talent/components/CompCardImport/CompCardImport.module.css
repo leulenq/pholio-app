@@ -1,92 +1,155 @@
 /*
- * Comp card import — talent studio vocabulary.
+ * Comp card import — editorial ledger vocabulary.
  *
- * White surface on warm paper, 16px card radius, pressed-paper wells for the
- * fields, one gold accent used only for the active choice and focus. No badges,
- * no chips, no eyebrow above the heading, no glass, no side stripes — see the
- * banned-patterns list in the root CLAUDE.md and the talent DESIGN.md.
+ * Speaks the same language as the Apply workspace and the Profile movements:
+ * cream ground, hairline rules in warm black, a gold top edge on the panel,
+ * Noto Serif Display at 300 for headings, JetBrains Mono for every label and
+ * piece of metadata, Inter 300 for the values themselves.
+ *
+ * Tokens are redeclared here rather than inherited: this panel is portalled to
+ * document.body inside the overlay, so it sits outside `.profilePage` and
+ * `.applications-view-container` and would otherwise resolve none of them. The
+ * values mirror `--pf-*` in ProfilePage.module.css and `--app-*` in
+ * ApplicationsView.css exactly.
  */
 
 .wrap {
+  --cci-cream: #faf7f2;
+  --cci-cream-warm: #f5f0e8;
+  --cci-gold: #c9a55a;
+  --cci-gold-warm: #c8a96e;
+  --cci-text: #1a1a1a;
+  --cci-text-soft: rgba(26, 26, 26, 0.62);
+  --cci-text-faint: rgba(26, 26, 26, 0.42);
+  --cci-hair: rgba(26, 26, 26, 0.08);
+  --cci-hair-strong: rgba(26, 26, 26, 0.16);
+  --cci-hair-gold: rgba(201, 165, 90, 0.22);
+  --cci-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --cci-ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+  --cci-radius: 10px;
+  --cci-radius-sm: 2px;
+
   width: 100%;
+  color: var(--cci-text);
 }
 
+@keyframes cciRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── the panel ─────────────────────────────────────────────── */
+
 .panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 24px;
+  overflow: hidden;
+  background: var(--cci-cream);
+  border: 1px solid var(--cci-hair);
+  /* The gold top edge is the house marker for a working panel. */
+  border-top-color: var(--cci-hair-gold);
+  border-radius: var(--cci-radius);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 24px;
+  align-items: baseline;
+  /* Right padding clears the overlay's close button, which is positioned over
+     this row — without it the metadata runs underneath the ×. */
+  padding: 30px 74px 20px 32px;
+  border-bottom: 1px solid var(--cci-hair);
 }
 
 .title {
+  margin: 0;
+  min-width: 0;
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.5rem;
-  font-weight: 400;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  color: #0f172a;
-  margin: 0 0 8px;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  font-weight: 300;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  color: var(--cci-text);
 }
 
 .title em {
   font-style: italic;
-  color: #1a1815;
+  font-weight: 300;
+  color: var(--cci-gold-warm);
 }
 
-.lede {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #64748b;
-  margin: 0 0 20px;
-  max-width: 68ch;
+/* Metadata sits beside the heading, never above it. */
+.headMeta {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cci-text-faint);
+  white-space: nowrap;
 }
 
-/* A real message about a real outcome — not a status chip. */
-.notice {
+.sweep {
+  width: 120px;
+  height: 1px;
+  margin: 18px 32px 0;
+  background: linear-gradient(to right, var(--cci-gold-warm), transparent);
+}
+
+.standfirst {
+  margin: 16px 32px 0;
+  max-width: 52ch;
   font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: #1a1815;
-  background: #f8f8f7;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin: 0 0 20px;
-  max-width: 68ch;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--cci-text-soft);
 }
 
-/* --- Upload --- */
+.body {
+  padding: 0 0 8px;
+}
+
+/* ── upload ────────────────────────────────────────────────── */
 
 .dropWell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  background: #f8f8f7;
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
-  padding: 32px 24px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 14px;
+  margin: 26px 32px 0;
+  padding: 40px 28px;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid var(--cci-hair);
+  border-radius: var(--cci-radius-sm);
+  transition: border-color 0.2s var(--cci-ease-std), background 0.2s var(--cci-ease-std);
 }
 
 .dropWell:hover {
-  border-color: rgba(201, 165, 90, 0.45);
-  background: #ffffff;
+  border-color: var(--cci-hair-gold);
+  background: #fff;
 }
 
 .dropIcon {
-  width: 28px;
-  height: 28px;
-  color: #94a3b8;
+  width: 26px;
+  height: 26px;
+  color: var(--cci-gold);
 }
 
 .dropHint {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.85rem;
-  color: #94a3b8;
   margin: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cci-text-faint);
 }
 
 .hiddenInput {
@@ -94,158 +157,225 @@
 }
 
 .finePrint {
+  margin: 20px 32px 26px;
+  max-width: 56ch;
   font-family: 'Inter', sans-serif;
-  font-size: 0.8rem;
-  line-height: 1.55;
-  color: #94a3b8;
-  margin: 16px 0 0;
-  max-width: 68ch;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--cci-text-faint);
 }
 
-/* --- Reading --- */
+/* A real message about a real outcome — not a status chip. */
+.notice {
+  margin: 22px 32px 0;
+  padding: 16px 18px;
+  max-width: 56ch;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid var(--cci-hair);
+  border-left: 1px solid var(--cci-hair-gold);
+  border-radius: var(--cci-radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--cci-text);
+}
+
+/* ── reading ───────────────────────────────────────────────── */
 
 .readingBar {
   position: relative;
-  height: 3px;
-  border-radius: 9999px;
-  background: #f1f0ee;
+  height: 1px;
+  margin: 28px 32px 32px;
   overflow: hidden;
+  background: var(--cci-hair);
 }
 
 .readingBarFill {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, #c9a55a, transparent);
+  background: linear-gradient(90deg, transparent, var(--cci-gold), transparent);
 }
 
-/* --- Review --- */
+/* ── groups and rows ───────────────────────────────────────── */
 
 .group {
-  border-top: 1px solid #e2e8f0;
-  padding-top: 20px;
-  margin-top: 20px;
+  border-top: 1px solid var(--cci-hair);
 }
 
 .group:first-of-type {
   border-top: none;
-  padding-top: 0;
-  margin-top: 0;
+}
+
+.groupHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: baseline;
+  padding: 24px 32px 4px;
 }
 
 .groupTitle {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.85rem;
+  margin: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #64748b;
-  margin: 0 0 8px;
+  color: var(--cci-gold);
+}
+
+.groupCount {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--cci-text-faint);
 }
 
 .groupNote {
+  margin: 10px 32px 6px;
+  max-width: 56ch;
   font-family: 'Inter', sans-serif;
-  font-size: 0.875rem;
+  font-size: 14px;
+  font-weight: 300;
   line-height: 1.6;
-  color: #64748b;
-  margin: 0 0 12px;
-  max-width: 68ch;
+  color: var(--cci-text-soft);
+}
+
+.rows {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
 }
 
 .row {
   display: grid;
-  grid-template-columns: minmax(140px, 200px) 1fr;
-  gap: 16px;
-  align-items: start;
-  padding: 12px 0;
-  border-bottom: 1px solid #f1f0ee;
+  grid-template-columns: 26px minmax(96px, 168px) minmax(0, 1fr);
+  gap: 4px 20px;
+  align-items: baseline;
+  padding: 16px 32px;
+  border-top: 1px solid var(--cci-hair);
+  transition: background 0.2s var(--cci-ease-std);
+  animation: cciRise 0.5s var(--cci-ease) both;
+  animation-delay: calc(var(--cci-row-index, 0) * 55ms);
 }
 
-.row:last-child {
-  border-bottom: none;
+.row:hover {
+  background: rgba(255, 255, 255, 0.58);
 }
 
-.rowMain {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.rowIndex {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--cci-gold);
 }
 
-/*
- * Talent global.css uppercases every bare <label>. These are sentence-case
- * controls, so the treatment is reset explicitly rather than inherited.
- */
+.rowLabel {
+  min-width: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cci-text-faint);
+}
+
+/* Talent global.css uppercases every bare <label>; this is already the
+   intended treatment, but the tracking is set explicitly so it cannot drift. */
 .checkLabel {
   display: flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  text-transform: none;
-  letter-spacing: normal;
-  font-family: 'Inter', sans-serif;
 }
 
 .checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: #c9a55a;
-  cursor: pointer;
+  width: 13px;
+  height: 13px;
   flex-shrink: 0;
-}
-
-.rowLabel {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: #0f172a;
-  text-transform: none;
-  letter-spacing: normal;
+  accent-color: var(--cci-gold);
+  cursor: pointer;
 }
 
 .rowValue {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+  gap: 8px;
 }
 
+/* Editorial field: 2px radius, hairline border, Inter 300 — matching the
+   Profile field geometry rather than the shared 8px well. */
 .valueInput {
   width: 100%;
   max-width: 320px;
-  background: #f8f8f7;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 11px 15px;
   font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
-  color: #0f172a;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--cci-text);
+  background: #fff;
+  border: 1px solid var(--cci-hair);
+  border-radius: var(--cci-radius-sm);
+  box-shadow: none;
+  transition: border-color 0.2s var(--cci-ease-std), box-shadow 0.2s var(--cci-ease-std);
+}
+
+.valueInput:hover:not(:focus) {
+  border-color: var(--cci-hair-strong);
 }
 
 .valueInput:focus {
   outline: none;
-  background: #ffffff;
-  border-color: rgba(201, 165, 90, 0.3);
-  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12);
+  border-color: rgba(201, 165, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
 }
 
-/* Where the value came from. This is the difference between a proposal and a
-   number the product appears to have invented. */
+/* Provenance. The difference between a proposal and a number we appear to have
+   invented, so it is quiet but always present. */
 .rowEvidence {
-  font-family: 'Inter', sans-serif;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: #94a3b8;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  color: var(--cci-text-faint);
 }
 
 .rowNote {
   font-family: 'Inter', sans-serif;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  color: #64748b;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--cci-text-soft);
 }
 
-/* --- Ambiguous choice --- */
+.missingList {
+  margin: 10px 32px 22px;
+  max-width: 56ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--cci-text-soft);
+}
+
+.missingNames {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cci-text);
+}
+
+/* ── the unresolved-unit choice ────────────────────────────── */
 
 .choiceRow {
   display: flex;
@@ -254,56 +384,86 @@
 }
 
 .choice {
+  padding: 9px 15px;
   font-family: 'Inter', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #0f172a;
-  background: #f8f8f7;
-  border: 1px solid #e2e8f0;
-  border-radius: 3px;
-  padding: 9px 16px;
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--cci-text);
+  background: #fff;
+  border: 1px solid var(--cci-hair);
+  border-radius: var(--cci-radius-sm);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.2s var(--cci-ease-std), color 0.2s var(--cci-ease-std),
+    background 0.2s var(--cci-ease-std);
 }
 
 .choice:hover {
-  border-color: rgba(201, 165, 90, 0.5);
-  color: #1a1815;
+  border-color: var(--cci-hair-strong);
 }
 
 .choice:focus-visible {
-  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline: 2px solid var(--cci-gold);
   outline-offset: 2px;
 }
 
 .choiceActive {
-  background: #1a1815;
-  border-color: #1a1815;
-  color: #faf9f7;
+  color: var(--cci-text);
+  border-color: rgba(201, 165, 90, 0.55);
+  background: rgba(201, 165, 90, 0.09);
+  font-weight: 400;
 }
 
-.choiceActive:hover {
-  color: #faf9f7;
-  border-color: #1a1815;
+.choiceSkip {
+  color: var(--cci-text-faint);
 }
 
-/* --- Actions --- */
+/* ── footer ────────────────────────────────────────────────── */
+
+.provenance {
+  margin: 22px 32px 0;
+  padding-top: 18px;
+  max-width: 60ch;
+  border-top: 1px solid var(--cci-hair);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--cci-text-faint);
+}
 
 .actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 24px;
+  margin: 24px 32px 30px;
 }
 
 @media (max-width: 640px) {
-  .panel {
-    padding: 20px 16px;
+  .head,
+  .groupHead {
+    padding-inline: 20px;
+  }
+
+  .sweep,
+  .standfirst,
+  .dropWell,
+  .finePrint,
+  .notice,
+  .groupNote,
+  .missingList,
+  .provenance,
+  .actions,
+  .readingBar {
+    margin-inline: 20px;
   }
 
   .row {
-    grid-template-columns: 1fr;
-    gap: 8px;
+    grid-template-columns: 26px minmax(0, 1fr);
+    padding-inline: 20px;
+  }
+
+  .rowValue {
+    grid-column: 2;
   }
 
   .valueInput {
@@ -312,9 +472,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+
   .dropWell,
   .choice,
-  .valueInput {
+  .valueInput,
+  .row {
     transition: none;
   }
 }
