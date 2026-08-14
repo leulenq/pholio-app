@@ -92,6 +92,20 @@ export function partitionRoutes(routes) {
   };
 }
 
+/**
+ * The evaluation for one route out of a multi-route preflight response.
+ *
+ * `preflightRegistry` answers a `seriesIds` request with `results`, one
+ * `evaluationDto` per route, inside the standard `{ success, data }` envelope.
+ * Picking the right entry is wire-contract knowledge, so it lives here rather
+ * than being re-derived by whichever surface happens to need it.
+ */
+export function readEvaluationFor(payload, seriesId) {
+  const envelope = payload?.data ?? payload;
+  const results = Array.isArray(envelope?.results) ? envelope.results : [];
+  return results.find((result) => result?.seriesId === seriesId) || null;
+}
+
 /** A single published requirement, as `findingDto` sends it. */
 export function readFinding(finding) {
   return {

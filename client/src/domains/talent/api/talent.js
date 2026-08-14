@@ -1,7 +1,8 @@
 /**
  * Talent API Functions
  */
-import { apiClient } from '../../../shared/lib/api-client';
+import { apiClient, ApiError } from '../../../shared/lib/api-client';
+import { sameOriginMutationHeaders } from '../../../shared/lib/same-origin-request';
 
 export const talentApi = {
   // Profile
@@ -126,6 +127,52 @@ export const talentApi = {
     apiClient.get(`/spec-registry/routes/${encodeURIComponent(seriesId)}`),
   preflightSpecRegistry: (payload = {}) =>
     apiClient.post('/spec-registry/preflight', payload),
+
+  /**
+   * The spec-correct set, as bytes.
+   *
+   * `apiClient` unwraps a `{ success, data }` envelope, and this response is an
+   * archive, so it talks to `fetch` directly. The filename comes from the
+   * server because the server is what named the files inside it.
+   */
+  exportSpecRegistrySet: async ({ seriesId, imageIds } = {}) => {
+    const response = await fetch('/api/talent/spec-registry/export', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/zip, application/json',
+        ...sameOriginMutationHeaders('POST'),
+      },
+      body: JSON.stringify(imageIds === undefined ? { seriesId } : { seriesId, imageIds }),
+    });
+
+    if (!response.ok) {
+      const problem = await response.json().catch(() => null);
+      throw new ApiError(
+        problem?.message || problem?.error || 'That set could not be prepared.',
+        response.status,
+        problem,
+      );
+    }
+
+    const named = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') || '');
+    return {
+      blob: await response.blob(),
+      filename: named?.[1] || 'digitals.zip',
+      fileCount: Number(response.headers.get('X-Pholio-Export-Files')) || null,
+    };
+  },
+
+  /**
+   * The talent followed the link to the agency's own application page.
+   *
+   * Fired alongside opening the link rather than through a Pholio redirect —
+   * routing an application Pholio has nothing to do with through Pholio is the
+   * implied relationship the provenance rules exist to avoid.
+   */
+  recordSpecRegistryOutboundClick: (seriesId) =>
+    apiClient.post('/spec-registry/outbound-click', { seriesId }),
 
   // Application drafts (one per agency — the in-progress submission dossier)
   listDrafts: (options) =>

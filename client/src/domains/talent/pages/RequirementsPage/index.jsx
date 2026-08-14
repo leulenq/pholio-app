@@ -1,21 +1,29 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
-import RegistryPreflight from '../../components/RegistryPreflight';
-import {
-  formatRegistryDate,
-  readFreshnessNotice,
-  readRoutes,
-  sourceNeedsReview,
-} from '../../lib/specRegistry';
+import { readEvaluationFor, readRoutes } from '../../lib/specRegistry';
+import RequirementEntry from './RequirementEntry';
 import styles from './RequirementsPage.module.css';
 
 /**
- * Which of the talent's images the preflight should evaluate: their current,
+ * Agency requirements.
+ *
+ * One directory of every agency whose requirements Pholio has catalogued, with
+ * the full check shown for all of them — customer agency or not. The talent's
+ * question is identical either way (*what does this agency want, and am I
+ * ready?*), and withholding the answer to protect a business boundary is
+ * exactly the pattern Pholio differentiates against. Which agencies can receive
+ * a Pholio application is carried per entry, where it is decision-relevant,
+ * rather than by splitting the list into two labelled groups.
+ */
+
+/**
+ * Which images the check should evaluate: the talent's current,
  * agency-visible digitals. Anything retired, hidden from agencies, or not a
- * still image would make the coverage figures describe a package they cannot
+ * still image would make the coverage figures describe a set they cannot
  * actually send.
  */
 function activeImageIds(images, profile) {
@@ -40,35 +48,29 @@ function activeImageIds(images, profile) {
     .sort();
 }
 
-function preflightResults(payload) {
-  const envelope = payload?.data ?? payload;
-  return Array.isArray(envelope?.results) ? envelope.results : [];
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
-function RoutesLoading() {
+function DirectoryLoading() {
   return (
-    <div className={styles.directoryLoading} role="status" aria-live="polite">
+    <div className={styles.state} role="status" aria-live="polite">
       <p>Loading published requirements…</p>
-      <span aria-hidden="true" />
-      <span aria-hidden="true" />
-      <span aria-hidden="true" />
     </div>
   );
 }
 
-function RoutesError({ onRetry }) {
-  return (
-    <div className={styles.directoryState} role="alert">
-      <p>Agency requirements couldn&apos;t load.</p>
-      <PholioButton variant="secondary" onClick={onRetry}>Try again</PholioButton>
-    </div>
-  );
-}
-
-/** Dedicated directory for current, source-backed agency-route requirements. */
 export default function RequirementsPage() {
   const { images, profile } = useAuth();
-  const [selectedSeriesId, setSelectedSeriesId] = useState(null);
+  const reduceMotion = useReducedMotion();
+  const [exports, setExports] = useState({});
   const imageIds = useMemo(() => activeImageIds(images, profile), [images, profile]);
 
   const routesQuery = useQuery({
@@ -78,8 +80,8 @@ export default function RequirementsPage() {
     retry: 1,
   });
   const routes = useMemo(() => readRoutes(routesQuery.data), [routesQuery.data]);
-
   const seriesIds = useMemo(() => routes.map((route) => route.seriesId), [routes]);
+
   const preflightQuery = useQuery({
     queryKey: ['spec-registry-preflight', seriesIds, imageIds],
     queryFn: () => talentApi.preflightSpecRegistry({ seriesIds, imageIds }),
@@ -88,103 +90,96 @@ export default function RequirementsPage() {
     retry: 1,
   });
 
-  const selectedRoute =
-    routes.find((route) => route.seriesId === selectedSeriesId) || routes[0] || null;
-  const selectedResult = selectedRoute
-    ? preflightResults(preflightQuery.data).find(
-        (result) => result?.seriesId === selectedRoute.seriesId,
-      ) || null
-    : null;
+  const handleExport = useCallback(
+    async (route) => {
+      setExports((current) => ({ ...current, [route.seriesId]: { status: 'pending' } }));
+      try {
+        const { blob, filename, fileCount } = await talentApi.exportSpecRegistrySet({
+          seriesId: route.seriesId,
+          imageIds,
+        });
+        saveBlob(blob, filename);
+        setExports((current) => ({
+          ...current,
+          [route.seriesId]: { status: 'done', filename, fileCount },
+        }));
+      } catch (error) {
+        setExports((current) => ({
+          ...current,
+          [route.seriesId]: {
+            status: 'error',
+            message: error?.message || 'That set could not be prepared.',
+          },
+        }));
+      }
+    },
+    [imageIds],
+  );
 
-  const checkedOn = formatRegistryDate(selectedRoute?.sourceCheckedOn);
-  const freshnessNotice = selectedRoute ? readFreshnessNotice(selectedRoute) : null;
+  /**
+   * Recorded, never blocking. The link opens on its own; if the count fails the
+   * talent must still reach the agency's page.
+   */
+  const handleOutboundClick = useCallback((route) => {
+    talentApi.recordSpecRegistryOutboundClick(route.seriesId).catch(() => {});
+  }, []);
+
+  const empty =
+    !routesQuery.isLoading && !routesQuery.isError && routes.length === 0;
 
   return (
     <div className={styles.page}>
-      <header className={styles.masthead}>
-        <h1>Agency requirements</h1>
-        <p>
-          Compare your current image package with what agencies publish for their own submission routes.
+      <motion.header
+        className={styles.masthead}
+        initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 55, damping: 16 }}
+      >
+        <h1 className={styles.title}>Agency requirements</h1>
+        <p className={styles.subtitle}>
+          What each agency publishes, and how your current set measures up. Download a set
+          already prepared to their requirements, then apply wherever they take applications.
         </p>
-      </header>
+      </motion.header>
 
-      <div className={styles.workspace}>
-        <nav className={styles.directory} aria-label="Agency requirement routes">
-          <h2>Published routes</h2>
-          {routesQuery.isLoading ? <RoutesLoading /> : null}
-          {routesQuery.isError ? <RoutesError onRetry={() => routesQuery.refetch()} /> : null}
-          {!routesQuery.isLoading && !routesQuery.isError && routes.length === 0 ? (
-            <div className={styles.directoryState}>
-              <p>No agency requirement routes are available yet.</p>
-              <p className={styles.directoryStateHint}>
-                Pholio adds routes as agencies publish them. Your book stays ready in the meantime.
-              </p>
-            </div>
-          ) : null}
-          {routes.length > 0 ? (
-            <ul className={styles.routeList}>
-              {routes.map((route, index) => {
-                const selected = route.seriesId === selectedRoute?.seriesId;
-                return (
-                  <li key={route.seriesId} style={{ '--route-index': index }}>
-                    {/* A directory entry, not a command: these read as a list of
-                        agencies and select one, so they carry list semantics and
-                        the page's own type rather than button chrome. */}
-                    <button
-                      type="button"
-                      className={`${styles.routeItem}${selected ? ` ${styles.routeItemSelected}` : ''}`}
-                      aria-current={selected ? 'true' : undefined}
-                      onClick={() => setSelectedSeriesId(route.seriesId)}
-                    >
-                      <span className={styles.routeName}>{route.agencyName}</span>
-                      {route.marketLabel ? (
-                        <span className={styles.routeMarket}>{route.marketLabel}</span>
-                      ) : null}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
-        </nav>
+      {routesQuery.isLoading ? <DirectoryLoading /> : null}
 
-        <section className={styles.detail} aria-live="polite">
-          {selectedRoute ? (
-            <>
-              <header className={styles.detailHeader}>
-                <h2>{selectedRoute.agencyName}</h2>
-                {selectedRoute.marketLabel ? (
-                  <p className={styles.detailMarket}>{selectedRoute.marketLabel}</p>
-                ) : null}
-                <div className={styles.detailSource}>
-                  {checkedOn ? <p>Source checked {checkedOn}</p> : null}
-                  {sourceNeedsReview(selectedRoute) && freshnessNotice ? (
-                    <p className={styles.detailCaution}>{freshnessNotice}</p>
-                  ) : null}
-                </div>
-              </header>
-              <RegistryPreflight
-                seriesId={selectedRoute.seriesId}
-                agencyName={selectedRoute.agencyName}
-                sourceUrl={selectedRoute.sourceUrl}
-                result={
-                  selectedResult ||
-                  (!preflightQuery.isLoading && !preflightQuery.error
-                    ? { available: false }
-                    : undefined)
-                }
-                isLoading={preflightQuery.isLoading}
-                error={preflightQuery.error}
-                onRetry={() => preflightQuery.refetch()}
-              />
-            </>
-          ) : (
-            <div className={styles.detailEmpty}>
-              <p>Select an agency route to review its published requirements.</p>
-            </div>
-          )}
-        </section>
-      </div>
+      {routesQuery.isError ? (
+        <div className={styles.state} role="alert">
+          <p>Agency requirements couldn’t load.</p>
+          <PholioButton variant="secondary" onClick={() => routesQuery.refetch()}>
+            Try again
+          </PholioButton>
+        </div>
+      ) : null}
+
+      {empty ? (
+        <div className={styles.state}>
+          <p>No agency requirements are catalogued yet.</p>
+          <p className={styles.stateHint}>
+            Pholio adds agencies as their requirements are researched and confirmed. Your book
+            stays ready in the meantime.
+          </p>
+        </div>
+      ) : null}
+
+      {routes.length > 0 ? (
+        <ul className={styles.directory}>
+          {routes.map((route, index) => (
+            <RequirementEntry
+              key={route.seriesId}
+              route={route}
+              index={index}
+              evaluation={readEvaluationFor(preflightQuery.data, route.seriesId)}
+              isLoading={preflightQuery.isLoading}
+              error={preflightQuery.error}
+              exportState={exports[route.seriesId]}
+              onExport={handleExport}
+              onOutboundClick={handleOutboundClick}
+            />
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
