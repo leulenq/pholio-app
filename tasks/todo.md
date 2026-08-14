@@ -625,6 +625,17 @@ Rebuild, not extend. The existing markup and CSS are behaviour reference only.
   so the preflight, the export and the snapshot path cannot each forget to. Reads probe for
   the column first: a directory going dark because a deploy is one migration ahead of its
   database is far worse than a delisting landing a moment late.
+- **An agency network is not one organization, and the removal path now says so.** Elite
+  publishes three entries — `elite-model-management` (global, 3 shots), `elite-models` (North
+  America, 6 shots including the personality pic) and `elite-model-japan` (no shot list) — on
+  three domains with three application pages. They stay separate, because merging them would
+  tell a talent applying in New York to send the global set. But `--organization` therefore
+  removes one of three, and the operator acting on a delisting request should not have to
+  already know the other two rows exist. The script now reports likely siblings and offers
+  `--like` to sweep them, and never widens the removal on its own: `legalName` is null on all
+  three, so Pholio has not established they are one legal entity, and delisting on a shared
+  name prefix would assert a corporate relationship nobody verified — the same failure as
+  inventing a crop target.
 - **Engagement counts people, not events.** One talent exporting six times is one person who
   prepared a set, and the sentence guardrail 4 asks for is a claim about people. Recording is
   best-effort throughout — a failed count must never break a download or swallow a click.
