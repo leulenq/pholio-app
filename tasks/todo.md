@@ -563,42 +563,98 @@ as batch 15; the same 7 unrelated pending migrations remain untouched.
 
 ---
 
-## Spec-correct export + requirements rebuild — in progress
+## Spec-correct export + requirements rebuild — shipped
 
 Brief: [`docs/spec-correct-export-brief.md`](../docs/spec-correct-export-brief.md).
 
 ### 1. Export — service + route
 
-- [ ] `export/zip.js` — stored-entry ZIP writer. No new dependency: already-compressed
+- [x] `export/zip.js` — stored-entry ZIP writer. No new dependency: already-compressed
       JPEG/WebP bytes do not deflate, so `store` is both correct and small.
-- [ ] `export/export-plan.js` — pure planner over `rules.files` (`per_file` / `total_set` /
+- [x] `export/export-plan.js` — pure planner over `rules.files` (`per_file` / `total_set` /
       `whole_package` size, count and mime constraints) plus the shot-slot assignments the
       matcher already produced.
-- [ ] `export/spec-export-service.js` — Sharp resize/encode/name pipeline. **No crop step**:
+- [x] `export/spec-export-service.js` — Sharp resize/encode/name pipeline. **No crop step**:
       the schema carries no dimension, aspect or orientation rule, so there is no crop target.
-- [ ] `POST /api/talent/spec-registry/export`. Never gated behind Studio+ (guardrail 1).
+- [x] `POST /api/talent/spec-registry/export`. Never gated behind Studio+ (guardrail 1).
 
 ### 2. Instrumentation (guardrail 4)
 
-- [ ] Migration: `spec_registry_engagement_events`.
-- [ ] `export` recorded by the export route; `outbound_click` by a new route.
-- [ ] `summarizeEngagement()` + a script that prints the per-agency sentence.
+- [x] Migration: `spec_registry_engagement_events`.
+- [x] `export` recorded by the export route; `outbound_click` by a new route.
+- [x] `summarizeEngagement()` + a script that prints the per-agency sentence.
 
 ### 3. Removal path (guardrail 3)
 
-- [ ] Migration: `delisted_at` / `delisted_reason` on `spec_registry_series`.
-- [ ] Every read path in `store/repository.js` filters delisted series.
-- [ ] `scripts/delist-spec-registry-agency.js`.
+- [x] Migration: `delisted_at` / `delisted_reason` on `spec_registry_series`.
+- [x] Every read path in `store/repository.js` filters delisted series.
+- [x] `scripts/delist-spec-registry-agency.js`.
 
 ### 4. Rebuilt talent requirements surface
 
 Rebuild, not extend. The existing markup and CSS are behaviour reference only.
 
-- [ ] Requirement framing — "published requirements", "your set covers 4 of 6"; never
+- [x] Requirement framing — "published requirements", "your set covers 4 of 6"; never
       "Prepare this package for X", because nothing is sent to a non-customer agency.
-- [ ] One directory, marked per entry as inline plain text. No badge/chip/pill/dot
+- [x] One directory, marked per entry as inline plain text. No badge/chip/pill/dot
       (root `CLAUDE.md` bans 4, 5, 7, 10).
-- [ ] The full check for everyone, customer agency or not.
-- [ ] Provenance on every entry: source link, checked-on date, non-affiliation.
-- [ ] Export action and an instrumented outbound link.
-- [ ] One reader only — `lib/specRegistry.js`.
+- [x] The full check for everyone, customer agency or not.
+- [x] Provenance on every entry: source link, checked-on date, non-affiliation.
+- [x] Export action and an instrumented outbound link.
+- [x] One reader only — `lib/specRegistry.js`.
+
+### Decisions
+
+- **No crop, and the export says so in writing.** The registry schema carries no
+  dimension, aspect-ratio or orientation rule — checked against
+  `data/spec-registry/v1/schemas/spec-revision.schema.json`, not just the brief — so there
+  is no crop target. Agencies publish *size* limits, not dimensions. The README inside every
+  archive states that no crop was applied and why, because a talent who receives a rejection
+  deserves to know Pholio did not silently reframe their work.
+- **The ZIP is written here, not installed.** Already-compressed JPEG bytes do not deflate, so
+  stored entries are the correct method rather than a shortcut — which removes the only hard
+  part of the format and with it the case for a new production dependency in a bundle that
+  already externalizes native modules by hand. Verified against `zlib.crc32` and the system
+  `unzip`, not against itself; that is what caught the missing filename in the central
+  directory, which no self-consistent test would have found.
+- **`imageIds: []` means "chose nothing", so the export defaults to `null`.** That is a real
+  answer for a preflight and a useless one for a download. The route maps an omitted field to
+  the whole eligible book and documents the difference.
+- **Delisting is a flag, not a delete.** The editorial dataset is hash-locked as one package
+  and application snapshots cite its revisions as evidence. `getCurrentRevision` enforces it,
+  so the preflight, the export and the snapshot path cannot each forget to. Reads probe for
+  the column first: a directory going dark because a deploy is one migration ahead of its
+  database is far worse than a delisting landing a moment late.
+- **Engagement counts people, not events.** One talent exporting six times is one person who
+  prepared a set, and the sentence guardrail 4 asks for is a claim about people. Recording is
+  best-effort throughout — a failed count must never break a download or swallow a click.
+- **`RegistryPreflight` was left alone.** It serves the apply workspace, where a submission
+  genuinely happens; the objection was to borrowing its framing for a surface that sends
+  nothing, not to the component.
+
+### Review
+
+Three defects only appeared once the surface ran against the published registry, and all three
+are the kind a fixture cannot produce:
+
+- The headline asked two questions at once — a shot count over a list that included file limits
+  and social handles. Ford read "Missing: Image count · Close-up · Waist-up · Instagram · TikTok
+  · YouTube URL · Facebook · Twitter · Twitch" beneath "covers 1 of 4".
+- `guidanceForOutcome` ended its lines with "Confirm it before sending" — correct in the apply
+  workspace, wrong on a surface where most agencies cannot receive a submission at all. The test
+  meant to catch this asserted the absence of send-framing against a *collapsed* panel with a
+  fixture that never carried the string, so it passed for the wrong reason.
+- Elite Model Japan publishes 33 application fields, which pushed the provenance line off the
+  bottom of the entry. The long groups now open on demand.
+
+**Verification.** Backend **436 passing** across 40 suites (`tests/integration`, `tests/agency`,
+`tests/unit`, `tests/spec-registry`), including 40 new: ZIP container, export planner, the Sharp
+pipeline end-to-end against real photographs, and engagement. Client **45/45** across 7 files.
+Lint back to the two pre-existing talent-domain problems; production build passes. Both
+migrations verified `down` then `up` on a scratch SQLite file with all 202 applied.
+
+Exercised in the running app, not just in tests: the archive downloads through Chromium
+(`elite-model-management-digitals.zip` — a resized, correctly named JPEG plus the provenance
+README), the delisting script removes Elite from the directory (10 routes → 9), blocks its
+export with a 404, and relists it, and the engagement report renders the real recorded download
+as *"1 person prepared an Elite Model Management-spec set on Pholio recently."*
