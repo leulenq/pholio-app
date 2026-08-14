@@ -1,0 +1,418 @@
+/**
+ * Comp card import.
+ *
+ * Upload a card the talent already has, read it, and offer the fields back for
+ * confirmation. The whole point of this screen is that it is a *review*: nothing
+ * is written until the talent says so, field by field.
+ *
+ * Three things the UI is responsible for making true:
+ *
+ *   - Found, ambiguous and not-found are visibly different. An ambiguous value is
+ *     an unanswered question, not a pre-filled field, so it starts unselected and
+ *     the talent must pick a reading.
+ *   - Every proposed value shows the line of the card it came from. A number with
+ *     no provenance is indistinguishable from one the product invented.
+ *   - A card that could not be read still lands here, with every field present and
+ *     editable. Import failing is not the flow failing.
+ */
+
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { FileUp, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
+import PholioButton from '../../../../shared/components/ui/PholioButton';
+import { talentApi } from '../../api/talent';
+import styles from './CompCardImport.module.css';
+
+const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
+
+/** The house spring. Stillness is the resting state, not the whole experience. */
+const SPRING = { type: 'spring', stiffness: 55, damping: 16 };
+
+function summarySentence({ found, ambiguous, notFound }) {
+  const parts = [];
+  parts.push(found === 1 ? 'Read 1 field from your card' : `Read ${found} fields from your card`);
+  if (ambiguous > 0) {
+    parts.push(ambiguous === 1 ? '1 needs a choice' : `${ambiguous} need a choice`);
+  }
+  if (notFound > 0) parts.push(`${notFound} weren’t on the card`);
+  return `${parts.join(' · ')}.`;
+}
+
+export default function CompCardImport({ onApplied }) {
+  const reduceMotion = useReducedMotion();
+  const inputRef = useRef(null);
+
+  const [stage, setStage] = useState('idle'); // idle | reading | review | done
+  const [proposal, setProposal] = useState(null);
+  const [selection, setSelection] = useState({});
+  const [applying, setApplying] = useState(false);
+  const [appliedCount, setAppliedCount] = useState(0);
+
+  const transition = reduceMotion ? { duration: 0.15 } : SPRING;
+
+  // Memoised so the three groupings below do not re-derive on every render off a
+  // fresh `[]` literal.
+  const fields = useMemo(() => proposal?.fields || [], [proposal]);
+  const foundFields = useMemo(() => fields.filter((f) => f.status === 'found'), [fields]);
+  const ambiguousFields = useMemo(() => fields.filter((f) => f.status === 'ambiguous'), [fields]);
+  const missingFields = useMemo(() => fields.filter((f) => f.status === 'not_found'), [fields]);
+
+  const selectedCount = Object.values(selection).filter(
+    (entry) => entry?.checked && entry.value !== null && entry.value !== '',
+  ).length;
+
+  const reset = useCallback(() => {
+    setStage('idle');
+    setProposal(null);
+    setSelection({});
+    setAppliedCount(0);
+    if (inputRef.current) inputRef.current.value = '';
+  }, []);
+
+  const handleFile = useCallback(async (file) => {
+    if (!file) return;
+    setStage('reading');
+
+    const formData = new FormData();
+    formData.append('card', file);
+
+    try {
+      const result = await talentApi.importCompCard(formData);
+      setProposal(result);
+
+      // Found fields start selected — they are the offer. Ambiguous ones never
+      // do: an unanswered question must not apply itself by default.
+      const initial = {};
+      for (const field of result.fields || []) {
+        if (field.status === 'found') {
+          initial[field.key] = { checked: true, value: field.value };
+        }
+      }
+      setSelection(initial);
+      setStage('review');
+    } catch (error) {
+      // Even a hard failure lands on the review screen, empty, so the talent can
+      // keep going by hand. This flow does not have a dead end.
+      toast.error(error?.message || 'That card could not be read.');
+      setProposal({
+        fields: [],
+        summary: { found: 0, ambiguous: 0, notFound: 0, total: 0 },
+        message: 'That card could not be read. You can fill your details in on the form below.',
+        source: {},
+        shotTypes: [],
+      });
+      setStage('review');
+    }
+  }, []);
+
+  const applySelection = useCallback(async () => {
+    if (!proposal?.id || selectedCount === 0) return;
+    setApplying(true);
+
+    const accepted = {};
+    for (const [key, entry] of Object.entries(selection)) {
+      if (entry?.checked && entry.value !== null && entry.value !== '') {
+        accepted[key] = entry.value;
+      }
+    }
+
+    try {
+      const result = await talentApi.confirmCompCardImport(proposal.id, accepted);
+      setAppliedCount(result.applied?.length || 0);
+      setStage('done');
+      toast.success(
+        `${result.applied?.length || 0} field${result.applied?.length === 1 ? '' : 's'} added to your profile.`,
+      );
+      onApplied?.(result);
+    } catch (error) {
+      toast.error(error?.message || 'Those fields could not be applied.');
+    } finally {
+      setApplying(false);
+    }
+  }, [proposal, selection, selectedCount, onApplied]);
+
+  const discard = useCallback(async () => {
+    if (proposal?.id) {
+      try {
+        await talentApi.discardCompCardImport(proposal.id);
+      } catch {
+        // Discarding is a courtesy to the audit record, not a gate on the UI.
+      }
+    }
+    reset();
+  }, [proposal, reset]);
+
+  const setFieldChecked = (key, checked) =>
+    setSelection((prev) => ({ ...prev, [key]: { ...prev[key], checked } }));
+
+  const setFieldValue = (key, value) =>
+    setSelection((prev) => ({ ...prev, [key]: { ...prev[key], value } }));
+
+  return (
+    <div className={styles.wrap}>
+        {stage === 'idle' && (
+          <motion.div
+            key="idle"
+            className={styles.panel}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={transition}
+          >
+            <h3 className={styles.title}>
+              Start from a card you <em>already have</em>
+            </h3>
+            <p className={styles.lede}>
+              Upload an existing agency comp card. Pholio reads the text on it and offers you the
+              fields — you confirm each one before anything is saved to your profile.
+            </p>
+
+            <div className={styles.dropWell}>
+              <FileUp className={styles.dropIcon} aria-hidden="true" strokeWidth={1.25} />
+              <p className={styles.dropHint}>PDF, JPEG, PNG or WebP</p>
+              <PholioButton
+                variant="primary"
+                type="button"
+                onClick={() => inputRef.current?.click()}
+              >
+                Choose a card
+              </PholioButton>
+              <input
+                ref={inputRef}
+                type="file"
+                accept={ACCEPT}
+                className={styles.hiddenInput}
+                onChange={(event) => handleFile(event.target.files?.[0])}
+              />
+            </div>
+
+            <p className={styles.finePrint}>
+              Your card is read and not stored, and only the text on it is used. Nothing about the
+              photographs on the card is analysed.
+            </p>
+          </motion.div>
+        )}
+
+        {stage === 'reading' && (
+          <motion.div
+            key="reading"
+            className={styles.panel}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={transition}
+          >
+            <h3 className={styles.title}>Reading your card</h3>
+            <p className={styles.lede}>Pulling the text off the page.</p>
+            <div className={styles.readingBar} aria-hidden="true">
+              <motion.span
+                className={styles.readingBarFill}
+                initial={{ x: '-100%' }}
+                animate={reduceMotion ? { x: '0%' } : { x: ['-100%', '100%'] }}
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : { repeat: Infinity, duration: 1.1, ease: 'easeInOut' }
+                }
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {stage === 'review' && (
+          <motion.div
+            key="review"
+            className={styles.panel}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={transition}
+          >
+            <h3 className={styles.title}>
+              What the card <em>says</em>
+            </h3>
+
+            {proposal?.message ? (
+              <p className={styles.notice}>{proposal.message}</p>
+            ) : (
+              <p className={styles.lede}>
+                {summarySentence(proposal?.summary || { found: 0, ambiguous: 0, notFound: 0 })}{' '}
+                Nothing is saved until you apply it.
+              </p>
+            )}
+
+            {ambiguousFields.length > 0 && (
+              <section className={styles.group}>
+                <h4 className={styles.groupTitle}>Needs your answer</h4>
+                <p className={styles.groupNote}>
+                  The card printed these without a unit, and both readings are possible. Pholio
+                  won’t choose for you.
+                </p>
+                {ambiguousFields.map((field) => (
+                  <div key={field.key} className={styles.row}>
+                    <div className={styles.rowMain}>
+                      <span className={styles.rowLabel}>{field.label}</span>
+                      <span className={styles.rowEvidence}>on the card: {field.evidence}</span>
+                    </div>
+                    <div className={styles.choiceRow} role="group" aria-label={field.label}>
+                      {(field.options || []).map((option) => {
+                        // Must be a real boolean: `undefined` makes React drop
+                        // aria-pressed entirely, and a toggle with no pressed
+                        // state is unreadable to a screen reader.
+                        const active = Boolean(
+                          selection[field.key]?.checked &&
+                            String(selection[field.key]?.value) === String(option.value),
+                        );
+                        return (
+                          <button
+                            key={option.label}
+                            type="button"
+                            className={`${styles.choice} ${active ? styles.choiceActive : ''}`}
+                            aria-pressed={active}
+                            onClick={() =>
+                              setSelection((prev) => ({
+                                ...prev,
+                                [field.key]: { checked: true, value: option.value },
+                              }))
+                            }
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className={`${styles.choice} ${
+                          selection[field.key]?.checked === false ? styles.choiceActive : ''
+                        }`}
+                        aria-pressed={selection[field.key]?.checked === false}
+                        onClick={() =>
+                          setSelection((prev) => ({
+                            ...prev,
+                            [field.key]: { checked: false, value: null },
+                          }))
+                        }
+                      >
+                        Skip
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {foundFields.length > 0 && (
+              <section className={styles.group}>
+                <h4 className={styles.groupTitle}>Found on your card</h4>
+                {foundFields.map((field) => (
+                  <div key={field.key} className={styles.row}>
+                    <label className={styles.checkLabel} htmlFor={`import-${field.key}`}>
+                      <input
+                        id={`import-${field.key}`}
+                        type="checkbox"
+                        className={styles.checkbox}
+                        checked ={Boolean(selection[field.key]?.checked)}
+                        onChange={(event) => setFieldChecked(field.key, event.target.checked)}
+                      />
+                      <span className={styles.rowLabel}>{field.label}</span>
+                    </label>
+                    <div className={styles.rowValue}>
+                      <input
+                        type="text"
+                        className={styles.valueInput}
+                        value={selection[field.key]?.value ?? field.value ?? ''}
+                        onChange={(event) => setFieldValue(field.key, event.target.value)}
+                        aria-label={`${field.label} value`}
+                      />
+                      <span className={styles.rowEvidence}>
+                        {field.display ? `read as ${field.display} · ` : ''}
+                        on the card: {field.evidence}
+                      </span>
+                      {field.note ? <span className={styles.rowNote}>{field.note}</span> : null}
+                      {field.confidence === 'low' ? (
+                        <span className={styles.rowNote}>
+                          Worth a check — this one was not a clean read.
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {missingFields.length > 0 && (
+              <section className={styles.group}>
+                <h4 className={styles.groupTitle}>Not on the card</h4>
+                <p className={styles.groupNote}>
+                  {missingFields.map((field) => field.label).join(', ')}. Add these on the form
+                  below — a card is a starting point, not the profile.
+                </p>
+              </section>
+            )}
+
+            {proposal?.shotTypes?.length > 0 && (
+              <section className={styles.group}>
+                <h4 className={styles.groupTitle}>Shots your card shows</h4>
+                <p className={styles.groupNote}>
+                  {proposal.shotTypes.map((shot) => shot.replace(/_/g, ' ')).join(', ')}. These
+                  aren’t imported — your card’s photographs have no shoot date, so they can’t stand
+                  as current digitals.
+                </p>
+              </section>
+            )}
+
+            {foundFields.some((f) => f.group === 'measurements') ||
+            ambiguousFields.length > 0 ? (
+              <p className={styles.finePrint}>
+                Measurements you apply are recorded as declared on import, not measured today — a
+                card can be years old, and an agency sees the difference.
+              </p>
+            ) : null}
+
+            <div className={styles.actions}>
+              <PholioButton
+                variant="primary"
+                type="button"
+                onClick={applySelection}
+                disabled={selectedCount === 0}
+                loading={applying}
+              >
+                {selectedCount === 0
+                  ? 'Nothing selected'
+                  : `Apply ${selectedCount} field${selectedCount === 1 ? '' : 's'}`}
+              </PholioButton>
+              <PholioButton variant="secondary" type="button" onClick={discard}>
+                Discard
+              </PholioButton>
+            </div>
+          </motion.div>
+        )}
+
+        {stage === 'done' && (
+          <motion.div
+            key="done"
+            className={styles.panel}
+            initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={transition}
+          >
+            <h3 className={styles.title}>
+              Added to your <em>profile</em>
+            </h3>
+            <p className={styles.lede}>
+              {appliedCount} field{appliedCount === 1 ? '' : 's'} from your card are now on the form
+              below. Check them over, then fill in what the card didn’t carry.
+            </p>
+            <div className={styles.actions}>
+              <PholioButton
+                variant="secondary"
+                type="button"
+                icon={<RotateCcw size={16} strokeWidth={1.5} />}
+                onClick={reset}
+              >
+                Import another card
+              </PholioButton>
+            </div>
+          </motion.div>
+        )}
+    </div>
+  );
+}

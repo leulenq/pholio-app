@@ -1,0 +1,320 @@
+/*
+ * Comp card import — talent studio vocabulary.
+ *
+ * White surface on warm paper, 16px card radius, pressed-paper wells for the
+ * fields, one gold accent used only for the active choice and focus. No badges,
+ * no chips, no eyebrow above the heading, no glass, no side stripes — see the
+ * banned-patterns list in the root CLAUDE.md and the talent DESIGN.md.
+ */
+
+.wrap {
+  width: 100%;
+}
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.title {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  margin: 0 0 8px;
+}
+
+.title em {
+  font-style: italic;
+  color: #1a1815;
+}
+
+.lede {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0 0 20px;
+  max-width: 68ch;
+}
+
+/* A real message about a real outcome — not a status chip. */
+.notice {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #1a1815;
+  background: #f8f8f7;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 0 0 20px;
+  max-width: 68ch;
+}
+
+/* --- Upload --- */
+
+.dropWell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: #f8f8f7;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  padding: 32px 24px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dropWell:hover {
+  border-color: rgba(201, 165, 90, 0.45);
+  background: #ffffff;
+}
+
+.dropIcon {
+  width: 28px;
+  height: 28px;
+  color: #94a3b8;
+}
+
+.dropHint {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.finePrint {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #94a3b8;
+  margin: 16px 0 0;
+  max-width: 68ch;
+}
+
+/* --- Reading --- */
+
+.readingBar {
+  position: relative;
+  height: 3px;
+  border-radius: 9999px;
+  background: #f1f0ee;
+  overflow: hidden;
+}
+
+.readingBarFill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, #c9a55a, transparent);
+}
+
+/* --- Review --- */
+
+.group {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.group:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.groupTitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin: 0 0 8px;
+}
+
+.groupNote {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0 0 12px;
+  max-width: 68ch;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f0ee;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rowMain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/*
+ * Talent global.css uppercases every bare <label>. These are sentence-case
+ * controls, so the treatment is reset explicitly rather than inherited.
+ */
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: normal;
+  font-family: 'Inter', sans-serif;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #c9a55a;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.rowLabel {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #0f172a;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.rowValue {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.valueInput {
+  width: 100%;
+  max-width: 320px;
+  background: #f8f8f7;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  color: #0f172a;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.valueInput:focus {
+  outline: none;
+  background: #ffffff;
+  border-color: rgba(201, 165, 90, 0.3);
+  box-shadow: 0 0 0 5px rgba(201, 165, 90, 0.12);
+}
+
+/* Where the value came from. This is the difference between a proposal and a
+   number the product appears to have invented. */
+.rowEvidence {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.rowNote {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+/* --- Ambiguous choice --- */
+
+.choiceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #0f172a;
+  background: #f8f8f7;
+  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  padding: 9px 16px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.choice:hover {
+  border-color: rgba(201, 165, 90, 0.5);
+  color: #1a1815;
+}
+
+.choice:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 2px;
+}
+
+.choiceActive {
+  background: #1a1815;
+  border-color: #1a1815;
+  color: #faf9f7;
+}
+
+.choiceActive:hover {
+  color: #faf9f7;
+  border-color: #1a1815;
+}
+
+/* --- Actions --- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+@media (max-width: 640px) {
+  .panel {
+    padding: 20px 16px;
+  }
+
+  .row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .valueInput {
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropWell,
+  .choice,
+  .valueInput {
+    transition: none;
+  }
+}

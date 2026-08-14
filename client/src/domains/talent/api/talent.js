@@ -57,6 +57,16 @@ export const talentApi = {
   sharpenSubmissionNote: (body) => apiClient.post('/submission-note/sharpen', body),
   shortenSubmissionNote: (body) => apiClient.post('/submission-note/shorten', body),
 
+  // Comp card import — read an existing agency card into a reviewable pre-fill.
+  // The card itself is never stored; `importCompCard` returns a proposal and
+  // `confirmCompCardImport` applies only the fields the talent accepted.
+  importCompCard: (formData) => apiClient.post('/comp-card-import', formData),
+  getCompCardImport: (id) => apiClient.get(`/comp-card-import/${encodeURIComponent(id)}`),
+  confirmCompCardImport: (id, accepted) =>
+    apiClient.post(`/comp-card-import/${encodeURIComponent(id)}/confirm`, { accepted }),
+  discardCompCardImport: (id) =>
+    apiClient.post(`/comp-card-import/${encodeURIComponent(id)}/discard`),
+
   // Media
   uploadMedia: (formData) => apiClient.post('/media', formData),
   reorderMedia: (imageIds) => apiClient.put('/media/reorder', { imageIds }),

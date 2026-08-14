@@ -546,6 +546,11 @@
   justify-self: center;
 }
 
+/* Comp card import sits above the form, spaced like a movement. */
+.importPanel {
+  margin-bottom: 40px;
+}
+
 .rightSidebar {
   grid-column: 3;
   grid-row: var(--pf-workspace-row);

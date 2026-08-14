@@ -36,6 +36,7 @@ import { MeasurementsSection } from './MeasurementsSection';
 import { AvailabilitySection } from './AvailabilitySection';
 import { SocialSection } from './SocialSection';
 import { VerifiedAdultSection } from './VerifiedAdultSection';
+import CompCardImport from '../../components/CompCardImport/CompCardImport';
 import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import PholioButton, {
   PholioIconButton,
@@ -945,6 +946,15 @@ export default function ProfilePage() {
 
         {/* Center - Form Fields */}
         <main className={styles.centerContent}>
+          {/*
+            Sits above the form, not inside it: applying an import writes through
+            its own endpoint and then rehydrates this form, so it must not be able
+            to submit the profile form itself.
+          */}
+          <div className={styles.importPanel}>
+            <CompCardImport onApplied={reloadProfile} />
+          </div>
+
           <form
             id="profile-form"
             onSubmit={(e) => {
