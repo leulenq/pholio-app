@@ -2,6 +2,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../../shared/lib/api-client';
 import PholioButton from '../../../shared/components/ui/PholioButton';
+import {
+  formatRegistryDate,
+  groupFindings,
+  readShotCoverage,
+  readSummary,
+  readFreshnessNotice,
+  sourceNeedsReview,
+} from '../lib/specRegistry';
 import styles from './RegistryPreflight.module.css';
 
 /**
@@ -21,41 +29,26 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
-function normalizePayload(value, selectedRevisionId = null) {
-  const envelope = asObject(value?.data ?? value);
-  const routeOptions = asArray(envelope.results);
-  const response = routeOptions.length > 0
-    ? asObject(
-        routeOptions.find((item) => item?.revisionId === selectedRevisionId) ||
-        routeOptions[0],
-      )
-    : envelope;
-  const findings = asArray(response.findings ?? response.assertions);
+/**
+ * A multi-route request answers with `results`; a single-route request answers
+ * with the evaluation itself. Both shapes come from `evaluationDto`, so once
+ * the right entry is picked there is nothing left to normalize.
+ */
+function selectEvaluation(payload, selectedRevisionId) {
+  const envelope = asObject(payload?.data ?? payload);
+  const results = asArray(envelope.results);
+  const evaluation =
+    results.length > 0
+      ? asObject(
+          results.find((item) => item?.revisionId === selectedRevisionId) || results[0],
+        )
+      : envelope;
   return {
-    ...response,
-    findings,
-    routeOptions,
-    resolution: envelope.resolution || response.resolution,
-    available:
-      envelope.available !== false &&
-      response.available !== false &&
-      response.status !== 'unavailable',
+    evaluation,
+    routeOptions: results,
+    resolution: envelope.resolution ?? evaluation.resolution ?? null,
+    available: envelope.available !== false && evaluation.available !== false,
   };
-}
-
-function findingLabel(finding) {
-  return finding.label || finding.requirement || finding.sourceLabel || 'Published requirement';
-}
-
-function findingGuidance(finding) {
-  return finding.guidance || finding.message || finding.detail || null;
-}
-
-function findingAction(finding) {
-  const target = asObject(finding.target ?? finding.action);
-  const href = target.href || finding.actionHref || null;
-  const label = target.label || finding.actionLabel || 'Open details';
-  return href ? { href, label } : null;
 }
 
 function externalLinkProps(href) {
@@ -64,65 +57,87 @@ function externalLinkProps(href) {
     : {};
 }
 
-function factualShotCoverage(response) {
-  const coverage = asObject(response.shotCoverage ?? response.coverage);
-  const selected = Number.isFinite(coverage.selected)
-    ? coverage.selected
-    : Number.isFinite(coverage.selectedCount)
-      ? coverage.selectedCount
-      : null;
-  const published = Number.isFinite(coverage.published)
-    ? coverage.published
-    : Number.isFinite(coverage.slotCount)
-      ? coverage.slotCount
-      : null;
-
-  if (selected === null && published === null) return null;
-  return { selected, published };
-}
-
-function LedgerRow({ finding, onAction }) {
-  const action = findingAction(finding);
-  const guidance = findingGuidance(finding);
-
+function Row({ finding, index, onAction }) {
   return (
-    <li className={styles.row}>
+    <li className={styles.row} style={{ '--row-index': index }}>
       <div className={styles.rowCopy}>
-        <p className={styles.rowTitle}>{findingLabel(finding)}</p>
-        {guidance ? <p className={styles.rowDetail}>{guidance}</p> : null}
+        {/* The server already sorts every requirement into Shots, Files,
+            Eligibility and so on. Showing it turns a flat list into something
+            a talent can act on: what kind of thing is this, before what to do. */}
+        {finding.category ? <p className={styles.rowCategory}>{finding.category}</p> : null}
+        <p className={styles.rowTitle}>{finding.label}</p>
+        {finding.guidance ? <p className={styles.rowDetail}>{finding.guidance}</p> : null}
       </div>
-      {action ? (
+      {finding.target ? (
         <PholioButton
           as="a"
-          href={action.href}
-          {...externalLinkProps(action.href)}
+          href={finding.target.href}
+          {...externalLinkProps(finding.target.href)}
           variant="tertiary"
           className={styles.rowAction}
           onClick={() => onAction?.(finding)}
         >
-          {action.label}
+          {finding.target.label}
         </PholioButton>
       ) : null}
     </li>
   );
 }
 
-function LedgerGroup({ id, title, findings, onAction }) {
+function Group({ id, title, findings, tone, onAction, collapsible = false }) {
   if (!findings.length) return null;
 
+  const body = (
+    <ul className={styles.list}>
+      {findings.map((finding, index) => (
+        <Row key={finding.id} finding={finding} index={index} onAction={onAction} />
+      ))}
+    </ul>
+  );
+
+  // Everything already satisfied is the least urgent thing on the panel and the
+  // longest list. Collapsing it is what gives the groups above it hierarchy.
+  if (collapsible) {
+    return (
+      <details className={`${styles.group} ${styles[tone]}`}>
+        <summary className={styles.groupSummary}>
+          <h3 id={id} className={styles.groupTitle}>{title}</h3>
+          <span className={styles.groupCount}>{findings.length}</span>
+        </summary>
+        {body}
+      </details>
+    );
+  }
+
   return (
-    <section className={styles.group} aria-labelledby={id}>
-      <h3 id={id} className={styles.groupTitle}>{title}</h3>
-      <ul className={styles.list}>
-        {findings.map((finding, index) => (
-          <LedgerRow
-            key={finding.id || finding.assertionId || `${findingLabel(finding)}-${index}`}
-            finding={finding}
-            onAction={onAction}
-          />
-        ))}
-      </ul>
+    <section className={`${styles.group} ${styles[tone]}`} aria-labelledby={id}>
+      <div className={styles.groupHeader}>
+        <h3 id={id} className={styles.groupTitle}>{title}</h3>
+        <span className={styles.groupCount}>{findings.length}</span>
+      </div>
+      {body}
     </section>
+  );
+}
+
+function Coverage({ coverage }) {
+  if (!coverage) return null;
+  const figures = [
+    { label: 'Selected', value: coverage.selected },
+    { label: 'Matched to a slot', value: coverage.matched },
+    { label: 'Published slots', value: coverage.published },
+  ].filter((figure) => figure.value !== null);
+  if (!figures.length) return null;
+
+  return (
+    <dl className={styles.coverage}>
+      {figures.map((figure) => (
+        <div key={figure.label} className={styles.coverageItem}>
+          <dt>{figure.label}</dt>
+          <dd>{figure.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -219,18 +234,18 @@ export default function RegistryPreflight({
     retry: 1,
   });
   const sourcePayload = hasExternalState ? result : preflightQuery.data;
-  const sourceEnvelope = asObject(sourcePayload?.data ?? sourcePayload);
-  const firstRevisionId =
-    asArray(sourceEnvelope.results)[0]?.revisionId || sourceEnvelope.revisionId || null;
+  const envelope = asObject(sourcePayload?.data ?? sourcePayload);
+  const firstRevisionId = asArray(envelope.results)[0]?.revisionId || envelope.revisionId || null;
   const revisionIsControlled = selectedRevisionId !== undefined;
   const activeRevisionId =
     (revisionIsControlled ? selectedRevisionId : internalRevisionId) || firstRevisionId;
-  const response = normalizePayload(
+
+  const { evaluation, routeOptions, resolution, available } = selectEvaluation(
     sourcePayload,
     activeRevisionId,
   );
-  const resolvedAgencyName = agencyName || response.agencyName || response.agency?.name || 'this agency';
-  const resolvedSourceUrl = sourceUrl || response.sourceUrl || response.source?.url || null;
+  const resolvedAgencyName = agencyName || evaluation.agencyName || 'this agency';
+  const resolvedSourceUrl = sourceUrl || evaluation.sourceUrl || null;
   const loading = hasExternalState ? Boolean(isLoading) : preflightQuery.isLoading;
   const requestError = hasExternalState ? error : preflightQuery.error;
 
@@ -239,23 +254,16 @@ export default function RegistryPreflight({
       !hasTarget ||
       loading ||
       requestError ||
-      !response.available ||
-      !response.revisionId ||
+      !available ||
+      !evaluation.revisionId ||
       typeof onRevisionChange !== 'function' ||
-      announcedRevisionId.current === response.revisionId
+      announcedRevisionId.current === evaluation.revisionId
     ) {
       return;
     }
-    announcedRevisionId.current = response.revisionId;
-    onRevisionChange(response.revisionId);
-  }, [
-    hasTarget,
-    loading,
-    onRevisionChange,
-    requestError,
-    response.available,
-    response.revisionId,
-  ]);
+    announcedRevisionId.current = evaluation.revisionId;
+    onRevisionChange(evaluation.revisionId);
+  }, [hasTarget, loading, onRevisionChange, requestError, available, evaluation.revisionId]);
 
   if (!hasTarget) return null;
 
@@ -266,14 +274,16 @@ export default function RegistryPreflight({
     onRevisionChange?.(revisionId);
   };
 
+  const heading = (
+    <h2 id="registry-preflight-title" className={styles.title}>
+      Prepare this package for {resolvedAgencyName}
+    </h2>
+  );
+
   if (loading) {
     return (
       <section className={styles.preflight} aria-labelledby="registry-preflight-title">
-        <header className={styles.header}>
-          <h2 id="registry-preflight-title" className={styles.title}>
-            Prepare this package for {resolvedAgencyName}
-          </h2>
-        </header>
+        <header className={styles.header}>{heading}</header>
         <LoadingLedger />
       </section>
     );
@@ -282,11 +292,7 @@ export default function RegistryPreflight({
   if (requestError) {
     return (
       <section className={styles.preflight} aria-labelledby="registry-preflight-title">
-        <header className={styles.header}>
-          <h2 id="registry-preflight-title" className={styles.title}>
-            Prepare this package for {resolvedAgencyName}
-          </h2>
-        </header>
+        <header className={styles.header}>{heading}</header>
         <div className={styles.state} role="alert">
           <p>Requirements couldn&apos;t load. You can continue—the agency&apos;s site is the source of truth.</p>
           {hasExternalState && typeof onRetry !== 'function' ? null : (
@@ -302,69 +308,69 @@ export default function RegistryPreflight({
     );
   }
 
-  if (!response.available) {
+  if (!available) {
     return (
       <section className={styles.preflight} aria-labelledby="registry-preflight-title">
-        <header className={styles.header}>
-          <h2 id="registry-preflight-title" className={styles.title}>
-            Prepare this package for {resolvedAgencyName}
-          </h2>
-        </header>
+        <header className={styles.header}>{heading}</header>
         <UnavailableState
           agencyName={agencyName}
           sourceUrl={resolvedSourceUrl}
-          reason={response.unavailableReason || response.resolution}
+          reason={resolution}
         />
       </section>
     );
   }
 
-  const groups = {
-    attention: response.findings.filter((finding) =>
-      finding.requiresAttention === true ||
-      (finding.severity == null && ['missing', 'violates'].includes(finding.outcome)),
-    ),
-    guidance: response.findings.filter((finding) => finding.severity === 'informational'),
-    confirm: response.findings.filter((finding) => finding.outcome === 'unknown'),
-    included: response.findings.filter((finding) => finding.outcome === 'satisfied'),
-  };
-  const coverage = factualShotCoverage(response);
+  const groups = groupFindings(evaluation.findings);
+  const summary = readSummary(evaluation.summary);
+  const coverage = readShotCoverage(evaluation.shotCoverage);
+  const checkedOn = formatRegistryDate(evaluation.sourceCheckedOn);
+  const freshnessNotice = readFreshnessNotice(evaluation);
   const hasFindings = Object.values(groups).some((findings) => findings.length > 0);
-  const checkedOn = response.sourceCheckedOn || response.checkedOn || response.lifecycle?.reviewedOn;
 
   return (
     <section className={styles.preflight} aria-labelledby="registry-preflight-title">
       <header className={styles.header}>
-        <h2 id="registry-preflight-title" className={styles.title}>
-          Prepare this package for {resolvedAgencyName}
-        </h2>
-        {checkedOn ? <p className={styles.provenance}>Based on requirements published by the agency, checked {checkedOn}.</p> : null}
-        {response.sourceStatus === 'provisional' ||
-        response.sourceStatus === 'conflicting' ||
-        ['review_due', 'expired'].includes(response.sourceFreshness?.state) ? (
-          <p className={styles.caution}>Some published details could not be confirmed. Review the agency&apos;s wording.</p>
-        ) : null}
-        {coverage ? (
-          <p className={styles.coverage}>
-            {coverage.selected !== null ? `Selected images: ${coverage.selected}` : null}
-            {coverage.selected !== null && coverage.published !== null ? ' · ' : null}
-            {coverage.published !== null ? `Published shot slots: ${coverage.published}` : null}
+        {heading}
+        {checkedOn ? (
+          <p className={styles.provenance}>
+            Based on requirements published by the agency, checked {checkedOn}.
           </p>
         ) : null}
+        {sourceNeedsReview(evaluation) ? (
+          <p className={styles.caution}>
+            {freshnessNotice ||
+              'Some published details could not be confirmed. Review the agency’s wording.'}
+          </p>
+        ) : null}
+        {/* The server counts these buckets already. Leading with them means the
+            talent reads the shape of the work before the list of it. */}
+        {summary && hasFindings ? (
+          <p className={styles.tally}>
+            {[
+              summary.needsAttention ? `${summary.needsAttention} need attention` : null,
+              summary.confirm ? `${summary.confirm} to confirm` : null,
+              summary.included ? `${summary.included} already included` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        ) : null}
+        <Coverage coverage={coverage} />
       </header>
 
-      {response.routeOptions.length > 1 ? (
+      {routeOptions.length > 1 ? (
         <div className={styles.routeChoice}>
           <label htmlFor="registry-route-select">Submission route</label>
           <select
             id="registry-route-select"
             className={styles.routeSelect}
-            value={response.revisionId || ''}
+            value={evaluation.revisionId || ''}
             onChange={handleRevisionChange}
           >
-            {response.routeOptions.map((option) => (
+            {routeOptions.map((option) => (
               <option key={option.revisionId} value={option.revisionId}>
-                {option.agencyName || option.organization?.name || 'Agency'} — {option.marketLabel || option.market?.city || option.market?.code || 'Published route'}
+                {option.agencyName} — {option.marketLabel || 'Published route'}
               </option>
             ))}
           </select>
@@ -374,10 +380,35 @@ export default function RegistryPreflight({
 
       {hasFindings ? (
         <div className={styles.ledger}>
-          <LedgerGroup id="registry-attention" title="Needs attention" findings={groups.attention} onAction={onAction} />
-          <LedgerGroup id="registry-guidance" title="Published guidance" findings={groups.guidance} onAction={onAction} />
-          <LedgerGroup id="registry-confirm" title="Confirm before sending" findings={groups.confirm} onAction={onAction} />
-          <LedgerGroup id="registry-included" title="Included in this package" findings={groups.included} onAction={onAction} />
+          <Group
+            id="registry-attention"
+            title="Needs attention"
+            tone="toneAttention"
+            findings={groups.attention}
+            onAction={onAction}
+          />
+          <Group
+            id="registry-confirm"
+            title="Confirm before sending"
+            tone="toneConfirm"
+            findings={groups.confirm}
+            onAction={onAction}
+          />
+          <Group
+            id="registry-guidance"
+            title="Published guidance"
+            tone="toneGuidance"
+            findings={groups.guidance}
+            onAction={onAction}
+          />
+          <Group
+            id="registry-included"
+            title="Included in this package"
+            tone="toneIncluded"
+            findings={groups.included}
+            onAction={onAction}
+            collapsible
+          />
         </div>
       ) : (
         <p className={styles.empty}>No published requirements need action for this package.</p>

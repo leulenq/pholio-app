@@ -68,28 +68,62 @@
   list-style: none;
 }
 
-.routeButton:global(.pholio-btn) {
+/* A directory entry rather than a button: the gold rule on the leading edge
+   marks the selected agency without the row reading as a control. */
+.routeItem {
+  position: relative;
   display: grid;
-  justify-content: start;
   width: 100%;
   min-height: 58px;
-  padding: 11px 12px;
-  border: 1px solid transparent;
+  margin: 0;
+  padding: 11px 12px 11px 14px;
+  border: 0;
   border-radius: 8px;
+  background: transparent;
   color: #4b5563;
   text-align: left;
-  white-space: normal;
+  cursor: pointer;
+  animation: routeEnter 0.24s cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation-delay: calc(var(--route-index, 0) * 30ms);
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.routeButton:global(.pholio-btn):hover,
-.routeButton:global(.pholio-btn):focus-visible {
-  border-color: rgba(201, 165, 90, 0.32);
-  background: rgba(201, 165, 90, 0.06);
+@keyframes routeEnter {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.routeItem::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 1px;
+  background: transparent;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.routeItem:hover,
+.routeItem:focus-visible {
+  background: rgba(201, 165, 90, 0.07);
   color: #1a1815;
+  outline: none;
 }
 
-.routeButtonSelected:global(.pholio-btn) {
-  border-color: rgba(26, 24, 21, 0.18);
+.routeItem:focus-visible::before,
+.routeItemSelected::before {
+  background: #c9a55a;
+}
+
+.routeItemSelected {
   background: #ffffff;
   color: #1a1815;
 }
@@ -164,6 +198,38 @@
   color: #4b5563;
 }
 
+/* Three registers instead of three identical paragraphs: the market names the
+   route, the source line is provenance, and the caution is the only thing here
+   that asks the talent to go and do something. */
+.detailMarket {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 0.9375rem;
+}
+
+.detailSource {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
+}
+
+.detailSource p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.detailSource .detailCaution {
+  margin-top: 4px;
+  color: #1a1815;
+  font-weight: 500;
+}
+
+.directoryState .directoryStateHint {
+  color: #6b7280;
+  font-size: 0.8125rem;
+}
+
 .detailEmpty {
   padding: 28px 0;
 }
@@ -215,7 +281,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .masthead,
+  .routeItem,
   .directoryLoading span {
     animation: none;
+  }
+
+  .routeItem,
+  .routeItem::before {
+    transition: none;
   }
 }

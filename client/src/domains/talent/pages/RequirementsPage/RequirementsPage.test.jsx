@@ -41,20 +41,35 @@ function renderPage() {
   );
 }
 
+/*
+ * Mirrors `routeDto` in `src/domains/spec-registry/preflight-service.js`, which
+ * flattens the spec before it leaves the server. The previous fixture invented
+ * nested shapes (`scope.organization.name`, `lifecycle.reviewedOn`) and an
+ * `organizationName` field that the API has never sent, so these tests were
+ * exercising a contract that did not exist.
+ */
 const routes = [
   {
     seriesId: 'elite-models-na:online-general',
-    scope: {
-      organization: { name: 'Elite Models' },
-      market: { city: 'New York' },
-      channel: { url: 'https://example.com/elite' },
-    },
-    lifecycle: { reviewedOn: '2026-08-09' },
+    revisionId: 'elite-models-na:online-general@3',
+    agencyName: 'Elite Models',
+    organization: { id: 'org-elite', name: 'Elite Models' },
+    marketLabel: 'New York',
+    sourceUrl: 'https://example.com/elite',
+    sourceStatus: 'confirmed',
+    sourceCheckedOn: '2026-08-09',
+    sourceFreshness: { state: 'checked', nextReviewOn: '2026-11-09' },
   },
   {
     seriesId: 'models1-uk:online',
-    organizationName: 'Models 1',
-    marketName: 'London',
+    revisionId: 'models1-uk:online@1',
+    agencyName: 'Models 1',
+    organization: { id: 'org-models1', name: 'Models 1' },
+    marketLabel: 'London',
+    sourceUrl: null,
+    sourceStatus: 'confirmed',
+    sourceCheckedOn: null,
+    sourceFreshness: { state: 'unknown', nextReviewOn: null },
   },
 ];
 
@@ -78,37 +93,42 @@ describe('RequirementsPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByRole('button', { name: /elite models/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByRole('button', { name: /elite models/i })).toHaveAttribute('aria-current', 'true');
     await waitFor(() => {
       expect(talentApi.preflightSpecRegistry).toHaveBeenCalledWith({
         seriesIds: ['elite-models-na:online-general', 'models1-uk:online'],
         imageIds: ['active-image'],
       });
     });
-    expect(screen.getByText('Source checked 2026-08-09')).toBeInTheDocument();
+    // `sourceCheckedOn` is a calendar date on the wire; the page reads it back
+    // to the talent rather than printing the stored value.
+    expect(screen.getByText('Source checked August 9, 2026')).toBeInTheDocument();
+    expect(screen.queryByText(/2026-08-09/)).not.toBeInTheDocument();
     expect(screen.getByTestId('registry-preflight')).toHaveTextContent('elite-models-na:online-general');
   });
 
   test('switches the detail view with keyboard-accessible route buttons', async () => {
-    talentApi.getSpecRegistryRoutes.mockResolvedValue(routes);
-    talentApi.preflightSpecRegistry.mockResolvedValue([
-      { seriesId: 'elite-models-na:online-general', available: true },
-      { seriesId: 'models1-uk:online', available: true },
-    ]);
+    talentApi.getSpecRegistryRoutes.mockResolvedValue({ routes });
+    talentApi.preflightSpecRegistry.mockResolvedValue({
+      results: [
+        { seriesId: 'elite-models-na:online-general', available: true },
+        { seriesId: 'models1-uk:online', available: true },
+      ],
+    });
     const user = userEvent.setup();
     renderPage();
 
     const models1 = await screen.findByRole('button', { name: /models 1/i });
     await user.click(models1);
 
-    expect(models1).toHaveAttribute('aria-pressed', 'true');
+    expect(models1).toHaveAttribute('aria-current', 'true');
     expect(screen.getByTestId('registry-preflight')).toHaveTextContent('models1-uk:online');
   });
 
   test('offers a retry when directory loading fails', async () => {
     talentApi.getSpecRegistryRoutes.mockRejectedValueOnce(new Error('offline'));
     talentApi.getSpecRegistryRoutes.mockRejectedValueOnce(new Error('offline'));
-    talentApi.getSpecRegistryRoutes.mockResolvedValueOnce([]);
+    talentApi.getSpecRegistryRoutes.mockResolvedValueOnce({ routes: [] });
     const user = userEvent.setup();
     renderPage();
 

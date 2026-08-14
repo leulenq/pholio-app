@@ -17,17 +17,25 @@ function renderPreflight(props = {}) {
   );
 }
 
+/*
+ * Mirrors what `evaluationDto` actually sends (see
+ * `src/domains/spec-registry/preflight-service.js`). The previous fixture used
+ * a `label` field and a pre-formatted `sourceCheckedOn`, neither of which the
+ * server produces — so the suite passed against a contract that did not exist
+ * and could not catch the component drifting away from the real one.
+ */
 const result = {
   available: true,
-  sourceCheckedOn: 'August 9, 2026',
-  shotCoverage: { selected: 4, published: 6 },
+  sourceCheckedOn: '2026-08-09',
+  summary: { needsAttention: 2, informational: 1, confirm: 1, included: 1 },
+  shotCoverage: { selected: 4, published: 6, matched: 3 },
   findings: [
-    { id: 'missing-profile', outcome: 'missing', label: 'Profile image', guidance: 'Add a side profile.', target: { href: '/dashboard/talent/media', label: 'Open the book' } },
-    { id: 'filter', outcome: 'violates', label: 'No filters', guidance: 'Choose an unfiltered image.' },
-    { id: 'preferred-height', outcome: 'violates', severity: 'informational', requiresAttention: false, label: 'Preferred height', guidance: 'This is agency guidance.' },
-    { id: 'hair', outcome: 'unknown', label: 'Hair pulled back', guidance: 'Confirm this before sending.' },
-    { id: 'headshot', outcome: 'satisfied', label: 'Headshot', guidance: 'Included.' },
-    { id: 'skip', outcome: 'not_applicable', label: 'Not applicable' },
+    { id: 'shots:missing-profile', category: 'Shots', outcome: 'missing', severity: 'attention', requiresAttention: true, sourceLabel: 'Profile image', guidance: 'Add a side profile.', target: { href: '/dashboard/talent/media', label: 'Open the book' } },
+    { id: 'files:filter', category: 'Files', outcome: 'violates', severity: 'attention', requiresAttention: true, sourceLabel: 'No filters', guidance: 'Choose an unfiltered image.' },
+    { id: 'setWide:preferred-height', category: 'Presentation', outcome: 'violates', severity: 'informational', requiresAttention: false, sourceLabel: 'Preferred height', guidance: 'This is agency guidance.' },
+    { id: 'shots:hair', category: 'Shots', outcome: 'unknown', severity: null, requiresAttention: false, sourceLabel: 'Hair pulled back', guidance: 'Confirm this before sending.' },
+    { id: 'shots:headshot', category: 'Shots', outcome: 'satisfied', severity: null, requiresAttention: false, sourceLabel: 'Headshot', guidance: 'Included.' },
+    { id: 'shots:skip', category: 'Shots', outcome: 'not_applicable', severity: null, requiresAttention: false, sourceLabel: 'Not applicable' },
   ],
 };
 
@@ -48,10 +56,42 @@ describe('RegistryPreflight', () => {
     expect(screen.getByText('Hair pulled back')).toBeInTheDocument();
     expect(screen.getByText('Headshot')).toBeInTheDocument();
     expect(screen.queryByText('Not applicable')).not.toBeInTheDocument();
-    expect(screen.getByText('Selected images: 4 · Published shot slots: 6')).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.queryByText(/score|%|out of/i)).not.toBeInTheDocument();
     expect(queryFn).toHaveBeenCalledWith({ agencyId: 'agency-1', imageIds: ['a', 'b'], seriesId: undefined });
+  });
+
+  test('reports the server summary and the full shot coverage', async () => {
+    renderPreflight({ queryFn: () => Promise.resolve(result) });
+
+    await screen.findByRole('heading', { name: 'Needs attention' });
+    expect(screen.getByText('2 need attention · 1 to confirm · 1 already included')).toBeInTheDocument();
+
+    // `matched` says how much of the talent's own package landed in a
+    // published slot; the previous reader dropped it entirely.
+    const coverage = ['Selected', 'Matched to a slot', 'Published slots'];
+    for (const label of coverage) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  test('renders each finding under the category the server assigned it', async () => {
+    renderPreflight({ queryFn: () => Promise.resolve(result) });
+
+    await screen.findByText('Profile image');
+    expect(screen.getAllByText('Shots').length).toBeGreaterThan(0);
+    expect(screen.getByText('Files')).toBeInTheDocument();
+    expect(screen.getByText('Presentation')).toBeInTheDocument();
+  });
+
+  test('formats the source date rather than printing the raw calendar value', async () => {
+    renderPreflight({ queryFn: () => Promise.resolve(result) });
+
+    expect(
+      await screen.findByText(/checked August 9, 2026\./),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/2026-08-09/)).not.toBeInTheDocument();
   });
 
   test('shows a skeleton while the preflight is loading', () => {
@@ -117,7 +157,7 @@ describe('RegistryPreflight', () => {
     const action = await screen.findByRole('link', { name: 'Open the book' });
     expect(action).not.toHaveAttribute('aria-disabled', 'true');
     await user.click(action);
-    expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ id: 'missing-profile' }));
+    expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ id: 'shots:missing-profile' }));
   });
 
   test('unwraps the single result returned by the batched preflight endpoint', async () => {

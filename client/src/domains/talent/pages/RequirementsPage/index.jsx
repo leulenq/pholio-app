@@ -4,42 +4,20 @@ import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import RegistryPreflight from '../../components/RegistryPreflight';
+import {
+  formatRegistryDate,
+  readFreshnessNotice,
+  readRoutes,
+  sourceNeedsReview,
+} from '../../lib/specRegistry';
 import styles from './RequirementsPage.module.css';
 
-function asArray(value) {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.routes)) return value.routes;
-  if (Array.isArray(value?.data)) return value.data;
-  return [];
-}
-
-function marketLabel(route) {
-  const market = route?.market || route?.scope?.market || {};
-  return route?.marketLabel || route?.marketName || market.name || market.city || market.code || route?.officeName || route?.scope?.office?.name || 'Market not published';
-}
-
-function routeName(route) {
-  return route?.agencyName || route?.organizationName || route?.organization?.name || route?.scope?.organization?.name || route?.name || 'Agency route';
-}
-
-function routeSeriesId(route) {
-  return route?.seriesId || route?.series_id || route?.id || null;
-}
-
-function normalizedRoutes(value) {
-  return asArray(value)
-    .map((route) => ({
-      ...route,
-      seriesId: routeSeriesId(route),
-      agencyName: routeName(route),
-      marketName: marketLabel(route),
-      sourceUrl: route?.sourceUrl || route?.source?.url || route?.scope?.channel?.url || null,
-      checkedOn: route?.sourceCheckedOn || route?.checkedOn || route?.lifecycle?.reviewedOn || null,
-      freshness: route?.sourceFreshness || route?.freshness || null,
-    }))
-    .filter((route) => Boolean(route.seriesId));
-}
-
+/**
+ * Which of the talent's images the preflight should evaluate: their current,
+ * agency-visible digitals. Anything retired, hidden from agencies, or not a
+ * still image would make the coverage figures describe a package they cannot
+ * actually send.
+ */
 function activeImageIds(images, profile) {
   const candidates = Array.isArray(images)
     ? images
@@ -62,33 +40,9 @@ function activeImageIds(images, profile) {
     .sort();
 }
 
-function freshnessLabel(value) {
-  if (!value || typeof value !== 'object') return null;
-  if (value.state === 'review_due') {
-    return value.nextReviewOn
-      ? `Source review was due ${value.nextReviewOn}. Confirm on the agency site.`
-      : 'Source review is due. Confirm on the agency site.';
-  }
-  if (value.state === 'expired') {
-    return 'The recorded effective period has ended. Confirm on the agency site.';
-  }
-  if (value.state === 'unknown') {
-    return 'Source freshness is not yet recorded.';
-  }
-  return null;
-}
-
-function preflightResults(value) {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.results)) return value.results;
-  if (Array.isArray(value?.data?.results)) return value.data.results;
-  return [];
-}
-
-function resultForRoute(results, route) {
-  return results.find((result) =>
-    [result?.seriesId, result?.series_id, result?.routeSeriesId].includes(route.seriesId),
-  ) || null;
+function preflightResults(payload) {
+  const envelope = payload?.data ?? payload;
+  return Array.isArray(envelope?.results) ? envelope.results : [];
 }
 
 function RoutesLoading() {
@@ -123,7 +77,7 @@ export default function RequirementsPage() {
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });
-  const routes = useMemo(() => normalizedRoutes(routesQuery.data), [routesQuery.data]);
+  const routes = useMemo(() => readRoutes(routesQuery.data), [routesQuery.data]);
 
   const seriesIds = useMemo(() => routes.map((route) => route.seriesId), [routes]);
   const preflightQuery = useQuery({
@@ -133,10 +87,17 @@ export default function RequirementsPage() {
     staleTime: 30_000,
     retry: 1,
   });
-  const selectedRoute = routes.find((route) => route.seriesId === selectedSeriesId) || routes[0] || null;
+
+  const selectedRoute =
+    routes.find((route) => route.seriesId === selectedSeriesId) || routes[0] || null;
   const selectedResult = selectedRoute
-    ? resultForRoute(preflightResults(preflightQuery.data), selectedRoute)
+    ? preflightResults(preflightQuery.data).find(
+        (result) => result?.seriesId === selectedRoute.seriesId,
+      ) || null
     : null;
+
+  const checkedOn = formatRegistryDate(selectedRoute?.sourceCheckedOn);
+  const freshnessNotice = selectedRoute ? readFreshnessNotice(selectedRoute) : null;
 
   return (
     <div className={styles.page}>
@@ -148,48 +109,59 @@ export default function RequirementsPage() {
       </header>
 
       <div className={styles.workspace}>
-        <aside className={styles.directory} aria-label="Agency requirement routes">
+        <nav className={styles.directory} aria-label="Agency requirement routes">
           <h2>Published routes</h2>
           {routesQuery.isLoading ? <RoutesLoading /> : null}
           {routesQuery.isError ? <RoutesError onRetry={() => routesQuery.refetch()} /> : null}
           {!routesQuery.isLoading && !routesQuery.isError && routes.length === 0 ? (
             <div className={styles.directoryState}>
               <p>No agency requirement routes are available yet.</p>
+              <p className={styles.directoryStateHint}>
+                Pholio adds routes as agencies publish them. Your book stays ready in the meantime.
+              </p>
             </div>
           ) : null}
           {routes.length > 0 ? (
-            <ol className={styles.routeList}>
-              {routes.map((route) => {
+            <ul className={styles.routeList}>
+              {routes.map((route, index) => {
                 const selected = route.seriesId === selectedRoute?.seriesId;
                 return (
-                  <li key={route.seriesId}>
-                    <PholioButton
+                  <li key={route.seriesId} style={{ '--route-index': index }}>
+                    {/* A directory entry, not a command: these read as a list of
+                        agencies and select one, so they carry list semantics and
+                        the page's own type rather than button chrome. */}
+                    <button
                       type="button"
-                      variant="tertiary"
-                      className={`${styles.routeButton}${selected ? ` ${styles.routeButtonSelected}` : ''}`}
-                      aria-pressed={selected}
+                      className={`${styles.routeItem}${selected ? ` ${styles.routeItemSelected}` : ''}`}
+                      aria-current={selected ? 'true' : undefined}
                       onClick={() => setSelectedSeriesId(route.seriesId)}
                     >
                       <span className={styles.routeName}>{route.agencyName}</span>
-                      <span className={styles.routeMarket}>{route.marketName}</span>
-                    </PholioButton>
+                      {route.marketLabel ? (
+                        <span className={styles.routeMarket}>{route.marketLabel}</span>
+                      ) : null}
+                    </button>
                   </li>
                 );
               })}
-            </ol>
+            </ul>
           ) : null}
-        </aside>
+        </nav>
 
         <section className={styles.detail} aria-live="polite">
           {selectedRoute ? (
             <>
               <header className={styles.detailHeader}>
                 <h2>{selectedRoute.agencyName}</h2>
-                <p>{selectedRoute.marketName}</p>
-                {selectedRoute.checkedOn ? <p>Source checked {selectedRoute.checkedOn}</p> : null}
-                {freshnessLabel(selectedRoute.freshness) ? (
-                  <p>{freshnessLabel(selectedRoute.freshness)}</p>
+                {selectedRoute.marketLabel ? (
+                  <p className={styles.detailMarket}>{selectedRoute.marketLabel}</p>
                 ) : null}
+                <div className={styles.detailSource}>
+                  {checkedOn ? <p>Source checked {checkedOn}</p> : null}
+                  {sourceNeedsReview(selectedRoute) && freshnessNotice ? (
+                    <p className={styles.detailCaution}>{freshnessNotice}</p>
+                  ) : null}
+                </div>
               </header>
               <RegistryPreflight
                 seriesId={selectedRoute.seriesId}
