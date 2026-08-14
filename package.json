@@ -26,6 +26,8 @@
     "sync:spec-registry": "node scripts/sync-spec-registry.js",
     "map:spec-registry-agencies": "node scripts/map-spec-registry-agencies.js",
     "verify:spec-registry-release": "node scripts/map-spec-registry-agencies.js --verify-only",
+    "delist:spec-registry": "node scripts/delist-spec-registry-agency.js",
+    "report:spec-registry-engagement": "node scripts/spec-registry-engagement.js",
     "release:spec-registry": "npm run migrate && npm run sync:spec-registry && npm run map:spec-registry-agencies && npm run verify:spec-registry-release",
     "test": "node scripts/run-jest.js --runInBand --forceExit",
     "test:db": "node scripts/test-neon-connection.js",

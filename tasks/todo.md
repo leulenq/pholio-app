@@ -560,3 +560,45 @@ as batch 15; the same 7 unrelated pending migrations remain untouched.
 - [x] Confirm Meta's Instagram Login applies to professional (business/creator) accounts.
 - [x] Preserve validated adult eligibility across the Instagram signup redirect.
 - [ ] Verify the login and signup handoffs with focused tests.
+
+---
+
+## Spec-correct export + requirements rebuild — in progress
+
+Brief: [`docs/spec-correct-export-brief.md`](../docs/spec-correct-export-brief.md).
+
+### 1. Export — service + route
+
+- [ ] `export/zip.js` — stored-entry ZIP writer. No new dependency: already-compressed
+      JPEG/WebP bytes do not deflate, so `store` is both correct and small.
+- [ ] `export/export-plan.js` — pure planner over `rules.files` (`per_file` / `total_set` /
+      `whole_package` size, count and mime constraints) plus the shot-slot assignments the
+      matcher already produced.
+- [ ] `export/spec-export-service.js` — Sharp resize/encode/name pipeline. **No crop step**:
+      the schema carries no dimension, aspect or orientation rule, so there is no crop target.
+- [ ] `POST /api/talent/spec-registry/export`. Never gated behind Studio+ (guardrail 1).
+
+### 2. Instrumentation (guardrail 4)
+
+- [ ] Migration: `spec_registry_engagement_events`.
+- [ ] `export` recorded by the export route; `outbound_click` by a new route.
+- [ ] `summarizeEngagement()` + a script that prints the per-agency sentence.
+
+### 3. Removal path (guardrail 3)
+
+- [ ] Migration: `delisted_at` / `delisted_reason` on `spec_registry_series`.
+- [ ] Every read path in `store/repository.js` filters delisted series.
+- [ ] `scripts/delist-spec-registry-agency.js`.
+
+### 4. Rebuilt talent requirements surface
+
+Rebuild, not extend. The existing markup and CSS are behaviour reference only.
+
+- [ ] Requirement framing — "published requirements", "your set covers 4 of 6"; never
+      "Prepare this package for X", because nothing is sent to a non-customer agency.
+- [ ] One directory, marked per entry as inline plain text. No badge/chip/pill/dot
+      (root `CLAUDE.md` bans 4, 5, 7, 10).
+- [ ] The full check for everyone, customer agency or not.
+- [ ] Provenance on every entry: source link, checked-on date, non-affiliation.
+- [ ] Export action and an instrumented outbound link.
+- [ ] One reader only — `lib/specRegistry.js`.

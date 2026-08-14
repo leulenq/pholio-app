@@ -19,6 +19,38 @@ function dateOnly(value) {
   return String(value).slice(0, 10);
 }
 
+/**
+ * Whether this database has the delisting column yet.
+ *
+ * Guardrail 3's removal path lands in a migration, and the registry read paths
+ * run against databases that may not have applied it — a hand-built test
+ * schema, or a deploy where the code is live a moment before the migration is.
+ * Probing keeps a missing column from turning every registry read into an
+ * error, which is the failure mode that would matter: the directory going dark
+ * is far worse than a delisting taking effect one deploy later.
+ *
+ * Only the positive result is cached. A column, once added, does not go away,
+ * but a suite that builds its schema after the first read still picks it up.
+ */
+const delistingColumnReady = new WeakSet();
+
+async function hasDelistingColumn(db) {
+  const key = db.client || db;
+  if (delistingColumnReady.has(key)) return true;
+  try {
+    const exists = await db.schema.hasColumn("spec_registry_series", "delisted_at");
+    if (exists) delistingColumnReady.add(key);
+    return exists;
+  } catch {
+    return false;
+  }
+}
+
+/** Restrict a query to series that are still listed. */
+function whereListed(query, alias, enabled) {
+  return enabled ? query.whereNull(`${alias}.delisted_at`) : query;
+}
+
 function mapDataset(row) {
   if (!row) return null;
   return {
@@ -101,8 +133,8 @@ const ROUTE_COLUMNS = [
   "revision.payload_sha256",
 ];
 
-function currentRouteQuery(db, datasetVersion) {
-  return db({ record: "spec_registry_dataset_records" })
+function currentRouteQuery(db, datasetVersion, listedOnly = false) {
+  const query = db({ record: "spec_registry_dataset_records" })
     .join(
       { revision: "spec_registry_revisions" },
       "revision.revision_id",
@@ -110,6 +142,12 @@ function currentRouteQuery(db, datasetVersion) {
     )
     .where("record.dataset_version", datasetVersion)
     .select("record.series_id", "record.revision_id", ...ROUTE_COLUMNS);
+  if (!listedOnly) return query;
+  return whereListed(
+    query.join({ series: "spec_registry_series" }, "series.series_id", "record.series_id"),
+    "series",
+    true,
+  );
 }
 
 /**
@@ -118,8 +156,8 @@ function currentRouteQuery(db, datasetVersion) {
  * These never join the editorial dataset — that package is file-authored and
  * hash-locked as a whole — so the series row names its own current revision.
  */
-function authoredRouteQuery(db) {
-  return db({ series: "spec_registry_series" })
+function authoredRouteQuery(db, listedOnly = false) {
+  const query = db({ series: "spec_registry_series" })
     .join(
       { revision: "spec_registry_revisions" },
       "revision.revision_id",
@@ -128,6 +166,7 @@ function authoredRouteQuery(db) {
     .where("series.origin", "agency")
     .whereNotNull("series.current_revision_id")
     .select("series.series_id", "series.current_revision_id as revision_id", ...ROUTE_COLUMNS);
+  return whereListed(query, "series", listedOnly);
 }
 
 async function listCurrentRoutes(db, { agencyId = null } = {}) {
@@ -141,6 +180,7 @@ async function listCurrentRoutes(db, { agencyId = null } = {}) {
     };
   }
 
+  const listedOnly = await hasDelistingColumn(db);
   let rows;
   let resolution = "all";
   if (agencyId) {
@@ -159,11 +199,14 @@ async function listCurrentRoutes(db, { agencyId = null } = {}) {
     }
 
     const seriesIds = links.map((link) => link.series_id);
-    const authoredSeries = await db("spec_registry_series")
-      .whereIn("series_id", seriesIds)
-      .where("origin", "agency")
-      .whereNotNull("current_revision_id")
-      .pluck("series_id");
+    const authoredSeries = await whereListed(
+      db({ series: "spec_registry_series" })
+        .whereIn("series.series_id", seriesIds)
+        .where("series.origin", "agency")
+        .whereNotNull("series.current_revision_id"),
+      "series",
+      listedOnly,
+    ).pluck("series.series_id");
 
     // An agency that has published its own requirements has superseded whatever
     // Pholio observed about it from the outside. Its own words are the route.
@@ -178,12 +221,12 @@ async function listCurrentRoutes(db, { agencyId = null } = {}) {
     const [editorialRows, authoredRows] = await Promise.all([
       authoredSet.size
         ? []
-        : currentRouteQuery(db, dataset.datasetVersion).whereIn(
+        : currentRouteQuery(db, dataset.datasetVersion, listedOnly).whereIn(
             "record.series_id",
             effective,
           ),
       authoredSet.size
-        ? authoredRouteQuery(db).whereIn("series.series_id", effective)
+        ? authoredRouteQuery(db, listedOnly).whereIn("series.series_id", effective)
         : [],
     ]);
     rows = [...editorialRows, ...authoredRows];
@@ -199,8 +242,8 @@ async function listCurrentRoutes(db, { agencyId = null } = {}) {
     // The public directory is the editorial package plus every agency that has
     // published its own route. The registry compounds as agencies onboard.
     const [editorialRows, authoredRows] = await Promise.all([
-      currentRouteQuery(db, dataset.datasetVersion),
-      authoredRouteQuery(db),
+      currentRouteQuery(db, dataset.datasetVersion, listedOnly),
+      authoredRouteQuery(db, listedOnly),
     ]);
     rows = [...editorialRows, ...authoredRows].sort(
       (left, right) =>
@@ -218,9 +261,18 @@ async function listCurrentRoutes(db, { agencyId = null } = {}) {
 }
 
 async function getCurrentRevision(db, seriesId) {
+  const listedOnly = await hasDelistingColumn(db);
+  const columns = ["origin", "current_revision_id"];
+  if (listedOnly) columns.push("delisted_at");
   const series = await db("spec_registry_series")
     .where({ series_id: seriesId })
-    .first("origin", "current_revision_id");
+    .first(...columns);
+
+  // A delisted agency is gone from every read path, not merely from the
+  // directory. Resolving a revision by id is how the preflight, the export and
+  // an application snapshot each reach a spec, so the check belongs here rather
+  // than being repeated at three call sites that could each forget it.
+  if (series?.delisted_at) return null;
 
   // Agency-authored series resolve through their own pointer and belong to no
   // dataset, so `datasetVersion` is null rather than borrowed from the

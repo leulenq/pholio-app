@@ -13,6 +13,11 @@ const {
   listRegistryRoutes,
   preflightRegistry,
 } = require("../../spec-registry/preflight-service");
+const { buildSpecExport } = require("../../spec-registry/export/spec-export-service");
+const {
+  EVENT_TYPES,
+  recordEngagement,
+} = require("../../spec-registry/engagement-service");
 
 const router = express.Router();
 const SERIES_ID_PATTERN = /^[a-z0-9][a-z0-9:_-]{0,179}$/;
@@ -180,6 +185,107 @@ router.post(
         expectedRevisionId,
       });
       return apiResponse.success(res, payload);
+    } catch (error) {
+      return sendRegistryError(res, error);
+    }
+  }),
+);
+
+/**
+ * Which Pholio agency, if any, this series belongs to.
+ *
+ * Only used to tag an engagement event, so a failure here must not fail the
+ * download: the count is worth less than the thing being counted.
+ */
+async function pholioAgencyIdForSeries(seriesId) {
+  try {
+    const row = await knex("spec_registry_agency_routes as r")
+      .join("agencies as a", "a.id", "r.agency_id")
+      .where("r.series_id", seriesId)
+      .where("a.status", "ACTIVE")
+      .first("a.id");
+    return row?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Download the talent's images, prepared to one agency's published requirements.
+ *
+ * Deliberately not gated behind Studio+. A spec-correct set exists to get the
+ * talent into an agency's hands, which places it in the submission pipeline
+ * invariant A1-2 protects and inside the Cal. Lab. Code §1701 analysis in C1 —
+ * charging so that more agencies receive your submission is the statutory
+ * tripwire. See guardrail 1 of `docs/spec-correct-export-brief.md`; keep this
+ * line visible in review.
+ */
+router.post(
+  "/export",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    try {
+      const body = req.body || {};
+      const seriesId = normalizedSeriesId(body.seriesId);
+      // Omitting `imageIds` exports the whole eligible book; sending an empty
+      // array would otherwise mean "chose nothing", which is a valid preflight
+      // answer and a pointless download.
+      const imageIds =
+        body.imageIds === undefined ? null : normalizedImageIds(body.imageIds);
+      const profile = await ownProfile(req);
+      if (!profile) return apiResponse.error(res, "Profile not found", 404);
+
+      const { archiveName, buffer, manifest } = await buildSpecExport(knex, {
+        profileId: profile.id,
+        seriesId,
+        imageIds,
+      });
+
+      await recordEngagement(knex, {
+        seriesId,
+        profileId: profile.id,
+        eventType: EVENT_TYPES.EXPORT,
+        agencyId: await pholioAgencyIdForSeries(seriesId),
+        revisionId: manifest.revisionId,
+        fileCount: manifest.entries.length,
+      });
+
+      res.set("Content-Type", "application/zip");
+      res.set("Content-Disposition", `attachment; filename="${archiveName}"`);
+      res.set("Content-Length", String(buffer.length));
+      // The manifest is inside the archive; this header lets the surface report
+      // what shipped without unzipping the response it just triggered.
+      res.set("X-Pholio-Export-Files", String(manifest.entries.length));
+      return res.send(buffer);
+    } catch (error) {
+      return sendRegistryError(res, error);
+    }
+  }),
+);
+
+/**
+ * The talent followed the link to the agency's own application page.
+ *
+ * Recorded, then answered plainly. The client fires this alongside opening the
+ * link rather than through it — a redirect Pholio owns would put Pholio in the
+ * path of an application it has nothing to do with.
+ */
+router.post(
+  "/outbound-click",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    try {
+      const seriesId = normalizedSeriesId((req.body || {}).seriesId);
+      const profile = await ownProfile(req);
+      if (!profile) return apiResponse.error(res, "Profile not found", 404);
+
+      const recorded = await recordEngagement(knex, {
+        seriesId,
+        profileId: profile.id,
+        eventType: EVENT_TYPES.OUTBOUND_CLICK,
+        agencyId: await pholioAgencyIdForSeries(seriesId),
+      });
+      return apiResponse.success(res, { recorded });
     } catch (error) {
       return sendRegistryError(res, error);
     }
