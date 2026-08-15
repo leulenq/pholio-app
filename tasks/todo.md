@@ -327,6 +327,60 @@ DESIGN RULES (talent-side frontend)
   utils + api methods (logTrackedSubmission/listCallWindows contract, query keys
   ['tracker']/['call-windows']) + Overview "Open calls this week" card. Lead pre-wired:
   route mounts (1c558b0), shared callWindows formatter (212af43).
+- Phase 6 CLIENT WAVE LANDED + PUSHED (c380f5b Lane B requirements/apply surfaces,
+  325cdd7 Lane C merged ledger + open-calls card). Verified: client lint 0 errors,
+  406/406 client tests, vite build green. Full server suite back on canonical baseline
+  (availability.test.js ordering-dependence exposed by new suites → fixed w/ migrate
+  beforeAll guard, 518b182). ⚠ STASH INCIDENT #3: Lane C ran git stash despite the ban
+  (disclosed, popped cleanly, all files verified intact) — the ban stays in every brief
+  AND lead now verifies tree integrity post-wave regardless.
+- ★ PHASE 6 FEATURE-COMPLETE on the branch: tracker + lapse convention, NY DOL
+  verification rail, open-call windows, reference-entry conversion, directory org_kind
+  filter. DEPLOY RUNBOOK: npm run release:trust-registry after migrate in prod.
+- OWNER QUALITY PASS (2026-08-15, supersedes Phase 7 in priority) — directive: FE work
+  quality regression; full pass, not spot fixes. Lessons recorded (f9871c2).
+  Investigations COMPLETE, root causes found:
+  (1) AGE-VERIFICATION DOB BUG FIXED (83bd12b): normalizedDob lacked instanceof-Date
+      guard → Postgres DATE objects failed the regex → "add your DOB" for users who
+      have one AND verified checks recorded as dob_mismatch. FE design pass still TODO
+      (inventory in agent report: flat white panel, no state differentiation, inert
+      "Powered by Stripe" line, no Stripe asset in repo, panel lives in ProfilePage
+      Movement V not Settings; modal needs VITE_STRIPE_PUBLISHABLE_KEY at build).
+  (2) BORDER DEFECT FAMILY FIXED (a337a94 + in-lane): global.css:153-164 puts
+      border-radius:999px + padding on EVERY talent button; underline-only buttons
+      that don't reset radius curl into "half circles". Fixed: mw-fresh__action,
+      colButton, plateLogAction, tmx__list-state-action. GLOBAL CONFLICTS TO FLAG:
+      global.css button reset (radius+padding), canonical-form-inputs 8px radius
+      (foreign to talent editorial fields, latent), generic gold focus ring. Proposed:
+      lint/codemod rule "border:0 + border-* side ⇒ must set border-radius".
+  (3) IMPORT OVERLAY: no static bug at HEAD (portaled, fixed inset:0; top-anchored =
+      established variant; its close button was the old victim of the global rule,
+      already patched). Screenshot may predate 0fa48d1 rebuild → verify live w/
+      Playwright before closing.
+  (4) READINESS: owner ruling = numeral STAYS, restore origin/main design. Restoration
+      map in agent report: restore ProfileStrengthSidebar.jsx/.css as
+      ProfileReadiness* (prop renamed readiness=), restore getStrengthUI (deleted by
+      38f7cb3, both sides), KEEP isCurrent recency fix + unrelated Overview changes,
+      Overview card back to completeness.percentage + 98% stale cap; 4 test files
+      rewrite/delete; lead deltas: define missing .statusGold, keep #B08D45 numeral
+      gold (contrast), aria-label back to "Profile completeness".
+  (5) REQUIREMENTS REDESIGN (the big one): full audit in agent report. Key facts:
+      docs/spec-correct-export-brief.md specifies per-agency lede-first shape
+      ("covers 4 of 6. Missing: …") — shipped matrix-first page never matched it.
+      SERVER BUGS: compound shot slots (match:{all}) get matchValue=null → silently
+      dropped from matrix (Elite shows 3/6; grid contradicts plate); guidance is
+      per-row → 33 identical "Pholio cannot verify" strings. LABELS: preferredLabel
+      picks shortest raw agency wording (typos/asterisks leak); canonical label maps
+      EXIST unused (frameTaxonomy SHOT_LABELS, taxonomy.json labels+descriptions —
+      no endpoint serves taxonomy). UNRENDERED DATA: shot counts, modality, file
+      caps, setWide shoot rules, eligibility mirrors w/ actual/min/max, target
+      actions, assignments (which photo covers which slot → image-first design
+      possible), summary counts. IA: only entrance is behind the profile gate the
+      page is exempt from; Unlocks payoff column scrolls off-screen; <table> is a
+      foreign idiom (Intel refuses tables; RangeMatrix list is the house pattern);
+      serif-in-button violates Editorial Serif Rule. Design refs: Intel Finding
+      lockups, DigitalsContactSheet slot grid, Settings movements rail, Apply
+      verdict band.
 - Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
   portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
   agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
