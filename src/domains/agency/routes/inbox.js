@@ -1204,10 +1204,15 @@ router.post(
       // Send email notification (async, non-blocking)
       (async () => {
         try {
-          // Get talent info
-          const talent = await knex("users")
-            .where({ id: application.talent_id })
+          // Get talent info — applications have no talent_id column, only
+          // profile_id, so resolve the recipient through profiles.user_id
+          // (same idiom as the accept/decline flow in roster.js).
+          const profile = await knex("profiles")
+            .where({ id: application.profile_id })
             .first();
+          const talent = profile
+            ? await knex("users").where({ id: profile.user_id }).first()
+            : null;
 
           // Get agency info
           const agency = await knex("agencies").where({ id: agencyId }).first();
@@ -1215,7 +1220,8 @@ router.post(
           if (talent && talent.email && agency) {
             await sendApplicationStatusEmail({
               to: talent.email,
-              talentName: talent.name || "there",
+              talentName:
+                `${profile.first_name} ${profile.last_name}`.trim() || "there",
               agencyName: agency.name || "the agency",
               status: "accepted",
             });
@@ -1371,10 +1377,15 @@ router.post(
       // Send email notification (async, non-blocking)
       (async () => {
         try {
-          // Get talent info
-          const talent = await knex("users")
-            .where({ id: application.talent_id })
+          // Get talent info — applications have no talent_id column, only
+          // profile_id, so resolve the recipient through profiles.user_id
+          // (same idiom as the accept/decline flow in roster.js).
+          const profile = await knex("profiles")
+            .where({ id: application.profile_id })
             .first();
+          const talent = profile
+            ? await knex("users").where({ id: profile.user_id }).first()
+            : null;
 
           // Get agency info
           const agency = await knex("agencies").where({ id: agencyId }).first();
@@ -1382,7 +1393,8 @@ router.post(
           if (talent && talent.email && agency) {
             await sendApplicationStatusEmail({
               to: talent.email,
-              talentName: talent.name || "there",
+              talentName:
+                `${profile.first_name} ${profile.last_name}`.trim() || "there",
               agencyName: agency.name || "the agency",
               status: "declined",
             });
