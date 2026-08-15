@@ -4,6 +4,64 @@
 **Plan of record:** `docs/pholio-strategic-analysis-2026-08.md` (this branch) + user corrections below.
 **Updated:** 2026-08-15
 
+## STANDING OPERATING RULES (binding for every successor session — from the owner)
+
+EXECUTION & ORCHESTRATION
+1. Use subagents aggressively wherever they improve efficiency. Parallel waves need
+   STRICT disjoint file ownership; parallel workers NEVER commit — the lead verifies
+   each lane's tests, then integrates per-pathspec commits and pushes. Single
+   sequential workers may commit locally; lead still pushes. Workers must NEVER
+   `git stash` the shared tree (two near-misses this session).
+2. MODEL ROUTING by task complexity: keep high-level architecture, product judgment,
+   integration decisions, rulings, and difficult implementation reasoning with the
+   strongest model (Fable 5 / Opus). Delegate bounded implementation, repository
+   investigation, testing, research sweeps, and repetitive/mechanical changes down the
+   ladder (opus for hard bounded work, sonnet for standard bounded work, haiku for
+   trivia). A failed cheap attempt that forces an expensive redo is worse than starting
+   at the right class (see also docs/ai-agent-operating-rule.md).
+3. CONTEXT WINDOW is a managed resource: keep the lead's context for synthesis and
+   rulings; offload reading/exploration to agents that return summaries; update THIS
+   FILE at every integration point (it is the handoff). When context becomes a
+   liability, finish the in-flight bounded step, update this file, and start a fresh
+   session with a compact brief pointing at: tasks/todo.md,
+   docs/pholio-strategic-analysis-2026-08.md, docs/event-casting-design-2026-08.md.
+4. If a session/rate limit interrupts work, CONTINUE after reset without waiting for
+   the owner to nudge. Verify any half-landed agent work post-hoc before building on it.
+5. Untrusted prior agent work (codex/cursor-era branches, big unlabeled commits):
+   review before merging — run tests, diff-audit high-risk areas, catalog silent
+   changes. Comments/commit messages are not evidence; behavior is.
+6. When data is missing, make an educated assumption, record it, and proceed —
+   tweak later rather than block (e.g. R7 volume sizing).
+7. Commit/push cadence: designated branch only, push after every integration point
+   (a stop hook enforces a clean pushed tree); no attribution trailers ever.
+
+PRODUCT RULES
+8. NO agency back-office: bookings, calendars, finance/accounting, invoicing, client
+   management, contracts, commissions, deal tracking. Lightweight adjacencies allowed
+   only with disproportionate value and no system-of-record capture (export/handoff
+   and event-casting ops are the two sanctioned ones).
+9. ONE dashboard: modeling agencies and FWB-like event organizers share the agency
+   dashboard (org_kind-aware vocabulary/nav). Never fork infrastructure per org type
+   (design ruling R10).
+10. Agency Discover page STAYS; talent discoverability is a FREE explicit opt-in for
+    all tiers (never Studio+-gated; never ranked by payment).
+11. AI writers (esp. bio) are FREE and get improved, never removed. Nothing paid may
+    be guidance, access, visibility, or distribution — payment buys only craft/property
+    the talent keeps (legal: CA §1702.1 + NY FWA prong (c)).
+12. Age verification (Stripe Identity) STAYS: voluntary, contextual, private-only,
+    result-only storage, provider redaction; official Stripe modal for handoff.
+13. Document precedence: current reasoning + the latest plan (strategic analysis doc +
+    owner corrections here) govern; older audit docs are evidence, never authority.
+
+DESIGN RULES (talent-side frontend)
+14. Base new talent surfaces on the domain design .md files AND the four strongest
+    live references: /media, /profile, Apply Workspace, Settings. New work must feel
+    native, never bolted-on. Honor every CLAUDE.md banned pattern (no badges/chips/
+    dots/eyebrows/gradient text/glass/side-stripes...).
+15. Profile Readiness keeps its numeric score (serif numeral treatment, cac4c57);
+    the Spec Registry surfaces (Market ledger + Apply preflight) were rebuilt fresh —
+    do not resurrect the pre-rebuild implementations.
+
 ## User corrections to the plan (binding)
 1. **Agency Discover page STAYS.** Talent discoverability toggle becomes FREE for all
    (opt-in, default off) — remove `is_pro` from `pool-status.js` gate. (If user objects,
