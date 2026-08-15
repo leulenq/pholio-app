@@ -20,8 +20,28 @@ const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
 const { buildMatcherInput } = require("../matcher-input");
 const { getCurrentRevision } = require("../store");
 const { evaluationDto, utcDate, SpecRegistryServiceError } = require("../preflight-service");
-const { planExport } = require("./export-plan");
+const { planExport, sniffMimeType, transcodeDecision } = require("./export-plan");
+const { buildStatsBlock } = require("./stats-block");
+const { isEmailChannel, renderEmailDraft } = require("./email-draft");
 const { buildZip } = require("./zip");
+
+const STATS_FILENAME = "STATS.txt";
+const EMAIL_FILENAME = "EMAIL.txt";
+
+/**
+ * Why a shot the matcher placed is not in the archive.
+ *
+ * Every one of these ships in the manifest and is spelled out in the README,
+ * because the failure mode this export exists to prevent is a talent sending a
+ * set they believe is complete. A named absence is recoverable; a silent one is
+ * a rejected application.
+ */
+const UNAVAILABLE_REASONS = {
+  source_unreadable: "the original could not be read from your library",
+  decode_failed: "the original could not be opened as an image",
+  heic_decode_unsupported:
+    "this server cannot open HEIC files; re-save it as JPEG and export again",
+};
 
 /**
  * Longest-edge and quality pairs, tried in order until one lands under the
@@ -168,9 +188,18 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
     if (!source?.length) {
       // One unreadable original must not fail the whole download. The archive
       // ships without it and the manifest names what is missing.
-      unavailable.push(entry);
+      unavailable.push({ ...entry, reason: "source_unreadable", sourceMimeType: null });
       continue;
     }
+
+    // Decided before the encoder runs, from the bytes and the published rule,
+    // so a format conversion is something the spec asked for and the manifest
+    // records — not a side effect of the encoder always pointing at JPEG.
+    const decision = transcodeDecision({
+      sourceMimeType: sniffMimeType(source),
+      constraints: plan.constraints,
+      targetMimeType: plan.mimeType,
+    });
 
     let encoded;
     try {
@@ -179,15 +208,22 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
         budgetBytes: plan.perFileBudgetBytes,
       });
     } catch (err) {
-      // A source Sharp cannot decode — truncated upload, mislabelled format —
-      // is the same problem as one we could not fetch, and gets the same
-      // answer: the archive ships without it and the manifest names it. One
-      // bad file must never cost the talent the whole download.
+      // A source Sharp cannot decode — truncated upload, mislabelled format, or
+      // a HEIC on a libvips built without an HEVC decoder — is the same problem
+      // as one we could not fetch, and gets the same answer: the archive ships
+      // without it and the manifest names it, with the reason. One bad file
+      // must never cost the talent the whole download.
+      const reason =
+        decision.decodeRisk === "runtime_dependent"
+          ? "heic_decode_unsupported"
+          : "decode_failed";
       console.error("[spec-export] image encode failed:", {
         imageId: entry.imageId,
+        sourceMimeType: decision.sourceMimeType,
+        reason,
         message: err?.message || String(err),
       });
-      unavailable.push(entry);
+      unavailable.push({ ...entry, reason, sourceMimeType: decision.sourceMimeType });
       continue;
     }
 
@@ -201,6 +237,10 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
       width: encoded.width,
       height: encoded.height,
       withinPublishedLimit: encoded.withinBudget,
+      sourceMimeType: decision.sourceMimeType,
+      mimeType: plan.mimeType,
+      transcoded: decision.transcode,
+      transcodeReason: decision.reason,
     });
   }
 
@@ -211,6 +251,13 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
       503,
     );
   }
+
+  // The other half of what an agency asks for. Community research on what
+  // actually gets a submission read landed on the same answer twice: the files,
+  // and a stats block the talent can paste without retyping anything.
+  const statsBlock = buildStatsBlock(input.talent);
+  const statsHeight = statsBlock.rows.find((row) => row.key === "height")?.value || null;
+  const emailChannel = isEmailChannel(evaluation.channel);
 
   const manifest = {
     agencyName: evaluation.agencyName,
@@ -230,7 +277,35 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
     stillMissing: (evaluation.findings || [])
       .filter((finding) => finding.requiresAttention)
       .map((finding) => finding.sourceLabel),
+    statsIncluded: !statsBlock.isEmpty,
+    emailDraftIncluded: emailChannel,
   };
+
+  if (!statsBlock.isEmpty) {
+    files.push({
+      name: STATS_FILENAME,
+      data: Buffer.from(renderStatsFile(statsBlock, manifestEntries), "utf8"),
+    });
+  }
+
+  // Only for a route whose channel really is an inbox. A draft in a web-form
+  // export would be an instruction to do something the agency did not ask for.
+  if (emailChannel) {
+    files.push({
+      name: EMAIL_FILENAME,
+      data: Buffer.from(
+        renderEmailDraft({
+          channel: evaluation.channel,
+          agencyName: evaluation.agencyName,
+          statsBlock,
+          fileCount: manifestEntries.length,
+          heightLabel: statsHeight,
+          city: input.talent?.city || null,
+        }),
+        "utf8",
+      ),
+    });
+  }
 
   files.push({ name: "README.txt", data: Buffer.from(renderReadme(manifest), "utf8") });
 
@@ -253,6 +328,24 @@ function formatBytes(value) {
 }
 
 /**
+ * STATS.txt — the stats block, then the files it describes.
+ *
+ * The file list sits at the bottom on purpose. Pasted into a form field or a
+ * message, the talent selects the block above it; read as a packing slip, the
+ * list says which images this card was written for. Both readings are needed,
+ * and putting the list first would break the first one.
+ */
+function renderStatsFile(statsBlock, entries) {
+  const lines = [statsBlock.text];
+  if (entries.length) {
+    lines.push("", "Files included");
+    for (const entry of entries) lines.push(`  ${entry.name}`);
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
+/**
  * The provenance travels inside the archive.
  *
  * This folder leaves Pholio and lands in a downloads directory, possibly for
@@ -266,7 +359,13 @@ function renderReadme(manifest) {
     `${manifest.agencyName} — digitals prepared to their published requirements`,
     "",
     "These files were resized, re-encoded and named to match the requirements",
-    `${manifest.agencyName} publishes. Upload them on the agency's own site.`,
+    // Telling someone to upload to a site that takes submissions by email is
+    // the kind of small wrongness that makes a talent doubt everything else in
+    // the file, so the instruction follows the channel the registry published.
+    manifest.emailDraftIncluded
+      ? `${manifest.agencyName} publishes. Attach them to the email drafted in`
+      : `${manifest.agencyName} publishes. Upload them on the agency's own site.`,
+    manifest.emailDraftIncluded ? `${EMAIL_FILENAME} and send it from your own address.` : null,
     "",
     "Files",
   ];
@@ -278,6 +377,21 @@ function renderReadme(manifest) {
       ? ""
       : "  (still above the published size limit — check before uploading)";
     lines.push(`  ${entry.name} — ${entry.slotLabel}, ${dimensions}, ${size}${over}`);
+  }
+
+  if (manifest.statsIncluded) {
+    lines.push(
+      `  ${STATS_FILENAME} — your measurements as an agency writes them, ready to paste`,
+      "    into their form or message.",
+    );
+  }
+  if (manifest.emailDraftIncluded) {
+    lines.push(
+      `  ${EMAIL_FILENAME} — a submission email, ready to paste into your own mail`,
+      `    client. ${manifest.agencyName} takes applications by email, so the files`,
+      "    alone are not a submission. Send it yourself, from your own address —",
+      "    Pholio does not send anything on your behalf.",
+    );
   }
 
   if (manifest.omittedForCount.length) {
@@ -293,7 +407,8 @@ function renderReadme(manifest) {
   if (manifest.unavailable.length) {
     lines.push("", "Could not be read from your library at export time:");
     for (const entry of manifest.unavailable) {
-      lines.push(`  ${entry.slotLabel}`);
+      const why = UNAVAILABLE_REASONS[entry.reason];
+      lines.push(why ? `  ${entry.slotLabel} — ${why}` : `  ${entry.slotLabel}`);
     }
   }
 
@@ -336,8 +451,12 @@ function renderReadme(manifest) {
 }
 
 module.exports = {
+  EMAIL_FILENAME,
   ENCODE_LADDER,
+  STATS_FILENAME,
+  UNAVAILABLE_REASONS,
   buildSpecExport,
   encodeImage,
   renderReadme,
+  renderStatsFile,
 };

@@ -27,6 +27,39 @@ const ENCODABLE_MIME_TYPES = new Set([
 ]);
 
 /**
+ * Input formats whose decode is a property of the deployed binary rather than
+ * of Sharp's API.
+ *
+ * HEIC is the case that matters. Every recent iPhone shoots it by default, so
+ * it arrives in talent libraries constantly, and almost no agency intake
+ * accepts it — which makes it the single most likely format to *need* the
+ * transcode this export performs. Whether it can be transcoded at all depends
+ * on whether libvips was built against a libheif carrying an HEVC decoder, and
+ * many prebuilt libvips binaries are not (the HEVC patent position is why).
+ *
+ * Naming it here is what turns "HEIC support" from an implicit hope into a
+ * decision the plan states and the service reports on. A route is never failed
+ * over one of these: the encode is attempted, and a runtime that cannot decode
+ * it puts the file in `unavailable` with a reason the talent can act on.
+ */
+const RUNTIME_DEPENDENT_DECODE_MIME_TYPES = new Set(["image/heic", "image/heif"]);
+
+/** ISO base-media brands that mean "HEVC-coded image" rather than AVIF. */
+const HEIC_BRANDS = new Set([
+  "heic",
+  "heix",
+  "heim",
+  "heis",
+  "hevc",
+  "hevx",
+  "hevm",
+  "hevs",
+]);
+const AVIF_BRANDS = new Set(["avif", "avis"]);
+/** Generic HEIF wrappers: the container says nothing about the codec inside. */
+const HEIF_BRANDS = new Set(["mif1", "msf1", "miaf", "mia1"]);
+
+/**
  * The fallback when a spec publishes no mime rule at all, which is most of
  * them. JPEG is the only format every agency intake in the researched set
  * accepts, and it is what a phone produced in the first place.
@@ -98,6 +131,7 @@ function readConstraints(spec) {
   const totalSet = [];
   const counts = [];
   let allowedMimeTypes = null;
+  let publishedMimeTypes = null;
 
   for (const rule of rules) {
     const constraint = rule?.constraint;
@@ -125,13 +159,19 @@ function readConstraints(spec) {
             ? [constraint.value]
             : null;
       if (!Array.isArray(values)) continue;
-      const encodable = values
-        .map((value) => String(value).toLowerCase())
-        .filter((value) => ENCODABLE_MIME_TYPES.has(value));
+      const declared = values.map((value) => String(value).toLowerCase());
+      const encodable = declared.filter((value) => ENCODABLE_MIME_TYPES.has(value));
       // Intersect, so two published mime rules narrow rather than replace.
       allowedMimeTypes = allowedMimeTypes
         ? allowedMimeTypes.filter((value) => encodable.includes(value))
         : encodable;
+      // The unfiltered list answers a different question from `allowedMimeTypes`:
+      // "would this agency have accepted the talent's original file?" — which is
+      // what decides whether a transcode is a format change the spec demanded.
+      // A format Sharp cannot write is still a format the agency accepts.
+      publishedMimeTypes = publishedMimeTypes
+        ? publishedMimeTypes.filter((value) => declared.includes(value))
+        : declared;
     }
   }
 
@@ -140,6 +180,7 @@ function readConstraints(spec) {
     totalSetMaxBytes: smallest(totalSet),
     maxFileCount: smallest(counts),
     allowedMimeTypes: allowedMimeTypes?.length ? allowedMimeTypes : null,
+    publishedMimeTypes: publishedMimeTypes?.length ? publishedMimeTypes : null,
   };
 }
 
@@ -148,6 +189,115 @@ function targetMimeType(constraints) {
   const allowed = constraints.allowedMimeTypes;
   if (!allowed?.length) return DEFAULT_MIME_TYPE;
   return allowed.includes(DEFAULT_MIME_TYPE) ? DEFAULT_MIME_TYPE : allowed[0];
+}
+
+/**
+ * What format the bytes actually are.
+ *
+ * Read from the file's own header rather than from `delivery_mime_type`, which
+ * is whatever the browser claimed at upload time — and Safari routinely claims
+ * `image/jpeg` for a file it then hands over as HEIC. A transcode decision made
+ * from a claim rather than from the bytes would be wrong on exactly the format
+ * this decision exists for.
+ *
+ * @param {Buffer} buffer
+ * @returns {string|null} A mime type, or null when the header is unrecognised.
+ */
+function sniffMimeType(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 12) return null;
+
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "image/jpeg";
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  if (
+    buffer.subarray(0, 4).toString("latin1") === "RIFF" &&
+    buffer.subarray(8, 12).toString("latin1") === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  const tiff = buffer.subarray(0, 4);
+  if (tiff.equals(Buffer.from([0x49, 0x49, 0x2a, 0x00]))) return "image/tiff";
+  if (tiff.equals(Buffer.from([0x4d, 0x4d, 0x00, 0x2a]))) return "image/tiff";
+
+  if (buffer.subarray(4, 8).toString("latin1") !== "ftyp") return null;
+
+  // The major brand alone is not enough: an iPhone HEIC is routinely written
+  // with a `mif1` major brand and `heic` only in the compatible-brands list.
+  const boxSize = buffer.readUInt32BE(0);
+  const end = Math.min(Number.isSafeInteger(boxSize) && boxSize > 16 ? boxSize : 16, buffer.length);
+  const brands = [];
+  for (let offset = 8; offset + 4 <= end; offset += 4) {
+    // Bytes 12..16 are the minor version, not a brand.
+    if (offset === 12) continue;
+    brands.push(buffer.subarray(offset, offset + 4).toString("latin1").toLowerCase());
+  }
+
+  if (brands.some((brand) => HEIC_BRANDS.has(brand))) return "image/heic";
+  if (brands.some((brand) => AVIF_BRANDS.has(brand))) return "image/avif";
+  if (brands.some((brand) => HEIF_BRANDS.has(brand))) return "image/heif";
+  return null;
+}
+
+/**
+ * Whether this source has to change format, and why.
+ *
+ * The export re-encodes every image regardless — that is how the byte cap, the
+ * EXIF-orientation bake and the metadata strip happen — so "transcode" here
+ * means specifically that the *format* changes because the source's format is
+ * not one this route accepts. Stating it explicitly is what keeps a HEIC
+ * conversion an intended outcome of reading the spec rather than an accident of
+ * the encoder always being pointed at JPEG.
+ *
+ * @param {object} args
+ * @param {string|null} args.sourceMimeType From `sniffMimeType`.
+ * @param {object} args.constraints         From `readConstraints`.
+ * @param {string} args.targetMimeType      The format the archive will carry.
+ * @returns {{
+ *   sourceMimeType: string|null,
+ *   targetMimeType: string,
+ *   transcode: boolean,
+ *   acceptedAsIs: boolean|null,
+ *   decodeRisk: 'none'|'runtime_dependent',
+ *   reason: string,
+ * }}
+ */
+function transcodeDecision({ sourceMimeType, constraints, targetMimeType: target }) {
+  const published = constraints?.publishedMimeTypes || null;
+  const source = sourceMimeType || null;
+  const decodeRisk = source && RUNTIME_DEPENDENT_DECODE_MIME_TYPES.has(source)
+    ? "runtime_dependent"
+    : "none";
+
+  const base = { sourceMimeType: source, targetMimeType: target, decodeRisk };
+
+  if (!source) {
+    // An unreadable header is not a licence to pass the bytes through: the
+    // export claims the archive is in an accepted format, so it encodes to one.
+    return {
+      ...base,
+      transcode: true,
+      acceptedAsIs: null,
+      reason: "source_format_unrecognised",
+    };
+  }
+
+  if (source === target) {
+    return { ...base, transcode: false, acceptedAsIs: true, reason: "already_target_format" };
+  }
+
+  if (!published) {
+    return {
+      ...base,
+      transcode: true,
+      acceptedAsIs: null,
+      reason: "route_publishes_no_format_rule",
+    };
+  }
+
+  return published.includes(source)
+    ? { ...base, transcode: true, acceptedAsIs: true, reason: "accepted_but_not_target_format" }
+    : { ...base, transcode: true, acceptedAsIs: false, reason: "source_format_not_accepted" };
 }
 
 /**
@@ -254,9 +404,12 @@ module.exports = {
   ENCODABLE_MIME_TYPES,
   EXTENSION_BY_MIME,
   MINIMUM_USEFUL_BYTES,
+  RUNTIME_DEPENDENT_DECODE_MIME_TYPES,
   planExport,
   readConstraints,
   slugify,
+  sniffMimeType,
   targetMimeType,
+  transcodeDecision,
   upperBound,
 };
