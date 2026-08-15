@@ -89,7 +89,18 @@
       requires AI consent (PDF path exempt) — consider inline consent grant in the
       import overlay later; docs/comp-card-import-architecture.md amended for the two
       new exceptions.
-- [ ] Phase 2: corrections wave — IN PROGRESS (3 parallel FE agents, disjoint ownership,
+- [x] Phase 2a: FE redesign wave COMPLETE (64b2ac5 age verification, cac4c57 readiness
+      numeral, b2e4cd6 requirements ledger + preflight). Client: lint 0 errors (1
+      pre-existing warning), 336/338 tests (2 pre-existing bio-save timeouts, verified
+      on pristine HEAD), vite build green. Accepted deviations logged in agent reports;
+      lead tweaks: sidebar aria-label aligned, --pr-gold → #B08D45 for contrast.
+      FOLLOW-UPS (queued): PholioCustomSelect combobox has no accessible name (shared
+      primitive, needs aria-labelledby); age-verification backend: return client_secret
+      + expose VITE_STRIPE_PUBLISHABLE_KEY so official modal engages (hosted-page
+      fallback works today); consent-capture shape changed (disclosure+button replaces
+      checkbox; version still recorded) — legal glance; ProfilePage bio-save timeout
+      tests (pre-existing) + tests/notifications.test.js ordering dependence — tickets.
+- [ ] Phase 2b: writer wave — IN PROGRESS (3 parallel FE agents, disjoint ownership,
       no worker commits — lead integrates; spec: scratchpad/fe-redesign-spec.md):
       FE-A Profile Readiness numeral restoration (+ Overview card); FE-B Requirements
       ledger + RegistryPreflight rebuild; FE-C age-verification/private-context redesign
