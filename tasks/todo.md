@@ -128,6 +128,22 @@
       tracker, writers)
 - [ ] Phase 8: tests green, lint, final review pass
 
+## Session 2 resume state (post limit-reset, 2026-08-15 ~09:00 UTC)
+- FE wave INTEGRATED + PUSHED during previous session: 64b2ac5 (age verification
+  voluntary flow), cac4c57 (readiness numeral + threshold rail), b2e4cd6 (requirements
+  ledger + preflight one visual system), ece7ae9 (state doc).
+- Writers: 80a2bc5 un-gates all four writers (rate limiter intact, FWA prong-(c)
+  rationale in message) — VERIFIED post-hoc: 75/75 writer tests pass, client lint clean,
+  PUSHED (f549397 also adds data/*.sqlite3 to .gitignore).
+- IN FLIGHT (parallel, disjoint, no worker commits): (a) bio-writer improvement —
+  truthfulness hard-line (no invented facts), anti-slop rubric, industry vocabulary
+  few-shots, thin-context honesty, table-driven tests; (b) Stripe Identity modal
+  enablement — client_secret in session response + VITE_STRIPE_PUBLISHABLE_KEY docs +
+  additive invalidatedAt exposure if recorded.
+- NEXT after integration: Phase 4 export completion (explicit HEIC test, email-draft for
+  email-only agencies), then Phase 5 FWB event mode (the big one), Phase 6 tracker/
+  verification rail/open-call calendar, Phase 7 Studio+ restructure, Phase 8 full green.
+
 ## Branch cleanup (deletion blocked from remote session — git proxy 403s non-designated
 ## pushes; GitHub MCP has no delete-branch tool. Run locally:)
 ```
