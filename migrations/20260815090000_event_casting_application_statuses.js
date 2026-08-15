@@ -205,6 +205,10 @@ async function rebuildSqliteStatusCheck(knex, allowed, needsRebuild) {
     .filter((row) => row.sql && (row.type === "trigger" || explicit.has(row.name)))
     .map((row) => row.sql);
 
+  // Restored rather than forced back ON: this migration has no business
+  // changing a setting it did not set, and a stray ON is what makes knex's own
+  // SQLite column-drop rebuild cascade in later migrations.
+  const [{ foreign_keys: wasEnabled }] = await knex.raw("PRAGMA foreign_keys");
   await knex.raw("PRAGMA foreign_keys = OFF");
   try {
     await knex.transaction(async (trx) => {
@@ -217,7 +221,7 @@ async function rebuildSqliteStatusCheck(knex, allowed, needsRebuild) {
       for (const sql of replay) await trx.raw(sql);
     });
   } finally {
-    await knex.raw("PRAGMA foreign_keys = ON");
+    if (wasEnabled) await knex.raw("PRAGMA foreign_keys = ON");
   }
 }
 
