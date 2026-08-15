@@ -1,4 +1,5 @@
 import { AlertCircle, Bookmark, Calendar, Camera, Check, Clock, X } from 'lucide-react';
+import { CALL_KINDS } from '../../../shared/constants/eventCasting';
 
 // Single source of truth for how an application status is presented to talent.
 //
@@ -9,7 +10,51 @@ import { AlertCircle, Bookmark, Calendar, Camera, Check, Clock, X } from 'lucide
 //           Values: 'inReview' | 'advancing' | 'represented' | 'closed'
 //           KEY RULE: shortlisted and kept_on_file are soft-yes outcomes and
 //           MUST be in group:'advancing', never in group:'closed'.
-export function statusConfig(status) {
+//
+// An event application uses the same statuses with different words. Only the
+// rows whose *meaning* changes are overridden below — an organizer's
+// `accepted` is a slot in a show, not an offer of representation, and calling
+// it "Offer / Moving Forward" would read as the latter.
+const EVENT_STATUS_OVERRIDES = {
+  pending: {
+    label: 'Application Received',
+    short: 'Received',
+    next: "The organizer is reviewing applications — we'll tell you when this moves.",
+    detail: 'The organizer has your package for this casting.',
+  },
+  submitted: {
+    label: 'Application Received',
+    short: 'Received',
+    next: "The organizer is reviewing applications — we'll tell you when this moves.",
+    detail: 'The organizer has your package for this casting.',
+  },
+  shortlisted: {
+    label: 'In the Casting Pool',
+    short: 'Pool',
+    next: 'You survived the first cut. Designers may see your package through a read-only link.',
+    detail: 'The organizer moved you into the pool for this event.',
+  },
+  accepted: {
+    label: 'Offered a Slot',
+    short: 'Slot',
+    next: 'Confirm or decline the slot before the offer window closes.',
+    detail: 'An offered slot is held for you until you answer or the window lapses.',
+  },
+  kept_on_file: {
+    label: 'Kept on File',
+    short: 'On File',
+    next: 'The organizer is keeping you on file for a future edition.',
+    detail: 'You were not cast this time; the organizer kept your package for next time.',
+  },
+  closed_no_response: {
+    label: 'No Response',
+    short: 'Closed',
+    next: 'Treat this as a pass. Keep your digitals current and keep applying.',
+    detail: 'The organizer did not respond before this casting closed.',
+  },
+};
+
+export function statusConfig(status, options = {}) {
   const normalized = String(status || 'pending').toLowerCase();
   const configs = {
     pending: {
@@ -162,8 +207,31 @@ export function statusConfig(status) {
       next: 'The agency is keeping you on file for future openings — keep your book current.',
       detail: 'The agency is keeping your profile on file for future consideration.',
     },
+    // The applicant's own answer to a slot offer. `confirmed` is deliberately
+    // not `represented` — a booked show is not a signed roster — and
+    // `declined_by_talent` is deliberately not `withdrawn`, which would redact
+    // the package and hide the row from an organizer who still has to refill
+    // the slot.
+    confirmed: {
+      label: 'Slot Confirmed',
+      short: 'Confirmed',
+      tone: 'accepted',
+      group: 'advancing',
+      icon: Check,
+      next: 'You are on the line-up. Watch for call time and fitting details from the organizer.',
+      detail: 'You confirmed the slot you were offered.',
+    },
+    declined_by_talent: {
+      label: 'You Declined',
+      short: 'Declined',
+      tone: 'closed',
+      group: 'closed',
+      icon: X,
+      next: 'You released this slot. It does not affect future applications to this organizer.',
+      detail: 'You declined the slot you were offered.',
+    },
   };
-  return (
+  const base =
     configs[normalized] || {
       label: 'Status updating',
       short: 'Updating',
@@ -172,7 +240,22 @@ export function statusConfig(status) {
       icon: Clock,
       next: "We're syncing this submission's status.",
       detail: "This submission's status is being updated.",
-    }
+    };
+  if (options.purpose !== CALL_KINDS.EVENT_CASTING) return base;
+  const override = EVENT_STATUS_OVERRIDES[normalized];
+  return override ? { ...base, ...override } : base;
+}
+
+export function isEventApplication(application) {
+  return application?.call_purpose === CALL_KINDS.EVENT_CASTING;
+}
+
+// Only a live offer on an event application can be answered, and only by the
+// applicant. Mirrors the server's guard in routes/applications.js.
+export function canAnswerSlotOffer(application) {
+  return (
+    isEventApplication(application) &&
+    String(application?.status || '').toLowerCase() === 'accepted'
   );
 }
 
@@ -190,7 +273,7 @@ export function statusConfig(status) {
 export function bucketCounts(applications = []) {
   const counts = { inReview: 0, advancing: 0, represented: 0, closed: 0 };
   for (const app of applications) {
-    const group = statusConfig(app.status).group;
+    const group = statusConfig(app.status, { purpose: app.call_purpose }).group;
     if (group in counts) counts[group] += 1;
   }
   return counts;

@@ -1604,6 +1604,19 @@
   margin-top: 28px;
 }
 
+/* A live slot offer runs on the organizer's clock, so it gets its own row and
+   a hairline separating it from the standing actions underneath. */
+.app-detail__actions--offer {
+  gap: 12px;
+  margin-top: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--app-hairline, rgba(26, 24, 21, 0.08));
+}
+
+.app-detail__actions--offer + .app-detail__actions {
+  margin-top: 18px;
+}
+
 .app-detail__act {
   flex-shrink: 0;
 }

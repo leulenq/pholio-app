@@ -56,6 +56,39 @@ function normalizeSubmissionNote(value) {
   return normalizeString(value).slice(0, 1200);
 }
 
+/**
+ * `YYYY-MM-DD` or "". Availability is a calendar range, never an instant: an
+ * ISO timestamp hashed on one side and a date string on the other would be two
+ * different packages describing the same intent.
+ */
+function normalizeDateOnly(value) {
+  const text = normalizeString(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function normalizeAvailabilityRange(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const from = normalizeDateOnly(value.from);
+  const to = normalizeDateOnly(value.to);
+  if (!from && !to) return null;
+  return { from: from || null, to: to || null };
+}
+
+/**
+ * The exact bytes the applicant's consent is bound to.
+ *
+ * THE EVENT KEYS ARE SPREAD CONDITIONALLY AND MUST STAY THAT WAY (design §b.4).
+ * `canonicalJson` sorts keys and emits `null` for absent values, so adding
+ * `openCallLinkId`/`availability`/`walkVideoUrl` unconditionally would change
+ * the hash of every representation package in existence — every draft someone
+ * is halfway through would come back as `consent_package_changed` and make them
+ * re-consent for no reason. `openCallLinkId` is the switch: no link, no keys,
+ * byte-identical output to the pre-event-casting version.
+ *
+ * `client/src/domains/talent/pages/ApplyPage/submissionConsentBinding.js`
+ * mirrors this function byte for byte and
+ * `tests/talent/event-intake.test.js` fails the build if the two ever drift.
+ */
 function canonicalSubmissionPackage({
   agencyId,
   boards = [],
@@ -64,7 +97,11 @@ function canonicalSubmissionPackage({
   compCardPresetId = null,
   imageIds = [],
   note = "",
+  openCallLinkId = null,
+  availability = null,
+  walkVideoUrl = null,
 } = {}) {
+  const linkId = normalizeString(openCallLinkId);
   return {
     agencyId: normalizeString(agencyId) || null,
     boards: normalizeStringList(boards),
@@ -73,6 +110,13 @@ function canonicalSubmissionPackage({
     compCardPresetId: normalizeString(compCardPresetId) || null,
     imageIds: normalizeStringList(imageIds),
     note: normalizeSubmissionNote(note),
+    ...(linkId
+      ? {
+          openCallLinkId: linkId,
+          availability: normalizeAvailabilityRange(availability),
+          walkVideoUrl: normalizeString(walkVideoUrl) || null,
+        }
+      : {}),
   };
 }
 
@@ -84,6 +128,9 @@ function buildSubmissionPackageFingerprint({
   compCardPresetId = null,
   imageIds = [],
   note = "",
+  openCallLinkId = null,
+  availability = null,
+  walkVideoUrl = null,
 } = {}) {
   return crypto
     .createHash("sha256")
@@ -95,6 +142,9 @@ function buildSubmissionPackageFingerprint({
       compCardPresetId,
       imageIds,
       note,
+      openCallLinkId,
+      availability,
+      walkVideoUrl,
     })))
     .digest("hex");
 }

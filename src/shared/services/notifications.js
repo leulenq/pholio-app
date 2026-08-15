@@ -5,8 +5,11 @@
 const { randomUUID } = require("crypto");
 const knex = require("../db/knex");
 const {
+  CONFIRMED_APPLICATION_STATUS,
   REPRESENTED_APPLICATION_STATUSES,
+  TALENT_DECLINED_APPLICATION_STATUS,
 } = require("../constants/application-status");
+const { CALL_PURPOSES } = require("../constants/event-casting");
 
 const NOTIFICATION_TYPES = {
   AGENCY_PROFILE_VIEW: "agency_profile_view",
@@ -236,8 +239,72 @@ async function getTalentUserIdForProfile(profileId) {
   return profile?.user_id || null;
 }
 
-function applicationStatusCopy(status, agencyName) {
+/**
+ * An event cast and a representation submission share a status vocabulary but
+ * not a meaning. `accepted` from an agency is an offer of representation; from
+ * an organizer it is a slot in a show, and telling a model they have been
+ * offered representation by a festival would be wrong in the way that matters.
+ *
+ * Only the statuses whose meaning actually diverges are overridden — everything
+ * else falls through to the shared copy rather than being restated twice.
+ */
+function eventApplicationStatusCopy(status, organizerName, { previousStatus } = {}) {
+  const organizer = organizerName || "The organizer";
+  const map = {
+    pending: {
+      title: "Application received",
+      body: `${organizer} has your casting application.`,
+    },
+    submitted: {
+      title: "Application received",
+      body: `${organizer} has your casting application.`,
+    },
+    shortlisted: {
+      title: "You're in the casting pool",
+      body: `${organizer} moved you into the pool for this event.`,
+    },
+    accepted: {
+      title: "You've been offered a slot",
+      body: `${organizer} offered you a slot. Confirm or decline it before the offer window closes.`,
+    },
+    [CONFIRMED_APPLICATION_STATUS]: {
+      title: "Slot confirmed",
+      body: `You confirmed your slot with ${organizer}.`,
+    },
+    [TALENT_DECLINED_APPLICATION_STATUS]: {
+      title: "Slot declined",
+      body: `You declined the slot with ${organizer}. It has been released.`,
+    },
+    kept_on_file: {
+      title: "Kept on file",
+      body: `${organizer} is keeping you on file for a future edition.`,
+    },
+  };
+
+  // The same terminal status, two entirely different stories: an offer that
+  // went unanswered is not the same event as a pool that was never triaged, and
+  // a model who let a slot lapse deserves to be told that is what happened.
+  if (status === "closed_no_response") {
+    return previousStatus === "accepted"
+      ? {
+          title: "Slot offer expired",
+          body: `The slot ${organizer} offered you expired before you answered. It has been released.`,
+        }
+      : {
+          title: "Casting closed — no response",
+          body: `${organizer} did not respond before this casting closed. Treat it as a pass.`,
+        };
+  }
+
+  return map[status] || null;
+}
+
+function applicationStatusCopy(status, agencyName, options = {}) {
   const agency = agencyName || "An agency";
+  if (options.purpose === CALL_PURPOSES.EVENT_CASTING) {
+    const eventCopy = eventApplicationStatusCopy(status, agencyName, options);
+    if (eventCopy) return eventCopy;
+  }
   const map = {
     pending: {
       title: "Application under review",
@@ -294,6 +361,16 @@ function applicationStatusCopy(status, agencyName) {
       title: "Kept on file",
       body: `${agency} is keeping your profile on file for future openings.`,
     },
+    // Fallback wording only. These two are written by the talent on an event
+    // application, so the event copy above is what they normally read.
+    [CONFIRMED_APPLICATION_STATUS]: {
+      title: "Slot confirmed",
+      body: `You confirmed your slot with ${agency}.`,
+    },
+    [TALENT_DECLINED_APPLICATION_STATUS]: {
+      title: "Slot declined",
+      body: `You declined the slot with ${agency}.`,
+    },
   };
   return (
     map[status] || {
@@ -317,6 +394,8 @@ const NOTIFY_STATUSES = new Set([
   "archived",
   "kept_on_file",
   "closed_no_response",
+  CONFIRMED_APPLICATION_STATUS,
+  TALENT_DECLINED_APPLICATION_STATUS,
 ]);
 
 async function notifyTalentApplicationSubmitted({
@@ -347,13 +426,18 @@ async function notifyTalentApplicationStatusChange({
   agencyId,
   agencyName,
   status,
+  purpose,
+  previousStatus = null,
 }) {
   if (!NOTIFY_STATUSES.has(status)) return null;
   if (!(await talentNotificationPrefEnabled(userId, "applicationUpdates"))) {
     return null;
   }
 
-  const copy = applicationStatusCopy(status, agencyName);
+  const copy = applicationStatusCopy(status, agencyName, {
+    purpose,
+    previousStatus,
+  });
   return upsertUserNotification({
     userId,
     type: NOTIFICATION_TYPES.APPLICATION_STATUS,
@@ -372,7 +456,13 @@ async function notifyTalentApplicationStatusChange({
     groupKey: `application_status:${applicationId}:${status}`,
     sourceType: "application",
     sourceId: applicationId,
-    metadata: { agencyId, agencyName, status },
+    metadata: {
+      agencyId,
+      agencyName,
+      status,
+      ...(purpose ? { purpose } : {}),
+      ...(previousStatus ? { previousStatus } : {}),
+    },
     reopenOnRepeat: false,
   });
 }
@@ -526,6 +616,7 @@ module.exports = {
   NOTIFY_STATUSES,
   PRIORITIES,
   applicationStatusCopy,
+  eventApplicationStatusCopy,
   upsertUserNotification,
   createUserNotification,
   listUserNotifications,

@@ -28,7 +28,12 @@ import { checkGatingStatus, getProfileGateFeature } from '../../../shared/utils/
 import { sendBlockerLabel, sendBlockerTarget } from '../../../shared/utils/sendReadiness';
 import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { talentApi } from '../api/talent';
-import { canWithdrawApplication, statusConfig } from '../utils/applicationStatus';
+import {
+  canAnswerSlotOffer,
+  canWithdrawApplication,
+  isEventApplication,
+  statusConfig,
+} from '../utils/applicationStatus';
 import ApplicationMessages from './ApplicationMessages';
 import './ApplicationsView.css';
 
@@ -112,7 +117,16 @@ function applicationMatchesFilter(app, filter) {
   if (filter === 'all') return true;
   // Filter ids align 1:1 with the standing groups (inReview / advancing / represented / closed),
   // so the filter row exposes the same tiers the activity legend shows.
-  return statusConfig(app.status).group === filter;
+  return statusConfig(app.status, { purpose: app.call_purpose }).group === filter;
+}
+
+// An event row is about the event, not the organizer's city.
+function eventDateRange(event) {
+  if (!event?.startsOn) return null;
+  const from = dateLabel(event.startsOn, { year: false });
+  const to = event.endsOn ? dateLabel(event.endsOn) : null;
+  if (!to || to === from) return dateLabel(event.startsOn);
+  return `${from} – ${to}`;
 }
 
 function agencyInitial(name) {
@@ -140,6 +154,8 @@ export default function ApplicationsView() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
+  // { application, confirmed } — the slot answer awaiting its confirm dialog.
+  const [slotAnswer, setSlotAnswer] = useState(null);
   const detailPanelRef = useRef(null);
 
   // On mobile the ledger collapses to a single column and the detail panel sits
@@ -190,6 +206,27 @@ export default function ApplicationsView() {
     },
     onError: (err) => {
       toast.error(err?.message || 'Failed to withdraw application');
+    },
+  });
+
+  // Confirming or declining a slot is the only status a talent ever writes, and
+  // it is final — hence the dialog in front of it and the refetch behind it.
+  const slotAnswerMutation = useMutation({
+    mutationFn: ({ application, confirmed }) =>
+      confirmed
+        ? talentApi.confirmApplicationSlot(application.id)
+        : talentApi.declineApplicationSlot(application.id),
+    onSuccess: (_data, variables) => {
+      setSlotAnswer(null);
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      toast.success(
+        variables.confirmed
+          ? 'Slot confirmed — the organizer has been told.'
+          : 'Slot declined — the organizer can offer it to someone else.',
+      );
+    },
+    onError: (err) => {
+      toast.error(err?.message || 'Could not record your answer. Try again.');
     },
   });
 
@@ -285,8 +322,14 @@ export default function ApplicationsView() {
     )
     .slice(0, 6);
 
-  const activeCount = applications.filter((app) => ['inReview', 'advancing'].includes(statusConfig(app.status).group)).length;
-  const representedCount = applications.filter((app) => statusConfig(app.status).group === 'represented').length;
+  const activeCount = applications.filter((app) =>
+    ['inReview', 'advancing'].includes(
+      statusConfig(app.status, { purpose: app.call_purpose }).group,
+    ),
+  ).length;
+  const representedCount = applications.filter(
+    (app) => statusConfig(app.status, { purpose: app.call_purpose }).group === 'represented',
+  ).length;
   const monthCount = applications.filter((app) => {
     if (!app.created_at) return false;
     const created = new Date(app.created_at);
@@ -304,6 +347,11 @@ export default function ApplicationsView() {
   const confirmWithdraw = () => {
     if (!withdrawingApplication) return;
     withdrawMutation.mutate(withdrawingApplication.id);
+  };
+
+  const confirmSlotAnswer = () => {
+    if (!slotAnswer) return;
+    slotAnswerMutation.mutate(slotAnswer);
   };
 
   if (applicationsQuery.isError) {
@@ -543,7 +591,7 @@ export default function ApplicationsView() {
           ) : filteredApplications.length > 0 ? (
             <ol className="app-ledger-list">
               {filteredApplications.map((app, index) => {
-                const config = statusConfig(app.status);
+                const config = statusConfig(app.status, { purpose: app.call_purpose });
                 const StatusIcon = config.icon;
                 const isSelected = selectedApplication?.id === app.id;
                 return (
@@ -560,8 +608,14 @@ export default function ApplicationsView() {
                         <span className="app-ledger-card__agency">{app.agency_name || 'Unknown Agency'}</span>
                         <span className="app-ledger-card__meta">
                           <MapPin size={13} aria-hidden />
-                          {app.agency_location || 'Location pending'}
-                          {app.source === 'open_call' ? ' · Open call' : ''}
+                          {(isEventApplication(app) ? app.event?.location : null) ||
+                            app.agency_location ||
+                            'Location pending'}
+                          {isEventApplication(app)
+                            ? ` · ${app.event?.name || 'Event casting'}`
+                            : app.source === 'open_call'
+                              ? ' · Open call'
+                              : ''}
                         </span>
                       </span>
                       <span className={`app-status app-status--${config.tone}`}>
@@ -594,6 +648,13 @@ export default function ApplicationsView() {
               app={selectedApplication}
               onWithdraw={() => setWithdrawingApplication(selectedApplication)}
               isWithdrawing={withdrawMutation.isPending && withdrawingApplication?.id === selectedApplication.id}
+              onAnswerSlot={(confirmed) =>
+                setSlotAnswer({ application: selectedApplication, confirmed })
+              }
+              isAnsweringSlot={
+                slotAnswerMutation.isPending &&
+                slotAnswer?.application?.id === selectedApplication.id
+              }
             />
           ) : (
             <div className="app-detail-empty">
@@ -602,6 +663,29 @@ export default function ApplicationsView() {
           )}
         </aside>
       </div>
+
+      <ConfirmationDialog
+        isOpen={slotAnswer !== null}
+        title={slotAnswer?.confirmed ? 'Confirm this slot?' : 'Decline this slot?'}
+        message={
+          slotAnswer?.confirmed
+            ? `Confirm the slot ${slotAnswer?.application?.agency_name || 'the organizer'} offered you${
+                slotAnswer?.application?.event?.name
+                  ? ` for ${slotAnswer.application.event.name}`
+                  : ''
+              }. They will build the line-up around you, so only confirm dates you can genuinely work.`
+            : `Decline the slot ${slotAnswer?.application?.agency_name || 'the organizer'} offered you${
+                slotAnswer?.application?.event?.name
+                  ? ` for ${slotAnswer.application.event.name}`
+                  : ''
+              }. The slot is released immediately and cannot be taken back.`
+        }
+        confirmLabel={slotAnswer?.confirmed ? 'Confirm slot' : 'Decline slot'}
+        cancelLabel="Not yet"
+        variant={slotAnswer?.confirmed ? 'info' : 'warning'}
+        onConfirm={confirmSlotAnswer}
+        onCancel={() => setSlotAnswer(null)}
+      />
 
       <ConfirmationDialog
         isOpen={withdrawingApplication !== null}
@@ -617,14 +701,23 @@ export default function ApplicationsView() {
   );
 }
 
-function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
-  const config = statusConfig(app.status);
+function ApplicationDetail({
+  app,
+  onWithdraw,
+  isWithdrawing,
+  onAnswerSlot,
+  isAnsweringSlot,
+}) {
+  const isEvent = isEventApplication(app);
+  const config = statusConfig(app.status, { purpose: app.call_purpose });
   const StatusIcon = config.icon;
   const site = websiteUrl(app.agency_website);
   const domain = domainLabel(site);
   const board = firstBoard(app.agency_open_boards);
   const canWithdraw = canWithdrawApplication(app.status);
+  const canAnswer = canAnswerSlotOffer(app);
   const age = daysSince(app.created_at);
+  const eventDates = isEvent ? eventDateRange(app.event) : null;
 
   // No scheduler exists to auto-expire stale applications, so surface a calm,
   // truthful cue when an active submission has gone quiet for a while.
@@ -656,9 +749,23 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
       )}
 
       <dl className="app-detail__facts">
+        {isEvent && app.event?.name && (
+          <div>
+            <dt>Event</dt>
+            <dd>{app.event.name}</dd>
+          </div>
+        )}
+        {eventDates && (
+          <div>
+            <dt>Dates</dt>
+            <dd>{eventDates}</dd>
+          </div>
+        )}
         <div>
-          <dt>Market</dt>
-          <dd>{app.agency_location || 'Global'}</dd>
+          <dt>{isEvent ? 'Location' : 'Market'}</dt>
+          <dd>
+            {(isEvent ? app.event?.location : null) || app.agency_location || 'Global'}
+          </dd>
         </div>
         {board && (
           <div>
@@ -673,9 +780,11 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         <div>
           <dt>Source</dt>
           <dd>
-            {app.source === 'open_call'
-              ? 'Open call — invited'
-              : 'Pholio discovery'}
+            {isEvent
+              ? 'Event casting call'
+              : app.source === 'open_call'
+                ? 'Open call — invited'
+                : 'Pholio discovery'}
           </dd>
         </div>
         <div>
@@ -698,6 +807,33 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         <div className="app-detail__note">
           <span className="app-detail__note-title">Your note</span>
           <p className="app-detail__note-text">{app.note}</p>
+        </div>
+      )}
+
+      {/* A live slot offer is the one thing on this panel with a deadline, so
+          it sits above the standing actions rather than beside them. */}
+      {canAnswer && (
+        <div className="app-detail__actions app-detail__actions--offer">
+          <PholioButton
+            type="button"
+            variant="primary"
+            className="app-detail__act"
+            onClick={() => onAnswerSlot?.(true)}
+            disabled={isAnsweringSlot}
+          >
+            <Check size={14} aria-hidden />
+            {isAnsweringSlot ? 'Sending…' : 'Confirm slot'}
+          </PholioButton>
+          <PholioButton
+            type="button"
+            variant="secondary"
+            className="app-detail__act"
+            onClick={() => onAnswerSlot?.(false)}
+            disabled={isAnsweringSlot}
+          >
+            <X size={14} aria-hidden />
+            Decline slot
+          </PholioButton>
         </div>
       )}
 

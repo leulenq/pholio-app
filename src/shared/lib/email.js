@@ -19,6 +19,8 @@ const {
   buildMagicSignInEmailHtml,
   buildTeamInviteEmailHtml,
   buildGuardianConsentEmailHtml,
+  components: emailComponents,
+  getEmailAppBaseUrl,
 } = require("./pholio-email");
 
 /**
@@ -346,9 +348,103 @@ async function sendGuardianConsentEmail({
   return sendEmail({ to, subject, html });
 }
 
+/**
+ * The two event-casting notices. Both go to the organizer, because both are
+ * answers to something the organizer did — and a declined slot in particular
+ * is time-critical operational news: somebody has to be walked in that look.
+ *
+ * Built from the shared email components rather than a bespoke layout so they
+ * carry the same masthead, type and footer as every other Pholio email.
+ */
+function buildEventSlotEmailHtml({
+  recipientName,
+  talentName,
+  eventName,
+  confirmed,
+  applicationId,
+}) {
+  const { heading, goldRule, paragraph, button, signoff, note, esc, renderEmail } =
+    emailComponents;
+  const talent = esc(talentName || "An applicant");
+  const event = esc(eventName || "your event");
+  const greeting = recipientName ? `${esc(recipientName)},` : "Hello,";
+  const applicationUrl = `${getEmailAppBaseUrl()}/dashboard/agency/inbox${
+    applicationId ? `?application=${encodeURIComponent(applicationId)}` : ""
+  }`;
+
+  return renderEmail({
+    previewText: confirmed
+      ? `${talentName || "An applicant"} confirmed their slot for ${eventName || "your event"}.`
+      : `${talentName || "An applicant"} declined their slot for ${eventName || "your event"}.`,
+    blocks: [
+      heading(confirmed ? "A slot is confirmed." : "A slot has opened again."),
+      goldRule(),
+      paragraph(
+        confirmed
+          ? `${greeting} <strong>${talent}</strong> confirmed the slot you offered for <strong>${event}</strong>.`
+          : `${greeting} <strong>${talent}</strong> declined the slot you offered for <strong>${event}</strong>.`,
+      ),
+      ...(confirmed
+        ? []
+        : [
+            paragraph(
+              "The slot is free to offer to someone else. Your pick lists and pool are unchanged.",
+            ),
+          ]),
+      button("Open the applicant", applicationUrl),
+      note(
+        "Only the applicant can confirm or decline a slot — this is their answer, recorded on the application.",
+      ),
+      signoff(),
+    ],
+  });
+}
+
+async function sendEventSlotConfirmedEmail({
+  to,
+  recipientName,
+  talentName,
+  eventName,
+  applicationId,
+}) {
+  return sendEmail({
+    to,
+    subject: `${talentName || "An applicant"} confirmed their slot${eventName ? ` — ${eventName}` : ""}`,
+    html: buildEventSlotEmailHtml({
+      recipientName,
+      talentName,
+      eventName,
+      applicationId,
+      confirmed: true,
+    }),
+  });
+}
+
+async function sendEventSlotDeclinedEmail({
+  to,
+  recipientName,
+  talentName,
+  eventName,
+  applicationId,
+}) {
+  return sendEmail({
+    to,
+    subject: `${talentName || "An applicant"} declined their slot${eventName ? ` — ${eventName}` : ""}`,
+    html: buildEventSlotEmailHtml({
+      recipientName,
+      talentName,
+      eventName,
+      applicationId,
+      confirmed: false,
+    }),
+  });
+}
+
 module.exports = {
   sendEmail,
   sendApplicationStatusEmail,
+  sendEventSlotConfirmedEmail,
+  sendEventSlotDeclinedEmail,
   sendNewMessageEmail,
   sendAgencyInviteEmail,
   sendWelcomeTalentEmail,

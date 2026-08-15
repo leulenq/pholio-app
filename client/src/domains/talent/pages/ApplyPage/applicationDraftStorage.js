@@ -304,6 +304,13 @@ export function draftFingerprint(document) {
       compCardPresetId: payload.compCardPreset?.id || payload.compCardPresetId || null,
       specRegistryRevisionId: payload.specRegistryRevisionId || null,
       note: typeof payload.note === 'string' ? payload.note : '',
+      // Event intake. Without these, changing the availability range or the
+      // walk video link would not read as a change and autosave would never
+      // fire for the one scene an event application exists to collect.
+      openCallLinkId: payload.openCallLinkId || null,
+      availability: payload.availability || null,
+      walkVideoUrl: payload.walkVideoUrl || null,
+      measurementsConfirmed: payload.measurementsConfirmed === true,
       consent: payload.consent === true,
     },
   });
@@ -322,5 +329,8 @@ export function draftMaterialFingerprint(document) {
     compCardPresetId: payload.compCardPreset?.id || payload.compCardPresetId || null,
     specRegistryRevisionId: payload.specRegistryRevisionId || null,
     note: typeof payload.note === 'string' ? payload.note : '',
+    openCallLinkId: payload.openCallLinkId || null,
+    availability: payload.availability || null,
+    walkVideoUrl: payload.walkVideoUrl || null,
   });
 }

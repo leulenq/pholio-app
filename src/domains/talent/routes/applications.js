@@ -15,6 +15,7 @@ const {
 const {
   notifyAgencyNewApplication,
   notifyAgencyApplicationWithdrawn,
+  notifyAgencyEventSlotResponse,
   notifyAgencyNewMessage,
 } = require("../../../shared/services/agency-notifications");
 const {
@@ -48,11 +49,14 @@ const {
   expiryTimestamp,
   expireInactiveDrafts,
   isEligibleAgencyImage,
+  isMaterialRepairWarning,
   mapDraftRow,
+  normalizeAvailabilityRange,
   normalizeClientId,
   normalizeClientUpdatedAt,
   normalizeDraftPayloadWithRepairs,
   normalizeStepId,
+  normalizeWalkVideoUrl,
   parseDraftPayload,
   recordDraftEvent,
   recoveryTimestamp,
@@ -83,10 +87,26 @@ const {
 } = require("../services/open-call-claims");
 const {
   buildOpenCallDisclosure,
+  eventPackageRetentionDate,
 } = require("../../../shared/lib/submission-disclosure-content");
 const {
   snapshotApplicationSpec,
 } = require("../../spec-registry/preflight-service");
+const {
+  CALL_PURPOSES,
+  DEFAULT_CALL_PURPOSE,
+} = require("../../../shared/constants/event-casting");
+const {
+  CONFIRMED_APPLICATION_STATUS,
+  OFFERED_APPLICATION_STATUSES,
+  TALENT_DECLINED_APPLICATION_STATUS,
+  TALENT_WRITABLE_APPLICATION_STATUSES,
+} = require("../../../shared/constants/application-status");
+const {
+  eventCallDTO,
+  eventDisclosureContextFromLink,
+  isEventCall,
+} = require("../../agency/services/open-call-brief");
 
 async function recordAdvisorySpecSnapshot(
   trx,
@@ -115,6 +135,150 @@ function serializeClaim(claim) {
     agencyLocation: claim.agency_location,
     agencyLogo: claim.agency_logo,
     expiresAt: claim.expires_at,
+    ...(claim.link_id ? { openCallLinkId: claim.link_id } : {}),
+    ...(claim.call ? { call: claim.call } : {}),
+  };
+}
+
+/* ── Event calls ─────────────────────────────────────────────────────────────
+   An event submission is an ordinary submission that arrived through a link
+   whose `call_kind` is `event_casting`. The link is carried by the open-call
+   claim the arrival minted, so nothing client-supplied decides the purpose of
+   a submission — the same rule that already governs the quota exemption. */
+
+// Deploy-before-migrate guard: until `applications.call_purpose` exists every
+// submission is a representation submission and the event columns are not
+// written. Cached per process, like the note-flag probe above.
+let applicationEventColumnsPromise = null;
+function hasApplicationEventColumns(db) {
+  if (!applicationEventColumnsPromise) {
+    applicationEventColumnsPromise = db.schema
+      .hasColumn("applications", "call_purpose")
+      .catch(() => {
+        applicationEventColumnsPromise = null;
+        return false;
+      });
+  }
+  return applicationEventColumnsPromise;
+}
+
+const OPEN_CALL_LINK_COLUMNS = [
+  "l.id",
+  "l.agency_id",
+  "l.status",
+  "l.call_kind",
+  "l.compensation_type",
+  "l.compensation_details",
+  "l.event_name",
+  "l.event_starts_on",
+  "l.event_ends_on",
+  "l.event_location",
+  "l.requires_walk_video",
+  "l.requires_availability",
+  "l.requires_measurements",
+  "l.review_window_days",
+  "l.offer_response_window_hours",
+];
+
+/** The link row a claim points at, or null when the event schema is absent. */
+async function loadOpenCallLink(db, linkId) {
+  if (!linkId) return null;
+  try {
+    return (
+      (await db("agency_open_call_links as l")
+        .leftJoin("agencies as a", "a.id", "l.agency_id")
+        .where("l.id", linkId)
+        .first(...OPEN_CALL_LINK_COLUMNS, "a.name as agency_name")) || null
+    );
+  } catch {
+    // The event columns ship in a later migration than the links table.
+    return null;
+  }
+}
+
+/**
+ * Everything the submit path needs to know about the call behind a claim:
+ * whether it is an event cast, what the organizer requires at intake, and the
+ * context the event consent copy interpolates. Null for representation.
+ */
+function eventCallContext(link) {
+  if (!link || !isEventCall(link)) return null;
+  const dto = eventCallDTO(link);
+  return {
+    linkId: link.id,
+    link,
+    call: dto,
+    intake: {
+      requiresWalkVideo: Boolean(link.requires_walk_video),
+      requiresAvailability: Boolean(link.requires_availability),
+      requiresMeasurements: Boolean(link.requires_measurements),
+    },
+    disclosureContext: eventDisclosureContextFromLink(link, link.agency_name),
+  };
+}
+
+/**
+ * Decorate claims with the call they came from, so the apply flow knows before
+ * the first keystroke whether it is composing a representation submission or an
+ * event application (and, for an event, what the organizer requires).
+ *
+ * `listActiveClaims` deliberately projects only agency identity — this joins
+ * the link here rather than widening a query the whole open-call surface uses.
+ */
+async function attachCallContext(db, claims) {
+  if (!claims.length) return claims;
+  let rows = [];
+  try {
+    rows = await db("agency_open_call_claims as c")
+      .join("agency_open_call_links as l", "l.id", "c.link_id")
+      .leftJoin("agencies as a", "a.id", "l.agency_id")
+      .whereIn(
+        "c.id",
+        claims.map((claim) => claim.id),
+      )
+      .select("c.id as claim_id", ...OPEN_CALL_LINK_COLUMNS, "a.name as agency_name");
+  } catch {
+    // Pre-migration schema: claims stay exactly as they were.
+    return claims;
+  }
+  const byClaimId = new Map(rows.map((row) => [row.claim_id, row]));
+  return claims.map((claim) => {
+    const link = byClaimId.get(claim.id);
+    if (!link) return claim;
+    return { ...claim, link_id: link.id, call: eventCallDTO(link) };
+  });
+}
+
+/** The live claim for (profile, agency) outside a transaction, for preflight. */
+async function previewClaimForAgency(db, profileId, agencyId) {
+  try {
+    return (
+      (await db("agency_open_call_claims")
+        .where({ profile_id: profileId, agency_id: agencyId, status: "active" })
+        .first()) || null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/** Ruling R4 as a timestamp: `event_ends_on + 90 days`, or null when undated. */
+function eventPackageRetentionExpiry(eventCall) {
+  const endsOn = eventCall?.disclosureContext?.eventEndsOn;
+  const retentionDate = eventPackageRetentionDate(endsOn);
+  return retentionDate ? new Date(`${retentionDate}T00:00:00.000Z`).toISOString() : null;
+}
+
+/**
+ * Availability and the walk video are the two fields an event call adds to the
+ * package. They are normalized here — never trusted as sent — because the
+ * consent fingerprint hashes them and the organizer's dossier renders them.
+ */
+function normalizeEventSubmissionFields(submissionPackage) {
+  return {
+    availability: normalizeAvailabilityRange(submissionPackage?.availability),
+    walkVideoUrl: normalizeWalkVideoUrl(submissionPackage?.walkVideoUrl) || null,
+    measurementsConfirmed: submissionPackage?.measurementsConfirmed === true,
   };
 }
 
@@ -338,6 +502,8 @@ router.get(
       noteQuery.where("note_msg.is_submission_note", true);
     }
 
+    const eventColumnsReady = await hasApplicationEventColumns(knex);
+
     // Fetch applications with organization-backed agency info
     const applications = await knex("applications")
       .leftJoin("agencies", "applications.agency_id", "agencies.id")
@@ -347,6 +513,17 @@ router.get(
           .andOn("am.status", "=", knex.raw("?", ["ACTIVE"]));
       })
       .leftJoin("users", "am.user_id", "users.id")
+      .modify((query) => {
+        // The call is what a talent-facing event row is actually about — the
+        // event name, its dates, and how long an offer stays open.
+        if (eventColumnsReady) {
+          query.leftJoin(
+            "agency_open_call_links as call_link",
+            "call_link.id",
+            "applications.open_call_link_id",
+          );
+        }
+      })
       .where({ profile_id: profile.id })
       .select(
         "applications.id",
@@ -360,6 +537,18 @@ router.get(
         "agencies.logo_path as agency_logo",
         "agencies.open_boards as agency_open_boards",
         noteQuery.as("note"),
+        ...(eventColumnsReady
+          ? [
+              "applications.call_purpose",
+              "applications.open_call_link_id",
+              "applications.status_changed_at",
+              "call_link.event_name",
+              "call_link.event_starts_on",
+              "call_link.event_ends_on",
+              "call_link.event_location",
+              "call_link.offer_response_window_hours",
+            ]
+          : []),
         ...(openCallReady
           ? [
               // Provenance: the latest completed quota event tells whether this
@@ -377,10 +566,32 @@ router.get(
       .orderBy("applications.created_at", "desc");
 
     const data = applications.map((application) => {
-      const { open_call_exempt: openCallExempt, ...rest } = application;
+      const {
+        open_call_exempt: openCallExempt,
+        event_name: eventName,
+        event_starts_on: eventStartsOn,
+        event_ends_on: eventEndsOn,
+        event_location: eventLocation,
+        offer_response_window_hours: offerResponseWindowHours,
+        ...rest
+      } = application;
+      const isEvent = rest.call_purpose === CALL_PURPOSES.EVENT_CASTING;
       return {
         ...rest,
         source: openCallExempt ? "open_call" : "discovery",
+        // Only event rows carry an event block, so a representation row is
+        // shaped exactly as it always was.
+        ...(isEvent
+          ? {
+              event: {
+                name: eventName || null,
+                startsOn: eventStartsOn || null,
+                endsOn: eventEndsOn || null,
+                location: eventLocation || null,
+                offerResponseWindowHours: offerResponseWindowHours ?? null,
+              },
+            }
+          : {}),
       };
     });
 
@@ -413,7 +624,9 @@ router.get(
       success: true,
       data: {
         ...quota,
-        activeClaims: activeClaims.map(serializeClaim),
+        activeClaims: (await attachCallContext(knex, activeClaims)).map(
+          serializeClaim,
+        ),
       },
     });
   }),
@@ -692,15 +905,59 @@ router.post(
       });
     }
 
-    // 1. Check if already applied. A previously withdrawn application can be
+    // Convert any pending open-call arrival into a durable claim before
+    // anything reads one. The claim carries the link, and the link decides
+    // whether this is an event cast — so it has to exist by the time the
+    // purpose is resolved, not merely by the time the quota is checked.
+    const openCallReady = await hasOpenCallSchema(knex);
+    if (openCallReady) {
+      await ensureClaimFromSession(knex, req, profile.id);
+    }
+
+    // 1. Resolve the call this submission came through. The claim minted on
+    //    arrival carries the link; the link decides the purpose. A client
+    //    cannot declare its own submission an event cast.
+    const eventColumnsReady = await hasApplicationEventColumns(knex);
+    const previewClaim = eventColumnsReady
+      ? await previewClaimForAgency(knex, profile.id, agencyId)
+      : null;
+    const eventCall = eventColumnsReady
+      ? eventCallContext(await loadOpenCallLink(knex, previewClaim?.link_id))
+      : null;
+    const callPurpose = eventCall
+      ? CALL_PURPOSES.EVENT_CASTING
+      : DEFAULT_CALL_PURPOSE;
+    const eventFields = normalizeEventSubmissionFields(submissionPackage);
+
+    // 2. Check if already applied. A previously withdrawn application can be
     //    resubmitted (we revive that row below to preserve its history).
-    const existingparams = { profile_id: profile.id, agency_id: agencyId };
-    const existing = await knex("applications").where(existingparams).first();
+    //
+    //    Scope follows the uniqueness rule the schema enforces (design A3): one
+    //    live representation application per agency, but one event application
+    //    per *call*, so a model who walked the Brooklyn edition can still apply
+    //    to Queens under the same organizer.
+    let existingQuery = knex("applications").where({ profile_id: profile.id });
+    if (eventCall) {
+      existingQuery = existingQuery.where({
+        open_call_link_id: eventCall.linkId,
+        call_purpose: CALL_PURPOSES.EVENT_CASTING,
+      });
+    } else {
+      existingQuery = existingQuery.where({ agency_id: agencyId });
+      if (eventColumnsReady) {
+        existingQuery = existingQuery.where({
+          call_purpose: DEFAULT_CALL_PURPOSE,
+        });
+      }
+    }
+    const existing = await existingQuery.first();
     if (existing && existing.status !== "withdrawn") {
       return res.status(409).json({
         success: false,
         error: "application_already_submitted",
-        message: "You've already applied to this agency.",
+        message: eventCall
+          ? "You've already applied to this casting."
+          : "You've already applied to this agency.",
       });
     }
     const reapplying = !!existing;
@@ -722,6 +979,8 @@ router.post(
     const packageValidation = validateSubmissionPackage(submissionProfile, packageImages, {
       rightsMap,
       agencyConsentGranted,
+      eventIntake: eventCall?.intake || null,
+      eventSubmission: eventFields,
     });
     if (!packageValidation.ok) {
       return res.status(400).json({
@@ -737,10 +996,13 @@ router.post(
     // Fast preflight for UX. The authoritative quota + claim check is
     // repeated while holding the profile lock inside the final submission
     // transaction — nothing here grants anything.
-    const openCallReady = await hasOpenCallSchema(knex);
-    if (openCallReady) {
-      await ensureClaimFromSession(knex, req, profile.id);
-    }
+    //
+    // Event submissions need no separate exemption: they only exist when a
+    // claim exists, and a claim is exactly what lifts the discovery ceiling
+    // here and in the transaction below. There is no monthly allowance to
+    // spend on a casting, which is why the event consent copy never mentions
+    // one (`buildOpenCallDisclosure` branches on purpose).
+    //
     // The discovery limit applies to every account identically — it is an
     // anti-spam ceiling, not a commercial lever, so there is nothing to
     // upgrade to and the response never says otherwise.
@@ -803,6 +1065,10 @@ router.post(
           specRegistryRevisionId:
             submissionPackage?.specRegistryRevisionId,
           note,
+          openCallLinkId: eventCall?.linkId || null,
+          availability: eventFields.availability,
+          walkVideoUrl: eventFields.walkVideoUrl,
+          measurementsConfirmed: eventFields.measurementsConfirmed,
         },
       });
     } catch (error) {
@@ -817,13 +1083,19 @@ router.post(
       throw error;
     }
     const normalizedSubmissionReferences = normalizedSubmissionResult.payload;
-    if (normalizedSubmissionResult.repairWarnings.length > 0) {
+    // A schema upgrade is not a changed selection — see isMaterialRepairWarning.
+    // Blocking on it would make a draft-schema bump invalidate every submission
+    // already in flight, which is precisely the failure the conditional
+    // fingerprint spread exists to avoid.
+    const materialRepairWarnings =
+      normalizedSubmissionResult.repairWarnings.filter(isMaterialRepairWarning);
+    if (materialRepairWarnings.length > 0) {
       return res.status(409).json({
         success: false,
         error: "submission_references_changed",
         message:
           "Some saved selections are no longer available. Review the repaired draft before submitting.",
-        repairWarnings: normalizedSubmissionResult.repairWarnings,
+        repairWarnings: materialRepairWarnings,
       });
     }
     if (normalizedSubmissionReferences.mediaSetId !== "current") {
@@ -851,6 +1123,13 @@ router.post(
       {
         rightsMap: canonicalRightsMap,
         agencyConsentGranted,
+        eventIntake: eventCall?.intake || null,
+        eventSubmission: {
+          availability: normalizedSubmissionReferences.availability,
+          walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
+          measurementsConfirmed:
+            normalizedSubmissionReferences.measurementsConfirmed,
+        },
       },
     );
     if (!canonicalPackageValidation.ok) {
@@ -898,6 +1177,11 @@ router.post(
         null,
       imageIds: packageImages.map((image) => image.id),
       note: applicationNote,
+      // Conditional by construction: null on a representation submission, so
+      // the hash is byte-identical to the pre-event-casting one.
+      openCallLinkId: eventCall?.linkId || null,
+      availability: normalizedSubmissionReferences.availability,
+      walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
     });
     if (
       !minorSubmission &&
@@ -931,6 +1215,10 @@ router.post(
       adultAuthorityConfirmed:
         !minorSubmission &&
         submissionPackage?.adultAuthorityConfirmed === true,
+      // Defaults to representation, which keeps the existing snapshot
+      // byte-identical for every non-event submission.
+      purpose: callPurpose,
+      eventContext: eventCall?.disclosureContext || null,
     });
     const clientMeta = requestClientMeta(req);
     const hasSubmissionPackagesTable = await knex.schema.hasTable(
@@ -959,6 +1247,19 @@ router.post(
         let openCallClaim = null;
         if (openCallReady) {
           openCallClaim = await resolveActiveClaim(trx, profile.id, agencyId);
+        }
+        // The claim was re-attributed to a different link between preflight and
+        // now (the talent re-arrived through another of the organizer's calls).
+        // The consent the applicant gave names one event; it cannot be spent on
+        // another, so this fails like any other package change.
+        if (
+          eventCall &&
+          openCallClaim &&
+          openCallClaim.link_id !== eventCall.linkId
+        ) {
+          const error = new Error("Open call link changed during submission");
+          error.code = "OPEN_CALL_CLAIM_CONFLICT";
+          throw error;
         }
         const quotaExempt = Boolean(openCallClaim);
         if (!quotaExempt && quota.remaining === 0) {
@@ -1058,10 +1359,21 @@ router.post(
             : {}),
         });
 
+        // Written only once the columns exist; the purpose of an application is
+        // immutable, so a revived row restates the same values it was created
+        // with rather than inheriting a stale purpose from an older send.
+        const eventColumns = eventColumnsReady
+          ? {
+              open_call_link_id: eventCall?.linkId || null,
+              call_purpose: callPurpose,
+            }
+          : {};
+
         if (reapplying) {
           const revived = await trx("applications")
             .where({ id: existing.id, status: "withdrawn" })
             .update({
+              ...eventColumns,
               status: "pending",
               minor_at_submission: minorSubmission,
               guardian_consent_grant_id: guardianConsentGrantId,
@@ -1096,6 +1408,7 @@ router.post(
             id: applicationId,
             profile_id: profile.id,
             agency_id: agencyId,
+            ...eventColumns,
             status: "pending",
             minor_at_submission: minorSubmission,
             guardian_consent_grant_id: guardianConsentGrantId,
@@ -1111,7 +1424,10 @@ router.post(
           // Spend the claim atomically with the submission it exempts, and
           // make the consent record state what the UI stated.
           await consumeClaim(trx, openCallClaim.id, applicationId);
-          disclosureSnapshot.openCall = buildOpenCallDisclosure(agency.name);
+          disclosureSnapshot.openCall = buildOpenCallDisclosure(agency.name, {
+            purpose: callPurpose,
+            eventName: eventCall?.disclosureContext?.eventName || null,
+          });
         }
 
         await trx("application_submission_requests")
@@ -1142,6 +1458,12 @@ router.post(
           guardianConsentGrantId,
           ipAddress: clientMeta.ipAddress,
           userAgent: clientMeta.userAgent,
+          purpose: callPurpose,
+          openCallLinkId: eventCall?.linkId || null,
+          // The compensation sentence the applicant actually read, frozen
+          // beside their consent. Restated verbatim, never paraphrased.
+          compensationDisclosure:
+            disclosureSnapshot.compensationDisclosure || null,
         });
 
         await trx("application_submission_boards")
@@ -1226,7 +1548,14 @@ router.post(
             profile_id: profile.id,
             label: `Application to ${agencyId}`,
             created_at: new Date(),
-            retention_expires_at: submissionRetentionExpiry().toISOString(),
+            // Ruling R4: an event package is deleted 90 days after the event
+            // ends, and the consent copy says so in those words. Holding it for
+            // 24 months like a representation package would make that sentence
+            // false. A call with no stated end date has nothing to count from,
+            // so it keeps the default window.
+            retention_expires_at:
+              eventPackageRetentionExpiry(eventCall) ||
+              submissionRetentionExpiry().toISOString(),
             guardian_consent_grant_id: guardianConsentGrantId,
             guardian_consent_expires_at: guardianConsentExpiresAt,
             payload: {
@@ -1234,6 +1563,20 @@ router.post(
               applicationId,
               agencyId,
               agencyName: agency.name || null,
+              // Top-level, not nested: the designer pick page reads
+              // `payload.availability` / `payload.walkVideoUrl` straight off
+              // the frozen snapshot, never off a live application row.
+              callPurpose,
+              openCallLinkId: eventCall?.linkId || null,
+              availability: normalizedSubmissionReferences.availability,
+              walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
+              eventContext: eventCall
+                ? {
+                    ...eventCall.disclosureContext,
+                    availability: normalizedSubmissionReferences.availability,
+                    walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
+                  }
+                : null,
               boards: normalizedSubmissionReferences.boards,
               boardLabels: normalizedSubmissionReferences.boards,
               mediaSetId: normalizedSubmissionReferences.mediaSetId,
@@ -2238,6 +2581,170 @@ router.post(
       },
     });
   }),
+);
+
+/* ── Answering a slot offer ──────────────────────────────────────────────────
+   The only two statuses a talent may write. An organizer offering a slot moves
+   an event application to `accepted`; whether that slot is taken is the
+   applicant's sentence to speak, and `TALENT_WRITABLE_APPLICATION_STATUSES` is
+   deliberately absent from the agency's writable list so nobody can record a
+   confirmation on their behalf. */
+
+const SLOT_RESPONSES = Object.freeze({
+  [CONFIRMED_APPLICATION_STATUS]: {
+    activityDescription: "Talent confirmed the slot",
+    successMessage: "Slot confirmed",
+  },
+  [TALENT_DECLINED_APPLICATION_STATUS]: {
+    activityDescription: "Talent declined the slot",
+    successMessage: "Slot declined",
+  },
+});
+
+// Fails at require time rather than at runtime: if a future edit moves either
+// status into the agency's writable list, these routes are no longer the only
+// way it can be written and the guarantee above is quietly gone.
+for (const status of Object.keys(SLOT_RESPONSES)) {
+  if (!TALENT_WRITABLE_APPLICATION_STATUSES.includes(status)) {
+    throw new Error(
+      `Slot response status "${status}" is not talent-writable — see application-status.js`,
+    );
+  }
+}
+
+/**
+ * Answer an offer. Legal only from `accepted` on an event application: there is
+ * no slot to confirm before one is offered, and re-answering after the fact
+ * would rewrite a decision the organizer has already staffed around.
+ */
+async function respondToSlotOffer(req, res, nextStatus) {
+  const { id } = req.params;
+  const response = SLOT_RESPONSES[nextStatus];
+  const profile = await getProfileBySessionUserId(req.session.userId);
+  if (!profile) {
+    return res.status(404).json({
+      success: false,
+      error: "Profile not found",
+      message: "Profile not found",
+    });
+  }
+
+  if (!(await hasApplicationEventColumns(knex))) {
+    return res.status(404).json({
+      success: false,
+      error: "event_casting_unavailable",
+      message: "Event casting is not available yet.",
+    });
+  }
+
+  const application = await knex("applications")
+    .where({ id, profile_id: profile.id })
+    .first();
+  if (!application) {
+    return res.status(404).json({
+      success: false,
+      error: "Application not found",
+      message: "Application not found",
+    });
+  }
+
+  if (application.call_purpose !== CALL_PURPOSES.EVENT_CASTING) {
+    return res.status(409).json({
+      success: false,
+      error: "not_an_event_application",
+      message: "Only an event casting can offer a slot.",
+    });
+  }
+
+  if (!OFFERED_APPLICATION_STATUSES.includes(application.status)) {
+    return res.status(409).json({
+      success: false,
+      error: "slot_offer_not_open",
+      message:
+        application.status === nextStatus
+          ? "You have already answered this offer."
+          : "There is no open slot offer on this application.",
+    });
+  }
+
+  // ISO strings, not Date objects: under a VM realm (jest) knex's
+  // `instanceof Date` check fails and it stores the literal "[object Object]",
+  // which reads back as an unparseable anchor and breaks the auto-close clock.
+  const respondedAt = new Date().toISOString();
+  const updated = await knex("applications")
+    // Conditional on the status we read: two taps, or a tap racing the
+    // auto-close job, must not both land.
+    .where({ id, profile_id: profile.id, status: application.status })
+    .update({
+      status: nextStatus,
+      status_changed_at: respondedAt,
+      updated_at: respondedAt,
+    });
+  if (updated !== 1) {
+    return res.status(409).json({
+      success: false,
+      error: "slot_offer_not_open",
+      message: "This offer was already answered or has expired.",
+    });
+  }
+
+  await logActivity(
+    req,
+    knex,
+    id,
+    application.agency_id,
+    "status_change",
+    response.activityDescription,
+    { old_status: application.status, new_status: nextStatus },
+  );
+
+  const talentName =
+    [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
+    profile.name ||
+    "A talent";
+  try {
+    const link = await loadOpenCallLink(knex, application.open_call_link_id);
+    await notifyAgencyEventSlotResponse({
+      agencyId: application.agency_id,
+      applicationId: id,
+      talentName,
+      eventName: link?.event_name || null,
+      confirmed: nextStatus === CONFIRMED_APPLICATION_STATUS,
+    });
+  } catch (notifyErr) {
+    // The organizer's inbox is the record; the ping is best-effort.
+    console.error("[Applications] Slot response notification failed:", notifyErr);
+  }
+
+  return res.json({
+    success: true,
+    data: {
+      id,
+      status: nextStatus,
+      statusChangedAt: respondedAt,
+    },
+    message: response.successMessage,
+  });
+}
+
+/** POST /api/talent/applications/:id/confirm */
+router.post(
+  "/:id/confirm",
+  requireRole("TALENT"),
+  requireActiveAccount(),
+  asyncHandler((req, res) =>
+    respondToSlotOffer(req, res, CONFIRMED_APPLICATION_STATUS),
+  ),
+);
+
+/** POST /api/talent/applications/:id/decline-slot */
+router.post(
+  "/:id/decline-slot",
+  requireRole("TALENT"),
+  requireActiveAccount(),
+  asyncHandler((req, res) =>
+    respondToSlotOffer(req, res, TALENT_DECLINED_APPLICATION_STATUS),
+  ),
 );
 
 /**

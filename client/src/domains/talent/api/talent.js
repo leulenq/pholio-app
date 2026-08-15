@@ -129,6 +129,11 @@ export const talentApi = {
   getAgencyPrivacyDirectory: () => apiClient.get('/agencies?includeBlocked=1'),
   createApplication: (data) => apiClient.post('/applications', data),
   withdrawApplication: (id) => apiClient.post(`/applications/${id}/withdraw`),
+  // Answering an event slot offer — the only two statuses a talent may write.
+  // Never `withdrawApplication`: that redacts the package and hides the row
+  // from an organizer who still has to fill the slot.
+  confirmApplicationSlot: (id) => apiClient.post(`/applications/${id}/confirm`),
+  declineApplicationSlot: (id) => apiClient.post(`/applications/${id}/decline-slot`),
   getSubmissionProgramStatus: (options) =>
     apiClient.get('/applications/submission-program-status', options),
   acknowledgeSubmissionProgram: () =>

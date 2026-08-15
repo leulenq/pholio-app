@@ -695,7 +695,9 @@ describe("application drafts", () => {
     expect(futureSchema.status).toBe(422);
     expect(futureSchema.body).toMatchObject({
       error: "unsupported_draft_schema",
-      supportedSchemaVersion: 1,
+      // The supported version is whatever the shared schema file says today —
+      // pinning the literal made a routine version bump look like a regression.
+      supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
     });
 
     await knex("agencies")
