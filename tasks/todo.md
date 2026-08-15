@@ -299,6 +299,34 @@ DESIGN RULES (talent-side frontend)
   Folds in backlog item: readRoute channelType + email-route plate copy (Lane B).
 - RATE-LIMIT NOTE: first investigation wave was killed by a session limit; relaunched
   after reset per standing rule 4. is_pro audit agent relaunched with the wave.
+- Phase 6 LANE 0 LANDED (8984532): 4 migrations (off_platform_submissions,
+  agency_verifications, agency_call_windows, reference conversion) + constants both
+  sides + 41-test schema suite. M4 matches by NAME not slug (seeded rows have slug=NULL)
+  + membership safety guard (never demote an agency with members). Cross-lane fix:
+  event-casting-schema test's hardcoded rollback-5 → ledger-derived count. KNOWN:
+  npm run migrate:rollback full-batch unwind dies in 20260320110000's down() — ancient
+  pre-existing defect, step-wise migrate:down works.
+- Phase 6 SERVER WAVE LANDED + PUSHED (f7c035c A1 tracker API 26/26; 6316200 A2 trust
+  registry). A2 highlights: 6 conservative NY DOL matches (elite-model-management,
+  ford-models, img-models, muse-model-management, the-society-management, wilhelmina);
+  SKIPPED ambiguous: Marilyn Red ≠ pack Marilyn (no marilyn org in pack), Elite
+  Models/Japan entities, DNA/Next/State/Women/Que NOT pack orgs (design §b overcounted).
+  3 call windows (Muse Thu 3-4pm, Que Thu 10-11am, MSA Tue no-time; Que+MSA org=null
+  display rows). Directory now ACTIVE+org_kind='agency' w/ deploy-before-migrate guard;
+  seeds = 3 fictional agencies, zero registry route mappings, overview-backend test
+  assertions updated (demo ledger variety reduced — consider 3rd fictional agency).
+  DEPLOY RUNBOOK ADD: run `npm run release:trust-registry` in prod after migrate.
+  FOLLOW-UPS ADDED: scripts/seed-user-accounts.js + seed-mia-intel.js still name real
+  agencies (same honesty treatment needed); officialSiteUrl null everywhere (derive
+  policy undecided); call-window location/instructions null (no committed evidence —
+  gather real addresses on next verification day).
+- Phase 6 CLIENT WAVE IN FLIGHT (B ∥ C, disjoint, no worker commits): B = Requirements
+  ledger verification/call-window lines + This-week strip + email plate copy +
+  readRoute channelType (backlog item) + post-export tracker prompt + ApplyExperience
+  dossier verification line; C = merged ledger in ApplicationsView + tracker overlay/
+  utils + api methods (logTrackedSubmission/listCallWindows contract, query keys
+  ['tracker']/['call-windows']) + Overview "Open calls this week" card. Lead pre-wired:
+  route mounts (1c558b0), shared callWindows formatter (212af43).
 - Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
   portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
   agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
