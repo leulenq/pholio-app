@@ -154,11 +154,17 @@ They are never written to a record.
 
 ## 5. The flow never dead-ends
 
-`extractCardText()` cannot fail. A corrupt file, a card with no text layer, an
-unreadable image, a missing API key and a model outage all return an empty result
-with a reason attached, which becomes a proposal whose fields are all `not_found` —
-that is, a working manual-entry screen. The upload endpoint returns 201 in those
-cases, not an error, because nothing has gone wrong from the talent's point of view.
+`extractCardText()` cannot fail, with two deliberate exceptions. A corrupt file, a
+card with no text layer, an unreadable image, a missing API key and a model outage
+all return an empty result with a reason attached, which becomes a proposal whose
+fields are all `not_found` — that is, a working manual-entry screen. The upload
+endpoint returns 201 in those cases, not an error, because nothing has gone wrong
+from the talent's point of view. The exceptions: a missing sharp native binary
+throws `SHARP_UNAVAILABLE` (the route answers 503 — an infrastructure outage must
+not be blamed on the talent's file), and the image-vision fallback requires the
+talent's image-processing AI consent (`imageAiConsentGranted()`); without it the
+route answers 403 `ai_image_consent_required` before any pixel reaches a model.
+PDF text-layer extraction runs regardless of consent — it never touches a pixel.
 
 There is **no human review queue anywhere in this path**, and no moderation gate
 that can hold the flow. `tasks/lessons.md` (2026-07-29) records why: a skin-ratio

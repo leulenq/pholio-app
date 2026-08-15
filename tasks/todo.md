@@ -79,9 +79,27 @@
       Spec-export gaps vs plan: HEIC transcode implicit/unverified (add explicit test),
       email-draft for email-only agencies MISSING (roadmap Phase 4). Deploy note:
       requirements feature inert until `npm run release:spec-registry` runs in prod.
-- [ ] Phase 2: corrections wave — Discover free opt-in; bio writer free+improved (all
-      writers un-gated); Profile Readiness redesign; Spec Registry UI rebuild (Market +
-      Apply Workspace)
+- [x] Phase 1b: fix wave COMPLETE (6 commits, 1edfc4c..83ff905). All 14 items done; two
+      were non-bugs (details endpoint already served frozen snapshot — comment was the
+      defect, test added; safety-report client never self-targeted — contract pinned).
+      Suites: 5 failing, ALL pre-existing (baseline was 7): app, overview-backend,
+      password-changed-notification, intel, notifications (ordering-dependent, needs a
+      proper fix someday). Client lint green. Known seams: showWeight constant in
+      MeasurementsSection (left for branch author intent); comp-card image import now
+      requires AI consent (PDF path exempt) — consider inline consent grant in the
+      import overlay later; docs/comp-card-import-architecture.md amended for the two
+      new exceptions.
+- [ ] Phase 2: corrections wave — IN PROGRESS (3 parallel FE agents, disjoint ownership,
+      no worker commits — lead integrates; spec: scratchpad/fe-redesign-spec.md):
+      FE-A Profile Readiness numeral restoration (+ Overview card); FE-B Requirements
+      ledger + RegistryPreflight rebuild; FE-C age-verification/private-context redesign
+      (contextual entry, trust explainer, Stripe modal handoff, honest states).
+      Discover free opt-in: DONE on branch (pool-status = is_discoverable alone).
+      Still queued in Phase 2: bio writer free + improved (all writers un-gated) — after
+      FE wave to avoid client overlap.
+      AGE-VERIFICATION RULING (user, mid-session): keep Stripe Identity feature; tweak
+      flow (contextual/voluntary, explicit data story, private-only); FE fully redesigned
+      (current FE is NOT a reference); "Powered by Stripe" line, official modal only.
 - [ ] Phase 3: remaining compliance/trust — flat anti-spam application limit (no tier
       lifts; verify gfl2y0 did it), full directory for free, seeded real agencies →
       reference entries w/ "prepare conforming application" CTA, event-casting consent
