@@ -400,6 +400,25 @@ DESIGN RULES (talent-side frontend)
   border family; canonical-input 8px radius latent; generic focus ring) — proposal in
   docs/requirements-redesign-spec-2026-08.md; (d) live visual verification pass running
   (Playwright screenshots incl. import-overlay live repro — no static bug found there).
+- ★ QUALITY PASS COMPLETE incl. LIVE VISUAL VERIFICATION (Playwright, seeded dev DB,
+  screenshots sent to owner). Verification caught + FIXED (b2419a3): unknown-outcome
+  slots read "Not asked for" in agency detail (now "Still needed" — one vocabulary,
+  factual); "Gb" raw market code (now Intl region names; "selected market" enum → line
+  omitted); raw ISO date in reshoot copy (now month prose); masthead counted routes as
+  agencies (now "8 agencies · 10 published routes"). Import overlay CONFIRMED correct
+  live (exact center, top-anchored, full scrim) — owner's screenshot predated the
+  0fa48d1 overlay rebuild. Shoot-date underline confirmed straight. Console clean.
+- REMAINING POLISH NOTES (owner input welcome, not blocking): readiness progress bar
+  is main's green (restored per ruling — the one green element; re-tone to gold needs
+  an owner call since main's design was explicitly requested); Open Calls card day/time
+  column x-alignment; readiness card stretches to Book-grid height (main parity);
+  shoot-date form uses native date widget; "STUDIO+" pill on profile hero is a
+  pre-existing tier chip that reads as a banned pattern (flag only); IMG's elided
+  "avoid ... make-up" transcriptions read truncated (data-curation follow-up: clean
+  sourceLabels in the pack, not code). GLOBAL.CSS CONFLICTS flagged in
+  docs/requirements-redesign-spec-2026-08.md §flag-to-owner (button reset radius+
+  padding = the border-family root cause; canonical-input 8px radius latent; generic
+  focus ring) — root-cause fix needs an owner decision on scoping the reset.
 - Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
   portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
   agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
