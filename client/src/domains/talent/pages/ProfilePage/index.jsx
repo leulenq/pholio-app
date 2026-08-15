@@ -1535,7 +1535,10 @@ export default function ProfilePage() {
           )}
         </Section>
 
-        <VerifiedAdultSection dateOfBirth={values.date_of_birth} />
+        <VerifiedAdultSection
+          dateOfBirth={values.date_of_birth}
+          onEditDateOfBirth={() => scrollToProfileSection('identity')}
+        />
 
         <Section
           id="contact"

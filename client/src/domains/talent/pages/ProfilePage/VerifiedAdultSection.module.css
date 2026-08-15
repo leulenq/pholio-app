@@ -1,0 +1,191 @@
+/* ============================================================
+   PRIVATE CONTEXT — age verification + adult context
+   Pholio's design language for the surface; Stripe's for the
+   handoff. No Stripe chrome here, no badges, no status dots.
+   Inherits the --pf-* tokens from .pageContainer.
+   ============================================================ */
+
+.wrap {
+  display: grid;
+  gap: 16px;
+  max-width: 680px;
+}
+
+/* ─── Collapsed entry: one quiet row, no card weight ─── */
+.entryRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.entryCopy {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  max-width: 52ch;
+}
+
+.entryLink,
+.inlineLink {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--pf-gold, #c9a55a);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.2s var(--pf-ease-std, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.entryLink:hover,
+.inlineLink:hover {
+  color: var(--pf-text, #1a1a1a);
+}
+
+.entryLink:focus-visible,
+.inlineLink:focus-visible {
+  outline: 2px solid var(--pf-gold, #c9a55a);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.entryLink {
+  flex-shrink: 0;
+}
+
+/* ─── Opened panel: the card the section earns once you ask for it ─── */
+.panel {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid var(--pf-hair, rgba(26, 26, 26, 0.08));
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.statusLine {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  max-width: 58ch;
+}
+
+/* ─── The three-line data story ─── */
+.story {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+
+.storyItem {
+  padding: 12px 0;
+  border-top: 1px solid var(--pf-hair, rgba(26, 26, 26, 0.08));
+  font-family: 'Inter', sans-serif;
+  font-size: 14.4px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--pf-text, #1a1a1a);
+  max-width: 60ch;
+}
+
+.storyItem:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.storyItem:last-child {
+  padding-bottom: 0;
+}
+
+/* ─── Actions ─── */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Stripe's approved plain-text attribution. No logo, no lockup, no chrome. */
+.poweredBy {
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+}
+
+.fineprint {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  max-width: 62ch;
+}
+
+.fix {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--pf-text, #1a1a1a);
+  max-width: 60ch;
+}
+
+/* The one sentence every state repeats. */
+.boundary {
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--pf-hair, rgba(26, 26, 26, 0.08));
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+}
+
+/* ─── Verified: the adult-context form ─── */
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 560px) {
+  .panel {
+    padding: 20px;
+  }
+
+  .entryRow {
+    align-items: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entryLink,
+  .inlineLink {
+    transition: none;
+  }
+}

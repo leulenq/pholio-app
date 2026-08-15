@@ -1,15 +1,26 @@
-import { useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { talentApi } from '../../api/talent';
 import { Section } from '../../components/profile-index';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
-import { PholioInput, PholioToggle } from '../../../../shared/components/ui/forms';
+import { PholioInput } from '../../../../shared/components/ui/forms';
 import PholioMultiSelect from '../../../../shared/components/ui/forms/PholioMultiSelect';
 import { pholioToast } from '../../../../shared/lib/pholio-toast';
 import { computeAge } from '../../../../shared/utils/talentAge';
-import styles from './ProfilePage.module.css';
+import {
+  AGE_VERIFICATION_STATES,
+  CONSENT_NOTE,
+  DATA_STORY,
+  DOB_INVALIDATION_NOTE,
+  PRIVACY_BOUNDARY,
+  isPollingStatus,
+  nextPollDelay,
+  resolveAgeVerificationState,
+} from './ageVerificationState';
+import { startIdentityHandoff } from './stripeIdentity';
+import styles from './VerifiedAdultSection.module.css';
 
 const CONTENT_BOUNDARY_OPTIONS = [
   { value: 'Swimwear', label: 'Swimwear' },
@@ -20,252 +31,294 @@ const CONTENT_BOUNDARY_OPTIONS = [
   { value: 'Body Paint', label: 'Body Paint' },
 ];
 
-function StripeConsentModal({
-  isOpen,
-  onClose,
-  consent,
-  onConsentChange,
-  onStartVerification,
-  isPending,
-}) {
-  if (!isOpen) return null;
+const PANEL_ID = 'private-context-panel';
 
-  return createPortal(
-        <div className={styles.pholioAgeVerifyModalOverlay} onClick={onClose}>
-      <div
-        className={styles.pholioAgeVerifyModal}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Age Verification Consent"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={styles.pholioStripeAccentBar} />
-        <div className={styles.pholioAgeVerifyModalHead}>
-          <div>
-            <div className={styles.pholioStripeBrandLine}>
-              <span>Pholio</span>
-              <span className={styles.coBrandSep}>×</span>
-              <span className={styles.stripeText}>Stripe Identity</span>
-            </div>
-            <h3>Age Verification Consent</h3>
-            <p>Handled securely by Stripe Identity</p>
-          </div>
-          <button
-            type="button"
-            className={styles.pholioAgeVerifyModalClose}
-            onClick={onClose}
-            aria-label="Close modal"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className={styles.pholioAgeVerifyDisclosure}>
-          <p>
-            <strong>ID &amp; Selfie Check:</strong> Stripe Identity verifies a government-issued ID and matching selfie to confirm you are 18 or older and match your profile birth date.
-          </p>
-          <p>
-            <strong>Privacy &amp; Data Storage:</strong> Pholio receives and stores only the pass/fail verification result and audit timestamps—never your identity document or selfie.
-          </p>
-          <p>
-            <strong>Automatic Evidence Redaction:</strong> Pholio requests immediate redaction of verification evidence by Stripe post-check.
-          </p>
-        </div>
-
-        <div className={styles.pholioAgeVerifyConsentRow}>
-          <PholioToggle
-            id="age_verification_consent"
-            checked={consent}
-            onChange={(event) => onConsentChange(event.target.checked)}
-            label="I consent to Stripe processing my identity document and selfie for this age check."
-          />
-        </div>
-
-        <div className={styles.pholioAgeVerifyModalFooter}>
-          <a
-            className={styles.pholioAgeVerifyPrivacyLink}
-            href="https://stripe.com/privacy"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Stripe Privacy Policy
-          </a>
-
-          <div className={styles.pholioAgeVerifyModalActions}>
-            <PholioButton
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              disabled={isPending}
-            >
-              Cancel
-            </PholioButton>
-            <PholioButton
-              type="button"
-              variant="primary"
-              disabled={!consent || isPending}
-              loading={isPending}
-              onClick={onStartVerification}
-            >
-              {isPending ? 'Connecting…' : 'Continue to Stripe'}
-            </PholioButton>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-export function VerifiedAdultSection({ dateOfBirth }) {
+/**
+ * Private context — voluntary, contextual, never scored.
+ *
+ * Collapsed it is one quiet row in the profile: a sentence and a text link. It
+ * never prompts, never nags, and deliberately feeds nothing into submission
+ * readiness (see client/src/shared/utils/profileScoring.js — no adult field is
+ * read there, and none should be added).
+ *
+ * Opened it becomes the trust surface: what Stripe sees, what Pholio keeps,
+ * what happens to the documents afterwards. The handoff itself is Stripe's own
+ * UI — we never draw a facsimile of it.
+ */
+export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const age = computeAge(dateOfBirth);
-  const canVerify = age != null && age >= 18;
+  const isAdult = age != null && age >= 18;
+
+  const [open, setOpen] = useState(false);
   const [contentBoundaries, setContentBoundaries] = useState(null);
   const [onlyfansUrl, setOnlyfansUrl] = useState(null);
-  const [verificationConsent, setVerificationConsent] = useState(false);
-  const [showConsentModal, setShowConsentModal] = useState(false);
+  const pollAttemptsRef = useRef(0);
 
   const verificationQuery = useQuery({
     queryKey: ['age-verification'],
     queryFn: () => talentApi.getAgeVerification(),
-    enabled: canVerify,
+    enabled: isAdult,
     staleTime: 15_000,
+    // Two ways the page keeps itself current while Stripe reviews: a backing-off
+    // poll, and an immediate refetch whenever the tab regains focus (the common
+    // case — the talent finished on their phone and came back to this tab).
+    refetchOnWindowFocus: (query) =>
+      isPollingStatus(query.state.data?.status) ? 'always' : true,
+    refetchInterval: (query) => {
+      if (!isPollingStatus(query.state.data?.status)) {
+        pollAttemptsRef.current = 0;
+        return false;
+      }
+      const delay = nextPollDelay(pollAttemptsRef.current);
+      pollAttemptsRef.current += 1;
+      return delay;
+    },
   });
+
+  const verification = verificationQuery.data;
+  const state = useMemo(
+    () => resolveAgeVerificationState({ verification, age }),
+    [verification, age],
+  );
+
   const contextQuery = useQuery({
     queryKey: ['adult-context'],
     queryFn: () => talentApi.getAdultContext(),
-    enabled: canVerify && verificationQuery.data?.verifiedAdult === true,
+    enabled: isAdult && state.id === AGE_VERIFICATION_STATES.VERIFIED,
   });
 
   const displayedBoundaries = contentBoundaries ?? contextQuery.data?.contentBoundaries ?? [];
   const displayedOnlyfansUrl = onlyfansUrl ?? contextQuery.data?.onlyfansUrl ?? '';
 
+  const refetchVerification = verificationQuery.refetch;
+
+  // Stripe's hosted flow returns to ?age_verification=return. Reopen the panel
+  // the talent left, pull the fresh status, then drop the param so a reload
+  // does not re-open it.
+  const returnedFromStripe = searchParams.get('age_verification') === 'return';
+  const handledReturnRef = useRef(false);
+  useEffect(() => {
+    if (!returnedFromStripe || handledReturnRef.current) return;
+    handledReturnRef.current = true;
+    setOpen(true);
+    void refetchVerification();
+    setSearchParams(
+      (params) => {
+        const next = new URLSearchParams(params);
+        next.delete('age_verification');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [returnedFromStripe, refetchVerification, setSearchParams]);
+
   const startVerification = useMutation({
-    mutationFn: () => talentApi.createAgeVerificationSession(),
-    onSuccess: ({ url }) => {
-      window.location.assign(url);
+    mutationFn: async () => {
+      const session = await talentApi.createAgeVerificationSession();
+      return startIdentityHandoff(session);
     },
-    onError: (error) => pholioToast.error(error.message || 'Age verification could not start'),
+    onSuccess: (result) => {
+      // A redirect handoff has already navigated away; only the modal path
+      // comes back here with something to report.
+      if (result?.mode !== 'modal') return;
+      if (result.error?.message) pholioToast.error(result.error.message);
+      void queryClient.invalidateQueries({ queryKey: ['age-verification'] });
+    },
+    onError: (error) =>
+      pholioToast.error(error?.message || 'Age verification could not start'),
   });
+
   const saveContext = useMutation({
-    mutationFn: () => talentApi.updateAdultContext({
-      contentBoundaries: displayedBoundaries,
-      onlyfansUrl: displayedOnlyfansUrl,
-    }),
+    mutationFn: () =>
+      talentApi.updateAdultContext({
+        contentBoundaries: displayedBoundaries,
+        onlyfansUrl: displayedOnlyfansUrl,
+      }),
     onSuccess: (data) => {
       queryClient.setQueryData(['adult-context'], data);
       setContentBoundaries(data.contentBoundaries || []);
       setOnlyfansUrl(data.onlyfansUrl || '');
-      pholioToast.success('Private adult context saved');
+      pholioToast.success('Private context saved');
     },
-    onError: (error) => pholioToast.error(error.message || 'Adult context could not be saved'),
+    onError: (error) =>
+      pholioToast.error(error?.message || 'Private context could not be saved'),
   });
+
+  const handleEditDateOfBirth = useCallback(() => {
+    if (typeof onEditDateOfBirth === 'function') onEditDateOfBirth();
+  }, [onEditDateOfBirth]);
 
   if (age != null && age < 18) return null;
 
-  const verified = verificationQuery.data?.verifiedAdult === true;
-  const status = verificationQuery.data?.status;
-  const retry = ['failed', 'canceled', 'requires_input'].includes(status);
+  const panelMotion = reduceMotion
+    ? {
+        initial: { opacity: 1 },
+        animate: { opacity: 1 },
+        exit: { opacity: 1 },
+        transition: { duration: 0 },
+      }
+    : {
+        initial: { opacity: 0, y: 12 },
+        animate: { opacity: 1, y: 0 },
+        exit: { opacity: 0, y: -6 },
+        transition: {
+          type: 'spring',
+          stiffness: 55,
+          damping: 16,
+          opacity: { duration: 0.15 },
+        },
+      };
+
+  const startPending = startVerification.isPending;
 
   return (
     <Section
       id="verified-adult"
-      title="Private Adult Context"
-      titleEmphasis="Adult"
-      description="Verify your age before storing adult-only creator details or content boundaries. These details stay private unless you explicitly share them for a named submission or confirmed job."
+      title="Private context"
+      titleEmphasis="context"
       showDivider={false}
     >
-      {!canVerify ? (
-        <div className={styles.adultVerificationPanel}>
-          <p>Add your date of birth in Identity Details before starting age verification.</p>
-        </div>
-      ) : verified ? (
-        <div className={styles.adultContextFields}>
-          <div className={styles.adultVerificationConfirmed}>
-            <ShieldCheck aria-hidden="true" size={20} />
-            <div>
-              <strong>Age verified</strong>
-              <p>Pholio stores the verification result, not your identity document or selfie.</p>
-            </div>
-          </div>
-          <PholioMultiSelect
-            label="Content Boundaries"
-            id="adult_content_boundaries"
-            options={CONTENT_BOUNDARY_OPTIONS}
-            value={displayedBoundaries}
-            onChange={setContentBoundaries}
-            placeholder="Select the work you are open to discussing"
-          />
-          <div className={styles.platformOnlyfans}>
-            <PholioInput
-              label="OnlyFans"
-              id="adult_onlyfans_url"
-              type="url"
-              placeholder="https://onlyfans.com/username"
-              value={displayedOnlyfansUrl}
-              onChange={(event) => setOnlyfansUrl(event.target.value)}
-            />
-          </div>
-          <p className={styles.adultContextPrivacy}>
-            Saving these details does not share them with agencies or add them to Discover.
-          </p>
-          <PholioButton
-            type="button"
-            variant="secondary"
-            loading={saveContext.isPending}
-            onClick={() => saveContext.mutate()}
-          >
-            Save private context
-          </PholioButton>
-        </div>
-      ) : (
-        <div className={styles.pholioAgeVerifyCard}>
-          <div className={styles.pholioStripeAccentBar} />
-          <div className={styles.pholioAgeVerifyHeader}>
-            <div className={styles.pholioAgeVerifyTitleGroup}>
-              <div className={styles.pholioStripeBrandLine}>
-                <span>Pholio</span>
-                <span className={styles.coBrandSep}>×</span>
-                <span className={styles.stripeText}>Stripe Identity</span>
-              </div>
-              <h4>Age &amp; Identity Verification</h4>
-              <p>Verify your 18+ status via Stripe Identity to store private adult creator details.</p>
-            </div>
-          </div>
-
-          {status === 'processing' && (
-            <p className={styles.adultContextPrivacy}>
-              Your verification is currently under review by Stripe. This page will update automatically.
-            </p>
-          )}
-
-          {status === 'failed' && (
-            <p className={styles.adultContextPrivacy} style={{ color: 'var(--ag-danger, #d9534f)' }}>
-              Verification check failed. Please ensure your photo ID matches your profile birth date.
-            </p>
-          )}
-
-          <div className={styles.pholioAgeVerifyActions}>
-            <PholioButton
+      <div className={styles.wrap}>
+        <div className={styles.entryRow}>
+          <span className={styles.entryCopy}>{state.summaryLine}</span>
+          {state.entryLabel ? (
+            <button
               type="button"
-              variant="primary"
-              disabled={status === 'processing' || verificationQuery.isLoading}
-              onClick={() => setShowConsentModal(true)}
+              className={styles.entryLink}
+              onClick={() => setOpen((wasOpen) => !wasOpen)}
+              aria-expanded={open}
+              aria-controls={PANEL_ID}
             >
-              {retry ? 'Try age verification again' : 'Verify age with Stripe'}
-            </PholioButton>
-          </div>
-
-          <StripeConsentModal
-            isOpen={showConsentModal}
-            onClose={() => setShowConsentModal(false)}
-            consent={verificationConsent}
-            onConsentChange={setVerificationConsent}
-            onStartVerification={() => startVerification.mutate()}
-            isPending={startVerification.isPending}
-          />
+              {open ? 'Close' : state.entryLabel}
+            </button>
+          ) : null}
         </div>
-      )}
+
+        <AnimatePresence mode="wait" initial={false}>
+          {open ? (
+            <motion.div
+              key={state.id}
+              id={PANEL_ID}
+              className={styles.panel}
+              {...panelMotion}
+            >
+              <p className={styles.statusLine} role="status" aria-live="polite">
+                {state.statusLine}
+              </p>
+
+              {state.id === AGE_VERIFICATION_STATES.DOB_MISSING ? (
+                <p className={styles.fix}>
+                  <button
+                    type="button"
+                    className={styles.inlineLink}
+                    onClick={handleEditDateOfBirth}
+                  >
+                    Add your date of birth
+                  </button>{' '}
+                  in Identity, then come back here.
+                </p>
+              ) : null}
+
+              {state.showExplainer ? (
+                <ul className={styles.story}>
+                  {DATA_STORY.map((line) => (
+                    <li key={line} className={styles.storyItem}>
+                      {line}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {state.showDobFix && state.id === AGE_VERIFICATION_STATES.DOB_MISMATCH ? (
+                <p className={styles.fix}>
+                  Two ways forward:{' '}
+                  <button
+                    type="button"
+                    className={styles.inlineLink}
+                    onClick={handleEditDateOfBirth}
+                  >
+                    correct the date of birth on your profile
+                  </button>
+                  , or run the check again with the ID that matches it.
+                </p>
+              ) : null}
+
+              {state.id === AGE_VERIFICATION_STATES.PROCESSING ? (
+                <div className={styles.actions}>
+                  <button
+                    type="button"
+                    className={styles.inlineLink}
+                    onClick={() => {
+                      void refetchVerification();
+                    }}
+                  >
+                    Check now
+                  </button>
+                  <span className={styles.poweredBy}>Powered by Stripe</span>
+                </div>
+              ) : null}
+
+              {state.actionLabel ? (
+                <>
+                  <div className={styles.actions}>
+                    <PholioButton
+                      type="button"
+                      variant={state.actionVariant || 'secondary'}
+                      loading={startPending}
+                      disabled={startPending}
+                      onClick={() => startVerification.mutate()}
+                    >
+                      {state.actionLabel}
+                    </PholioButton>
+                    <span className={styles.poweredBy}>Powered by Stripe</span>
+                  </div>
+                  <p className={styles.fineprint}>
+                    {CONSENT_NOTE} {DOB_INVALIDATION_NOTE}
+                  </p>
+                </>
+              ) : null}
+
+              {state.showForm ? (
+                <div className={styles.form}>
+                  <PholioMultiSelect
+                    label="Content boundaries"
+                    id="adult_content_boundaries"
+                    options={CONTENT_BOUNDARY_OPTIONS}
+                    value={displayedBoundaries}
+                    onChange={setContentBoundaries}
+                    placeholder="Select the work you are open to discussing"
+                  />
+                  <PholioInput
+                    label="OnlyFans"
+                    id="adult_onlyfans_url"
+                    type="url"
+                    placeholder="https://onlyfans.com/username"
+                    value={displayedOnlyfansUrl}
+                    onChange={(event) => setOnlyfansUrl(event.target.value)}
+                  />
+                  <div className={styles.formActions}>
+                    <PholioButton
+                      type="button"
+                      variant="secondary"
+                      loading={saveContext.isPending}
+                      disabled={saveContext.isPending}
+                      onClick={() => saveContext.mutate()}
+                    >
+                      Save private context
+                    </PholioButton>
+                  </div>
+                </div>
+              ) : null}
+
+              <p className={styles.boundary}>{PRIVACY_BOUNDARY}</p>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
     </Section>
   );
 }
