@@ -952,9 +952,15 @@ describe("application drafts", () => {
     expect(
       await knex("application_drafts").where({ profile_id: profileId, agency_id: agencyId }).first(),
     ).toBeUndefined();
-    expect(
-      await knex("applications").where({ profile_id: profileId, agency_id: agencyId }).first(),
-    ).toBeTruthy();
+    const applicationRow = await knex("applications")
+      .where({ profile_id: profileId, agency_id: agencyId })
+      .first();
+    expect(applicationRow).toBeTruthy();
+    // The agency's review window is anchored at the send. Without this column
+    // auto-close falls back to `updated_at`, which any later talent-side write
+    // bumps — silently restarting a clock the agency never touched.
+    expect(applicationRow.status_changed_at).toBeTruthy();
+
     const consentEvent = await knex("application_submission_consent_events")
       .where({ application_id: submitted.body.id })
       .orderBy("created_at", "desc")

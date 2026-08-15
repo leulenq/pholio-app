@@ -216,4 +216,59 @@ describe("application auto-close", () => {
     expect(second.closed).toBe(0);
     expect(notifyTalentForApplicationStatus).not.toHaveBeenCalled();
   });
+
+  /*
+   * The scan pages rather than loading every open application at once. Paging
+   * is where a sweep like this goes wrong in two directions, so both are pinned:
+   * it must not stop after the first page, and it must not spin forever on rows
+   * it decides to leave open (those stay in the candidate set, so a naive
+   * "loop while rows came back" never terminates).
+   */
+  describe("batching", () => {
+    test("closes everything expired across more than one page", async () => {
+      const ids = [];
+      for (let index = 0; index < 7; index += 1) {
+        ids.push(await seedApplication({ status: "submitted", changedDaysAgo: 31 }));
+      }
+
+      const result = await runApplicationAutoClose(knex, { now: NOW, batchSize: 2 });
+
+      expect(result.closed).toBe(7);
+      expect(result.notified).toBe(7);
+      const remaining = await knex("applications").whereIn("status", ["submitted"]);
+      expect(remaining).toHaveLength(0);
+    });
+
+    test("terminates when a full page is all still inside its window", async () => {
+      for (let index = 0; index < 5; index += 1) {
+        await seedApplication({ status: "submitted", changedDaysAgo: 1 });
+      }
+
+      const result = await runApplicationAutoClose(knex, { now: NOW, batchSize: 2 });
+
+      expect(result.closed).toBe(0);
+      // Each row is examined exactly once — proof the offset advanced past the
+      // rows the sweep left open instead of re-reading them.
+      expect(result.scanned).toBe(5);
+    });
+
+    test("pages correctly when expired and live applications are interleaved", async () => {
+      const expired = [];
+      for (let index = 0; index < 6; index += 1) {
+        const id = await seedApplication({
+          status: "submitted",
+          changedDaysAgo: index % 2 === 0 ? 31 : 1,
+        });
+        if (index % 2 === 0) expired.push(id);
+      }
+
+      const result = await runApplicationAutoClose(knex, { now: NOW, batchSize: 2 });
+
+      expect(result.closed).toBe(3);
+      const closed = await knex("applications")
+        .where({ status: AUTO_CLOSED_APPLICATION_STATUS })
+        .pluck("id");
+      expect(closed.sort()).toEqual(expired.sort());
+    });
+  });
 });
