@@ -119,6 +119,15 @@ older than gfl2y0's. KEEP: main, claude/pholio-strategic-analysis-dyducf,
 claude/pholio-product-plan-2026-gfl2y0 (delete gfl2y0 only after it merges here).
 
 ## Decisions log
+- 2026-08-15 (c80a37e audit rulings): (1) Discover AI-ranking removal → deterministic
+  declared-filter search RATIFIED (plan-consistent; kills LL144 AEDT exposure; Discover
+  page stays per user). (2) Stripe Identity age-verification RATIFIED with visibility —
+  matches plan A3 spec (result-only storage, provider redaction, DOB-edit invalidation,
+  DSAR-registered); surfaced to user for veto since it sends gov IDs to Stripe.
+  (3) roster removal confirmed complete + clean (whole feature, no dangling refs);
+  measured-in-person orphaned READERS being removed by fix agent, writers stay dead.
+  Audit also confirmed: Studio+ Intel window gate preserved; dwell-time beacon removed
+  (privacy-positive); no billing/consent-version changes hidden in c80a37e.
 - 2026-08-15: Discover stays; talent discoverability = free explicit opt-in for all tiers
   (user-confirmed; remove is_pro from pool gate, keep is_discoverable opt-in).
 - 2026-08-15: Base implementation on gfl2y0 after review (contains most Phase-3 work
