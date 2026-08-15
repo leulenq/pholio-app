@@ -194,8 +194,21 @@
   SUBMISSIONS_HARD_CAP=2000 truncating silently — needs server-side counts+pagination.
   (3) name-display column for pick lists (D defaults full name). (4) align client
   eventCasting.js exports w/ Lane 0 vocabulary (C resolved server-side booleans).
-- IN FLIGHT: Lane B (intake/submit/confirmations/fingerprint-parity — long pole).
-  THEN Lane E (instrumentation), then the talent_id email fix.
+- LANE B LANDED + PUSHED (9e42f59): submit path w/ server-derived event purpose (claim-
+  based, client can't self-declare), fingerprint parity w/ FROZEN-HASH regression
+  (identical literals before/after), drafts v2 w/ repair, event intake scene (video URL
+  per R1), confirm/decline endpoints (conditional update, require-time assertion the
+  statuses never enter agency-writable), auto-close Pass B, R4 retention wired to
+  retention_expires_at. 53 new tests; full suite 2662 pass / 5 pre-existing fails.
+  B follow-ups: drafts still keyed (profile_id,agency_id) → two editions of one
+  organizer share a draft row (schema change, unowned); undated event calls keep 24mo
+  retention (Lane A copy has undated variant — check alignment).
+- IN FLIGHT: Lane E (instrumentation + all call sites since surface owners landed).
+  THEN: talent_id email fix (inbox accept/decline reads nonexistent applications.
+  talent_id — status emails never sent), then full-suite + lint + build verification
+  pass over the whole feature.
+- NOTE for future parallel waves: two agents ran `git stash -u` on the shared tree
+  mid-wave (both restored cleanly). Ban stashing in worker briefs going forward.
 - (history) Lanes A ∥ C ∥ D were (parallel, disjoint per design §h, NO worker commits —
   lead integrates per-lane pathspec): A = call definition + consent fork (fingerprint fn
   EXCLUDED — Lane B extends it w/ its browser mirror) + arrival + settings UI;
