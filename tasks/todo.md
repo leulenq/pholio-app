@@ -62,7 +62,23 @@
       the loud treatment; its test fix uses shared knex = regression vs isolated-db
       pattern); repo-contents-check-ifwjo8 TAKE DOCS ONLY (after gfl2y0 merge, checkout its
       two docs/audits/2026-08-0{7,8}-*.md files — its plan-doc copy is older than gfl2y0's)
-- [ ] Phase 1: merge gfl2y0 (+ cherry-picks) into this branch; fix review findings
+- [x] Phase 1: gfl2y0 MERGED (bdb0f15). Backend review verdict: merge-with-fixes.
+      Compliance gates confirmed done on branch (flat 5/mo quota no tier lift, full
+      directory, watermark/QR/socials ungated, pool = is_discoverable alone; PDF theme
+      gating stays paid = talent-owned craft, per plan §9.5). Main-defect status:
+      booked→represented FIXED, blocked-agencies FIXED, safety-report server FIXED
+      (client target needs check), deletion-honesty FIXED, details-endpoint snapshot NOT
+      fixed (in fix wave). 17 new test failures + defect list → fix agent running:
+      profile-strength :549 isCurrent, hook timeouts ×2, eager sharp in extract.js,
+      orphaned measured-in-person readers removed (decision: readers die, writers stay
+      dead), DSAR inventory (+comp_card_imports, +spec_registry_engagement_events),
+      consent gate on comp-card vision path, status_changed_at on create/revive,
+      encodeImage wrap, 6 migration guards, confirm TOCTOU, auto-close batch LIMIT,
+      client lint laneInfo. Parallel read-only audit of c80a37e (202-file unlabeled
+      commit; age-verification +385 LOC needs cataloging).
+      Spec-export gaps vs plan: HEIC transcode implicit/unverified (add explicit test),
+      email-draft for email-only agencies MISSING (roadmap Phase 4). Deploy note:
+      requirements feature inert until `npm run release:spec-registry` runs in prod.
 - [ ] Phase 2: corrections wave — Discover free opt-in; bio writer free+improved (all
       writers un-gated); Profile Readiness redesign; Spec Registry UI rebuild (Market +
       Apply Workspace)
