@@ -57,6 +57,12 @@ export const talentApi = {
   sharpenSubmissionNote: (body) => apiClient.post('/submission-note/sharpen', body),
   shortenSubmissionNote: (body) => apiClient.post('/submission-note/shorten', body),
 
+  // Digitals freshness — the four states, and the one action that resolves
+  // `undated`. A shoot date is never inferred; it comes from the talent here.
+  getDigitalsFreshness: (options) => apiClient.get('/digitals/freshness', options),
+  setDigitalsCaptureDate: (imageIds, capturedOn) =>
+    apiClient.put('/digitals/capture-date', { imageIds, capturedOn }),
+
   // Comp card import — read an existing agency card into a reviewable pre-fill.
   // The card itself is never stored; `importCompCard` returns a proposal and
   // `confirmCompCardImport` applies only the fields the talent accepted.

@@ -29,6 +29,7 @@ const fieldVisibilityRouter = require("./field-visibility");
 const availabilityRouter = require("./availability");
 const specRegistryRouter = require("./spec-registry");
 const compCardImportRouter = require("./comp-card-import");
+const digitalsRouter = require("./digitals");
 
 router.use(requireTalentLegalAcceptance());
 
@@ -36,6 +37,7 @@ router.use(requireTalentLegalAcceptance());
 router.use("/api/talent/media", mediaRouter);
 router.use("/api/talent/spec-registry", specRegistryRouter);
 router.use("/api/talent/comp-card-import", compCardImportRouter);
+router.use("/api/talent/digitals", digitalsRouter);
 router.use("/api/talent", representationsRouter);
 router.use("/api/talent", profileRouter);
 router.use("/api/talent", analyticsRouter);

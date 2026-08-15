@@ -996,11 +996,16 @@ export default function MediaWorkspace() {
           <DigitalsContactSheet
             images={items}
             suppressBodyImagery={pkg.suppressBodyImagery}
-            recency={pkg.recency}
             onAddFrames={openFilePicker}
             onOpenFrame={(img) => setEditor({ image: img, mode: 'details' })}
             onCropFrame={(img) => setEditor({ image: img, mode: 'crop' })}
             onDeleteFrame={setDeleteId}
+            onDated={() => {
+              // Dating a set changes its freshness state, which is derived from
+              // the image rows — so re-read them rather than patching locally.
+              queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+              refetchAuth?.();
+            }}
           />
         ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter}
