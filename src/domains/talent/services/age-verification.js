@@ -18,7 +18,15 @@ const CONTENT_BOUNDARIES = new Set([
 ]);
 
 function normalizedDob(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || "").trim());
+  if (value == null || value === "") return null;
+  // Postgres returns DATE columns as native JS Date objects on direct knex
+  // reads (no type-parser override is configured), so a plain String() here
+  // yields "Wed Mar 15 1995 …" and the regex never matches — which told
+  // every production user with a DOB on file to "add your date of birth",
+  // and recorded genuinely verified Stripe checks as dob_mismatch failures.
+  // Same guard as parseDateOfBirthParts in shared/lib/talent-age.js.
+  const str = value instanceof Date ? value.toISOString() : String(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(str.trim());
   return match ? `${match[1]}-${match[2]}-${match[3]}` : null;
 }
 

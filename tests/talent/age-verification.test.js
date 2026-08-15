@@ -24,6 +24,7 @@ const {
   createVerificationSession,
   getAdultContext,
   invalidateAdultVerification,
+  normalizedDob,
   updateAdultContext,
 } = require("../../src/domains/talent/services/age-verification");
 
@@ -54,6 +55,21 @@ async function verificationRecord(sessionId) {
   });
   return id;
 }
+
+// Postgres returns DATE columns as native JS Date objects on direct knex reads
+// — SQLite (this suite) returns strings, so the Date-object shape must be
+// covered explicitly or the production code path is structurally untested.
+// Regression: a populated DOB was read as missing (DOB_REQUIRED before the
+// session, dob_mismatch on completion) because String(new Date(...)) never
+// matches the YYYY-MM-DD regex.
+test("normalizedDob handles the native Date objects Postgres returns", () => {
+  expect(normalizedDob(new Date("1995-03-15T00:00:00.000Z"))).toBe("1995-03-15");
+  expect(normalizedDob("1995-03-15")).toBe("1995-03-15");
+  expect(normalizedDob("1995-03-15T05:00:00.000Z")).toBe("1995-03-15");
+  expect(normalizedDob(null)).toBe(null);
+  expect(normalizedDob("")).toBe(null);
+  expect(normalizedDob("not a date")).toBe(null);
+});
 
 test("starting provider verification requires affirmative consent", async () => {
   await expect(createVerificationSession(profile)).rejects.toMatchObject({

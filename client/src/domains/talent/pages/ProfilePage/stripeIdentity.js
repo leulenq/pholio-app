@@ -9,11 +9,12 @@
  *
  *  1. `stripe.verifyIdentity(clientSecret)` — Stripe.js opens their own modal
  *     over our page. This needs a publishable key (VITE_STRIPE_PUBLISHABLE_KEY)
- *     AND a `clientSecret` on the session response. The backend currently
- *     returns only `{ url, status }`, so this path stays dormant until the
- *     session endpoint also returns `client_secret` (tracked as a follow-up).
+ *     AND a `clientSecret` on the session response. The backend returns
+ *     `client_secret`, so this path engages wherever the publishable key is
+ *     configured at build time.
  *  2. `session.url` — Stripe's hosted verification page. Same Stripe-owned UI,
- *     full page instead of a modal. This is what runs today.
+ *     full page instead of a modal. The fallback when no publishable key is
+ *     set (the default in local dev).
  *
  * Stripe.js is loaded from their CDN at handoff time rather than bundled:
  * Stripe requires their script to be served from js.stripe.com, and it keeps
