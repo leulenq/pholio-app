@@ -74,7 +74,6 @@ async function createSchema() {
     // `path`, as the real table names it — an invented column name here would
     // hide a 500 from a bad select, which is exactly what it did once.
     table.string("path").nullable();
-    table.timestamp("updated_at").nullable();
   });
 }
 

@@ -172,7 +172,11 @@ router.put(
       )
       // ISO string rather than a Date: knex under jest's VM realm fails its
       // `instanceof Date` check and stores the literal "[object Object]".
-      .update({ captured_at: captured.toISOString(), updated_at: new Date().toISOString() });
+      //
+      // `images` has no `updated_at` column — only `created_at`. Writing one
+      // here threw in the running app while passing in tests, because the test
+      // schema had invented the column. See `tests/schema/test-schema-drift`.
+      .update({ captured_at: captured.toISOString() });
 
     const images = await loadImages(profile.id);
     const freshness = digitalsFreshness(images);
