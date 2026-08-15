@@ -1298,7 +1298,8 @@ export default function ApplyExperience() {
       {
         key: 'digitals_recency',
         label: 'Current digitals',
-        complete: !packageAudit.recency.isStale,
+        // A set of unknown age is not a current set. `!isStale` said it was.
+        complete: packageAudit.recency.isCurrent,
         note: 'Refresh your digitals — agencies expect a current set',
       },
       {

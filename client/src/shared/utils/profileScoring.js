@@ -220,7 +220,8 @@ export const calculateProfileStrength = (data) => {
   }
 
   const hasRecencyAnchor = hasHeadshot || hasFullBody;
-  const hasCurrentDigitals = hasRecencyAnchor && !pkg.recency.isStale;
+  // `isCurrent`, not `!isStale`: an undated set is not stale and not current.
+  const hasCurrentDigitals = hasRecencyAnchor && pkg.recency.isCurrent;
   if (hasCurrentDigitals) {
     improveScore += IMPROVE_FIELD_POINTS.digitals_recency;
   } else if (pkg.recency.isStale && hasRecencyAnchor) {
@@ -346,7 +347,7 @@ export const calculateProfileStrength = (data) => {
     photo_back: digitals.hasBack,
     photo_editorial: digitals.hasEditorial,
     photo_lifestyle: digitals.hasLifestyle,
-    digitals_recency: !pkg.recency.isStale,
+    digitals_recency: pkg.recency.isCurrent,
     bio: hasBio,
     look: hasLook,
     shoe: hasShoe,
