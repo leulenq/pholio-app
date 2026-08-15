@@ -381,6 +381,25 @@ DESIGN RULES (talent-side frontend)
       serif-in-button violates Editorial Serif Rule. Design refs: Intel Finding
       lockups, DigitalsContactSheet slot grid, Settings movements rail, Apply
       verdict band.
+- QUALITY-PASS WAVE LANDED + PUSHED (all lanes): Q1 20752a8 (compound slotKey/matchKey/
+  matchValues + taxonomy labels DTO — additive, snapshots safe), Q4 4ca4810 (age panel:
+  4-tone Danger-Zone-idiom states, numbered data story, OFFICIAL Stripe wordmark SVG
+  from Stripe's logo kit w/ provenance in the asset), Q3 2cee612 (readiness restored to
+  origin/main design per owner ruling — numeral/progressbar/Core-Strong ticks/
+  getStrengthUI back both sides; kept recency fix; only ruled deltas), Q2 4362935 (the
+  requirements rebuild: two-pane market list, canonical-shot coverage strip w/ talent's
+  own photos, per-agency category-organized detail, one state vocabulary, raw registry
+  wording only as attributed marginalia; SpecLedger/AgencyPlate deleted), lead 2f4bacf
+  (Overview readiness card → requirements pre-gate link, ruling R-A). Client: 437 tests,
+  lint 0 errors, build green at each integration.
+- QUALITY-PASS FOLLOW-UPS: (a) server: expose constraintValue/constraintUnit for
+  files/eligibility rules so those sections get real numerals ("up to 5MB", "starts at
+  173cm") — Q2 ships attributed-quote fallback meanwhile; (b) ProfilePage.test.jsx is
+  timing-marginal under parallel load (latent flake, bump timeout); (c) global.css
+  conflicts flagged to owner (button reset 999px radius+padding = root cause of the
+  border family; canonical-input 8px radius latent; generic focus ring) — proposal in
+  docs/requirements-redesign-spec-2026-08.md; (d) live visual verification pass running
+  (Playwright screenshots incl. import-overlay live repro — no static bug found there).
 - Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
   portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
   agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
