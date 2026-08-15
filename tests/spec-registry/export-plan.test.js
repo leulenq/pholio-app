@@ -38,6 +38,7 @@ describe("spec-correct export — plan", () => {
         totalSetMaxBytes: null,
         maxFileCount: 3,
         allowedMimeTypes: null,
+        publishedMimeTypes: null,
       });
     });
 
@@ -80,6 +81,14 @@ describe("spec-correct export — plan", () => {
       // promising it would produce a file the agency asked for and Pholio
       // cannot write.
       expect(constraints.allowedMimeTypes).toEqual(["image/jpeg", "image/png"]);
+      // The published list is kept intact alongside it, because "would this
+      // agency have taken the talent's original file?" is a different question
+      // from "what can Pholio write?", and the transcode decision asks the first.
+      expect(constraints.publishedMimeTypes).toEqual([
+        "image/heic",
+        "image/jpeg",
+        "image/png",
+      ]);
     });
 
     test("ignores a spec that publishes no file rules at all", () => {
@@ -88,6 +97,7 @@ describe("spec-correct export — plan", () => {
         totalSetMaxBytes: null,
         maxFileCount: null,
         allowedMimeTypes: null,
+        publishedMimeTypes: null,
       });
     });
   });
