@@ -6,13 +6,13 @@ import { apiClient } from '../../../shared/lib/api-client';
 import PholioButton from '../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import {
-  MATRIX_CELL,
-  OUTCOME,
+  SLOT_STATE,
+  SLOT_STATE_WORD,
+  buildAgencyView,
   formatRegistryDate,
-  groupFindings,
-  readFinding,
+  joinPhrases,
   readFreshnessNotice,
-  readShotCoverage,
+  readLabels,
   sourceNeedsReview,
 } from '../lib/specRegistry';
 import { SpecMark } from './spec-marks';
@@ -74,69 +74,22 @@ function possessive(name) {
 }
 
 /** The one figure the talent came for, as a sentence rather than a scoreboard. */
-function coverageSentence(coverage) {
-  if (!coverage || !coverage.published) return null;
-  const matched = coverage.matched ?? 0;
-  return `${matched} of ${coverage.published} shot${coverage.published === 1 ? '' : 's'} matched`;
+function coverageSentence(view) {
+  if (!view?.published) return null;
+  return `${view.covered} of ${view.published} shots in your set`;
 }
 
-/**
- * Published shot slots, in the order the server listed them.
- *
- * `not_applicable` is dropped for the same reason `groupFindings` drops it: a
- * requirement that does not apply to this talent is noise, and a mark for it
- * would make the schematic count slots nobody is asking them to fill.
- */
-function readShotSlots(findings) {
-  return asArray(findings)
-    .map(readFinding)
-    .filter(
-      (finding) =>
-        finding.categoryKey === 'shots' && finding.outcome !== OUTCOME.NOT_APPLICABLE,
-    )
-    .map((finding) => ({
-      id: finding.id,
-      label: finding.label,
-      outcome: finding.outcome,
-    }));
+/** The first destination a group of items points at, if any. */
+function firstTarget(items) {
+  return items.find((item) => item?.target?.href)?.target || null;
 }
 
-function FindingRow({ finding, withMark = false, onAction }) {
-  return (
-    <li className={styles.row}>
-      {withMark ? (
-        <SpecMark state={MATRIX_CELL.WANTED} size={12} className={styles.rowMark} />
-      ) : null}
-      <span className={styles.rowLabel}>{finding.label}</span>
-      {finding.guidance ? (
-        <span className={styles.rowGuidance}>{finding.guidance}</span>
-      ) : null}
-      {finding.target ? (
-        <a
-          href={finding.target.href}
-          {...externalLinkProps(finding.target.href)}
-          className={styles.rowAction}
-          onClick={() => onAction?.(finding)}
-        >
-          {finding.target.label}
-        </a>
-      ) : null}
-    </li>
-  );
-}
-
-function DetailGroup({ title, findings, onAction }) {
-  if (!findings.length) return null;
+/** A titled block inside the details disclosure. */
+function DetailBlock({ title, children }) {
   return (
     <div className={styles.detailGroup}>
-      <h3 className={styles.detailTitle}>
-        {title} · {findings.length}
-      </h3>
-      <ul className={styles.rows}>
-        {findings.map((finding) => (
-          <FindingRow key={finding.id} finding={finding} onAction={onAction} />
-        ))}
-      </ul>
+      <h3 className={styles.detailTitle}>{title}</h3>
+      {children}
     </div>
   );
 }
@@ -147,9 +100,12 @@ function DetailGroup({ title, findings, onAction }) {
  *
  * Presented as a well panel rather than a card: this sits inside a wizard step
  * beside the talent's actual work, and advisory furniture that carries card
- * weight starts competing with the thing it is advising about. The three-state
- * marks are the same ones the Agency requirements ledger uses — a talent who
- * studied the grid an hour ago should recognise the answer here at a glance.
+ * weight starts competing with the thing it is advising about.
+ *
+ * It reads the same three states, the same canonical shot names and the same
+ * section vocabulary as the Agency requirements page, through the same library
+ * (ruling R-D/R-E). A talent who studied that page an hour ago should recognise
+ * the answer here without translating it.
  */
 export default function RegistryPreflight({
   seriesId,
@@ -224,6 +180,15 @@ export default function RegistryPreflight({
     onRevisionChange(evaluation.revisionId);
   }, [hasTarget, loading, onRevisionChange, requestError, available, evaluation.revisionId]);
 
+  const ready = !loading && !requestError && available;
+  // Plain calls, not `useMemo`: both are pure reads over a payload the query
+  // already caches, and hand-memoizing them only stops the compiler optimizing
+  // the component around them.
+  const labels = readLabels(sourcePayload);
+  const view = ready
+    ? buildAgencyView({ route: { agencyName: resolvedAgencyName }, evaluation, labels })
+    : null;
+
   if (!hasTarget) return null;
 
   const handleRevisionChange = (revisionId) => {
@@ -233,13 +198,20 @@ export default function RegistryPreflight({
     onRevisionChange?.(next);
   };
 
-  const ready = !loading && !requestError && available;
-  const groups = ready ? groupFindings(evaluation.findings) : null;
-  const slots = ready ? readShotSlots(evaluation.findings) : [];
-  const coverage = ready ? coverageSentence(readShotCoverage(evaluation.shotCoverage)) : null;
-  const detailCount = groups
-    ? groups.confirm.length + groups.guidance.length + groups.included.length
+  const stillNeeded = view
+    ? view.shots.filter((shot) => shot.state === SLOT_STATE.NEEDED)
+    : [];
+  const detailBlocks = view
+    ? [
+        view.setRules.length > 0,
+        Boolean(view.files),
+        view.eligibility.length > 0,
+        Boolean(view.formFields),
+        Boolean(view.notPublished),
+      ].filter(Boolean).length
     : 0;
+  const formTarget = view ? firstTarget(view.eligibility) : null;
+  const coverage = ready ? coverageSentence(view) : null;
   const checkedOn = ready ? formatRegistryDate(evaluation.sourceCheckedOn) : null;
   const freshnessNotice = ready ? readFreshnessNotice(evaluation) : null;
 
@@ -306,29 +278,54 @@ export default function RegistryPreflight({
   } else {
     body = (
       <>
-        {slots.length ? (
+        {view.shots.length ? (
           <ul className={styles.slots} aria-label="Published shots">
-            {slots.map((slot) => (
-              <li key={slot.id} className={styles.slot}>
-                <SpecMark outcome={slot.outcome} subject={slot.label} size={12} />
+            {view.shots.map((shot) => (
+              <li key={shot.key} className={styles.slot}>
+                <SpecMark state={shot.state} subject={shot.label} size={12} />
               </li>
             ))}
           </ul>
         ) : null}
 
-        {groups.attention.length ? (
+        {stillNeeded.length ? (
           <ul className={styles.rows}>
-            {groups.attention.map((finding) => (
-              <FindingRow key={finding.id} finding={finding} withMark onAction={onAction} />
-            ))}
+            {stillNeeded.map((shot) => {
+              const action = shot.target;
+              return (
+                <li key={shot.key} className={styles.row}>
+                  <SpecMark
+                    state={SLOT_STATE.NEEDED}
+                    size={12}
+                    className={styles.rowMark}
+                  />
+                  <span className={styles.rowLabel}>{shot.label}</span>
+                  <span className={styles.rowGuidance}>
+                    {SLOT_STATE_WORD[SLOT_STATE.NEEDED]}
+                  </span>
+                  {action ? (
+                    <a
+                      href={action.href}
+                      {...externalLinkProps(action.href)}
+                      className={styles.rowAction}
+                      onClick={() => onAction?.(shot)}
+                    >
+                      {action.label}
+                    </a>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className={styles.noteLine}>
-            No published requirement needs action for this package.
+            {view.shots.length
+              ? 'Every shot they publish is in your set.'
+              : 'They publish no shot list — form details only.'}
           </p>
         )}
 
-        {detailCount > 0 ? (
+        {detailBlocks > 0 ? (
           <div className={styles.details}>
             <button
               type="button"
@@ -336,7 +333,7 @@ export default function RegistryPreflight({
               aria-expanded={detailsOpen}
               onClick={() => setDetailsOpen((value) => !value)}
             >
-              Details ({detailCount})
+              What else they published ({detailBlocks})
               <ChevronDown
                 size={13}
                 aria-hidden="true"
@@ -354,9 +351,70 @@ export default function RegistryPreflight({
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
                 >
-                  <DetailGroup title="Confirm" findings={groups.confirm} onAction={onAction} />
-                  <DetailGroup title="Guidance" findings={groups.guidance} onAction={onAction} />
-                  <DetailGroup title="Included" findings={groups.included} onAction={onAction} />
+                  {view.setRules.length ? (
+                    <DetailBlock title="Set rules">
+                      <ul className={styles.rows}>
+                        {view.setRules.map((rule) => (
+                          <li key={rule.key} className={styles.row}>
+                            <span className={styles.rowLabel}>{rule.text}</span>
+                            {rule.modality ? (
+                              <span className={styles.rowGuidance}>{rule.modality}</span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    </DetailBlock>
+                  ) : null}
+
+                  {view.files ? (
+                    <DetailBlock title="Files">
+                      <p className={styles.noteLine}>
+                        Their form publishes limits on {joinPhrases(view.files.subjects)} —
+                        your package is converted and resized to fit.
+                      </p>
+                    </DetailBlock>
+                  ) : null}
+
+                  {view.eligibility.length ? (
+                    <DetailBlock title="Eligibility">
+                      <ul className={styles.rows}>
+                        {view.eligibility.map((item) => (
+                          <li key={item.key} className={styles.row}>
+                            <span className={styles.rowLabel}>{item.sentence}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </DetailBlock>
+                  ) : null}
+
+                  {view.formFields ? (
+                    <DetailBlock title="Their form asks for">
+                      <p className={styles.noteLine}>
+                        {joinPhrases(view.formFields.list)}.
+                      </p>
+                      {view.formFields.unverifiable ? (
+                        <p className={styles.noteLine}>
+                          Pholio can’t check these from your profile — have them ready.
+                        </p>
+                      ) : null}
+                      {formTarget ? (
+                        <a
+                          href={formTarget.href}
+                          {...externalLinkProps(formTarget.href)}
+                          className={styles.link}
+                          onClick={() => onAction?.(formTarget)}
+                        >
+                          {formTarget.label}
+                        </a>
+                      ) : null}
+                    </DetailBlock>
+                  ) : null}
+
+                  {view.notPublished ? (
+                    <DetailBlock title="Not published">
+                      <p className={styles.noteLine}>{view.notPublished}</p>
+                    </DetailBlock>
+                  ) : null}
                 </motion.div>
               ) : null}
             </AnimatePresence>

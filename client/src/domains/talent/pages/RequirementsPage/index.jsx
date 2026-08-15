@@ -1,30 +1,44 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import {
-  buildSpecMatrix,
+  CHANNEL_TYPE,
+  buildAgencyView,
+  buildMarketView,
   formatRegistryDate,
+  joinPhrases,
+  partitionRoutes,
   readCallWindows,
   readEvaluationFor,
+  readLabels,
   readRoutes,
 } from '../../lib/specRegistry';
 import { formatWindowCompact, sortByNextOccurrence } from '../../utils/callWindows';
-import SpecLedger from './SpecLedger';
-import AgencyPlate from './AgencyPlate';
+import MarketRail from './MarketRail';
+import AgencyDetail from './AgencyDetail';
+import ShotCoverage from './ShotCoverage';
 import styles from './RequirementsPage.module.css';
 
 /**
- * Agency requirements, as one ledger.
+ * Agency requirements.
  *
- * The talent's photo set is the constant; each agency is a column of demands.
- * The page has to answer two questions in a glance — which agencies can I
- * already satisfy, and what single shot unlocks the most of them — and neither
- * is answerable one agency at a time, which is why the grid is the surface and
- * the per-agency plate hangs off it rather than the other way round.
+ * The page answers three questions, in this order: what does my set already
+ * cover across the market, what one more shot would change that, and — for the
+ * agency I am looking at — exactly what is missing and how to submit.
+ *
+ * It used to open on a twenty-five-column matrix that scrolled sideways, keyed
+ * its rows on a field that is null for every compound slot (so Elite's six
+ * published shots drew as two), and sorted its findings into four buckets named
+ * for Pholio's confidence rather than for anything a talent can act on. None of
+ * that survives: shots are rows, agencies are a number, and the detail is
+ * organised by what the agency asked for.
  */
+
+const PANEL_ID = 'agency-detail';
+const SPRING = { type: 'spring', stiffness: 55, damping: 16 };
 
 /**
  * Which images the check should evaluate: the talent's current,
@@ -32,26 +46,37 @@ import styles from './RequirementsPage.module.css';
  * still image would make the coverage figures describe a set they cannot
  * actually send.
  */
-function activeImageIds(images, profile) {
+function activeImages(images, profile) {
   const candidates = Array.isArray(images)
     ? images
     : Array.isArray(profile?.images)
       ? profile.images
       : [];
 
-  return candidates
-    .filter((image) => {
-      if (!image?.id || image.deleted_at || image.is_deleted === true || image.retired_at) return false;
-      if (String(image.status || 'active').toLowerCase() !== 'active') return false;
-      if (image.exclude_from_agency === true) return false;
-      if (String(image.asset_kind || image.assetType || 'image').toLowerCase() !== 'image') return false;
-      const imageType = String(image.image_type || image.imageType || '').toLowerCase();
-      if (imageType && imageType !== 'digital') return false;
-      const mimeType = image.delivery_mime_type || image.mime_type || image.mimeType || '';
-      return !String(mimeType).toLowerCase().startsWith('video/');
-    })
-    .map((image) => String(image.id))
-    .sort();
+  return candidates.filter((image) => {
+    if (!image?.id || image.deleted_at || image.is_deleted === true || image.retired_at) return false;
+    if (String(image.status || 'active').toLowerCase() !== 'active') return false;
+    if (image.exclude_from_agency === true) return false;
+    if (String(image.asset_kind || image.assetType || 'image').toLowerCase() !== 'image') return false;
+    const imageType = String(image.image_type || image.imageType || '').toLowerCase();
+    if (imageType && imageType !== 'digital') return false;
+    const mimeType = image.delivery_mime_type || image.mime_type || image.mimeType || '';
+    return !String(mimeType).toLowerCase().startsWith('video/');
+  });
+}
+
+/**
+ * The same resolution the digitals contact sheet uses, so a frame that shows up
+ * there shows up here — one stored path, one URL, no second convention.
+ */
+function frameSrc(image) {
+  const value = image?.public_url || image?.path || '';
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed;
+  return `/uploads/${trimmed.replace(/^\/+/, '')}`;
 }
 
 function saveBlob(blob, filename) {
@@ -65,8 +90,22 @@ function saveBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+/** The two-pane layout collapses to an accordion where it no longer fits. */
+function useStackedLayout() {
+  const [stacked, setStacked] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+    const query = window.matchMedia('(max-width: 880px)');
+    const sync = () => setStacked(query.matches === true);
+    sync();
+    query.addEventListener?.('change', sync);
+    return () => query.removeEventListener?.('change', sync);
+  }, []);
+  return stacked;
+}
+
 /**
- * The week's open calls, above the ledger.
+ * The week's open calls, above the market.
  *
  * Everything else on this page is asynchronous — a set is built, exported, sent
  * whenever. A walk-in open call is the one thing here that expires: Thursday
@@ -89,9 +128,7 @@ function CallWindowStrip({ windows }) {
       aria-labelledby="call-windows-title"
       initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={
-        reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 55, damping: 16 }
-      }
+      transition={reduceMotion ? { duration: 0 } : SPRING}
     >
       <h2 id="call-windows-title" className={styles.weekTitle}>
         Open calls <em>this week</em>
@@ -118,12 +155,59 @@ function CallWindowStrip({ windows }) {
   );
 }
 
+/**
+ * The recommendation, with honest semantics.
+ *
+ * The old sentence counted every agency missing a shot and called them all
+ * "unlocked" — so a talent who went out and shot it came back to find zero
+ * agencies had flipped, because the other five were still missing something
+ * else. There are two truths here and they are said separately: the agencies
+ * this one frame would *finish*, and the ones that merely also ask for it.
+ */
+function Recommendation({ recommendation }) {
+  if (!recommendation) return null;
+  const { label, completes, alsoAsked } = recommendation;
+  const also =
+    alsoAsked > 0
+      ? ` — and ${alsoAsked} more ${alsoAsked === 1 ? 'agency asks' : 'agencies ask'} for it`
+      : '';
+
+  return (
+    <p className={styles.recommendation}>
+      {completes.length ? (
+        <>
+          One <em>{label}</em> would complete your set for {joinPhrases(completes)}
+          {also}.
+        </>
+      ) : (
+        <>
+          One <em>{label}</em> is the shot most of these agencies are still waiting on —{' '}
+          {alsoAsked === 1 ? '1 agency asks' : `${alsoAsked} agencies ask`} for it.
+        </>
+      )}
+    </p>
+  );
+}
+
 export default function RequirementsPage() {
   const { images, profile } = useAuth();
   const reduceMotion = useReducedMotion();
+  const stacked = useStackedLayout();
   const [exports, setExports] = useState({});
   const [selectedSeriesId, setSelectedSeriesId] = useState(null);
-  const imageIds = useMemo(() => activeImageIds(images, profile), [images, profile]);
+
+  const usableImages = useMemo(() => activeImages(images, profile), [images, profile]);
+  const imageIds = useMemo(
+    () => usableImages.map((image) => String(image.id)).sort(),
+    [usableImages],
+  );
+  const thumbFor = useCallback(
+    (imageId) => {
+      const match = usableImages.find((image) => String(image.id) === String(imageId));
+      return match ? frameSrc(match) || null : null;
+    },
+    [usableImages],
+  );
 
   const routesQuery = useQuery({
     queryKey: ['spec-registry-routes'],
@@ -163,26 +247,66 @@ export default function RequirementsPage() {
     [preflightQuery.data],
   );
 
-  const matrix = useMemo(
-    () => buildSpecMatrix(routes, evaluationFor),
-    [routes, evaluationFor],
+  /*
+    The vocabulary the whole page speaks in. Sent once per response rather than
+    per finding, because the same field and value recur across every route.
+    Either response carries it; whichever arrived is authoritative.
+  */
+  const labels = useMemo(
+    () => readLabels(preflightQuery.data, routesQuery.data),
+    [preflightQuery.data, routesQuery.data],
+  );
+
+  const market = useMemo(
+    () => buildMarketView({ routes, evaluationFor, labels }),
+    [routes, evaluationFor, labels],
   );
 
   /*
-    One agency stands open so the plate is never an empty promise — but not
-    simply the first, because that is Elite Model Japan, which publishes no shot
-    list at all and so opens on the one plate that demonstrates nothing. Default
-    to the first agency that actually published a shot list.
+    Submission destinations first, reference entries second. Both are useful —
+    knowing you already satisfy Storm is worth something even though Storm is
+    not on Pholio — but only one of them ends in an application.
   */
-  const defaultRoute = useMemo(() => {
-    const withShots = routes.find(
-      (route) => (evaluationFor(route.seriesId)?.shotCoverage?.published ?? 0) > 0,
+  const railAgencies = useMemo(() => {
+    const partitioned = partitionRoutes(routes);
+    const order = [...partitioned.submittable, ...partitioned.reference].map(
+      (route) => route.seriesId,
     );
-    return withShots || routes[0] || null;
-  }, [routes, evaluationFor]);
+    return [...market.agencies]
+      .sort((left, right) => order.indexOf(left.seriesId) - order.indexOf(right.seriesId))
+      .map((agency) => ({
+        ...agency,
+        appliesByEmail: agency.route.channelType === CHANNEL_TYPE.OFFICIAL_EMAIL,
+      }));
+  }, [market.agencies, routes]);
 
-  const selectedRoute =
-    routes.find((route) => route.seriesId === selectedSeriesId) || defaultRoute;
+  /*
+    One agency stands open so the pane is never an empty promise — but not
+    simply the first, because that is Elite Model Japan, which publishes no shot
+    list at all and so opens on the one detail that demonstrates nothing.
+  */
+  const defaultSeriesId = useMemo(() => {
+    const withShots = railAgencies.find((agency) => agency.hasShotList);
+    return (withShots || railAgencies[0])?.seriesId || null;
+  }, [railAgencies]);
+
+  const selected =
+    railAgencies.find((agency) => agency.seriesId === selectedSeriesId) ||
+    railAgencies.find((agency) => agency.seriesId === defaultSeriesId) ||
+    null;
+  const activeSeriesId = selected?.seriesId || null;
+  const activeIndex = railAgencies.findIndex(
+    (agency) => agency.seriesId === activeSeriesId,
+  );
+
+  const detailView = useMemo(() => {
+    if (!selected) return null;
+    return buildAgencyView({
+      route: selected.route,
+      evaluation: evaluationFor(selected.seriesId),
+      labels,
+    });
+  }, [selected, evaluationFor, labels]);
 
   const handleExport = useCallback(
     async (route) => {
@@ -220,15 +344,30 @@ export default function RequirementsPage() {
 
   const empty = !routesQuery.isLoading && !routesQuery.isError && routes.length === 0;
 
+  const renderDetail = (labelledBy, panelRole) =>
+    selected ? (
+      <AgencyDetail
+        route={selected.route}
+        view={detailView}
+        panelId={PANEL_ID}
+        labelledBy={labelledBy}
+        panelRole={panelRole}
+        isLoading={preflightQuery.isLoading}
+        error={preflightQuery.error}
+        exportState={exports[selected.seriesId]}
+        onExport={handleExport}
+        onOutboundClick={handleOutboundClick}
+        thumbFor={thumbFor}
+      />
+    ) : null;
+
   return (
     <div className={styles.page}>
       <motion.header
         className={styles.masthead}
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={
-          reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 55, damping: 16 }
-        }
+        transition={reduceMotion ? { duration: 0 } : SPRING}
       >
         {/* No eyebrow above the masthead — banned pattern 1. The italic word
             carries the accent a kicker would have. */}
@@ -239,6 +378,14 @@ export default function RequirementsPage() {
           What each agency’s published route asks for, checked against your current
           digitals.
         </p>
+        {market.totals.agencies > 0 ? (
+          <p className={styles.summary}>
+            Your set covers {market.totals.covered} of {market.totals.published} published
+            shots across {market.totals.agencies}{' '}
+            {market.totals.agencies === 1 ? 'agency' : 'agencies'}.
+          </p>
+        ) : null}
+        <Recommendation recommendation={market.recommendation} />
         {routes.length > 0 ? (
           <p className={styles.provenance}>
             Registry verified continuously · {routes.length}{' '}
@@ -274,27 +421,34 @@ export default function RequirementsPage() {
 
       <CallWindowStrip windows={callWindows} />
 
-      <SpecLedger
-        matrix={matrix}
-        routes={routes}
-        selectedSeriesId={selectedRoute?.seriesId || null}
-        onSelectAgency={setSelectedSeriesId}
-      />
+      <ShotCoverage shots={market.shots} thumbFor={thumbFor} />
 
-      <AnimatePresence mode="wait" initial={false}>
-        {selectedRoute ? (
-          <AgencyPlate
-            key={selectedRoute.seriesId}
-            route={selectedRoute}
-            evaluation={evaluationFor(selectedRoute.seriesId)}
-            isLoading={preflightQuery.isLoading}
-            error={preflightQuery.error}
-            exportState={exports[selectedRoute.seriesId]}
-            onExport={handleExport}
-            onOutboundClick={handleOutboundClick}
-          />
-        ) : null}
-      </AnimatePresence>
+      {railAgencies.length ? (
+        <motion.section
+          className={styles.market}
+          aria-labelledby="market-title"
+          initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={reduceMotion ? { duration: 0 } : SPRING}
+        >
+          <h2 id="market-title" className={styles.marketTitle}>
+            Agency by agency
+          </h2>
+          <div className={styles.marketBody}>
+            <MarketRail
+              agencies={railAgencies}
+              selectedSeriesId={activeSeriesId}
+              onSelect={setSelectedSeriesId}
+              panelId={PANEL_ID}
+              stacked={stacked}
+              renderPanel={(labelledBy) => renderDetail(labelledBy, 'region')}
+            />
+            {stacked
+              ? null
+              : renderDetail(`market-tab-${Math.max(activeIndex, 0)}`, 'tabpanel')}
+          </div>
+        </motion.section>
+      ) : null}
     </div>
   );
 }

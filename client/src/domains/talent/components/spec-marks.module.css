@@ -17,13 +17,13 @@
   vertical-align: middle;
 }
 
-/* Satisfied — the shot is in the set. Solid ink, no accent needed. */
-.covered {
+/* In your set. Solid ink, no accent needed. */
+.inSet {
   background: #0f172a;
 }
 
-/* Published and not yet covered — the only "act here" signal on the page. */
-.wanted {
+/* Still needed — the only "act here" signal on the page. */
+.needed {
   border: 1.5px solid #c9a55a;
   background: transparent;
 }

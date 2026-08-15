@@ -1,17 +1,24 @@
 /* ============================================================
-   AGENCY REQUIREMENTS — the editorial requirements ledger
+   AGENCY REQUIREMENTS
 
-   The talent's photo set is the constant; each agency is a
-   column of demands. Warm paper canvas, white cards, hairline
-   rules, Noto Serif Display for names and Inter for every
-   operational word — the talent studio's own voice, not the
-   agency command centre's.
+   Warm paper canvas, white cards, hairline rules, Noto Serif
+   Display for names and Inter for every operational word —
+   the talent studio's own voice, not the agency command
+   centre's.
 
-   Secondary text is #5A6472 rather than the slate in
-   DESIGN.md (#64748B): on the well tint that slate measures
-   4.48:1, just under the 4.5:1 the spec's acceptance asks for.
-   Gold text is #75501B for the same reason — #C9A55A is a
-   stroke colour on white, never a text colour at body size.
+   Typographic discipline is Intel's: a figure is Inter 200 at
+   display size with a hairline rule under it and its qualifier
+   beneath; provenance and agency wording are marginalia in
+   mono at 0.68rem, sized so they never compete with the
+   reading. Serif appears on names and headings and never in a
+   control.
+
+   Secondary text is #5A6472 rather than the slate in DESIGN.md
+   (#64748B): on the well tint that slate measures 4.48:1, just
+   under the 4.5:1 the spec's acceptance asks for. Gold text is
+   #75501B for the same reason — #C9A55A is a stroke colour on
+   white, never a text colour at body size. #B08D45 is the
+   gold-on-white display weight, used only at figure size.
    ============================================================ */
 
 .page {
@@ -28,6 +35,7 @@
   --rq-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --rq-serif: 'Noto Serif Display', Georgia, serif;
   --rq-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --rq-mono: 'SFMono-Regular', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   box-sizing: border-box;
   min-height: 100%;
@@ -39,22 +47,10 @@
   font-family: var(--rq-sans);
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* ── masthead ─────────────────────────────────────────────── */
 
 .masthead {
-  max-width: 62ch;
+  max-width: 68ch;
   margin: 0 0 clamp(24px, 3vw, 36px);
 }
 
@@ -83,17 +79,43 @@
   line-height: 1.6;
 }
 
-.provenance {
+/* The market reading, from real counts. */
+.summary {
+  margin: 16px 0 0;
+  color: var(--rq-ink);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
+
+/* The sentence no directory of agencies can produce. */
+.recommendation {
   margin: 8px 0 0;
+  color: var(--rq-ink);
+  font-family: var(--rq-serif);
+  font-size: 1.2rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.recommendation em {
+  color: var(--rq-gold-text);
+  font-style: italic;
+}
+
+.provenance {
+  margin: 14px 0 0;
   color: var(--rq-text-2);
-  font-size: 0.8rem;
+  font-family: var(--rq-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
   line-height: 1.5;
 }
 
 /* ── the week's open calls ────────────────────────────────── */
 
-/* Same card material as the ledger. The one surface on this page with a
-   deadline sits above the one without. */
+/* The one surface on this page with a deadline sits above the ones
+   without. */
 .week {
   box-sizing: border-box;
   max-width: 100%;
@@ -165,7 +187,8 @@
 .weekVerified {
   margin-left: auto;
   color: var(--rq-text-2);
-  font-size: 0.75rem;
+  font-family: var(--rq-mono);
+  font-size: 0.68rem;
   line-height: 1.5;
 }
 
@@ -177,227 +200,247 @@
   line-height: 1.6;
 }
 
-/* ── the ledger card ──────────────────────────────────────── */
+/* ── every shot this market asks for ──────────────────────── */
 
-.ledger {
+.coverage {
   box-sizing: border-box;
   max-width: 100%;
+  margin: 0 0 24px;
   padding: 24px;
   border: 1px solid var(--rq-border);
   border-radius: var(--rq-radius);
   background: var(--rq-surface);
 }
 
-.ledgerHead {
-  margin-bottom: 20px;
-}
-
-.ledgerTitle {
-  margin: 0;
-  color: var(--rq-ink);
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.35;
-}
-
-/* The one sentence a directory of agencies cannot produce. */
-.ledgerLede {
-  margin: 8px 0 0;
+.coverageTitle {
+  margin: 0 0 14px;
   color: var(--rq-ink);
   font-family: var(--rq-serif);
   font-size: 1.15rem;
   font-weight: 400;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
-.ledgerLede em {
-  color: var(--rq-gold-text);
-  font-style: italic;
-}
-
-/* The card scrolls. The page never does. */
-.ledgerScroll {
-  max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.corner {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  width: clamp(150px, 20vw, 240px);
-  min-width: 150px;
-  background: var(--rq-surface);
-  border-bottom: 1px solid var(--rq-border);
-}
-
-.colHead {
-  min-width: 120px;
+.coverageList {
+  margin: 0;
   padding: 0;
-  vertical-align: bottom;
-  border-bottom: 1px solid var(--rq-border);
-  transition: background 0.2s var(--rq-ease);
+  list-style: none;
 }
 
-.colButton {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  padding: 4px 12px 10px;
-  border: 0;
-  /* The global button reset injects border-radius: 999px — without this reset
-     the selected column's gold underline curls into half-circle arcs. */
-  border-radius: 0;
-  /* The selected column is marked by an underline under the header text, not
-     by a filled block — a filled header would read as a chip. */
-  border-bottom: 2px solid transparent;
+/* Bounded columns — the row never scrolls sideways, it wraps. */
+.coverageRow {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rq-border);
+}
+
+.coverageRow:last-child {
+  border-bottom: 0;
+}
+
+/* The contact sheet's material: the picture is the answer. */
+.coverageFrame {
+  display: block;
+  overflow: hidden;
+  width: 44px;
+  height: 56px;
+  border-radius: 3px;
+  background: var(--rq-well);
+}
+
+.coverageFrameEmpty {
+  border: 1px dashed var(--rq-border);
   background: transparent;
+}
+
+.coverageImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.coverageName {
+  min-width: 0;
   color: var(--rq-ink);
-  text-align: left;
-  cursor: pointer;
-  transition: color 0.2s var(--rq-ease), border-color 0.2s var(--rq-ease);
-}
-
-.colName {
-  font-family: var(--rq-serif);
-  font-size: 1.05rem;
-  font-weight: 400;
-  line-height: 1.2;
+  font-size: 0.95rem;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
-.colMarket {
-  color: var(--rq-text-2);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
+.coverageState {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
 }
 
-.colButton:hover,
-.colButton:focus-visible {
-  border-bottom-color: var(--rq-border);
-}
-
-.colButton:focus-visible {
-  outline: 2px solid rgba(201, 165, 90, 0.72);
-  outline-offset: 2px;
-}
-
-.colHeadOn .colButton,
-.colHeadOn .colButton:hover {
-  border-bottom-color: var(--rq-gold);
-}
-
-.colHeadHot,
-.colHeadOn {
-  background: var(--rq-well);
-}
-
-.railHead {
-  min-width: 132px;
-  padding: 4px 0 10px 20px;
-  vertical-align: bottom;
-  border-bottom: 1px solid var(--rq-border);
-  color: var(--rq-text-2);
+.coverageWord {
+  color: var(--rq-ink);
   font-size: 0.8rem;
-  font-weight: 600;
-  text-align: right;
-}
-
-.row {
-  transition: background 0.2s var(--rq-ease);
-}
-
-.rowHot,
-.rowHot .rowHead {
-  background: var(--rq-well);
-}
-
-.rowHead {
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  padding: 12px 20px 12px 0;
-  background: var(--rq-surface);
-  border-bottom: 1px solid var(--rq-border);
-  color: var(--rq-ink);
-  font-size: 0.85rem;
-  font-weight: 400;
-  line-height: 1.4;
-  text-align: left;
-  transition: background 0.2s var(--rq-ease);
-  overflow-wrap: anywhere;
-}
-
-/* The shot that unlocks the most agencies. One word of emphasis, no chip. */
-.rowHeadLead {
-  color: var(--rq-gold-text);
-  font-style: italic;
-  font-weight: 500;
-}
-
-.cell {
-  padding: 12px;
-  border-bottom: 1px solid var(--rq-border);
-  text-align: center;
-  transition: background 0.2s var(--rq-ease);
-}
-
-.cellSelected,
-.cellHot {
-  background: var(--rq-well);
-}
-
-.rail {
-  padding: 12px 0 12px 20px;
-  border-bottom: 1px solid var(--rq-border);
-  text-align: right;
+  line-height: 1.5;
   white-space: nowrap;
 }
 
-.railValue {
-  color: var(--rq-ink);
-  font-size: 0.8rem;
+.coverageAsked {
+  color: var(--rq-text-2);
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
-.railDone {
+.coverageNote {
+  margin: 14px 0 0;
+  max-width: 76ch;
   color: var(--rq-text-2);
-  font-size: 0.8rem;
-}
-
-.emptyRow {
-  padding: 20px 0;
-  border-bottom: 1px solid var(--rq-border);
-  color: var(--rq-text-2);
-  font-size: 0.875rem;
+  font-size: 0.78rem;
   line-height: 1.6;
 }
 
-.ledgerLegend {
-  margin-top: 16px;
+/* ── the market, two panes ────────────────────────────────── */
+
+.market {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.marketTitle {
+  margin: 0 0 14px;
+  color: var(--rq-ink);
+  font-family: var(--rq-serif);
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.marketBody {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.rail,
+.stack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stackItem {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A real button, full row width, Inter — never serif in a control. */
+.railRow {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  /* The global button reset injects border-radius: 999px, which curls a
+     bottom-border-only marker into arcs at each end. */
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--rq-ink);
+  font-family: var(--rq-sans);
+  font-size: 0.9rem;
+  letter-spacing: normal;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s var(--rq-ease), border-color 0.2s var(--rq-ease);
+}
+
+.railRow:hover {
+  background: var(--rq-well);
+}
+
+.railRow:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: -2px;
+}
+
+/* Selection: a background well plus a straight gold underline. No chip, no
+   pill, no half-measure. */
+.railRowOn,
+.railRowOn:hover {
+  background: var(--rq-well);
+  border-bottom-color: var(--rq-gold);
+}
+
+/* Full row width, so a long house name breaks between words. */
+.railName {
+  display: block;
+  color: var(--rq-ink);
+  font-size: 0.98rem;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.railMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  margin-top: 2px;
+}
+
+.railMarket,
+.railChannel {
+  color: var(--rq-text-2);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.railFigure {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  align-items: baseline;
+  margin-top: 6px;
+}
+
+.railCount {
+  color: var(--rq-ink);
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 200;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+.railCountWord,
+.railNone {
+  color: var(--rq-text-2);
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 /* ── the opened agency ────────────────────────────────────── */
 
-.plate {
+.detail {
   box-sizing: border-box;
+  min-width: 0;
   max-width: 100%;
-  margin-top: 24px;
   padding: 24px;
   border: 1px solid var(--rq-border);
   border-radius: var(--rq-radius);
   background: var(--rq-surface);
 }
 
-.plateHead {
+.detail:focus {
+  outline: none;
+}
+
+.detailHead {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 24px;
@@ -407,75 +450,316 @@
   border-bottom: 1px solid var(--rq-border);
 }
 
-.plateIdentity {
+.detailIdentity {
   min-width: 0;
 }
 
-.plateName {
+.detailName {
   margin: 0;
   color: var(--rq-ink);
   font-family: var(--rq-serif);
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   font-weight: 400;
   letter-spacing: -0.01em;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
-.plateOffice {
+.detailMarket {
   margin: 4px 0 0;
   color: var(--rq-text-2);
   font-size: 0.85rem;
   line-height: 1.5;
 }
 
-.plateChannel {
+.detailLine {
   margin: 6px 0 0;
-  max-width: 52ch;
-  color: var(--rq-text-2);
-  font-size: 0.85rem;
-  line-height: 1.5;
-}
-
-/* The registry claim. A sentence in the same quiet ink as the channel line —
-   a registration is a fact from a public register, not a tier, so it must not
-   read as a badge or carry a colour of its own. */
-.plateRegistry {
-  margin: 6px 0 0;
-  max-width: 52ch;
+  max-width: 56ch;
   color: var(--rq-text-2);
   font-size: 0.85rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.plateWindows {
+.detailWindows {
   margin: 6px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.plateWindow {
-  max-width: 52ch;
+.detailWindow {
+  max-width: 56ch;
   color: var(--rq-ink);
   font-size: 0.85rem;
   line-height: 1.5;
 }
 
-.plateVerified {
+.detailVerified {
   margin: 0;
   color: var(--rq-text-2);
-  font-size: 0.8rem;
+  font-family: var(--rq-mono);
+  font-size: 0.68rem;
   line-height: 1.5;
   text-align: right;
   white-space: nowrap;
 }
 
-.plateBody {
-  padding-top: 4px;
+/* ── the lede: figure, hairline, qualifier ────────────────── */
+
+.lede {
+  padding: 20px 0 4px;
 }
 
-.plateNote {
+.ledeFigure {
+  margin: 0;
+  color: var(--rq-ink);
+  font-size: clamp(2.4rem, 5vw, 3.2rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 200;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.ledeOf {
+  color: var(--rq-text-2);
+  font-size: 0.42em;
+  font-weight: 300;
+  letter-spacing: 0;
+}
+
+/* The rule is what makes the figure and its qualifier read as one object
+   rather than a heading followed by a paragraph. */
+.ledeRule {
+  display: block;
+  width: 56px;
+  height: 1px;
+  margin: 14px 0;
+  background: var(--rq-border);
+}
+
+.ledeQualifier {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--rq-text-2);
+  font-size: 0.92rem;
+  font-weight: 350;
+  line-height: 1.55;
+}
+
+.emph {
+  color: var(--rq-ink);
+  font-weight: 550;
+}
+
+.ledeMissing {
+  margin: 12px 0 0;
+  max-width: 60ch;
+  color: var(--rq-ink);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+/* ── sections ─────────────────────────────────────────────── */
+
+.section {
+  padding: 20px 0 0;
+  margin-top: 20px;
+  border-top: 1px solid var(--rq-border);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--rq-ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+}
+
+.sectionAction {
+  color: var(--rq-gold-text);
+  font-size: 0.82rem;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.45);
+  transition: color 0.2s var(--rq-ease), border-color 0.2s var(--rq-ease);
+}
+
+.sectionAction:hover,
+.sectionAction:focus-visible {
+  color: var(--rq-ink);
+  border-bottom-color: var(--rq-ink);
+}
+
+.sectionNote,
+.prose {
+  margin: 10px 0 0;
+  max-width: 68ch;
+  color: var(--rq-text-2);
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.prose {
+  color: var(--rq-ink);
+}
+
+/* Provenance and someone else's wording. Mono, small, never in the
+   reading's type size. */
+.marginalia {
+  display: block;
+  margin: 4px 0 0;
+  max-width: 68ch;
+  color: var(--rq-text-2);
+  font-family: var(--rq-mono);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* ── shots ────────────────────────────────────────────────── */
+
+.slots {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slot {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 4px 14px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rq-border);
+}
+
+.slot:last-child {
+  border-bottom: 0;
+}
+
+.slotFrame {
+  display: block;
+  overflow: hidden;
+  width: 40px;
+  height: 50px;
+  border-radius: 3px;
+  background: var(--rq-well);
+}
+
+.slotFrameEmpty {
+  border: 1px dashed var(--rq-border);
+  background: transparent;
+}
+
+.slotImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.slotText {
+  min-width: 0;
+}
+
+.slotName {
+  display: block;
+  color: var(--rq-ink);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.slotState {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--rq-ink);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* ── set rules ────────────────────────────────────────────── */
+
+.rules {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rule {
+  display: grid;
+  grid-template-columns: minmax(110px, 150px) minmax(0, 1fr) auto;
+  gap: 2px 16px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rq-border);
+}
+
+.rule:last-child {
+  border-bottom: 0;
+}
+
+.ruleSubject {
+  color: var(--rq-text-2);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.ruleText {
+  min-width: 0;
+  color: var(--rq-ink);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ruleModality {
+  color: var(--rq-text-2);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── plain lists (eligibility) ────────────────────────────── */
+
+.plainList {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plainItem {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rq-border);
+}
+
+.plainItem:last-child {
+  border-bottom: 0;
+}
+
+.plainText {
+  display: block;
+  max-width: 68ch;
+  color: var(--rq-ink);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+/* ── footer ───────────────────────────────────────────────── */
+
+.note {
   margin: 18px 0 0;
   max-width: 68ch;
   color: var(--rq-text-2);
@@ -483,98 +767,7 @@
   line-height: 1.6;
 }
 
-.group {
-  padding: 18px 0 0;
-}
-
-.group + .group {
-  border-top: 1px solid var(--rq-border);
-}
-
-.groupTitle {
-  margin: 0;
-  color: var(--rq-ink);
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.groupTitleRow {
-  margin: 0;
-  font-size: inherit;
-  font-weight: inherit;
-}
-
-.groupToggle {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  padding: 0 0 2px;
-  border: 0;
-  background: transparent;
-  color: var(--rq-ink);
-  text-align: left;
-  cursor: pointer;
-}
-
-.groupToggle:focus-visible {
-  outline: 2px solid rgba(201, 165, 90, 0.72);
-  outline-offset: 3px;
-}
-
-.groupChevron {
-  color: var(--rq-text-2);
-  transition: transform 0.2s var(--rq-ease);
-}
-
-.groupChevronOpen {
-  transform: rotate(180deg);
-}
-
-.groupBody {
-  overflow: hidden;
-}
-
-.findings {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.finding {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 16px;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rq-border);
-}
-
-.finding:last-child {
-  border-bottom: 0;
-}
-
-.findingLabel {
-  min-width: 0;
-  color: var(--rq-ink);
-  font-size: 0.85rem;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-.findingGuidance {
-  min-width: 0;
-  max-width: 46ch;
-  color: var(--rq-text-2);
-  font-size: 0.8rem;
-  line-height: 1.5;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-.plateFoot {
+.foot {
   display: flex;
   flex-wrap: wrap;
   gap: 12px 24px;
@@ -584,7 +777,7 @@
   border-top: 1px solid var(--rq-border);
 }
 
-.plateOut {
+.out {
   display: inline-flex;
   gap: 4px;
   align-items: center;
@@ -595,14 +788,14 @@
   transition: color 0.2s var(--rq-ease), border-color 0.2s var(--rq-ease);
 }
 
-.plateOut:hover,
-.plateOut:focus-visible {
+.out:hover,
+.out:focus-visible {
   color: var(--rq-ink);
   border-bottom-color: var(--rq-ink);
 }
 
 /* Sits with the outbound link it qualifies. */
-.plateOutNote {
+.outNote {
   margin: 0;
   color: var(--rq-text-2);
   font-size: 0.8rem;
@@ -611,7 +804,7 @@
 
 /* ── after an export: the submission Pholio cannot see ────── */
 
-.plateLog {
+.log {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
@@ -619,7 +812,7 @@
   margin-top: 10px;
 }
 
-.plateLogLine {
+.logLine {
   margin: 0;
   color: var(--rq-text-2);
   font-size: 0.85rem;
@@ -628,7 +821,7 @@
 
 /* A text action, not a second button: the export was the act, this is only
    the bookkeeping. */
-.plateLogAction {
+.logAction {
   padding: 0;
   border: 0;
   /* The global button reset injects border-radius: 999px, which curls a
@@ -644,21 +837,22 @@
   transition: color 0.2s var(--rq-ease), border-color 0.2s var(--rq-ease);
 }
 
-.plateLogAction:hover,
-.plateLogAction:focus-visible {
+.logAction:hover,
+.logAction:focus-visible {
   color: var(--rq-ink);
   border-bottom-color: var(--rq-ink);
 }
 
-.plateLogAction:disabled {
+.logAction:disabled {
   color: var(--rq-text-2);
   border-bottom-color: transparent;
   cursor: default;
 }
 
-.plateLogDismiss {
+.logDismiss {
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: transparent;
   color: var(--rq-text-2);
   font-family: inherit;
@@ -668,18 +862,18 @@
   transition: color 0.2s var(--rq-ease);
 }
 
-.plateLogDismiss:hover,
-.plateLogDismiss:focus-visible {
+.logDismiss:hover,
+.logDismiss:focus-visible {
   color: var(--rq-ink);
 }
 
-.plateLogAction:focus-visible,
-.plateLogDismiss:focus-visible {
+.logAction:focus-visible,
+.logDismiss:focus-visible {
   outline: 2px solid rgba(201, 165, 90, 0.72);
   outline-offset: 3px;
 }
 
-.plateLogProblem {
+.logProblem {
   flex-basis: 100%;
   margin: 0;
   color: #8a3f2c;
@@ -687,32 +881,33 @@
   line-height: 1.55;
 }
 
-.plateProblem,
-.plateDone {
+.problem,
+.done {
   margin: 14px 0 0;
   max-width: 68ch;
   font-size: 0.85rem;
   line-height: 1.55;
 }
 
-.plateProblem {
+.problem {
   color: #8a3f2c;
 }
 
-.plateDone {
+.done {
   color: var(--rq-text-2);
 }
 
-.plateProvenance,
-.plateCaution {
+.provenance,
+.caution {
   margin: 18px 0 0;
   max-width: 76ch;
   color: var(--rq-text-2);
-  font-size: 0.75rem;
+  font-family: var(--rq-mono);
+  font-size: 0.68rem;
   line-height: 1.6;
 }
 
-.plateCaution {
+.caution {
   margin-top: 6px;
   color: #8a3f2c;
 }
@@ -724,6 +919,7 @@
   gap: 12px;
   justify-items: start;
   max-width: 60ch;
+  margin-bottom: 24px;
   padding: 24px;
   border: 1px solid var(--rq-border);
   border-radius: var(--rq-radius);
@@ -743,15 +939,33 @@
 
 /* ── narrow viewports ─────────────────────────────────────── */
 
+/* Matches `useStackedLayout` in index.jsx — the two must agree, or the
+   accordion opens a panel the layout has already moved. */
+@media (max-width: 880px) {
+  .marketBody {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  /* Stacked, each agency's detail opens under its own row. */
+  .stackItem + .stackItem {
+    margin-top: 4px;
+  }
+
+  .detail {
+    margin: 0 0 8px;
+  }
+}
+
 @media (max-width: 720px) {
-  .ledger,
-  .plate,
+  .coverage,
+  .detail,
   .state,
   .week {
     padding: 18px;
   }
 
-  .plateVerified {
+  .detailVerified {
     text-align: left;
   }
 
@@ -760,21 +974,31 @@
     margin-left: 0;
   }
 
-  .findingGuidance {
+  .coverageRow {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .coverageState {
+    grid-column: 2;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .rule {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ruleModality {
     text-align: left;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .colHead,
-  .colButton,
-  .row,
-  .rowHead,
-  .cell,
-  .groupChevron,
-  .plateOut,
-  .plateLogAction,
-  .plateLogDismiss {
+  .railRow,
+  .sectionAction,
+  .out,
+  .logAction,
+  .logDismiss {
     transition: none;
   }
 }

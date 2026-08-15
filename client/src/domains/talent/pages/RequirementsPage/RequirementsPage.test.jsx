@@ -37,35 +37,34 @@ function renderPage() {
   };
 }
 
+/** The rail mounts with the directory; the detail fills in with the preflight. */
+async function renderWithMarket() {
+  const utils = renderPage();
+  await screen.findByRole('tab', { name: /Elite Models/ });
+  return utils;
+}
+
+/** Elite is the reference house, so it is not the pane that opens by default. */
+async function openElite(user) {
+  await user.click(screen.getByRole('tab', { name: /Elite Models/ }));
+  return screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+}
+
+function elitePanel() {
+  return screen.getByRole('heading', { name: 'Elite Models', level: 2 }).closest('section');
+}
+
 /**
- * The ledger card mounts as soon as the directory resolves — the column heads
- * are the page's navigation and must not wait on the per-route check. The rows
- * arrive with the preflight, so tests about cells wait for a row.
+ * A whole line, read the way a person reads it. The page sets emphasis inline
+ * — an italic shot name, a lighter "of" between two numerals — so the string a
+ * talent sees is spread across several elements and `getByText` alone cannot
+ * see it.
  */
-async function renderWithLedger() {
-  const utils = renderPage();
-  await screen.findByRole('rowheader', { name: /profile/i });
-  return utils;
-}
-
-async function renderWithPlate() {
-  const utils = renderPage();
-  await screen.findByRole('heading', { name: 'Attention · 4', level: 3 });
-  return utils;
-}
-
-/** The geometric state of the mark carrying a given description. */
-function markState(description) {
-  return screen
-    .getByText(description)
-    .closest('[data-mark-state]')
-    ?.getAttribute('data-mark-state');
-}
-
-function rowFor(pattern) {
-  return screen
-    .getAllByRole('row')
-    .find((row) => pattern.test(within(row).queryAllByRole('rowheader')[0]?.textContent || ''));
+function line(scope, pattern) {
+  const normalize = (node) => node.textContent.replace(/\s+/g, ' ').trim();
+  return scope.queryAllByText(
+    (_, element) => element?.tagName === 'P' && pattern.test(normalize(element)),
+  );
 }
 
 /*
@@ -74,6 +73,22 @@ function rowFor(pattern) {
  * `origin` — an agency can be live on Pholio while Pholio researched its spec.
  */
 const routes = [
+  {
+    // First in the payload, submittable, and publishes no shot list at all —
+    // so it is the row the default selection has to step over.
+    seriesId: 'wilhelmina:selected-market-online',
+    revisionId: 'wilhelmina:selected-market-online@1',
+    agencyName: 'Wilhelmina',
+    marketLabel: 'Selected market',
+    sourceUrl: 'https://example.com/wilhelmina',
+    sourceStatus: 'confirmed',
+    sourceCheckedOn: '2026-08-09',
+    sourceFreshness: { state: 'checked', nextReviewOn: '2026-11-09' },
+    acceptsPholioSubmissions: true,
+    channel: { type: 'official_web_form', url: 'https://example.com/wilhelmina' },
+    verification: null,
+    callWindows: [],
+  },
   {
     seriesId: 'elite-models-na:online-general',
     revisionId: 'elite-models-na:online-general@3',
@@ -110,9 +125,9 @@ const routes = [
     ],
   },
   {
-    seriesId: 'models1-uk:online',
-    revisionId: 'models1-uk:online@1',
-    agencyName: 'Models 1',
+    seriesId: 'storm-management-uk:online',
+    revisionId: 'storm-management-uk:online@1',
+    agencyName: 'Storm Management',
     marketLabel: 'London',
     sourceUrl: null,
     sourceStatus: 'confirmed',
@@ -126,6 +141,303 @@ const routes = [
     callWindows: [],
   },
 ];
+
+/** A slice of `registryTaxonomyLabels()`, the vocabulary the page speaks in. */
+const labels = {
+  'shot.frame': {
+    label: 'Shot frame',
+    values: {
+      full_length: { label: 'Full length' },
+      portrait_length: { label: 'Portrait length' },
+      close_up: { label: 'Close-up' },
+      headshot: { label: 'Headshot' },
+      mid_length: { label: 'Mid-length' },
+    },
+  },
+  'shot.view': { label: 'Shot view', values: { profile: { label: 'Profile' } } },
+  'shot.purpose': {
+    label: 'Shot purpose',
+    values: { personality: { label: 'Personality' } },
+  },
+  'appearance.hair_state': {
+    label: 'Hair state',
+    values: { pulled_back: { label: 'Pulled back' } },
+  },
+  'appearance.makeup_level': { label: 'Makeup level', values: {} },
+  'expression.smile': { label: 'Smile visible', values: {} },
+  'file.size_bytes': { label: 'File size', values: {} },
+  'applicant.age_years': { label: 'Age', values: {} },
+  'contact.email': { label: 'Email', values: {} },
+  'social.instagram': { label: 'Instagram', values: {} },
+  'measurements.height': { label: 'Height field', values: {} },
+  'files.per_file_size': { label: 'Per-file size limit', values: {} },
+  'presentation.background': { label: 'Background guidance', values: {} },
+};
+
+/** `findingDto` — every field Q1 landed, defaults included. */
+function finding(overrides) {
+  return {
+    categoryKey: 'shots',
+    category: 'Shots',
+    outcome: 'satisfied',
+    modality: 'requested',
+    severity: null,
+    requiresAttention: false,
+    field: null,
+    matchValue: null,
+    matchValues: [],
+    matchKey: null,
+    guidance: null,
+    target: null,
+    assignments: [],
+    actual: null,
+    minimum: null,
+    maximum: null,
+    factStates: [],
+    ...overrides,
+  };
+}
+
+/**
+ * Elite publishes six shots and four of them are conjunctions. `matchValue` is
+ * null for every one of those, which is exactly why the old grid drew two.
+ */
+const eliteEvaluation = {
+  seriesId: 'elite-models-na:online-general',
+  available: true,
+  findings: [
+    finding({
+      id: 'shots:full-length',
+      slotKey: 'elite-models-na:online-general#shots:full-length',
+      field: 'shot.frame',
+      matchValue: 'full_length',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'full_length' }],
+      matchKey: 'shot.frame:equals:full_length',
+      sourceLabel: 'Full length',
+      assignments: [{ instance: 1, imageId: 'active-image' }],
+    }),
+    finding({
+      id: 'shots:full-length-profile',
+      slotKey: 'elite-models-na:online-general#shots:full-length-profile',
+      matchValues: [
+        { field: 'shot.frame', operator: 'equals', value: 'full_length' },
+        { field: 'shot.view', operator: 'equals', value: 'profile' },
+      ],
+      matchKey: 'shot.frame:equals:full_length&shot.view:equals:profile',
+      sourceLabel: 'Full length profile',
+    }),
+    finding({
+      id: 'shots:portrait-length',
+      slotKey: 'elite-models-na:online-general#shots:portrait-length',
+      field: 'shot.frame',
+      matchValue: 'portrait_length',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'portrait_length' }],
+      matchKey: 'shot.frame:equals:portrait_length',
+      sourceLabel: 'Portrait length',
+    }),
+    finding({
+      id: 'shots:close-up-hair-pulled-back',
+      slotKey: 'elite-models-na:online-general#shots:close-up-hair-pulled-back',
+      matchValues: [
+        { field: 'shot.frame', operator: 'equals', value: 'close_up' },
+        { field: 'appearance.hair_state', operator: 'equals', value: 'pulled_back' },
+      ],
+      matchKey: 'appearance.hair_state:equals:pulled_back&shot.frame:equals:close_up',
+      sourceLabel: 'Close up (hair pulled back)',
+    }),
+    finding({
+      id: 'shots:close-up-profile-hair-pulled-back',
+      slotKey: 'elite-models-na:online-general#shots:close-up-profile',
+      matchValues: [
+        { field: 'shot.frame', operator: 'equals', value: 'close_up' },
+        { field: 'shot.view', operator: 'equals', value: 'profile' },
+        { field: 'appearance.hair_state', operator: 'equals', value: 'pulled_back' },
+      ],
+      matchKey:
+        'appearance.hair_state:equals:pulled_back&shot.frame:equals:close_up&shot.view:equals:profile',
+      sourceLabel: 'Close up profile (hair pulled back)',
+      outcome: 'missing',
+      severity: 'attention',
+      requiresAttention: true,
+      target: { href: '/dashboard/talent/media', label: 'Open the book' },
+    }),
+    finding({
+      id: 'shots:personality-pic',
+      slotKey: 'elite-models-na:online-general#shots:personality-pic',
+      field: 'shot.purpose',
+      matchValue: 'personality',
+      matchValues: [{ field: 'shot.purpose', operator: 'equals', value: 'personality' }],
+      matchKey: 'shot.purpose:equals:personality',
+      sourceLabel: 'Personality pic',
+      outcome: 'missing',
+      severity: 'attention',
+      requiresAttention: true,
+      target: { href: '/dashboard/talent/media', label: 'Open the book' },
+    }),
+    finding({
+      id: 'shotCount:count',
+      slotKey: 'elite-models-na:online-general#shotCount:count',
+      categoryKey: 'shotCount',
+      category: 'Shot count',
+      outcome: 'missing',
+      minimum: 6,
+      maximum: 6,
+      actual: 5,
+      sourceLabel: 'Shot Count',
+    }),
+    finding({
+      id: 'setWide:no-makeup',
+      slotKey: 'elite-models-na:online-general#setWide:no-makeup',
+      categoryKey: 'setWide',
+      category: 'Presentation',
+      field: 'appearance.makeup_level',
+      modality: 'prohibited',
+      sourceLabel: 'do not wear any makeup',
+      outcome: 'missing',
+    }),
+    finding({
+      id: 'setWide:no-smiles',
+      slotKey: 'elite-models-na:online-general#setWide:no-smiles',
+      categoryKey: 'setWide',
+      category: 'Presentation',
+      field: 'expression.smile',
+      modality: 'prohibited',
+      sourceLabel: 'No smiles',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'files:maximum-image-size',
+      slotKey: 'elite-models-na:online-general#files:maximum-image-size',
+      categoryKey: 'files',
+      category: 'Files',
+      field: 'file.size_bytes',
+      modality: 'required',
+      sourceLabel: 'Max. 5mb each',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'eligibility:minimum-age',
+      slotKey: 'elite-models-na:online-general#eligibility:minimum-age',
+      categoryKey: 'eligibility',
+      category: 'Eligibility',
+      field: 'applicant.age_years',
+      modality: 'preferred',
+      sourceLabel: 'female identified persons ages 15 and up',
+      outcome: 'missing',
+      factStates: [{ field: 'applicant.age_years', state: 'missing', source: 'profile' }],
+      target: { href: '/dashboard/talent/profile', label: 'Open profile' },
+    }),
+    finding({
+      id: 'applicationFields:email',
+      slotKey: 'elite-models-na:online-general#applicationFields:email',
+      categoryKey: 'applicationFields',
+      category: 'Application fields',
+      field: 'contact.email',
+      sourceLabel: 'E-mail',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'applicationFields:height',
+      slotKey: 'elite-models-na:online-general#applicationFields:height',
+      categoryKey: 'applicationFields',
+      category: 'Application fields',
+      field: 'measurements.height',
+      sourceLabel: 'Height',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'applicationFields:instagram',
+      slotKey: 'elite-models-na:online-general#applicationFields:instagram',
+      categoryKey: 'applicationFields',
+      category: 'Application fields',
+      field: 'social.instagram',
+      sourceLabel: 'Instagram URL',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'sourceUnknown:files.per_file_size:1',
+      slotKey: 'elite-models-na:online-general#sourceUnknown:files.per_file_size:1',
+      categoryKey: 'sourceUnknown',
+      category: 'Not published',
+      field: 'files.per_file_size',
+      sourceLabel: 'Per File Size',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'sourceUnknown:presentation.background:1',
+      slotKey: 'elite-models-na:online-general#sourceUnknown:presentation.background:1',
+      categoryKey: 'sourceUnknown',
+      category: 'Not published',
+      field: 'presentation.background',
+      sourceLabel: 'Background',
+      outcome: 'unknown',
+    }),
+  ],
+  summary: { needsAttention: 4, informational: 0, confirm: 6, included: 4 },
+  shotCoverage: { selected: 5, published: 6, matched: 4 },
+};
+
+/** Storm is one headshot away from a complete set — the recommendation's subject. */
+const stormEvaluation = {
+  seriesId: 'storm-management-uk:online',
+  available: true,
+  findings: [
+    finding({
+      id: 'shots:headshot',
+      slotKey: 'storm-management-uk:online#shots:headshot',
+      field: 'shot.frame',
+      matchValue: 'headshot',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'headshot' }],
+      matchKey: 'shot.frame:equals:headshot',
+      // The agency's own wording is a form asterisk, never a shot name.
+      sourceLabel: 'Headshot *',
+      outcome: 'missing',
+      severity: 'attention',
+      requiresAttention: true,
+      target: { href: '/dashboard/talent/media', label: 'Open the book' },
+    }),
+    finding({
+      id: 'shots:mid-length',
+      slotKey: 'storm-management-uk:online#shots:mid-length',
+      field: 'shot.frame',
+      matchValue: 'mid_length',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'mid_length' }],
+      matchKey: 'shot.frame:equals:mid_length',
+      sourceLabel: 'Mid length *',
+    }),
+    finding({
+      id: 'shots:full-length',
+      slotKey: 'storm-management-uk:online#shots:full-length',
+      field: 'shot.frame',
+      matchValue: 'full_length',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'full_length' }],
+      matchKey: 'shot.frame:equals:full_length',
+      sourceLabel: 'Full length *',
+      assignments: [{ instance: 1, imageId: 'active-image' }],
+    }),
+  ],
+  summary: { needsAttention: 1, informational: 0, confirm: 0, included: 2 },
+  shotCoverage: { selected: 5, published: 3, matched: 2 },
+};
+
+/** Wilhelmina publishes a form and nothing else. Never a fake "0 of 0". */
+const wilhelminaEvaluation = {
+  seriesId: 'wilhelmina:selected-market-online',
+  available: true,
+  findings: [
+    finding({
+      id: 'applicationFields:email',
+      slotKey: 'wilhelmina:selected-market-online#applicationFields:email',
+      categoryKey: 'applicationFields',
+      category: 'Application fields',
+      field: 'contact.email',
+      sourceLabel: 'Email',
+      outcome: 'unknown',
+    }),
+  ],
+  summary: { needsAttention: 0, informational: 0, confirm: 1, included: 0 },
+  shotCoverage: { selected: 5, published: 0, matched: 0 },
+};
 
 /**
  * `GET /api/talent/call-windows`. Que and MSA belong to no spec-pack
@@ -178,128 +490,21 @@ const callWindows = [
   },
 ];
 
-/** Mirrors `evaluationDto`: flat findings, `countSummary`, `shotCoverage`. */
-const eliteEvaluation = {
-  seriesId: 'elite-models-na:online-general',
-  available: true,
-  findings: [
-    {
-      id: 'shots:close-up-profile',
-      categoryKey: 'shots',
-      field: 'shot.view',
-      matchValue: 'profile',
-      sourceLabel: 'close-up profile, hair pulled back',
-      outcome: 'missing',
-      severity: 'attention',
-      requiresAttention: true,
-      category: 'Shots',
-      guidance: 'Your current package has no confirmed match for “close-up profile, hair pulled back”.',
-    },
-    {
-      id: 'shots:personality',
-      categoryKey: 'shots',
-      field: 'shot.frame',
-      matchValue: 'personality',
-      sourceLabel: 'personality shot',
-      outcome: 'missing',
-      severity: 'attention',
-      requiresAttention: true,
-      category: 'Shots',
-    },
-    {
-      id: 'shots:full-length',
-      categoryKey: 'shots',
-      field: 'shot.frame',
-      matchValue: 'full_length',
-      sourceLabel: 'full-length',
-      outcome: 'satisfied',
-      severity: null,
-      requiresAttention: false,
-      category: 'Shots',
-    },
-    // Not a shot. Real registry data puts file limits and social handles in
-    // this same flat list, and they must not land in the shot grid.
-    {
-      id: 'files:maximum-image-count',
-      categoryKey: 'files',
-      sourceLabel: 'Image count',
-      outcome: 'violates',
-      severity: 'attention',
-      requiresAttention: true,
-      category: 'Files',
-    },
-    {
-      id: 'applicationFields:instagram',
-      categoryKey: 'applicationFields',
-      sourceLabel: 'Instagram',
-      outcome: 'missing',
-      severity: 'attention',
-      requiresAttention: true,
-      category: 'Application fields',
-    },
-    // Verbatim from `guidanceForOutcome` in preflight-service.js. Written to
-    // state what Pholio knows rather than to instruct a send, because this
-    // surface sends nothing.
-    {
-      id: 'setWide:hair',
-      categoryKey: 'setWide',
-      sourceLabel: 'Hair pulled back',
-      outcome: 'unknown',
-      severity: null,
-      requiresAttention: false,
-      category: 'Presentation',
-      guidance:
-        'Pholio cannot verify this from your saved profile or selected images. Confirm it yourself.',
-    },
-  ],
-  summary: { needsAttention: 4, informational: 0, confirm: 0, included: 4 },
-  shotCoverage: { selected: 5, published: 6, matched: 4 },
-};
-
-const models1Evaluation = {
-  seriesId: 'models1-uk:online',
-  available: true,
-  findings: [
-    {
-      id: 'shots:full',
-      categoryKey: 'shots',
-      field: 'shot.frame',
-      matchValue: 'full_length',
-      sourceLabel: 'Full length',
-      outcome: 'satisfied',
-      requiresAttention: false,
-      category: 'Shots',
-    },
-    {
-      id: 'shots:prof',
-      categoryKey: 'shots',
-      field: 'shot.view',
-      matchValue: 'profile',
-      sourceLabel: 'Profile shot',
-      outcome: 'missing',
-      severity: 'attention',
-      requiresAttention: true,
-      category: 'Shots',
-    },
-  ],
-  summary: { needsAttention: 0, informational: 0, confirm: 0, included: 3 },
-  shotCoverage: { selected: 5, published: 3, matched: 3 },
-};
-
 describe('RequirementsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAuth.mockReturnValue({
       profile: { images: [{ id: 'profile-image' }] },
       images: [
-        { id: 'active-image', status: 'active', asset_kind: 'image' },
+        { id: 'active-image', status: 'active', asset_kind: 'image', path: 'digitals/one.jpg' },
         { id: 'deleted-image', deleted_at: '2026-01-01' },
         { id: 'video-image', asset_kind: 'video' },
       ],
     });
-    talentApi.getSpecRegistryRoutes.mockResolvedValue({ routes });
+    talentApi.getSpecRegistryRoutes.mockResolvedValue({ routes, labels });
     talentApi.preflightSpecRegistry.mockResolvedValue({
-      results: [eliteEvaluation, models1Evaluation],
+      labels,
+      results: [wilhelminaEvaluation, eliteEvaluation, stormEvaluation],
     });
     talentApi.listCallWindows.mockResolvedValue(callWindows);
     talentApi.logTrackedSubmission.mockResolvedValue({ id: 'tracked-1' });
@@ -308,28 +513,64 @@ describe('RequirementsPage', () => {
   test('checks the talent’s current agency-visible digitals, once, for every route', async () => {
     renderPage();
 
-    await screen.findByRole('table');
+    await screen.findByRole('tab', { name: /Elite Models/ });
     await waitFor(() => {
       expect(talentApi.preflightSpecRegistry).toHaveBeenCalledWith({
-        seriesIds: ['elite-models-na:online-general', 'models1-uk:online'],
+        seriesIds: [
+          'wilhelmina:selected-market-online',
+          'elite-models-na:online-general',
+          'storm-management-uk:online',
+        ],
         imageIds: ['active-image'],
       });
     });
   });
 
-  test('states the page and its provenance without an eyebrow above the title', async () => {
-    renderPage();
+  test('never draws a table — the horizontal-scroll matrix is gone', async () => {
+    await renderWithMarket();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
 
-    const title = await screen.findByRole('heading', { level: 1 });
-    expect(title).toHaveTextContent('Agency requirements');
-    expect(
-      screen.getByText(
-        'What each agency’s published route asks for, checked against your current digitals.',
-      ),
-    ).toBeInTheDocument();
-    expect(
-      await screen.findByText('Registry verified continuously · 2 agencies'),
-    ).toBeInTheDocument();
+  describe('the masthead', () => {
+    test('states the page and its provenance without an eyebrow above the title', async () => {
+      renderPage();
+
+      const title = await screen.findByRole('heading', { level: 1 });
+      expect(title).toHaveTextContent('Agency requirements');
+      expect(
+        screen.getByText(
+          'What each agency’s published route asks for, checked against your current digitals.',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByText('Registry verified continuously · 3 agencies'),
+      ).toBeInTheDocument();
+    });
+
+    test('reads the market from real counts, over agencies that published a shot list', async () => {
+      await renderWithMarket();
+
+      // 4 of Elite's 6 plus 2 of Storm's 3. Wilhelmina publishes none, so it is
+      // neither a numerator nor a denominator.
+      expect(
+        await screen.findByText(
+          'Your set covers 6 of 9 published shots across 2 agencies.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    test('separates the agencies one shot would finish from the ones that also ask', async () => {
+      await renderWithMarket();
+
+      // Storm is missing exactly one shot, so a headshot genuinely completes
+      // them. Elite is missing two, so nothing here claims a shot would.
+      await waitFor(() =>
+        expect(
+          line(screen, /^One Headshot would complete your set for Storm Management\.$/),
+        ).not.toHaveLength(0),
+      );
+      expect(screen.queryByText(/would satisfy \d+ more agencies/)).not.toBeInTheDocument();
+    });
   });
 
   describe('open calls this week', () => {
@@ -358,7 +599,6 @@ describe('RequirementsPage', () => {
     test('lists windows that belong to no spec-pack agency at all', async () => {
       const strip = await findStrip();
 
-      // Que and MSA have no route, so they appear nowhere else on this page.
       expect(within(strip).getByText('Que Management')).toBeInTheDocument();
       expect(within(strip).getByText('MSA Models')).toBeInTheDocument();
     });
@@ -369,19 +609,16 @@ describe('RequirementsPage', () => {
         .getAllByRole('listitem')
         .map((item) => item.textContent);
 
-      // Both fall on Thursday, so the earlier hour leads regardless of today.
       expect(names.findIndex((text) => /Que Management/.test(text))).toBeLessThan(
         names.findIndex((text) => /Muse Management/.test(text)),
       );
-      // Day published, time not — the day is still worth stating.
       expect(within(strip).getByText('Tue')).toBeInTheDocument();
     });
 
     test('never invents a schedule when there is none to publish', async () => {
       talentApi.listCallWindows.mockResolvedValue([]);
-      renderPage();
+      await renderWithMarket();
 
-      await screen.findByRole('table');
       expect(
         screen.queryByRole('heading', { name: 'Open calls this week' }),
       ).not.toBeInTheDocument();
@@ -389,144 +626,340 @@ describe('RequirementsPage', () => {
 
     test('a failed calendar never takes the requirements page down with it', async () => {
       talentApi.listCallWindows.mockRejectedValue(new Error('offline'));
-      renderPage();
+      await renderWithMarket();
 
-      expect(await screen.findByRole('table')).toBeInTheDocument();
       expect(
         screen.queryByRole('heading', { name: 'Open calls this week' }),
       ).not.toBeInTheDocument();
     });
   });
 
-  describe('the ledger', () => {
-    test('aligns the same shot across agencies by taxonomy value, not by label', async () => {
-      await renderWithLedger();
+  describe('the shot coverage strip', () => {
+    async function findStrip() {
+      const heading = await screen.findByRole('heading', {
+        name: 'Every shot this market asks for',
+        level: 2,
+      });
+      return heading.closest('section');
+    }
 
-      // Elite calls it "close-up profile, hair pulled back"; Models 1 calls the
-      // same `shot.view: profile` "Profile shot". One row, not two — matching on
-      // the label would have produced two.
-      const rows = screen.getAllByRole('row').slice(1);
-      const headings = rows.map((row) => within(row).getAllByRole('rowheader')[0]?.textContent);
-      expect(headings.filter((h) => /profile/i.test(h || ''))).toHaveLength(1);
+    test('merges the same canonical shot across agencies into one row', async () => {
+      await renderWithMarket();
+      const strip = await findStrip();
+
+      // Elite and Storm both publish a full length; that is one row, and it is
+      // named once, canonically — never "Full length *".
+      const rows = within(strip)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent);
+      expect(rows.filter((text) => /^Full length(?!\s+profile)/.test(text))).toHaveLength(1);
+      expect(within(strip).getByText('Full length')).toBeInTheDocument();
+      expect(within(strip).queryByText(/Full length \*/)).not.toBeInTheDocument();
+      expect(within(strip).queryByText(/Mid length \*/)).not.toBeInTheDocument();
+      expect(within(strip).getByText('Mid-length')).toBeInTheDocument();
     });
 
-    test('leads with the shot that unlocks the most agencies', async () => {
-      await renderWithLedger();
+    test('carries every compound slot, which the matchValue-keyed grid dropped', async () => {
+      await renderWithMarket();
+      const strip = await findStrip();
 
-      // Both agencies want a profile and neither is covered → unlocks 2, the
-      // highest, so it sorts to the top and becomes the recommendation.
-      expect(await screen.findByText(/would satisfy 2 more agencies/i)).toBeInTheDocument();
-      const firstRow = screen.getAllByRole('row')[1];
-      expect(within(firstRow).getAllByRole('rowheader')[0].textContent).toMatch(/profile/i);
-      // Emphasis, not a chip: the highest-leverage row label is the only one
-      // set in the accent.
-      expect(within(firstRow).getByText('Profile shot').tagName).toBe('EM');
+      expect(within(strip).getByText('Full length profile')).toBeInTheDocument();
+      expect(within(strip).getByText('Close-up, hair pulled back')).toBeInTheDocument();
+      expect(
+        within(strip).getByText('Close-up profile, hair pulled back'),
+      ).toBeInTheDocument();
+      expect(within(strip).getByText('Personality shot')).toBeInTheDocument();
     });
 
-    test('draws the three cell states as marks, never as coloured dots', async () => {
-      await renderWithLedger();
+    test('shows the talent’s own frame for a covered shot, and an empty one otherwise', async () => {
+      await renderWithMarket();
+      const strip = await findStrip();
 
-      expect(markState('Elite Models: full-length covered')).toBe('covered');
-      expect(markState('Models 1: Profile shot still needed')).toBe('wanted');
-      expect(markState('Models 1: does not ask for personality shot')).toBe('not_asked');
+      const covered = within(strip)
+        .getAllByRole('listitem')
+        .find((item) => /^Full length(?!\s+profile)/.test(item.textContent));
+      expect(within(covered).getByRole('presentation', { hidden: true })).toHaveAttribute(
+        'src',
+        '/uploads/digitals/one.jpg',
+      );
+
+      const needed = within(strip)
+        .getAllByRole('listitem')
+        .find((item) => /^Headshot/.test(item.textContent));
+      expect(within(needed).queryByRole('presentation', { hidden: true })).toBeNull();
     });
 
-    test('reads out how many agencies each missing shot would still satisfy', async () => {
-      await renderWithLedger();
+    test('states the demand and the state in words, never hover-only', async () => {
+      await renderWithMarket();
+      const strip = await findStrip();
 
-      expect(within(rowFor(/profile/i)).getByText('Still needed by 2')).toBeInTheDocument();
-      expect(within(rowFor(/personality/i)).getByText('Still needed by 1')).toBeInTheDocument();
-      expect(within(rowFor(/full[- ]length/i)).getByText('Covered')).toBeInTheDocument();
+      const row = within(strip)
+        .getAllByRole('listitem')
+        .find((item) => /^Full length(?!\s+profile)/.test(item.textContent));
+      expect(within(row).getByText('asked for by 2 agencies')).toBeInTheDocument();
+      expect(within(row).getByText('In your set')).toBeInTheDocument();
+
+      const needed = within(strip)
+        .getAllByRole('listitem')
+        .find((item) => /^Headshot/.test(item.textContent));
+      expect(within(needed).getByText('asked for by 1 agency')).toBeInTheDocument();
+      expect(within(needed).getByText('Still needed')).toBeInTheDocument();
+    });
+  });
+
+  describe('the market rail', () => {
+    test('names each agency in full, with its market, channel and coverage figure', async () => {
+      await renderWithMarket();
+
+      const row = screen.getByRole('tab', { name: /Elite Models/ });
+      expect(within(row).getByText('New York')).toBeInTheDocument();
+      expect(within(row).getByText('Applies on their site')).toBeInTheDocument();
+      expect(within(row).getByText('4 of 6')).toBeInTheDocument();
+
+      const storm = screen.getByRole('tab', { name: /Storm Management/ });
+      expect(within(storm).getByText('Accepts Pholio submissions')).toBeInTheDocument();
+      expect(within(storm).getByText('2 of 3')).toBeInTheDocument();
     });
 
-    test('names each column by agency and office, and legends the marks once', async () => {
-      await renderWithLedger();
+    test('says so plainly when an agency publishes no shot list — never a fake 0 of 0', async () => {
+      await renderWithMarket();
 
-      const column = screen.getByRole('button', { name: /^Elite Models/ });
-      expect(within(column).getByText('New York')).toBeInTheDocument();
-      expect(screen.getByText('In your set')).toBeInTheDocument();
-      expect(screen.getByText('Asked for, not yet covered')).toBeInTheDocument();
-      expect(screen.getByText('Not asked for')).toBeInTheDocument();
+      const row = screen.getByRole('tab', { name: /Wilhelmina/ });
+      expect(
+        within(row).getByText('No shot list published — form details only'),
+      ).toBeInTheDocument();
+      expect(within(row).queryByText('0 of 0')).not.toBeInTheDocument();
     });
 
-    test('the ledger is the navigation — a column head opens that agency', async () => {
+    test('an agency with only a form still gets its form read out', async () => {
       const user = userEvent.setup();
-      await renderWithLedger();
+      await renderWithMarket();
 
-      const column = screen.getByRole('button', { name: /^Models 1/ });
-      expect(column).toHaveAttribute('aria-pressed', 'false');
-      await user.click(column);
+      await user.click(screen.getByRole('tab', { name: /Wilhelmina/ }));
+      const panel = (
+        await screen.findByRole('heading', { name: 'Wilhelmina', level: 2 })
+      ).closest('section');
 
       expect(
-        await screen.findByRole('heading', { name: 'Models 1', level: 2 }),
+        within(panel).getByText('Wilhelmina publishes no shot list — form details only.'),
       ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /^Models 1/ })).toHaveAttribute(
-        'aria-pressed',
+      expect(within(panel).getByText('email.')).toBeInTheDocument();
+      // No lockup, because there is no figure to state.
+      expect(line(within(panel), /^\d+ of \d+$/)).toHaveLength(0);
+    });
+
+    test('opens on an agency that actually published a shot list', async () => {
+      await renderWithMarket();
+
+      // Wilhelmina is the first row and demonstrates nothing, so the pane opens
+      // on the first agency whose check has something to show.
+      expect(
+        await screen.findByRole('heading', { name: 'Storm Management', level: 2 }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Storm Management/ })).toHaveAttribute(
+        'aria-selected',
         'true',
       );
+    });
+
+    test('is the navigation — selecting a row opens that agency', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+
+      await openElite(user);
+      expect(screen.getByRole('tab', { name: /Elite Models/ })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      expect(
+        screen.queryByRole('heading', { name: 'Storm Management', level: 2 }),
+      ).not.toBeInTheDocument();
+    });
+
+    test('is one tab stop with arrow keys inside it, not one stop per agency', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+
+      const rows = screen.getAllByRole('tab');
+      const selected = rows.filter((row) => row.getAttribute('tabindex') === '0');
+      expect(selected).toHaveLength(1);
+      expect(selected[0]).toHaveAccessibleName(/Storm Management/);
+
+      selected[0].focus();
+      await user.keyboard('{ArrowDown}');
+      expect(
+        await screen.findByRole('heading', { name: 'Elite Models', level: 2 }),
+      ).toBeInTheDocument();
+
+      await user.keyboard('{Home}');
+      expect(
+        await screen.findByRole('heading', { name: 'Wilhelmina', level: 2 }),
+      ).toBeInTheDocument();
     });
   });
 
   describe('the opened agency', () => {
-    test('opens on an agency that actually published a shot list', async () => {
-      await renderWithPlate();
-      // Not simply the first route — one that can demonstrate the check.
-      const plate = screen
-        .getByRole('heading', { name: 'Elite Models', level: 2 })
-        .closest('section');
-      expect(within(plate).getByText('New York')).toBeInTheDocument();
-      expect(within(plate).getByText('Verified on August 9, 2026')).toBeInTheDocument();
+    test('leads with the coverage figure and the shots that are missing', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
+
+      const panel = elitePanel();
+      expect(line(within(panel), /^4 of 6$/)).toHaveLength(1);
+      expect(
+        line(within(panel), /^of the shots Elite Models publishes are in your current set\.$/),
+      ).toHaveLength(1);
+      expect(
+        within(panel).getByText(
+          'Missing: Close-up profile, hair pulled back · Personality shot',
+        ),
+      ).toBeInTheDocument();
     });
 
-    test('stacks findings in a fixed order, with counts as plain text', async () => {
-      await renderWithPlate();
+    test('sorts by category, never by how sure Pholio was', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
 
-      const plate = screen.getByRole('heading', { name: 'Elite Models', level: 2 }).closest('section');
-      const groups = within(plate)
+      const sections = within(elitePanel())
         .getAllByRole('heading', { level: 3 })
         .map((heading) => heading.textContent);
-      expect(groups).toEqual(['Attention · 4', 'Confirm · 1', 'Included · 1']);
+      expect(sections).toEqual([
+        'Shots',
+        'Set rules',
+        'Files',
+        'Eligibility',
+        'Their form asks for',
+        'Not published',
+      ]);
+      ['Attention', 'Confirm', 'Guidance', 'Included'].forEach((word) => {
+        expect(within(elitePanel()).queryByText(new RegExp(`^${word}`))).toBeNull();
+      });
     });
 
-    test('keeps what needs doing open and the long, quiet groups closed', async () => {
+    test('names every published shot canonically, with the state in words', async () => {
       const user = userEvent.setup();
-      await renderWithPlate();
+      await renderWithMarket();
+      await openElite(user);
 
-      const plate = screen
-        .getByRole('heading', { name: 'Elite Models', level: 2 })
-        .closest('section');
+      const panel = elitePanel();
+      // All six reach the client; four of them are conjunctions.
+      ['Full length', 'Full length profile', 'Portrait length', 'Close-up, hair pulled back', 'Close-up profile, hair pulled back', 'Personality shot'].forEach(
+        (name) => {
+          expect(within(panel).getByText(name)).toBeInTheDocument();
+        },
+      );
+      expect(within(panel).queryByText('Personality pic')).not.toBeInTheDocument();
+      expect(within(panel).getAllByText('In your set')).toHaveLength(4);
+      expect(within(panel).getAllByText('Still needed')).toHaveLength(2);
+      expect(
+        within(panel).getByText('They ask for exactly 6 images — you have 5 images in your current set.'),
+      ).toBeInTheDocument();
+    });
 
-      // Attention and Confirm are expanded; Included waits to be asked for.
-      expect(within(plate).getByText('close-up profile, hair pulled back')).toBeInTheDocument();
-      expect(within(plate).getByText('Hair pulled back')).toBeInTheDocument();
-      expect(within(plate).queryByText('full-length')).not.toBeInTheDocument();
+    test('elevates the shoot instructions, with the modality spoken honestly', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
 
-      await user.click(within(plate).getByRole('button', { name: /Included · 1/ }));
-      expect(await within(plate).findByText('full-length')).toBeInTheDocument();
+      const panel = elitePanel();
+      expect(within(panel).getByText('Do not wear any makeup')).toBeInTheDocument();
+      expect(within(panel).getByText('No smiles')).toBeInTheDocument();
+      expect(within(panel).getAllByText('Not allowed')).toHaveLength(2);
+    });
+
+    test('says what the file limits mean for the export, in one sentence', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
+
+      expect(
+        within(elitePanel()).getByText(
+          /Their form publishes limits on file size — your export is converted and resized to fit\./,
+        ),
+      ).toBeInTheDocument();
+      // The agency's own wording is quoted, never spoken in Pholio's voice.
+      expect(within(elitePanel()).getByText(/As published: “Max\. 5mb each”/)).toBeInTheDocument();
+    });
+
+    test('never turns a fact Pholio does not hold into a verdict on the talent', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
+
+      expect(
+        within(elitePanel()).getByText('Age — Pholio can’t check this from your profile.'),
+      ).toBeInTheDocument();
+      expect(within(elitePanel()).queryByText(/not eligible|too young|fail/i)).toBeNull();
+    });
+
+    test('renders the form as one list and one group sentence, not 22 rows', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
+
+      const panel = elitePanel();
+      expect(within(panel).getByText('email, height and Instagram.')).toBeInTheDocument();
+      expect(
+        within(panel).getByText('Pholio can’t check these from your profile — have them ready.'),
+      ).toBeInTheDocument();
+      // One sentence, not one row per field repeating the same guidance.
+      expect(
+        within(panel).queryAllByText(/Pholio cannot verify this/),
+      ).toHaveLength(0);
+    });
+
+    test('groups everything the source never published into one sentence', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
+
+      expect(
+        within(elitePanel()).getByText(
+          'Elite Models doesn’t publish file limits or shoot guidance.',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    test('renders the destination each finding points at', async () => {
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
+
+      const panel = elitePanel();
+      expect(within(panel).getByRole('link', { name: 'Open the book' })).toHaveAttribute(
+        'href',
+        '/dashboard/talent/media',
+      );
+      expect(within(panel).getAllByRole('link', { name: 'Open profile' })[0]).toHaveAttribute(
+        'href',
+        '/dashboard/talent/profile',
+      );
     });
 
     test('states the registration as a sentence, and only when Pholio holds one', async () => {
       const user = userEvent.setup();
-      await renderWithPlate();
+      await renderWithMarket();
+      await openElite(user);
 
       expect(
         screen.getByText('NYSDOL-registered · Cert 26-69YIX-LSFW · expires July 2028'),
       ).toBeInTheDocument();
-      // What the registration is for: the link below it goes to the house the
-      // register names.
       expect(screen.getByText('Registry-verified official channel.')).toBeInTheDocument();
+      expect(screen.getByText('Verified on August 9, 2026')).toBeInTheDocument();
 
-      // Models 1 has no registry match. Absence says nothing (ruling R3).
-      await user.click(screen.getByRole('button', { name: /^Models 1/ }));
-      await screen.findByRole('heading', { name: 'Models 1', level: 2 });
+      // Storm has no registry match. Absence says nothing (ruling R3).
+      await user.click(screen.getByRole('tab', { name: /Storm Management/ }));
+      await screen.findByRole('heading', { name: 'Storm Management', level: 2 });
       expect(screen.queryByText(/NYSDOL/)).not.toBeInTheDocument();
       expect(screen.queryByText(/unverified/i)).not.toBeInTheDocument();
-      expect(screen.queryByText(/not verified/i)).not.toBeInTheDocument();
       expect(screen.queryByText('Registry-verified official channel.')).not.toBeInTheDocument();
     });
 
     test('reads out a published open call in the agency’s own hours', async () => {
-      await renderWithPlate();
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
 
       expect(
         screen.getByText('Walk-in open call: Thursdays 3–4 PM ET · 245 Fifth Avenue'),
@@ -535,12 +968,16 @@ describe('RequirementsPage', () => {
 
     test('names the errand an emailed application actually is', async () => {
       talentApi.getSpecRegistryRoutes.mockResolvedValue({
+        labels,
         routes: [
-          { ...routes[0], channel: { type: 'official_email', url: 'mailto:new@example.com' } },
-          routes[1],
+          routes[0],
+          { ...routes[1], channel: { type: 'official_email', url: 'mailto:new@example.com' } },
+          routes[2],
         ],
       });
-      await renderWithPlate();
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
 
       expect(
         screen.getByText('Applies by email — we prepare the message and attachments.'),
@@ -551,23 +988,19 @@ describe('RequirementsPage', () => {
     });
 
     test('says plainly when an agency cannot be applied to through Pholio', async () => {
-      await renderWithPlate();
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
 
       expect(
         screen.getByText('Applies via their own site — we prepare a conforming set.'),
       ).toBeInTheDocument();
     });
 
-    test('never frames a reference agency as somewhere a package is sent', async () => {
-      await renderWithPlate();
-
-      expect(screen.queryByText(/prepare this package/i)).not.toBeInTheDocument();
-      expect(screen.getByText(/Confirm it yourself\./)).toBeInTheDocument();
-      expect(screen.queryByText(/before sending/i)).not.toBeInTheDocument();
-    });
-
     test('carries provenance and non-affiliation, without needing to be opened', async () => {
-      await renderWithPlate();
+      const user = userEvent.setup();
+      await renderWithMarket();
+      await openElite(user);
 
       // A calendar date on the wire, read back to the talent — not the raw value.
       expect(screen.queryByText(/2026-08-09/)).not.toBeInTheDocument();
@@ -590,7 +1023,8 @@ describe('RequirementsPage', () => {
       URL.revokeObjectURL = vi.fn();
 
       const user = userEvent.setup();
-      await renderWithPlate();
+      await renderWithMarket();
+      await openElite(user);
 
       await user.click(
         screen.getByRole('button', { name: 'Export the Elite Models conforming set' }),
@@ -633,7 +1067,8 @@ describe('RequirementsPage', () => {
       test('asks whether it was sent, and logs it against the export it came from', async () => {
         stubDownload();
         const user = userEvent.setup();
-        const { queryClient } = await renderWithPlate();
+        const { queryClient } = await renderWithMarket();
+        await openElite(user);
         const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
         expect(screen.queryByText('Submitted it? Log it in your tracker.')).not.toBeInTheDocument();
@@ -668,7 +1103,8 @@ describe('RequirementsPage', () => {
       test('a talent who has not sent it yet can put the question down', async () => {
         stubDownload();
         const user = userEvent.setup();
-        await renderWithPlate();
+        await renderWithMarket();
+        await openElite(user);
         await exportTheSet(user);
 
         await user.click(screen.getByRole('button', { name: 'Not yet' }));
@@ -682,7 +1118,8 @@ describe('RequirementsPage', () => {
         stubDownload();
         talentApi.logTrackedSubmission.mockRejectedValue(new Error('offline'));
         const user = userEvent.setup();
-        await renderWithPlate();
+        await renderWithMarket();
+        await openElite(user);
         await exportTheSet(user);
 
         await user.click(screen.getByRole('button', { name: 'Log it' }));
@@ -700,7 +1137,8 @@ describe('RequirementsPage', () => {
         new Error('None of your current images match a shot this agency publishes.'),
       );
       const user = userEvent.setup();
-      await renderWithPlate();
+      await renderWithMarket();
+      await openElite(user);
 
       await user.click(
         screen.getByRole('button', { name: 'Export the Elite Models conforming set' }),
@@ -716,7 +1154,8 @@ describe('RequirementsPage', () => {
     test('records the outbound click without standing between talent and agency', async () => {
       talentApi.recordSpecRegistryOutboundClick.mockResolvedValue({ recorded: true });
       const user = userEvent.setup();
-      await renderWithPlate();
+      await renderWithMarket();
+      await openElite(user);
 
       const link = screen.getByRole('link', { name: /Open their application page/ });
       // Straight to the agency, not through a Pholio redirect.
@@ -732,7 +1171,8 @@ describe('RequirementsPage', () => {
     test('a failed click count never blocks the talent reaching the agency', async () => {
       talentApi.recordSpecRegistryOutboundClick.mockRejectedValue(new Error('offline'));
       const user = userEvent.setup();
-      await renderWithPlate();
+      await renderWithMarket();
+      await openElite(user);
 
       await user.click(screen.getByRole('link', { name: /Open their application page/ }));
       await waitFor(() => expect(talentApi.recordSpecRegistryOutboundClick).toHaveBeenCalled());
@@ -760,7 +1200,7 @@ describe('RequirementsPage', () => {
       ).toBeInTheDocument();
     });
 
-    test('shows the empty state without checking or drawing a ledger', async () => {
+    test('shows the empty state without checking or drawing a market', async () => {
       talentApi.getSpecRegistryRoutes.mockResolvedValue({ routes: [] });
       renderPage();
 
@@ -768,24 +1208,30 @@ describe('RequirementsPage', () => {
         await screen.findByText('No agency requirements are catalogued yet.'),
       ).toBeInTheDocument();
       expect(talentApi.preflightSpecRegistry).not.toHaveBeenCalled();
-      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument();
     });
 
     test('is honest when catalogued agencies publish no shot list at all', async () => {
       talentApi.preflightSpecRegistry.mockResolvedValue({
+        labels,
         results: [
+          { ...wilhelminaEvaluation, findings: [], shotCoverage: null },
           { ...eliteEvaluation, findings: [], shotCoverage: null },
-          { ...models1Evaluation, findings: [], shotCoverage: null },
+          { ...stormEvaluation, findings: [], shotCoverage: null },
         ],
       });
-      renderPage();
+      await renderWithMarket();
 
       await waitFor(() => expect(talentApi.preflightSpecRegistry).toHaveBeenCalled());
+      // No coverage strip invented out of nothing, and no fake figures.
       expect(
-        await screen.findByText(/None of these agencies publishes a shot list yet/),
-      ).toBeInTheDocument();
-      // The column heads still work, so the plate is still reachable.
-      expect(screen.getByRole('button', { name: /^Models 1/ })).toBeInTheDocument();
+        screen.queryByRole('heading', { name: 'Every shot this market asks for' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getAllByText('No shot list published — form details only').length,
+      ).toBeGreaterThan(0);
+      // The rail still works, so every agency's detail is still reachable.
+      expect(screen.getByRole('tab', { name: /Elite Models/ })).toBeInTheDocument();
     });
   });
 });
