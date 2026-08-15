@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pholio.studio/schemas/trust-registry/v1/call-window.schema.json",
+  "title": "Pholio Trust Registry call window",
+  "description": "One recurring published open-call slot — \"Thursdays 3–4 PM ET\". Namespaced call_windows, not open_call: \"open call\" already means Pholio's own agency intake link. Only the talent-facing label says \"open calls\", because that is the industry term.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "key",
+    "organizationId",
+    "agencyId",
+    "displayName",
+    "label",
+    "weekday",
+    "startMinute",
+    "endMinute",
+    "timezone",
+    "location",
+    "instructions",
+    "sourceUrl",
+    "verifiedOn",
+    "active"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../schemas/call-window.schema.json"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "key": {
+      "description": "Stable natural key for this window. The sync derives the row's UUID from it, so re-running the release updates the same row instead of inserting a duplicate. Never recycle a key for a different window.",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 160,
+      "pattern": "^[a-z0-9][a-z0-9._:-]*$"
+    },
+    "organizationId": {
+      "description": "Spec Registry organisation slug, when this agency is in the spec pack. Null is legitimate: a published open call is worth showing even for an agency Pholio has not researched a spec for, and displayName carries the row on its own.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/slug"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "agencyId": {
+      "description": "Live Pholio agencies.id, when the window belongs to one.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "displayName": {
+      "description": "Always required — with both owner ids null this is the only thing naming the agency, and the Overview card renders it without a join either way.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "weekday": {
+      "description": "ISO 8601: 1 = Monday … 7 = Sunday. Not Date#getDay().",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 7
+    },
+    "startMinute": {
+      "description": "Minutes from local midnight in timezone. Null when the agency publishes the day but not the hour — a true and useful row, so it is representable rather than dropped.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/minuteOfDay"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "endMinute": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/minuteOfDay"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timezone": {
+      "description": "IANA zone. Wall-clock minutes plus a zone, not a UTC instant: the fact is \"Thursdays at 3pm their time\", which does not move when daylight saving does.",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z][A-Za-z0-9_+-]*(?:/[A-Za-z0-9_+-]+)*$"
+    },
+    "location": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "instructions": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sourceUrl": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "verifiedOn": {
+      "$ref": "#/$defs/date"
+    },
+    "active": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[a-z0-9][a-z0-9._:-]*$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "minuteOfDay": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1439
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "maxLength": 500
+    }
+  }
+}

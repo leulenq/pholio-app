@@ -1,0 +1,18 @@
+{
+  "$schema": "../schemas/call-window.schema.json",
+  "schemaVersion": "1.0.0",
+  "key": "msa-models:tue",
+  "organizationId": null,
+  "agencyId": null,
+  "displayName": "MSA Models",
+  "label": "Walk-in open call",
+  "weekday": 2,
+  "startMinute": null,
+  "endMinute": null,
+  "timezone": "America/New_York",
+  "location": null,
+  "instructions": null,
+  "sourceUrl": null,
+  "verifiedOn": "2026-08-15",
+  "active": true
+}

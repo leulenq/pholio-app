@@ -73,10 +73,125 @@ function publicEvidence(spec) {
   }));
 }
 
-function routeDto(revision, referenceDate) {
+/** PostgreSQL returns Date objects for `date` columns; SQLite returns text. */
+function dateOnly(value) {
+  if (value === null || value === undefined || value === "") return null;
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value).slice(0, 10);
+}
+
+/**
+ * The registry claim, exactly as `docs/talent-trust-loop-design-2026-08.md` §(c)
+ * specifies it. Deliberately narrow: the plate states "NYSDOL-registered · Cert
+ * … · expires …" and nothing more. Legal name and evidence URL stay server-side
+ * — a talent-facing surface that reprinted the registry's copy of an agency's
+ * legal entity would invite the reader to reconcile two names, which is not the
+ * question the line answers.
+ */
+function verificationDto(row) {
+  if (!row) return null;
+  return {
+    registry: row.registry,
+    certificateNumber: row.certificate_number,
+    expiresOn: dateOnly(row.expires_on),
+    registryStatus: row.registry_status,
+    verifiedOn: dateOnly(row.verified_on),
+  };
+}
+
+function callWindowDto(row) {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    label: row.label,
+    weekday: Number(row.weekday),
+    startMinute: row.start_minute === null ? null : Number(row.start_minute),
+    endMinute: row.end_minute === null ? null : Number(row.end_minute),
+    timezone: row.timezone,
+    location: row.location || null,
+    instructions: row.instructions || null,
+    sourceUrl: row.source_url || null,
+  };
+}
+
+/**
+ * One row per organisation wins the verification line.
+ *
+ * The natural key is (registry, certificate_number), so an organisation can
+ * legitimately carry more than one row — a second registry, or a renewal pulled
+ * before the superseded certificate lapsed. The plate shows a single claim, so
+ * the choice has to be deterministic rather than "whatever the database
+ * returned first": a live registration beats a dead one, and among equals the
+ * one that expires last is the one still worth stating.
+ */
+function preferredVerification(left, right) {
+  const liveness = (row) => (row.registry_status === "active" ? 0 : 1);
+  if (liveness(left) !== liveness(right)) return liveness(left) < liveness(right) ? left : right;
+  const leftExpiry = dateOnly(left.expires_on) || "";
+  const rightExpiry = dateOnly(right.expires_on) || "";
+  if (leftExpiry !== rightExpiry) return leftExpiry > rightExpiry ? left : right;
+  return left.certificate_number <= right.certificate_number ? left : right;
+}
+
+/**
+ * Batch-load the trust overlay for a set of organisation slugs.
+ *
+ * Two queries for any number of routes — the listing path renders the whole
+ * registry, so a per-route lookup would be a guaranteed N+1 on the directory's
+ * hottest read.
+ *
+ * Guarded with hasTable because the tables arrive in a later migration than the
+ * spec-registry ones, and several suites build a minimal runtime schema without
+ * them. A missing table means "no trust data yet", which renders as nothing at
+ * all (ruling R3) — not as an error.
+ */
+async function loadTrustOverlay(db, organizationIds = []) {
+  const ids = [...new Set(organizationIds.filter(Boolean))];
+  const overlay = { verifications: new Map(), callWindows: new Map() };
+  if (!ids.length) return overlay;
+
+  const [hasVerifications, hasCallWindows] = await Promise.all([
+    db.schema.hasTable("agency_verifications"),
+    db.schema.hasTable("agency_call_windows"),
+  ]);
+
+  if (hasVerifications) {
+    const rows = await db("agency_verifications")
+      .whereIn("organization_id", ids)
+      .select("*");
+    for (const row of rows) {
+      const current = overlay.verifications.get(row.organization_id);
+      overlay.verifications.set(
+        row.organization_id,
+        current ? preferredVerification(current, row) : row,
+      );
+    }
+  }
+
+  if (hasCallWindows) {
+    const rows = await db("agency_call_windows")
+      .whereIn("organization_id", ids)
+      .where("active", true)
+      .orderBy([
+        { column: "weekday", order: "asc" },
+        { column: "start_minute", order: "asc" },
+        { column: "display_name", order: "asc" },
+      ]);
+    for (const row of rows) {
+      const list = overlay.callWindows.get(row.organization_id) || [];
+      list.push(row);
+      overlay.callWindows.set(row.organization_id, list);
+    }
+  }
+
+  return overlay;
+}
+
+function routeDto(revision, referenceDate, trust = null) {
   const spec = revision.payload;
   const scope = spec.scope;
   const lifecycle = spec.lifecycle || {};
+  const organizationId = scope.organization.id;
   return {
     seriesId: spec.seriesId,
     revisionId: spec.revisionId,
@@ -103,6 +218,10 @@ function routeDto(revision, referenceDate) {
     lifecycle,
     sourceCheckedOn: lifecycle.reviewedOn || lifecycle.observedOn || null,
     sourceFreshness: sourceFreshness(spec, referenceDate),
+    // Positive-only (ruling R3): null means Pholio holds no registry match, and
+    // the client renders nothing. It never means "unverified".
+    verification: verificationDto(trust?.verifications?.get(organizationId) || null),
+    callWindows: (trust?.callWindows?.get(organizationId) || []).map(callWindowDto),
   };
 }
 
@@ -293,7 +412,7 @@ function shotCoverage(spec, input, findings) {
   };
 }
 
-function evaluationDto(revision, input, referenceDate) {
+function evaluationDto(revision, input, referenceDate, trust = null) {
   const spec = revision.payload;
   const evaluation = evaluateSpecRevision({ spec, input, referenceDate });
   const evaluatedFindings = Object.entries(evaluation.outcomes).flatMap(
@@ -307,7 +426,7 @@ function evaluationDto(revision, input, referenceDate) {
 
   return {
     available: true,
-    ...routeDto(revision, referenceDate),
+    ...routeDto(revision, referenceDate, trust),
     referenceDate,
     findings,
     unknownFacts: spec.unknowns || [],
@@ -412,7 +531,13 @@ async function deliverableSeriesIds(db, seriesIds) {
 async function listRegistryRoutes(db, options = {}) {
   const referenceDate = options.referenceDate || utcDate(options.clock);
   const resolved = await resolveRevisions(db, { agencyId: options.agencyId });
-  const routes = resolved.revisions.map((revision) => routeDto(revision, referenceDate));
+  const trust = await loadTrustOverlay(
+    db,
+    resolved.revisions.map((revision) => revision.payload?.scope?.organization?.id),
+  );
+  const routes = resolved.revisions.map((revision) =>
+    routeDto(revision, referenceDate, trust),
+  );
   const deliverable = await deliverableSeriesIds(
     db,
     routes.map((route) => route.seriesId),
@@ -435,7 +560,11 @@ async function listRegistryRoutes(db, options = {}) {
 async function getRegistryRoute(db, seriesId, options = {}) {
   const referenceDate = options.referenceDate || utcDate(options.clock);
   const revision = await getCurrentRevision(db, seriesId);
-  return revision ? routeDto(revision, referenceDate) : null;
+  if (!revision) return null;
+  const trust = await loadTrustOverlay(db, [
+    revision.payload?.scope?.organization?.id,
+  ]);
+  return routeDto(revision, referenceDate, trust);
 }
 
 async function preflightRegistry(
@@ -485,13 +614,18 @@ async function preflightRegistry(
     );
   }
 
+  const trust = await loadTrustOverlay(
+    db,
+    resolved.revisions.map((revision) => revision.payload?.scope?.organization?.id),
+  );
+
   return {
     available: true,
     datasetVersion: resolved.datasetVersion,
     resolution: resolved.resolution,
     selectedImageIds: input.selection.selectedImageIds,
     results: resolved.revisions.map((revision) =>
-      evaluationDto(revision, input, referenceDate),
+      evaluationDto(revision, input, referenceDate, trust),
     ),
     submission: { canProceed: true, advisoryOnly: true, blockingEligible: false },
   };
@@ -529,7 +663,12 @@ async function snapshotApplicationSpec(
   });
   if (input.selection.rejectedImageIds.length) return null;
 
-  const evaluation = evaluationDto(revision, input, referenceDate);
+  // The snapshot records what the talent was shown, and the verification line
+  // was part of that.
+  const trust = await loadTrustOverlay(trx, [
+    revision.payload?.scope?.organization?.id,
+  ]);
+  const evaluation = evaluationDto(revision, input, referenceDate, trust);
   const inputFingerprint = sha256Canonical({
     referenceDate,
     talent: input.talent,
@@ -560,10 +699,12 @@ module.exports = {
   findingSeverity,
   getRegistryRoute,
   listRegistryRoutes,
+  loadTrustOverlay,
   marketLabel,
   preflightRegistry,
   routeDto,
   snapshotApplicationSpec,
   sourceFreshness,
   utcDate,
+  verificationDto,
 };

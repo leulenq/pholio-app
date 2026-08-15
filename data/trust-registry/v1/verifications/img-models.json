@@ -1,0 +1,20 @@
+{
+  "$schema": "../schemas/verification-entry.schema.json",
+  "schemaVersion": "1.0.0",
+  "registry": "ny_dol",
+  "rawSnapshot": "raw/nydol-hder-iq9y-2026-08-15.json",
+  "organizationId": "img-models",
+  "agencyId": null,
+  "legalName": "IMG MODELS, LLC",
+  "dba": "IMG MODELS",
+  "certificateNumber": "26-69V5G-LSFW",
+  "registeredOn": "2026-07-01",
+  "expiresOn": "2028-07-01",
+  "registryStatus": "active",
+  "officialSiteUrl": null,
+  "officialApplyUrl": "https://getscouted.imgmodels.com/",
+  "evidenceUrl": "https://data.ny.gov/resource/hder-iq9y.json",
+  "retrievedOn": "2026-08-15",
+  "verifiedOn": "2026-08-15",
+  "notes": null
+}

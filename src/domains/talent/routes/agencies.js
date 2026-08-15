@@ -6,6 +6,27 @@ const asyncHandler = require("express-async-handler");
 const {
   getBlockedAgencyIds,
 } = require("../../../shared/lib/blocked-agencies");
+const {
+  verificationDto,
+} = require("../../spec-registry/preflight-service");
+const { DEFAULT_ORG_KIND } = require("../../../shared/constants/event-casting");
+
+// Deploy-before-migrate guard for `agencies.org_kind`, mirroring the one in
+// src/domains/agency/routes/open-call.js. On an older schema every organization
+// is an agency anyway, so dropping the filter is the correct fallback rather
+// than 500-ing the directory for the length of a deploy.
+let orgKindSchemaPromise = null;
+function hasOrgKindColumn(db) {
+  if (!orgKindSchemaPromise) {
+    orgKindSchemaPromise = db.schema
+      .hasColumn("agencies", "org_kind")
+      .catch(() => {
+        orgKindSchemaPromise = null;
+        return false;
+      });
+  }
+  return orgKindSchemaPromise;
+}
 
 /**
  * GET /api/talent/agencies
@@ -24,8 +45,25 @@ router.get(
       req.session.userId,
     );
     const includeBlocked = req.query.includeBlocked === "1";
+    const orgKindAvailable = await hasOrgKindColumn(knex);
+    // Two filters, two different mistakes they prevent.
+    //
+    // `status: 'ACTIVE'` keeps reference entries out. The eight real agencies
+    // this database used to seed as ACTIVE are now REFERENCE rows
+    // (migration 20260815103000, ruling R5): Pholio knows their published
+    // requirements but cannot deliver an application to them, and this endpoint
+    // feeds the chooser, where every row is a destination the talent can
+    // actually pick.
+    //
+    // `org_kind: 'agency'` keeps event organizers out — the gap flagged in
+    // migration 20260815093000. An organizer runs a casting; it does not sign
+    // talent, so offering one here would invite a representation application
+    // nobody on the other side can answer.
     const agenciesQuery = knex("agencies")
       .where({ status: "ACTIVE" })
+      .modify((query) => {
+        if (orgKindAvailable) query.where({ org_kind: DEFAULT_ORG_KIND });
+      })
       .select(
         "id",
         "name",
@@ -68,9 +106,33 @@ router.get(
       return [];
     };
 
+    // One query for the whole directory, not one per agency. Positive-only
+    // (ruling R3): an agency with no curated registry match carries `null`, and
+    // the client renders nothing — never "unverified", which would turn the
+    // youth of a 75-row register into an accusation.
+    const verifications = new Map();
+    if (agencies.length && (await knex.schema.hasTable("agency_verifications"))) {
+      const rows = await knex("agency_verifications")
+        .whereIn(
+          "agency_id",
+          agencies.map((agency) => agency.id),
+        )
+        .orderBy([
+          { column: "registry_status", order: "asc" },
+          { column: "expires_on", order: "desc" },
+          { column: "certificate_number", order: "asc" },
+        ]);
+      // First row per agency wins: 'active' sorts before 'expired'/'revoked',
+      // then the registration that runs longest.
+      for (const row of rows) {
+        if (!verifications.has(row.agency_id)) verifications.set(row.agency_id, row);
+      }
+    }
+
     const normalizedAgencies = agencies.map((agency) => ({
       ...agency,
       open_boards: parseOpenBoards(agency.open_boards),
+      verification: verificationDto(verifications.get(agency.id) || null),
     }));
     res.json({ success: true, data: normalizedAgencies });
   }),
