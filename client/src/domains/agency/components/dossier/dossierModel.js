@@ -179,32 +179,22 @@ export function representationLineText(line) {
 
 /**
  * Measurement provenance. The industry rule is that stats go stale — a booker
- * must know whether these were self-reported months ago or measured in the
- * agency's own office.
+ * must know how old these numbers are before casting off them.
+ *
+ * Every measurement Pholio holds is self-reported. This used to also read
+ * `measured_in_person_at` / `measured_by_us` and render a "measured in person"
+ * line, but the roster endpoint that wrote those columns was removed, so the
+ * branch could only ever be dead: it promised a verified reading the product
+ * has no way to produce. Stating "self-reported" plainly is the honest answer.
  */
 export function measurementProvenance(talent) {
   const stats = talent?.stats || {};
-  if (talent?.measured_by_us && talent?.measured_in_person_at) {
-    return {
-      text: `Measured in person ${fmtAgo(talent.measured_in_person_at)}`,
-      stale: false,
-      verified: true,
-    };
-  }
-  if (talent?.measured_in_person_at) {
-    return {
-      text: `Measured in person ${fmtAgo(talent.measured_in_person_at)} by another agency`,
-      stale: false,
-      verified: true,
-    };
-  }
   if (!stats.measurements_updated_at) {
-    return { text: 'Self-reported · never confirmed', stale: true, verified: false };
+    return { text: 'Self-reported · never confirmed', stale: true };
   }
   return {
     text: `Self-reported · updated ${fmtAgo(stats.measurements_updated_at)}`,
     stale: Boolean(stats.is_stale),
-    verified: false,
   };
 }
 

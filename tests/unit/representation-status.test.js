@@ -213,8 +213,15 @@ describe("buildAgencyDiscoveryDTO — representation_status + tattoos/piercings 
   test("AGENCY_DISCOVERY_FIELDS allowlist includes the new WS6 raw columns", () => {
     expect(AGENCY_DISCOVERY_FIELDS).toContain("tattoos");
     expect(AGENCY_DISCOVERY_FIELDS).toContain("piercings");
-    expect(AGENCY_DISCOVERY_FIELDS).toContain("measured_in_person_at");
     expect(AGENCY_DISCOVERY_FIELDS).toContain("measurements_updated_at");
+  });
+
+  test("AGENCY_DISCOVERY_FIELDS drops measured_in_person_at — it has no writer", () => {
+    // The roster endpoint that set `measured_in_person_at` was removed with
+    // roster-as-system-of-record. Exposing a column nothing can ever populate
+    // makes every DTO carry a field that is always null, so it is gone from the
+    // allowlist rather than left as permanent dead weight.
+    expect(AGENCY_DISCOVERY_FIELDS).not.toContain("measured_in_person_at");
   });
 
   test("defaults to unrepresented when no representations opt is passed and no legacy agency", () => {

@@ -179,6 +179,10 @@ async function purgeApplicationDisclosure(
         redaction_reason: reason,
       });
   }
+  // `roster_memberships` has had no active writers since roster-as-system-of-
+  // record was removed, so this delete is dormant. It stays because the table
+  // still holds pre-removal rows and this is a minor-redaction path: dormant is
+  // the right state for a cleanup that must not miss legacy data if it exists.
   if (await trx.schema.hasTable("roster_memberships")) {
     await trx("roster_memberships")
       .where({ source_application_id: applicationId })

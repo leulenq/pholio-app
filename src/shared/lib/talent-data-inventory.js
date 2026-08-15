@@ -206,6 +206,16 @@ const TALENT_DATA_INVENTORY = [
     cascade: "fk",
     exportMode: "full",
   },
+  {
+    key: "spec_registry_engagement_events",
+    table: "spec_registry_engagement_events",
+    scope: "profile",
+    column: "profile_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes:
+      "Which published agency routes this talent prepared a spec-correct set for, and whether they followed through to the agency's own site. A behavioural record about the subject — it belongs in their export.",
+  },
 
   // ---- representation / social -----------------------------------------
   {
@@ -430,6 +440,16 @@ const TALENT_DATA_INVENTORY = [
     column: "profile_id",
     cascade: "fk",
     exportMode: "full",
+  },
+  {
+    key: "comp_card_imports",
+    table: "comp_card_imports",
+    scope: "user",
+    column: "user_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes:
+      "Keyed by user_id, not profile_id. Holds the proposal read off an uploaded comp card and the fields the talent accepted from it — personal data the subject supplied, and the answer to 'where did this measurement come from'. The uploaded file itself is never stored (see docs/comp-card-import-architecture.md).",
   },
   {
     key: "notifications",

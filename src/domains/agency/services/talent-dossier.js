@@ -77,17 +77,20 @@ const CALENDAR_WINDOW_DAYS = 90;
  * tests/integration/agency-talent-dossier.test.js asserts that containment, so
  * adding a field here without adding it to the Discover allowlist fails CI.
  *
- * Three further columns are read in `buildTalentDossier` and are deliberately
+ * Two further columns are read in `buildTalentDossier` and are deliberately
  * NOT in this list, because they are not part of the professional record:
  *   - `market` / `availability_status` — coarse operational state (a market
  *     slug derived from the already-exposed `city`, and the talent's own
  *     coarse availability); rendered as the availability read, not as profile
  *     properties,
- *   - `measured_in_person_at` / `measured_by_agency_id` — agency-set
- *     provenance, surfaced only as "measured by us" / "measured by another
- *     agency", never as a foreign agency id,
  *   - `current_agency` — the legacy free-text column, an input to
  *     `deriveRepresentationStatus` only, never emitted.
+ *
+ * `measured_in_person_at` / `measured_by_agency_id` used to be read here too.
+ * The roster endpoint that set them was removed with the roster-as-system-of-
+ * record feature, so both columns are now permanently null and the dossier no
+ * longer reads them — a "measured in person" line that can never appear is
+ * worse than no line at all.
  */
 const DOSSIER_PROFESSIONAL_FIELDS = Object.freeze([
   "discipline",
@@ -383,8 +386,6 @@ async function buildTalentDossier(db, { application, agencyId }) {
       ...DOSSIER_PROFESSIONAL_FIELDS.map((c) => `profiles.${c}`),
       "profiles.market",
       "profiles.availability_status",
-      "profiles.measured_in_person_at",
-      "profiles.measured_by_agency_id",
       // Legacy free-text representation column — an input to
       // `deriveRepresentationStatus`, never rendered directly.
       "profiles.current_agency",
@@ -474,10 +475,6 @@ async function buildTalentDossier(db, { application, agencyId }) {
       ...snapshot,
       market: profile.market || null,
       availability_status: profile.availability_status || null,
-      measured_in_person_at: profile.measured_in_person_at || null,
-      measured_by_us:
-        Boolean(profile.measured_in_person_at) &&
-        profile.measured_by_agency_id === agencyId,
       professional: buildProfessionalRecord(profile, minor),
       social: minor ? [] : shapeSocialAccounts(snapshot.social || social),
     },

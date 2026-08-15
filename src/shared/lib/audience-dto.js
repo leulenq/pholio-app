@@ -127,10 +127,13 @@ const AGENCY_IMAGE_FIELDS = Object.freeze([
  * `buildAgencyDiscoveryDTO` nulls them out for a minor as a defense-in-depth
  * mirror of the `social` gate (minors are already excluded from generic
  * Discover pre-DTO by `isAgencyDiscoverable`, but a builder call must never
- * assume that gate ran). `measured_in_person_at` is the only agency-set
- * timestamp allowed to render "measured in person" (see
- * `measured_by_agency_id`, set via the roster endpoint) — self-reported
- * `measurements_updated_at` above only ever renders "last updated".
+ * assume that gate ran).
+ *
+ * NOTE: `measured_in_person_at` was in this allowlist to render "measured in
+ * person". The roster endpoint that wrote it no longer exists, so the column is
+ * permanently null and the field has been dropped rather than left as a
+ * property that is always absent. `measurements_updated_at` above remains, and
+ * only ever renders "last updated" — self-reported, never confirmed.
  */
 const AGENCY_DISCOVERY_FIELDS = Object.freeze([
   "id",
@@ -154,7 +157,6 @@ const AGENCY_DISCOVERY_FIELDS = Object.freeze([
   "dress_size",
   "suit_size",
   "measurements_updated_at",
-  "measured_in_person_at",
   "hair_color",
   "hair_length",
   "hair_type",
