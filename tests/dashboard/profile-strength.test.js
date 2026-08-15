@@ -1,5 +1,6 @@
 const {
   calculateProfileStrength,
+  getStrengthUI,
   REQUIRED_POINTS,
   IMPROVE_POINTS,
 } = require("../../src/domains/talent/services/profile-strength");
@@ -413,5 +414,41 @@ describe("Agency readiness scoring", () => {
     expect(result.isRequiredComplete).toBe(true);
     expect(result.fieldCompletion.measurements).toBe(true);
     expect(result.fieldCompletion.photo_full_body).toBe(true);
+  });
+});
+
+/**
+ * `getStrengthUI` is the copy layer the profile readiness sidebar renders. It
+ * has been deleted once by accident, taking the sidebar's status sentence with
+ * it, so the bands are pinned here. Its client mirror lives in
+ * `client/src/shared/utils/profileScoring.js` and is covered by the sidebar
+ * test; wording is allowed to differ between the two, the bands are not.
+ */
+describe("readiness status copy", () => {
+  test("an incomplete required tier is locked regardless of score", () => {
+    expect(getStrengthUI(0, false).status).toBe("locked");
+    expect(getStrengthUI(84, false).status).toBe("locked");
+    expect(getStrengthUI(99, false).label).toBe("Build your package");
+  });
+
+  test("bands step at 85 and again at a complete 100", () => {
+    expect(getStrengthUI(60, true).label).toBe("Essentials complete");
+    expect(getStrengthUI(84, true).label).toBe("Essentials complete");
+    expect(getStrengthUI(85, true).label).toBe("Strong package");
+    expect(getStrengthUI(99, true).label).toBe("Strong package");
+    expect(getStrengthUI(100, true).label).toBe("Agency grade");
+    expect(getStrengthUI(100, true).status).toBe("perfect");
+  });
+
+  test("every band carries a message the sidebar can render", () => {
+    [
+      [40, false],
+      [70, true],
+      [90, true],
+      [100, true],
+    ].forEach(([score, required]) => {
+      expect(getStrengthUI(score, required).message).toEqual(expect.any(String));
+      expect(getStrengthUI(score, required).message.length).toBeGreaterThan(0);
+    });
   });
 });

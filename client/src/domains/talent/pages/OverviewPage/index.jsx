@@ -156,6 +156,7 @@ export default function OverviewPage() {
   const {
     profile,
     subscription,
+    completeness,
     images,
     isLoading: profileLoading,
   } = useAuth();
@@ -222,16 +223,9 @@ export default function OverviewPage() {
       }))
     : [];
   const websiteGradientId = `ov-website-gradient-${React.useId().replace(/:/g, '')}`;
-  const {
-    score: readinessScore,
-    threshold: readinessThreshold,
-    topGaps,
-    totalGaps,
-    missingRequiredCount,
-    isRequiredComplete,
-    fieldCompletion,
-    isLoading: auditLoading,
-  } = useProfileReadiness();
+  const readinessPct = asNum(completeness?.percentage);
+
+  const { topGaps, totalGaps, isRequiredComplete, fieldCompletion, isLoading: auditLoading } = useProfileReadiness();
   const shouldReduce = useReducedMotion();
 
   const minor = isMinorProfile(profile);
@@ -242,6 +236,9 @@ export default function OverviewPage() {
   // Digitals recency: fieldCompletion.digitals_recency is false when existing digital
   // images are older than DIGITALS_STALE_DAYS (client-side signal, no new date math).
   const isDigitalsStale = fieldCompletion?.digitals_recency === false;
+  // Cap displayed readiness at 98 when stale so it never reads as fully complete.
+  const displayReadinessPct = isDigitalsStale ? Math.min(readinessPct, 98) : readinessPct;
+
   const auditCtaLabel = minorGated
     ? 'Record guardian consent'
     : isDigitalsStale
@@ -424,25 +421,9 @@ export default function OverviewPage() {
                     Submission <em>Readiness</em>
                   </h2>
                 </div>
-                <div className="ov-readiness-readout">
-                  {auditLoading ? (
-                    <span className="ov-skel" style={{ width: 64, height: '2rem' }} aria-hidden />
-                  ) : (
-                    <p className="ov-readiness-pct" data-tone={readinessThreshold.tone}>
-                      <span className="ov-sr-only">
-                        {`Submission readiness: ${readinessScore}% — ${readinessThreshold.label}`}
-                      </span>
-                      <span aria-hidden>
-                        {readinessScore}
-                        <span className="ov-readiness-pct-sign">%</span>
-                      </span>
-                    </p>
-                  )}
-                  <p className="ov-readiness-state">
-                    {isRequiredComplete
-                      ? 'Required materials complete'
-                      : `${missingRequiredCount} required ${missingRequiredCount === 1 ? 'item' : 'items'} missing`}
-                  </p>
+                <div className="ov-readiness-pct" aria-label={`${displayReadinessPct}% complete`}>
+                  {displayReadinessPct}
+                  <sup>%</sup>
                 </div>
               </div>
 
@@ -451,6 +432,11 @@ export default function OverviewPage() {
                   [0, 1, 2, 3, 4].map((i) => (
                     <div key={i} className="ov-check-item" role="listitem" style={{ pointerEvents: 'none' }}>
                       <div className="ov-check-left">
+                        <span
+                          className="ov-skel"
+                          style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0 }}
+                          aria-hidden
+                        />
                         <span className="ov-skel ov-skel--line" style={{ width: 120 }} aria-hidden />
                       </div>
                     </div>

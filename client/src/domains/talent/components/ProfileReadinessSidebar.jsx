@@ -1,85 +1,15 @@
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Check, ClipboardList } from 'lucide-react';
+import { getStrengthUI } from '../../../shared/utils/profileScoring';
 import { buildReadinessLists } from './profileReadinessItems';
-import { getReadinessThreshold, READINESS_THRESHOLDS } from '../../../shared/utils/profileScoring';
 import PholioButton from '../../../shared/components/ui/PholioButton';
 import styles from './ProfileReadinessSidebar.module.css';
 
 const TOOLTIP_PAD = 8;
 const TOOLTIP_MIN_WIDTH = 120;
 const TOOLTIP_ESTIMATED_HEIGHT = 56;
-
-/** Numeral roll + rail fill share one duration so they land together. */
-const COUNT_UP_MS = 750;
-
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-
-/** Never assume matchMedia resolves: jsdom and stubbed environments return undefined. */
-function reducedMotionQuery() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
-  return window.matchMedia(REDUCED_MOTION_QUERY) || null;
-}
-
-function subscribeReducedMotion(onChange) {
-  const query = reducedMotionQuery();
-  query?.addEventListener?.('change', onChange);
-  return () => query?.removeEventListener?.('change', onChange);
-}
-
-function readReducedMotion() {
-  return !!reducedMotionQuery()?.matches;
-}
-
-/**
- * Read the preference live rather than through framer's cached global, so it is
- * re-evaluated per mount and a test can flip it without module surgery.
- */
-function usePrefersReducedMotion() {
-  return useSyncExternalStore(subscribeReducedMotion, readReducedMotion, () => false);
-}
-
-/**
- * Count-up ported from the previous strength sidebar: 750ms with an ease-out
- * quad (`p * (2 - p)`) so the numeral decelerates into its final value.
- * Reduced motion renders the target immediately.
- */
-function useCountUp(target, disabled) {
-  const [display, setDisplay] = useState(0);
-  const fromRef = useRef(0);
-
-  useEffect(() => {
-    if (disabled) {
-      fromRef.current = target;
-      return undefined;
-    }
-
-    const start = fromRef.current;
-    if (start === target) return undefined;
-
-    const startTime = performance.now();
-    let frameId;
-
-    const step = (now) => {
-      const progress = Math.min((now - startTime) / COUNT_UP_MS, 1);
-      const eased = progress * (2 - progress);
-      const current = Math.round(start + (target - start) * eased);
-      fromRef.current = current;
-      setDisplay(current);
-      if (progress < 1) {
-        frameId = requestAnimationFrame(step);
-      } else {
-        fromRef.current = target;
-      }
-    };
-
-    frameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameId);
-  }, [target, disabled]);
-
-  return disabled ? target : display;
-}
 
 function computeTooltipPosition(btnEl, containerEl) {
   const rect = btnEl.getBoundingClientRect();
@@ -115,11 +45,12 @@ function computeTooltipPosition(btnEl, containerEl) {
   };
 }
 
-/** A still-missing checklist row: item name, quiet right-aligned "Add" action. */
 function ReadinessGap({
   item,
+  tier,
   scrollTargetByKey,
   onItemClick,
+  showTier = false,
   inAuditList = false,
   containerRef,
 }) {
@@ -170,7 +101,9 @@ function ReadinessGap({
       >
         <span className={styles.gapRow}>
           <span className={styles.gapLabel}>{item.label}</span>
-          {targetSection ? <span className={styles.gapAction}>Add</span> : null}
+          {showTier && tier === 'required' ? (
+            <span className={styles.gapTier}>Core</span>
+          ) : null}
         </span>
       </PholioButton>
       {fixedTip
@@ -195,16 +128,6 @@ function ReadinessGap({
   );
 }
 
-/** A satisfied checklist row: quiet text with a gold check — never a dot or badge. */
-function ReadinessDone({ item }) {
-  return (
-    <p className={styles.doneItem}>
-      <Check size={14} className={styles.doneIcon} aria-hidden="true" />
-      <span className={styles.doneLabel}>{item.label}</span>
-    </p>
-  );
-}
-
 export default function ProfileReadinessSidebar({
   readiness,
   profile = null,
@@ -216,23 +139,11 @@ export default function ProfileReadinessSidebar({
   auditOpen,
   onToggleAudit,
 }) {
-  const {
-    isRequiredComplete,
-    fieldCompletion,
-    scrollTargetByKey = {},
-    score: rawScore,
-  } = readiness;
+  const { score, isRequiredComplete, fieldCompletion, scrollTargetByKey } = readiness;
+  const ui = getStrengthUI(score, isRequiredComplete);
   const hasUnsavedChanges = hasChanges && !isSaving;
 
-  const threshold = getReadinessThreshold(rawScore);
-  const score = threshold.value;
-  const isPerfect = score === 100;
-
-  const reduceMotion = usePrefersReducedMotion();
-  const displayScore = useCountUp(score, reduceMotion);
-  const cardRef = useRef(null);
-
-  const { requiredItems, missingRequired, missingImprove, topGaps } = buildReadinessLists(
+  const { missingRequired, missingImprove, topGaps } = buildReadinessLists(
     fieldCompletion,
     profile,
     images,
@@ -241,80 +152,130 @@ export default function ProfileReadinessSidebar({
   const topGapsKeys = new Set(topGaps.map((item) => item.key));
   const hiddenRequired = missingRequired.filter((item) => !topGapsKeys.has(item.key));
   const hiddenImprove = missingImprove.filter((item) => !topGapsKeys.has(item.key));
-  const completedRequired = requiredItems.filter((item) => item.isComplete);
-  const auditItemCount = hiddenRequired.length + hiddenImprove.length + completedRequired.length;
+  const hiddenGapsCount = hiddenRequired.length + hiddenImprove.length;
 
-  const statusMessage = isPerfect
-    ? 'Every item is in place — your package is ready for agency review.'
-    : isRequiredComplete
-      ? 'Your required identity, stats, and digitals are in place.'
-      : `${missingRequired.length} required ${missingRequired.length === 1 ? 'item is' : 'items are'} still missing.`;
+  const isComplete = isRequiredComplete && missingImprove.length === 0;
+  const reduceMotion = useReducedMotion();
+  const cardRef = useRef(null);
+
+  const progressColor = isRequiredComplete
+    ? (score === 100 ? 'statusGold' : 'progressGreen')
+    : 'progressRed';
+
+  const [displayScore, setDisplayScore] = React.useState(score);
+  const displayScoreRef = useRef(score);
+
+  useEffect(() => {
+    const start = displayScoreRef.current;
+    const end = score;
+    if (start === end) {
+      return undefined;
+    }
+
+    const duration = 750;
+    const startTime = performance.now();
+    let animationFrameId;
+
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = progress * (2 - progress);
+      const currentScore = Math.round(start + (end - start) * easeProgress);
+      setDisplayScore(currentScore);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(animate);
+      } else {
+        displayScoreRef.current = end;
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [score]);
 
   return (
-    <aside className={styles.sidebar} aria-label="Submission readiness">
+    <aside className={styles.sidebar} aria-label="Profile completeness">
       <div className={styles.card} ref={cardRef}>
-        <h2 className={styles.title}>Submission readiness</h2>
-
-        <div className={styles.readout}>
-          <p className={styles.srOnly} aria-live="polite">
-            {`Submission readiness: ${score}% — ${threshold.label}`}
-          </p>
-          <motion.span
-            key={isPerfect ? 'readout-complete' : 'readout-working'}
-            className={styles.numeral}
-            data-tone={threshold.tone}
-            aria-hidden="true"
-            initial={!reduceMotion && isPerfect ? { scale: 1.06 } : false}
-            animate={{ scale: 1 }}
-            transition={
-              reduceMotion ? { duration: 0 } : { type: 'spring', duration: 0.3, bounce: 0.28 }
-            }
-          >
-            {displayScore}
-          </motion.span>
-          <span className={styles.percent} aria-hidden="true">
-            %
-          </span>
-          <span className={styles.thresholdLabel}>{threshold.label}</span>
+        <div className={styles.header}>
+          <span className={styles.smallTitle}>Profile readiness</span>
+          <div className={styles.scoreBlock}>
+            <span className={styles.score} aria-live="polite">
+              {displayScore}
+              <span className={styles.percentSign}>%</span>
+            </span>
+          </div>
+          {hasUnsavedChanges ? (
+            <p className={styles.unsavedHint}>Unsaved changes — save to sync your score</p>
+          ) : null}
         </div>
 
-        <div className={styles.rail} aria-hidden="true">
-          <span className={styles.tick} style={{ left: `${READINESS_THRESHOLDS.core}%` }} />
-          <span
-            className={styles.tick}
-            style={{ left: `${READINESS_THRESHOLDS.submissionReady}%` }}
-          />
-          <motion.span
-            className={styles.railFill}
-            initial={reduceMotion ? false : { width: '0%' }}
-            animate={{ width: `${score}%` }}
-            transition={
-              reduceMotion
-                ? { duration: 0 }
-                : { duration: COUNT_UP_MS / 1000, ease: [0.4, 0, 0.2, 1] }
-            }
-          />
+        <div className={styles.progressContainer}>
+          <div className={styles.progressInstrument}>
+            <div className={styles.progressBarTrack}>
+              <div
+                className={`${styles.tick} ${score >= 60 ? styles.tickActive : ''}`}
+                style={{ left: '60%' }}
+                aria-hidden
+              />
+              <div
+                className={`${styles.tick} ${score >= 85 ? styles.tickActive : ''}`}
+                style={{ left: '85%' }}
+                aria-hidden
+              />
+
+              <motion.div
+                className={`${styles.progressFill} ${styles[progressColor]}`}
+                initial={false}
+                animate={{ width: `${score}%` }}
+                transition={{ type: 'spring', stiffness: 55, damping: 16 }}
+                role="progressbar"
+                aria-valuenow={score}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              />
+            </div>
+
+            <div className={styles.progressLabels} aria-hidden>
+              <span
+                className={`${styles.progressLabel} ${styles.progressLabelCore} ${score >= 60 ? styles.progressLabelActive : ''}`}
+              >
+                Core
+              </span>
+              <span
+                className={`${styles.progressLabel} ${styles.progressLabelStrong} ${score >= 85 ? styles.progressLabelActive : ''}`}
+              >
+                Strong
+              </span>
+            </div>
+          </div>
+          <p className={styles.statusMessage}>{ui.message}</p>
         </div>
 
-        {topGaps.length > 0 ? (
+        {isComplete ? (
+          <div className={styles.completeBrief}>
+            <Check size={20} className={styles.checkIcon} aria-hidden="true" />
+            <p>Submission package complete — ready for agency review.</p>
+          </div>
+        ) : topGaps.length > 0 ? (
           <div className={styles.gapsBlock}>
             <p className={styles.gapsLabel}>Next up</p>
-            <ul className={styles.gapList}>
+            <div className={styles.gapList}>
               {topGaps.map((item) => (
-                <li key={item.key} className={styles.listRow}>
-                  <ReadinessGap
-                    item={item}
-                    scrollTargetByKey={scrollTargetByKey}
-                    onItemClick={onItemClick}
-                    containerRef={cardRef}
-                  />
-                </li>
+                <ReadinessGap
+                  key={item.key}
+                  item={item}
+                  tier={item.tier}
+                  scrollTargetByKey={scrollTargetByKey}
+                  onItemClick={onItemClick}
+                  containerRef={cardRef}
+                />
               ))}
-            </ul>
+            </div>
           </div>
         ) : null}
 
-        {auditItemCount > 0 ? (
+        {hiddenGapsCount > 0 ? (
           <button
             type="button"
             data-button-exception="profile-checklist"
@@ -328,7 +289,7 @@ export default function ProfileReadinessSidebar({
         ) : null}
 
         <AnimatePresence initial={false}>
-          {auditOpen && auditItemCount > 0 ? (
+          {auditOpen && hiddenGapsCount > 0 ? (
             <motion.div
               key="audit-panel"
               className={styles.auditPanelMotion}
@@ -362,45 +323,37 @@ export default function ProfileReadinessSidebar({
             >
               <div className={styles.auditPanel}>
                 <div className={styles.auditPanelScroll}>
-                  {hiddenRequired.length + completedRequired.length > 0 ? (
+                  {hiddenRequired.length > 0 ? (
                     <div className={styles.auditSection}>
                       <p className={styles.auditSectionLabel}>Core</p>
-                      <ul className={styles.gapList}>
-                        {hiddenRequired.map((item) => (
-                          <li key={item.key} className={styles.listRow}>
-                            <ReadinessGap
-                              item={item}
-                              scrollTargetByKey={scrollTargetByKey}
-                              onItemClick={onItemClick}
-                              inAuditList
-                              containerRef={cardRef}
-                            />
-                          </li>
-                        ))}
-                        {completedRequired.map((item) => (
-                          <li key={item.key} className={styles.listRow}>
-                            <ReadinessDone item={item} />
-                          </li>
-                        ))}
-                      </ul>
+                      {hiddenRequired.map((item) => (
+                        <ReadinessGap
+                          key={item.key}
+                          item={item}
+                          tier="required"
+                          scrollTargetByKey={scrollTargetByKey}
+                          onItemClick={onItemClick}
+                          showTier
+                          inAuditList
+                          containerRef={cardRef}
+                        />
+                      ))}
                     </div>
                   ) : null}
                   {hiddenImprove.length > 0 ? (
                     <div className={styles.auditSection}>
-                      <p className={styles.auditSectionLabel}>Optional context</p>
-                      <ul className={styles.gapList}>
-                        {hiddenImprove.map((item) => (
-                          <li key={item.key} className={styles.listRow}>
-                            <ReadinessGap
-                              item={item}
-                              scrollTargetByKey={scrollTargetByKey}
-                              onItemClick={onItemClick}
-                              inAuditList
-                              containerRef={cardRef}
-                            />
-                          </li>
-                        ))}
-                      </ul>
+                      <p className={styles.auditSectionLabel}>Strengthen</p>
+                      {hiddenImprove.map((item) => (
+                        <ReadinessGap
+                          key={item.key}
+                          item={item}
+                          tier="improve"
+                          scrollTargetByKey={scrollTargetByKey}
+                          onItemClick={onItemClick}
+                          inAuditList
+                          containerRef={cardRef}
+                        />
+                      ))}
                     </div>
                   ) : null}
                 </div>
@@ -408,12 +361,6 @@ export default function ProfileReadinessSidebar({
             </motion.div>
           ) : null}
         </AnimatePresence>
-
-        <p className={styles.statusMessage}>{statusMessage}</p>
-
-        {hasUnsavedChanges ? (
-          <p className={styles.unsavedHint}>Unsaved changes — save to update this checklist.</p>
-        ) : null}
 
         <div className={styles.saveContainer}>
           <PholioButton

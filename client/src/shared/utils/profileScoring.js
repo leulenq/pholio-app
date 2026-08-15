@@ -14,35 +14,6 @@ import {
 
 export const REQUIRED_POINTS = 60;
 export const IMPROVE_POINTS = 40;
-
-/** Score at which each readiness band opens. */
-export const READINESS_THRESHOLDS = Object.freeze({
-  core: 60,
-  submissionReady: 85,
-});
-
-/**
- * Maps a 0–100 readiness score to its threshold band.
- *
- * `tone` colours the numeral of record and nothing else — never a filled
- * background, pill, or badge. `ink` below 85, `gold` from 85, `celebration`
- * (bright gold) only at a complete 100.
- */
-export const getReadinessThreshold = (score) => {
-  const numeric = Number(score);
-  const value = Math.max(0, Math.min(100, Math.round(Number.isFinite(numeric) ? numeric : 0)));
-
-  if (value >= 100) {
-    return { value, key: 'submission_ready', label: 'Submission-ready', tone: 'celebration' };
-  }
-  if (value >= READINESS_THRESHOLDS.submissionReady) {
-    return { value, key: 'submission_ready', label: 'Submission-ready', tone: 'gold' };
-  }
-  if (value >= READINESS_THRESHOLDS.core) {
-    return { value, key: 'core_complete', label: 'Core complete', tone: 'ink' };
-  }
-  return { value, key: 'in_progress', label: 'In progress', tone: 'ink' };
-};
 const IMPROVE_FIELD_POINTS = {
   bio: 4,
   look: 4,
@@ -404,5 +375,41 @@ export const calculateProfileStrength = (data) => {
     scrollTargetByKey: PROFILE_STRENGTH_SCROLL_TARGETS,
     bookReadiness: book,
     digitalsReadiness: digitals,
+  };
+};
+
+export const getStrengthUI = (score, isRequiredComplete = false) => {
+  if (!isRequiredComplete) {
+    return {
+      label: 'Build your package',
+      color: '#C0392B',
+      message: 'Add missing essentials.',
+      status: 'locked',
+    };
+  }
+
+  if (score < 85) {
+    return {
+      label: 'Essentials complete',
+      color: '#C9A55A',
+      message: 'Add look details and contact to strengthen your package.',
+      status: 'improvement',
+    };
+  }
+
+  if (score < 100) {
+    return {
+      label: 'Strong package',
+      color: '#2D8A56',
+      message: 'Your profile matches what bookers look for when shortlisting.',
+      status: 'improvement',
+    };
+  }
+
+  return {
+    label: 'Agency grade',
+    color: '#C9A55A',
+    message: 'Complete and current — ready for agency review.',
+    status: 'perfect',
   };
 };

@@ -25,46 +25,48 @@ describe('useProfileReadiness', () => {
     mockUseAuth.mockReset();
   });
 
-  test('exposes the 0-100 score alongside the existing checklist fields', () => {
-    mockUseAuth.mockReturnValue({ profile: COMPLETE_PROFILE, images: [], isLoading: false });
+  test('takes the score of record from the backend completeness payload', () => {
+    mockUseAuth.mockReturnValue({
+      completeness: { percentage: 74, label: 'Strong', coreReady: true, isComplete: false, nextSteps: ['Add a bio'] },
+      profile: COMPLETE_PROFILE,
+      images: [],
+      isLoading: false,
+    });
 
     const { result } = renderHook(() => useProfileReadiness());
 
-    expect(typeof result.current.score).toBe('number');
-    expect(result.current.score).toBeGreaterThan(0);
-    expect(result.current.score).toBeLessThanOrEqual(100);
+    expect(result.current.score).toBe(74);
+    expect(result.current.label).toBe('Strong');
+    expect(result.current.coreReady).toBe(true);
+    expect(result.current.isComplete).toBe(false);
+    expect(result.current.nextSteps).toEqual(['Add a bio']);
+    expect(result.current.isLoading).toBe(false);
+  });
 
-    // Existing contract must survive the score being re-added.
-    expect(result.current).toHaveProperty('isLoading', false);
-    expect(result.current).toHaveProperty('fieldCompletion');
+  test('derives the checklist client-side alongside the backend score', () => {
+    mockUseAuth.mockReturnValue({
+      completeness: { percentage: 74 },
+      profile: COMPLETE_PROFILE,
+      images: [],
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useProfileReadiness());
+
+    expect(result.current.fieldCompletion).toMatchObject({ name: true, city: true, height: true });
     expect(Array.isArray(result.current.topGaps)).toBe(true);
     expect(typeof result.current.totalGaps).toBe('number');
-    expect(typeof result.current.missingRequiredCount).toBe('number');
-    expect(typeof result.current.isRequiredComplete).toBe('boolean');
+    // Digitals are still missing, so the required tier is not satisfied.
+    expect(result.current.isRequiredComplete).toBe(false);
   });
 
-  test('exposes the threshold band and its label', () => {
-    mockUseAuth.mockReturnValue({ profile: COMPLETE_PROFILE, images: [], isLoading: false });
-
-    const { result } = renderHook(() => useProfileReadiness());
-
-    expect(result.current.threshold).toMatchObject({
-      value: result.current.score,
-      label: result.current.thresholdLabel,
-    });
-    expect(['In progress', 'Core complete', 'Submission-ready']).toContain(
-      result.current.thresholdLabel,
-    );
-    expect(['ink', 'gold', 'celebration']).toContain(result.current.threshold.tone);
-  });
-
-  test('an empty profile scores zero and reads as in progress', () => {
-    mockUseAuth.mockReturnValue({ profile: null, images: null, isLoading: true });
+  test('falls back to a zero score before the session payload lands', () => {
+    mockUseAuth.mockReturnValue({ completeness: null, profile: null, images: null, isLoading: true });
 
     const { result } = renderHook(() => useProfileReadiness());
 
     expect(result.current.score).toBe(0);
-    expect(result.current.thresholdLabel).toBe('In progress');
+    expect(result.current.label).toBe('Beginner');
     expect(result.current.isLoading).toBe(true);
     expect(result.current.isRequiredComplete).toBe(false);
   });

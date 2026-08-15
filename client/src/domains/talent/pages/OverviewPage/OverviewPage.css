@@ -520,69 +520,20 @@
   color: var(--ov-gold-warm);
 }
 
-.ov-readiness-readout {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+.ov-readiness-pct {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 2.75rem;
+  font-weight: 300;
+  color: rgba(245, 240, 232, 0.32);
+  line-height: 1;
   flex-shrink: 0;
 }
 
-/* Numeral of record — same rules as the profile sidebar at a smaller scale:
-   ink below 85, gold from 85, bright gold only at 100. Never a filled pill. */
-.ov-readiness-pct {
-  margin: 0;
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 2rem;
-  font-weight: 300;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ov-text);
-  transition: color 0.3s var(--ov-ease);
-}
-
-.ov-readiness-pct[data-tone='gold'] {
-  color: var(--ov-gold);
-}
-
-.ov-readiness-pct[data-tone='celebration'] {
-  color: #D4AF37;
-}
-
-.ov-readiness-pct-sign {
-  margin-left: 1px;
-  font-size: 0.8rem;
-  color: var(--ov-text-faint);
-}
-
-.ov-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
-.ov-readiness-state {
-  max-width: 16rem;
-  margin: 0;
-  font-family: 'Inter', sans-serif;
+.ov-readiness-pct sup {
   font-size: 0.75rem;
-  line-height: 1.45;
-  text-align: right;
-  color: rgba(245, 240, 232, 0.58);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ov-readiness-pct {
-    transition: none;
-  }
+  opacity: 0.5;
+  vertical-align: super;
+  line-height: 0;
 }
 
 .ov-checklist {

@@ -22,6 +22,8 @@ vi.mock('lucide-react', () => {
     Trash2: makeIconMock('Trash2'),
     Globe: makeIconMock('Globe'),
     Check: makeIconMock('Check'),
+    Clock: makeIconMock('Clock'),
+    AlertTriangle: makeIconMock('AlertTriangle'),
     Link2: makeIconMock('Link2'),
     Sparkles: makeIconMock('Sparkles'),
     Feather: makeIconMock('Feather'),
@@ -188,9 +190,7 @@ describe('ProfilePage Component', () => {
     expect(screen.getByRole('textbox', { name: /first name/i })).toHaveValue('Nova');
     expect(screen.getByRole('textbox', { name: /last name/i })).toHaveValue('Lane');
     expect(screen.getByPlaceholderText(/tell us about yourself/i)).toHaveValue('Professional model.');
-    expect(screen.getByRole('complementary', { name: /submission readiness/i })).toBeInTheDocument();
-    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    expect(screen.queryByText(/profile strength|strong package|agency grade/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: /profile completeness/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save profile/i })).toBeDisabled();
     expect(screen.queryByText(/unsaved changes/i)).not.toBeInTheDocument();
     expect(document.querySelector('form form')).toBeNull();
