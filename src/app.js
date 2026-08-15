@@ -815,6 +815,11 @@ app.use("/", authRoutes);
 // Magic-link message replies (token auth, no login required)
 app.use("/", require("./domains/messaging/routes/message-reply"));
 
+// Designer pick-list share links (token auth, no account exists at all).
+// Mounted here, before the onboarding/active-account gates below, for the same
+// reason as the reply routes: the caller is not a Pholio user and never will be.
+app.use("/", require("./domains/events/routes/pick-share"));
+
 // API Routes
 app.use("/", internalAgencyRequestRoutes);
 app.use("/api", apiRoutes);
@@ -921,6 +926,8 @@ app.get(
     "/login",
     "/reply",
     "/reply/*",
+    "/picks",
+    "/picks/*",
     "/opencall",
     "/opencall/*",
     "/internal",

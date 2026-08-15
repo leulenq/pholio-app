@@ -1,0 +1,466 @@
+/**
+ * Designer pick list — the agency design system on a public page.
+ *
+ * Cream canvas, white paper cards, Playfair on the event name and nowhere
+ * else, Inter for every control and figure. Gold appears on exactly one thing:
+ * the pick the designer has actually made. No badges, no chips, no glass, no
+ * side stripes — the bans apply here the same as inside the dashboard.
+ *
+ * Tokens are referenced with literal fallbacks throughout because this page can
+ * render before (or entirely without) the dashboard token sheet.
+ */
+
+.pk-page {
+  min-height: 100vh;
+  background: var(--ag-canvas, #f7f3ec);
+  color: var(--ag-text-0, #1a1815);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 96px;
+}
+
+/* --- shared states ------------------------------------------------------ */
+
+.pk-page__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 32px;
+  text-align: center;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.pk-page__center--error h1 {
+  margin: 0;
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--ag-text-0, #1a1815);
+}
+
+.pk-page__center--error p {
+  margin: 0;
+  max-width: 46ch;
+}
+
+.pk-page__spinner {
+  animation: pk-spin 0.8s linear infinite;
+  color: var(--ag-gold, #c9a55a);
+}
+
+@keyframes pk-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- masthead ----------------------------------------------------------- */
+
+.pk-masthead {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.08);
+}
+
+.pk-masthead__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 32px 32px;
+}
+
+.pk-masthead__event {
+  margin: 0;
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.pk-masthead__meta,
+.pk-masthead__compensation,
+.pk-masthead__note,
+.pk-masthead__brief,
+.pk-masthead__closed {
+  margin: 8px 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ag-text-2, #6b6560);
+  max-width: 68ch;
+}
+
+.pk-masthead__compensation {
+  color: var(--ag-text-1, #2d2a26);
+  font-weight: 500;
+}
+
+.pk-masthead__note {
+  padding-top: 12px;
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
+  margin-top: 16px;
+  white-space: pre-wrap;
+}
+
+.pk-masthead__brief {
+  margin-top: 12px;
+  color: var(--ag-text-1, #2d2a26);
+}
+
+.pk-masthead__closed {
+  color: var(--ag-text-2, #6b6560);
+  font-style: italic;
+}
+
+/* --- grid --------------------------------------------------------------- */
+
+.pk-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.pk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+/* --- card --------------------------------------------------------------- */
+
+.pk-card {
+  background: #ffffff;
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition:
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pk-card:hover {
+  box-shadow: 0 4px 20px rgba(26, 24, 21, 0.08);
+}
+
+/* The one gold moment on the page: a made pick. Full border, never a stripe. */
+.pk-card--pick {
+  border-color: var(--ag-gold, #c9a55a);
+  box-shadow: 0 0 0 1px var(--ag-gold, #c9a55a);
+}
+
+.pk-card--pass {
+  opacity: 0.62;
+}
+
+.pk-card__figure {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  background: var(--ag-surface-2, #f5f2ee);
+}
+
+.pk-card__hero {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pk-card__hero--empty {
+  background: var(--ag-surface-2, #f5f2ee);
+}
+
+.pk-card__strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: rgba(26, 24, 21, 0.08);
+}
+
+.pk-card__thumb {
+  aspect-ratio: 3 / 4;
+  background: var(--ag-surface-2, #f5f2ee);
+  overflow: hidden;
+}
+
+.pk-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pk-card__body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pk-card__name {
+  margin: 0;
+  /* Inter, not Playfair — the serif belongs to the event name alone. */
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Figure tier: mono tabular value, tracked Inter key, no container. */
+.pk-card__stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px 12px;
+}
+
+.pk-card__stat dt {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ag-text-3, #9c958e);
+}
+
+.pk-card__stat dd {
+  margin: 2px 0 0;
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', Consolas, monospace);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ag-text-1, #2d2a26);
+}
+
+.pk-card__line {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.pk-card__line-key {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ag-text-3, #9c958e);
+}
+
+.pk-card__video {
+  width: 100%;
+  border-radius: 8px;
+  background: #000000;
+  aspect-ratio: 16 / 9;
+}
+
+.pk-card__video--empty {
+  background: var(--ag-surface-2, #f5f2ee);
+}
+
+.pk-card__video-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ag-text-1, #2d2a26);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.24);
+  align-self: flex-start;
+  padding-bottom: 2px;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pk-card__video-link:hover {
+  color: var(--ag-gold-hover, #b8956a);
+}
+
+/* --- three-state control (ported from the dashboard PickButton) ---------- */
+
+.pk-card__marks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.pk-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid rgba(26, 24, 21, 0.12);
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ag-text-2, #6b6560);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pk-mark:hover:not(:disabled) {
+  background: var(--ag-surface-2, #f5f2ee);
+  border-color: rgba(26, 24, 21, 0.22);
+  color: var(--ag-text-0, #1a1815);
+}
+
+.pk-mark:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.28);
+}
+
+.pk-mark:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Gold only on the affirmative pick. Maybe and pass carry weight and ink. */
+.pk-mark--pick.is-active {
+  background: var(--ag-gold, #c9a55a);
+  border-color: var(--ag-gold, #c9a55a);
+  color: #141210;
+}
+
+.pk-mark--maybe.is-active,
+.pk-mark--pass.is-active {
+  background: var(--ag-text-0, #1a1815);
+  border-color: var(--ag-text-0, #1a1815);
+  color: #ffffff;
+}
+
+.pk-card__note {
+  width: 100%;
+  resize: none;
+  border: 1px solid rgba(26, 24, 21, 0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ag-text-0, #1a1815);
+  background: #ffffff;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pk-card__note::placeholder {
+  color: #a39e99;
+}
+
+.pk-card__note:focus {
+  outline: none;
+  border-color: var(--ag-gold, #c9a55a);
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15);
+}
+
+/* --- dock --------------------------------------------------------------- */
+
+.pk-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff;
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
+  box-shadow: 0 -4px 20px rgba(26, 24, 21, 0.06);
+  z-index: 20;
+}
+
+.pk-dock__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pk-dock__tally {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.pk-dock__count {
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', Consolas, monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ag-text-0, #1a1815);
+  margin-right: 3px;
+}
+
+.pk-dock__sep {
+  margin: 0 8px;
+  color: var(--ag-text-3, #9c958e);
+}
+
+.pk-dock__sent {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8125rem;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.pk-dock__submit {
+  margin-left: auto;
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--ag-gold, #c9a55a);
+  color: #141210;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pk-dock__submit:hover:not(:disabled) {
+  background: var(--ag-gold-hover, #b8956a);
+}
+
+.pk-dock__submit:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.28);
+}
+
+.pk-dock__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .pk-masthead__inner,
+  .pk-main,
+  .pk-dock__inner {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .pk-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk-page__spinner {
+    animation: none;
+  }
+
+  .pk-card,
+  .pk-mark,
+  .pk-dock__submit,
+  .pk-card__note,
+  .pk-card__video-link {
+    transition: none;
+  }
+}

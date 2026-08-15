@@ -40,6 +40,7 @@ const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
+const PickListPage = lazy(() => import('./domains/events/pages/PickListPage'));
 const AuthEntrySplashPreview = lazy(() => import('./domains/auth/pages/AuthEntrySplashPreview'));
 const ModerationQueuePage = lazy(() => import('./domains/moderation/pages/ModerationQueuePage'));
 const MockConsentPage = lazy(() => import('./domains/talent/pages/ProfilePage/MockConsentPage'));
@@ -90,6 +91,9 @@ function App() {
 
           {/* Magic-link message reply (standalone, no login wall) */}
           <Route path="/reply/:token" element={<ReplyPage />} />
+
+          {/* Designer pick list (standalone, token only — designers have no account) */}
+          <Route path="/picks/:token" element={<PickListPage />} />
 
           {/* The post-onboarding reveal is gone; old links land on the dashboard. */}
           <Route path="/reveal" element={<Navigate to="/dashboard/talent" replace />} />

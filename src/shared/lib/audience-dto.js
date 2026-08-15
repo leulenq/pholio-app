@@ -41,6 +41,7 @@ const {
   buildSubmissionProfileSnapshot,
   normalizeStringList,
 } = require("./submission-profile");
+const { buildCanonicalStats } = require("./stats-formatter");
 const { PROFILE_AI_COLUMNS } = require("./data-export");
 // Only DB-touching import in this otherwise-pure module. See
 // `loadTalentRepresentationsForProfiles` below for the scoped exception.
@@ -55,6 +56,7 @@ const AUDIENCE = Object.freeze({
   AGENCY_DISCOVERY: "agency_discovery",
   AGENCY_SUBMISSION: "agency_submission",
   CONFIRMED_JOB: "confirmed_job",
+  EVENT_DESIGNER: "event_designer",
   OWNER: "owner",
 });
 
@@ -311,6 +313,55 @@ const CONFIRMED_JOB_FIELDS = Object.freeze([
   "guardian_email",
   "work_permit_on_file",
 ]);
+
+/**
+ * EVENT DESIGNER — the tightest non-public allowlist in the module, and the
+ * only one whose audience has no Pholio account at all (design §(d), R3).
+ *
+ * A designer holding a `/picks/:token` link is a third party the applicant was
+ * told about in the event consent copy: "Designers see your name, digitals,
+ * height, measurements, availability and walk video through a read-only link.
+ * They cannot see your email, phone, socials or date of birth." This list is
+ * the machine-readable half of that sentence, so every addition to it is a
+ * change to a disclosure the applicant already agreed to — not a UI tweak.
+ *
+ * Deliberately ABSENT, each for a reason:
+ *   - `id` / `slug`      — a slug is the public portfolio URL; the designer
+ *                          keys off `application_id` instead, which addresses
+ *                          nothing outside the pick list.
+ *   - `first_name` /     — sources for `display_name` only. They are read by
+ *     `last_name`          the builder but never emitted raw, so the org's
+ *                          name-display setting cannot be undone client-side.
+ *   - DOB / age / band   — no age signal of any kind. The call is 18+ (R8) and
+ *                          `applyMinorSubmissionFilter` keeps minors out of the
+ *                          query; the DTO carries no age even if one slipped by.
+ *   - weight             — casting for a runway show is a measurements
+ *                          question. `buildCanonicalStats` is fed the picked
+ *                          subset below precisely so weight cannot appear in
+ *                          the rendered stat lines either.
+ *   - city / nationality — location is organizer logistics, not a design pick.
+ *   - hair / eye color   — outside the disclosed list. Add only by amending the
+ *                          consent copy first.
+ *   - contact, social, comp card, bio, representation, workflow — never.
+ */
+const EVENT_DESIGNER_FIELDS = Object.freeze([
+  "stats_track",
+  "height_cm",
+  "bust_cm",
+  "chest_cm",
+  "waist_cm",
+  "hips_cm",
+  "inseam_cm",
+  "shoe_size",
+  "dress_size",
+  "suit_size",
+]);
+
+/** Name-display modes for `buildEventDesignerDTO`. */
+const EVENT_DESIGNER_NAME_DISPLAY = Object.freeze({
+  FULL: "full",
+  FIRST_INITIAL: "first_initial",
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -700,6 +751,71 @@ function buildConfirmedJobDTO(profile) {
   return dto;
 }
 
+/**
+ * Render the applicant's name at the organizer's chosen granularity.
+ * `first_initial` yields "Ada L." — enough for a designer to talk about
+ * someone in a fitting without publishing a full identity to a forwarded link.
+ */
+function eventDesignerDisplayName(source, mode) {
+  const src = asObject(source);
+  const first = String(src.first_name || "").trim();
+  const last = String(src.last_name || "").trim();
+
+  if (mode === EVENT_DESIGNER_NAME_DISPLAY.FIRST_INITIAL) {
+    const initial = last ? `${last[0].toUpperCase()}.` : "";
+    return [first, initial].filter(Boolean).join(" ") || null;
+  }
+  return [first, last].filter(Boolean).join(" ") || null;
+}
+
+/**
+ * Designer reading a pick list over a token link.
+ *
+ * Takes the FROZEN submission snapshot (`talent_submission_packages.payload`
+ * via `loadApplicationSubmissionPackages`), never a live `profiles` row: what a
+ * designer sees is what the applicant submitted to this call, and a later
+ * profile edit must not silently rewrite it.
+ *
+ * `stats` is rebuilt from the picked subset rather than passed through from the
+ * snapshot, because the snapshot's own canonical stats carry weight and
+ * hair/eye color. Feeding the allowlist through the formatter means the
+ * rendered lines can only ever contain allowlisted values.
+ *
+ * @param {object|null|undefined} profileSnapshot
+ * @param {{ images?: object[], availability?: object|null,
+ *   walkVideoUrl?: string|null, nameDisplay?: string }} [opts]
+ */
+function buildEventDesignerDTO(profileSnapshot, opts = {}) {
+  const dto = pickAllowed(profileSnapshot, EVENT_DESIGNER_FIELDS);
+  dto.display_name = eventDesignerDisplayName(profileSnapshot, opts.nameDisplay);
+  // Formatter input is the allowlist itself — weight and colouring are absent
+  // from `dto`, so they are absent from the rendered stat lines by construction.
+  dto.stats = buildCanonicalStats(dto);
+
+  const images = Array.isArray(opts.images) ? opts.images : [];
+  dto.images = images.map(buildPublicImageDTO).filter(Boolean);
+
+  const availability = asObject(opts.availability);
+  dto.availability =
+    availability.from || availability.to || availability.note
+      ? {
+          from: availability.from || null,
+          to: availability.to || null,
+          note:
+            typeof availability.note === "string"
+              ? availability.note.trim().slice(0, 300) || null
+              : null,
+        }
+      : null;
+
+  dto.walk_video_url =
+    typeof opts.walkVideoUrl === "string" && opts.walkVideoUrl.trim()
+      ? opts.walkVideoUrl.trim()
+      : null;
+
+  return dto;
+}
+
 module.exports = {
   AUDIENCE,
   // Allowlists (referenced by contract tests + reader agents).
@@ -710,6 +826,8 @@ module.exports = {
   SOCIAL_ACCOUNT_FIELDS,
   OWNER_FIELDS,
   CONFIRMED_JOB_FIELDS,
+  EVENT_DESIGNER_FIELDS,
+  EVENT_DESIGNER_NAME_DISPLAY,
   // Re-export for visibility helpers / readers.
   PROFILE_AI_COLUMNS,
   // Age policy.
@@ -726,9 +844,11 @@ module.exports = {
   buildAgencySubmissionDTO,
   buildOwnerDTO,
   buildConfirmedJobDTO,
+  buildEventDesignerDTO,
   // Internal helpers exported for reuse/testing.
   pickAllowed,
   displayName,
+  eventDesignerDisplayName,
   shapeSocialAccounts,
   minorPublicExposureAllowed,
 };
