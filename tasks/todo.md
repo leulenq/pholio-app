@@ -21,6 +21,10 @@
    /profile, Apply Workspace, Settings (strongest pages). New work must feel native.
 7. Session continuity: if session/rate limit hits, continue after reset without nudging.
    Fresh session permitted when context becomes a liability — this file is the handoff.
+8. **Document precedence:** own reasoning + latest plan (docs/pholio-strategic-analysis-
+   2026-08.md + user corrections here) govern. Older docs (2026-08-07 pressure test,
+   2026-08-08 strategic decision, earlier audits) are evidence, not authority — never
+   treat a claim as settled because an older document asserts it.
 
 ## Branch audit (2026-08-15)
 - `claude/pholio-product-plan-2026-gfl2y0` — **the big one.** = plan branch e6sees + 21 impl
