@@ -370,6 +370,17 @@ describe("event casting schema (migrations M1–M5)", () => {
 describe("rolling M1–M5 back", () => {
   const survivorId = uuid();
 
+  /**
+   * How many steps down it takes to unwind M1–M5.
+   *
+   * Not the literal 5 it used to be: later lanes add migrations on top of
+   * these, and a hardcoded count then rolls back *their* work instead and
+   * leaves M1–M5 applied — which fails here as a confusing assertion about
+   * application statuses rather than as "the count is stale". Derived from the
+   * ledger, it stays correct however many migrations land after.
+   */
+  let steps = 0;
+
   test("rollback keeps the data it is not asked to remove", async () => {
     await db("applications").insert(
       application({
@@ -380,7 +391,17 @@ describe("rolling M1–M5 back", () => {
       }),
     );
 
-    for (let step = 0; step < 5; step += 1) await db.migrate.down();
+    const applied = (await db("knex_migrations").orderBy("id", "asc")).map(
+      (row) => row.name,
+    );
+    const firstEventCasting = applied.findIndex((name) =>
+      name.startsWith("20260815090000_event_casting_application_statuses"),
+    );
+    expect(firstEventCasting).toBeGreaterThan(-1);
+    steps = applied.length - firstEventCasting;
+    expect(steps).toBeGreaterThanOrEqual(5);
+
+    for (let step = 0; step < steps; step += 1) await db.migrate.down();
 
     // The regression: knex implements a SQLite column drop as
     // create-copy-drop-rename and guards it with `PRAGMA foreign_keys = OFF`,
@@ -402,7 +423,7 @@ describe("rolling M1–M5 back", () => {
 
   test("and re-applies cleanly", async () => {
     const [, log] = await db.migrate.latest();
-    expect(log).toHaveLength(5);
+    expect(log).toHaveLength(steps);
 
     const survivor = await db("applications").where({ id: survivorId }).first();
     expect(survivor.call_purpose).toBe("representation");
