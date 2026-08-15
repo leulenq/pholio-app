@@ -521,12 +521,47 @@ const {
 } = require("../../domains/talent/services/open-call-claims");
 const {
   briefDTO,
+  eventCallDTO,
+  hasEventCallColumns,
   isClosedByDeadline,
+  isEventCall,
 } = require("../../domains/agency/services/open-call-brief");
 
 // How long an anonymous arrival context survives in the session while the
 // visitor signs up. A later re-visit of the link simply records a new arrival.
 const OPEN_CALL_SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+
+/*
+ * The event-call columns, read separately from the link lookup.
+ *
+ * `findActiveLinkByCode` lives in the claims service and projects a fixed
+ * column list; widening it there would put event knowledge in a module whose
+ * job is entitlements. This is one indexed read by primary key on a page that
+ * is loaded once per arrival, and it no-ops entirely on a database that has
+ * not run the event migration.
+ */
+const EVENT_CALL_COLUMNS = [
+  "call_kind",
+  "compensation_type",
+  "compensation_details",
+  "event_name",
+  "event_starts_on",
+  "event_ends_on",
+  "event_location",
+  "requires_walk_video",
+  "requires_availability",
+  "requires_measurements",
+  "review_window_days",
+  "offer_response_window_hours",
+];
+
+async function loadEventCall(linkId) {
+  if (!(await hasEventCallColumns(knex))) return null;
+  const row = await knex("agency_open_call_links")
+    .where({ id: linkId })
+    .first(...EVENT_CALL_COLUMNS);
+  return row || null;
+}
 
 function parseOpenBoardsList(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -570,13 +605,22 @@ router.get("/open-call/:code", async (req, res) => {
     if (!link) {
       return res.json({ success: true, data: { valid: false } });
     }
+    const eventCall = await loadEventCall(link.id);
+
     let alreadyApplied = false;
     const profile = await sessionTalentProfile(req);
     if (profile) {
-      const existing = await knex("applications")
-        .where({ profile_id: profile.id, agency_id: link.agency_id })
-        .whereNot("status", "withdrawn")
-        .first("id");
+      // An organizer runs one call per edition and per city, and applying to
+      // Brooklyn is not applying to Queens. So an event call asks whether this
+      // *call* already has a submission; a representation call still asks
+      // whether the agency does, because there is only one of those to make.
+      const query = knex("applications").whereNot("status", "withdrawn");
+      if (eventCall && isEventCall(eventCall)) {
+        query.where({ profile_id: profile.id, open_call_link_id: link.id });
+      } else {
+        query.where({ profile_id: profile.id, agency_id: link.agency_id });
+      }
+      const existing = await query.first("id");
       alreadyApplied = Boolean(existing);
     }
     return res.json({
@@ -585,6 +629,9 @@ router.get("/open-call/:code", async (req, res) => {
         valid: true,
         agency: openCallAgencyDTO(link),
         brief: briefDTO(link),
+        // Additive. A representation link reports the call kind it has always
+        // implicitly been, with the event slots empty.
+        ...eventCallDTO(eventCall || {}),
         // A call past its published closing date says so, rather than taking
         // submissions the agency has stopped reading.
         closed: isClosedByDeadline(link),

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import PholioButton from '../../../shared/components/ui/PholioButton';
+import { isEventCastingCallKind } from '../../../shared/constants/eventCasting';
 import './OpenCallArrivalPage.css';
 
 /*
@@ -10,6 +11,13 @@ import './OpenCallArrivalPage.css';
  * website or campaign into Pholio. The visitor was invited by the agency;
  * this screen confirms the invitation, states the allowance honestly, and
  * hands them into the standard submission flow. It collects nothing.
+ *
+ * An event cast arrives here too, and it has to say more before anyone spends
+ * an evening on a submission: what the event is, when it runs, what it pays,
+ * and — loudly, per ruling R8 — that it is 18 and over. The monthly-allowance
+ * reassurance is representation-only and is not shown for an event; there is
+ * no allowance in play and saying otherwise would answer a question nobody
+ * asked while dodging the one they did.
  */
 
 const SPRING = { type: 'spring', stiffness: 55, damping: 16 };
@@ -25,6 +33,45 @@ function formatDeadline(iso) {
     year: 'numeric',
     timeZone: 'UTC',
   });
+}
+
+function formatEventDates(event) {
+  if (!event?.startsOn) return null;
+  const start = formatDeadline(event.startsOn);
+  if (!event.endsOn || event.endsOn === event.startsOn) return start;
+  return `${start} – ${formatDeadline(event.endsOn)}`;
+}
+
+const COMPENSATION_LABELS = {
+  paid: 'PAID',
+  unpaid: 'UNPAID',
+  stipend: 'A STIPEND',
+};
+
+/*
+ * The compensation sentence, worded exactly as it is worded in the consent the
+ * applicant signs at submit. Two different renderings of the same fact is how
+ * "I thought it was paid" happens.
+ */
+function compensationLine(organizerName, compensation) {
+  const label = COMPENSATION_LABELS[String(compensation?.type || '').toLowerCase()];
+  if (!label) return null;
+  const details = String(compensation.details || '').trim();
+  return `${organizerName} states this is ${label}.${details ? ` ${details}` : ''}`;
+}
+
+/** What this call asks for beyond a standard Pholio package. */
+function intakeLine(intake) {
+  const asks = [];
+  if (intake?.walkVideo) asks.push('a link to a walk video');
+  if (intake?.availability) asks.push('your availability for the event dates');
+  if (intake?.measurements) asks.push('confirmed measurements');
+  if (!asks.length) return null;
+  const listed =
+    asks.length === 1
+      ? asks[0]
+      : `${asks.slice(0, -1).join(', ')} and ${asks[asks.length - 1]}`;
+  return `Alongside your digitals and stats, this call asks for ${listed}.`;
 }
 
 function agencyInitial(name) {
@@ -136,16 +183,41 @@ export default function OpenCallArrivalPage() {
     );
   }
 
-  const { agency, alreadyApplied, authenticated, brief, closed } = state.data;
+  const {
+    agency,
+    alreadyApplied,
+    authenticated,
+    brief,
+    closed,
+    callKind,
+    event,
+    compensation,
+    intake,
+  } = state.data;
   const name = agency.name || 'The agency';
+  const isEvent = isEventCastingCallKind(callKind);
+  const eventName = (event?.name || '').trim();
+  const eventDates = formatEventDates(event);
+  const eventWhere = [eventDates, event?.location].filter(Boolean).join(' · ');
 
   // What the agency published about its own call, in its own words. Only shown
   // when it actually wrote one — links predate the brief, and inventing
   // reassuring filler on their behalf would be worse than the generic steps.
+  //
+  // An event cast interleaves three sections the agency did not type but the
+  // organizer did answer: when it runs, what it pays, and what the intake asks
+  // for on top of the standard package.
   const briefSections = brief
     ? [
         ['Who this is for', brief.who],
+        ...(isEvent
+          ? [
+              ['Dates', eventWhere],
+              ['Compensation', compensationLine(name, compensation)],
+            ]
+          : []),
         ['What to send', brief.what],
+        ...(isEvent ? [['What we need', intakeLine(intake)]] : []),
         ['Eligibility', brief.eligibility],
         ['What happens next', brief.nextSteps],
       ].filter(([, body]) => Boolean(body))
@@ -155,7 +227,9 @@ export default function OpenCallArrivalPage() {
     ? null
     : brief.ongoing
       ? 'This call runs continuously.'
-      : `Closes ${formatDeadline(brief.deadline)}.`;
+      : isEvent
+        ? `Applications close ${formatDeadline(brief.deadline)}.`
+        : `Closes ${formatDeadline(brief.deadline)}.`;
 
   const handleBegin = () => {
     if (alreadyApplied) {
@@ -177,7 +251,9 @@ export default function OpenCallArrivalPage() {
         <div className="opencall__glow" aria-hidden />
         <main className="opencall__stage" aria-label={`${name} open call closed`}>
           <motion.h1 className="opencall__headline" {...enter(0.1)}>
-            {name}&apos;s open call has closed.
+            {isEvent && eventName
+              ? `Applications for ${eventName} have closed.`
+              : `${name}'s open call has closed.`}
           </motion.h1>
           <motion.p className="opencall__support" {...enter(0.25)}>
             {brief?.deadline
@@ -205,7 +281,10 @@ export default function OpenCallArrivalPage() {
         animate={{ opacity: 1 }}
         transition={{ duration: reduceMotion ? 0.3 : 1.1 }}
       />
-      <main className="opencall__stage" aria-label={`${name} open call`}>
+      <main
+        className="opencall__stage"
+        aria-label={isEvent && eventName ? `${name} casting for ${eventName}` : `${name} open call`}
+      >
         <motion.div
           className="opencall__mark"
           {...(reduceMotion
@@ -236,11 +315,14 @@ export default function OpenCallArrivalPage() {
         {alreadyApplied ? (
           <>
             <motion.h1 className="opencall__headline" {...enter(0.4)}>
-              Your submission to {name} is already in.
+              {isEvent && eventName
+                ? `Your submission for ${eventName} is already in.`
+                : `Your submission to ${name} is already in.`}
             </motion.h1>
             <motion.p className="opencall__support" {...enter(0.55)}>
               {name} has your package. You can follow its status, message the
-              agency, or keep building your book from your dashboard.
+              {isEvent ? ' organizer' : ' agency'}, or keep building your book
+              from your dashboard.
             </motion.p>
             <motion.div {...enter(0.7)}>
               <PholioButton variant="primary" onClick={handleBegin}>
@@ -251,17 +333,41 @@ export default function OpenCallArrivalPage() {
         ) : (
           <>
             <motion.h1 className="opencall__headline" {...enter(0.4)}>
-              {name} invited you to submit.
+              {isEvent
+                ? eventName
+                  ? `${name} is casting for ${eventName}.`
+                  : `${name} is casting.`
+                : `${name} invited you to submit.`}
             </motion.h1>
             <motion.p className="opencall__support" {...enter(0.55)}>
-              You&apos;re joining {name}&apos;s open call through Pholio — build
-              your submission with digitals, stats, and a comp card, and send it
-              straight to their team.
+              {isEvent ? (
+                <>
+                  You&apos;re applying through Pholio — build your submission with
+                  digitals, stats, and a comp card, and send it straight to the
+                  casting team. If you&apos;re shortlisted, the designers working
+                  the event see your digitals, stats, availability and walk video
+                  through a read-only link. They never see your contact details.
+                </>
+              ) : (
+                <>
+                  You&apos;re joining {name}&apos;s open call through Pholio — build
+                  your submission with digitals, stats, and a comp card, and send it
+                  straight to their team.
+                </>
+              )}
             </motion.p>
-            <motion.p className="opencall__allowance" {...enter(0.68)}>
-              Invited submissions to {name} don&apos;t use your monthly Pholio
-              allowance.
-            </motion.p>
+            {isEvent ? (
+              // Ruling R8. Not a badge, not a footnote — the one hard eligibility
+              // rule on the page, said in plain words before anyone starts.
+              <motion.p className="opencall__agegate" {...enter(0.68)}>
+                You must be 18 or older to apply.
+              </motion.p>
+            ) : (
+              <motion.p className="opencall__allowance" {...enter(0.68)}>
+                Invited submissions to {name} don&apos;t use your monthly Pholio
+                allowance.
+              </motion.p>
+            )}
             {briefSections.length > 0 ? (
               <motion.dl
                 className="opencall__brief"
@@ -308,7 +414,8 @@ export default function OpenCallArrivalPage() {
             )}
             <motion.div {...enter(0.95)}>
               <PholioButton variant="primary" onClick={handleBegin}>
-                Begin your submission <ArrowUpRight size={14} aria-hidden />
+                {isEvent ? 'Apply for this event' : 'Begin your submission'}{' '}
+                <ArrowUpRight size={14} aria-hidden />
               </PholioButton>
               {!authenticated && (
                 <p className="opencall__signin-note">

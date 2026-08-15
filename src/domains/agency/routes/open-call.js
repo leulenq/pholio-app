@@ -18,15 +18,42 @@ const {
   OpenCallBriefError,
   briefColumns,
   briefDTO,
+  eventCallColumns,
+  eventCallDTO,
+  eventCallFromLink,
   hasBrief,
+  hasEventCallColumns,
   isClosedByDeadline,
   normalizeBrief,
+  normalizeEventCall,
 } = require("../services/open-call-brief");
+const {
+  DEFAULT_ORG_KIND,
+  maxOpenCallLinksForOrgKind,
+} = require("../../../shared/constants/event-casting");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
 
-const MAX_LINKS_PER_AGENCY = 20;
+// Deploy-before-migrate guard for `agencies.org_kind` (design A1). Without the
+// column every org is an agency, which is the stricter link ceiling — the safe
+// direction to be wrong in.
+let orgKindSchemaPromise = null;
+function hasOrgKindColumn(db) {
+  if (!orgKindSchemaPromise) {
+    orgKindSchemaPromise = db.schema.hasColumn("agencies", "org_kind").catch(() => {
+      orgKindSchemaPromise = null;
+      return false;
+    });
+  }
+  return orgKindSchemaPromise;
+}
+
+async function loadOrgKind(agencyId) {
+  if (!(await hasOrgKindColumn(knex))) return DEFAULT_ORG_KIND;
+  const agency = await knex("agencies").where({ id: agencyId }).first("org_kind");
+  return agency?.org_kind || DEFAULT_ORG_KIND;
+}
 
 // Deploy-before-migrate guard for the brief columns specifically: link
 // management keeps working on an older schema, only the brief is withheld.
@@ -61,6 +88,10 @@ function serializeLink(link, stats = null) {
     createdAt: link.created_at,
     revokedAt: link.revoked_at || null,
     brief: briefDTO(link),
+    // Additive: every link that existed before event casting reports
+    // `callKind: 'representation'` with the event slots empty, which is what
+    // it always was.
+    ...eventCallDTO(link),
     // Links published before the brief existed keep working. They are reported
     // as needing one rather than silently treated as complete.
     needsBrief: !hasBrief(link),
@@ -171,12 +202,15 @@ router.post(
       });
     }
 
+    // Ruling R6: a representation agency needs a handful of live entry links;
+    // a multi-edition organizer runs a call per city per season.
+    const maxLinks = maxOpenCallLinksForOrgKind(await loadOrgKind(agencyId));
     const existingCount = await knex("agency_open_call_links")
       .where({ agency_id: agencyId })
       .whereNot({ status: LINK_STATUSES.REVOKED })
       .count({ count: "*" })
       .first();
-    if (Number(existingCount?.count || 0) >= MAX_LINKS_PER_AGENCY) {
+    if (Number(existingCount?.count || 0) >= maxLinks) {
       return res.status(409).json({
         success: false,
         error: "link_limit_reached",
@@ -198,6 +232,19 @@ router.post(
       }
     }
 
+    // The call definition — representation by default, so a caller that knows
+    // nothing about event casting creates exactly the link it always did.
+    const eventCallSupported = await hasEventCallColumns(knex);
+    let call = null;
+    if (eventCallSupported) {
+      try {
+        call = normalizeEventCall(req.body);
+      } catch (error) {
+        if (error instanceof OpenCallBriefError) return briefErrorResponse(error, res);
+        throw error;
+      }
+    }
+
     const id = uuidv4();
     await knex("agency_open_call_links").insert({
       id,
@@ -209,6 +256,7 @@ router.post(
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
       ...(brief ? briefColumns(brief, knex.fn.now()) : {}),
+      ...(call ? eventCallColumns(call) : {}),
     });
     const link = await knex("agency_open_call_links").where({ id }).first();
     return res.json({ success: true, data: serializeLink(link) });
@@ -298,11 +346,45 @@ router.patch(
       }
     }
 
+    // The call definition is patched as a whole: an organizer sending only a
+    // corrected compensation line must not have the event silently erased, so
+    // the stored definition is the base and the body is the overlay.
+    const CALL_FIELDS = [
+      "callKind",
+      "event",
+      "compensation",
+      "intake",
+      "reviewWindowDays",
+      "offerResponseWindowHours",
+    ];
+    const callFieldsProvided = CALL_FIELDS.filter(
+      (field) => req.body?.[field] !== undefined,
+    );
+    if (callFieldsProvided.length > 0) {
+      if (!(await hasEventCallColumns(knex))) {
+        return res.status(503).json({
+          success: false,
+          error: "event_call_unavailable",
+          message: "Event calls are not available yet.",
+        });
+      }
+      const merged = { ...eventCallFromLink(link) };
+      for (const field of callFieldsProvided) {
+        merged[field] = req.body[field];
+      }
+      try {
+        Object.assign(updates, eventCallColumns(normalizeEventCall(merged)));
+      } catch (error) {
+        if (error instanceof OpenCallBriefError) return briefErrorResponse(error, res);
+        throw error;
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
         error: "no_changes",
-        message: "Provide a label, status, or brief to update.",
+        message: "Provide a label, status, brief, or call details to update.",
       });
     }
 

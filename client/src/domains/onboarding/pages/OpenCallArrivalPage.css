@@ -143,6 +143,25 @@
   margin: 0 0 26px;
 }
 
+/*
+ * Ruling R8 — the 18+ statement on an event call. It sits where the allowance
+ * line sits on a representation call, but it is not a reassurance, so it is
+ * not styled as one: full ink, heavier, a hairline rule under it to stop the
+ * eye. Plain text, deliberately not a badge or a chip.
+ */
+.opencall__agegate {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: clamp(14px, 1.7vw, 16px);
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: var(--app-ink);
+  margin: 4px 0 26px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--app-hair-strong);
+  align-self: stretch;
+}
+
 .opencall__steps {
   list-style: none;
   margin: 0 0 34px;

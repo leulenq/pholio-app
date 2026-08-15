@@ -5,8 +5,14 @@ const { v4: uuidv4 } = require("uuid");
 const {
   CURRENT_SUBMISSION_DISCLOSURE_VERSION,
   CURRENT_SUBMISSION_ACKNOWLEDGEMENT_VERSION,
+  acknowledgementVersionForPurpose,
   buildSubmissionDisclosureSnapshot,
+  disclosureVersionForPurpose,
+  normalizeDisclosurePurpose,
 } = require("../../../shared/lib/submission-disclosure-content");
+const {
+  DEFAULT_CALL_PURPOSE,
+} = require("../../../shared/constants/event-casting");
 
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
@@ -103,6 +109,29 @@ function requestClientMeta(req) {
   };
 }
 
+/*
+ * Deploy-before-migrate guard for the purpose columns (design A4). Consent is
+ * recorded inside the submit transaction: if the code ships ahead of the
+ * migration, writing a column that does not exist would fail the submission
+ * itself. Representation submissions predate these columns and must keep going
+ * through on an older schema. Cached per knex instance.
+ */
+const purposeSchemaPromises = new WeakMap();
+function hasConsentPurposeColumns(db) {
+  const client = db?.client || db;
+  let promise = purposeSchemaPromises.get(client);
+  if (!promise) {
+    promise = db.schema
+      .hasColumn("application_submission_consent_events", "purpose")
+      .catch(() => {
+        purposeSchemaPromises.delete(client);
+        return false;
+      });
+    purposeSchemaPromises.set(client, promise);
+  }
+  return promise;
+}
+
 async function recordSubmissionDisclosureConsent(
   trx,
   {
@@ -116,6 +145,9 @@ async function recordSubmissionDisclosureConsent(
     guardianConsentGrantId = null,
     ipAddress = null,
     userAgent = null,
+    purpose = DEFAULT_CALL_PURPOSE,
+    openCallLinkId = null,
+    compensationDisclosure = null,
   },
 ) {
   if (!applicationId || !userId || !profileId || !agencyId) {
@@ -128,6 +160,19 @@ async function recordSubmissionDisclosureConsent(
     throw new Error("Submission disclosure consent requires disclosure snapshot");
   }
 
+  const resolvedPurpose = normalizeDisclosurePurpose(purpose);
+
+  // The purpose decides which text the applicant read, so it decides which
+  // version is stamped. Defaulting keeps representation on the string it has
+  // always carried.
+  const purposeColumns = (await hasConsentPurposeColumns(trx))
+    ? {
+        purpose: resolvedPurpose,
+        open_call_link_id: openCallLinkId || null,
+        compensation_disclosure: compensationDisclosure || null,
+      }
+    : {};
+
   await trx("application_submission_consent_events").insert({
     id: uuidv4(),
     application_id: applicationId,
@@ -135,18 +180,21 @@ async function recordSubmissionDisclosureConsent(
     profile_id: profileId,
     agency_id: agencyId,
     package_fingerprint: packageFingerprint,
-    consent_text_version: CURRENT_SUBMISSION_DISCLOSURE_VERSION,
-    acknowledgement_version: CURRENT_SUBMISSION_ACKNOWLEDGEMENT_VERSION,
+    consent_text_version: disclosureVersionForPurpose(resolvedPurpose),
+    acknowledgement_version: acknowledgementVersionForPurpose(resolvedPurpose),
     disclosure_snapshot: disclosureSnapshot,
     guardian_consent_request_id: guardianConsentRequestId || null,
     guardian_consent_grant_id: guardianConsentGrantId || null,
     ip_address: ipAddress || null,
     user_agent: userAgent || null,
     created_at: trx.fn.now(),
+    ...purposeColumns,
   });
 }
 
 module.exports = {
+  CURRENT_SUBMISSION_DISCLOSURE_VERSION,
+  CURRENT_SUBMISSION_ACKNOWLEDGEMENT_VERSION,
   buildSubmissionDisclosureSnapshot,
   canonicalSubmissionPackage,
   buildSubmissionPackageFingerprint,

@@ -9,18 +9,89 @@ import {
   updateOpenCallLink,
 } from '../../api/agency';
 import OpenCallBriefFields from './OpenCallBriefFields';
-import { EMPTY_BRIEF, briefFromLink } from './openCallBrief';
+import EventCallFields from './EventCallFields';
+import {
+  EMPTY_BRIEF,
+  EMPTY_EVENT_CALL,
+  briefFromLink,
+  callPayload,
+  cloneEventCall,
+  eventCallFromLink,
+  isEventCallComplete,
+} from './openCallBrief';
+import { CALL_KINDS, isEventCastingCallKind } from '../../../../shared/constants/eventCasting';
 
 /*
  * Open call links — the agency's own applicant funnel routed through Pholio.
  * Talent arriving through a link submit straight to this house, and those
  * invited submissions never count against their monthly Pholio limit.
+ *
+ * A link is one of two kinds. A representation call is the standing "become a
+ * model" door. An event cast is a dated job with compensation attached, and
+ * everything downstream of it — the consent an applicant signs, the retention
+ * clock, the designer pick lists — hangs off that choice, so it is made here,
+ * once, at the top of the form. Ruling R10: this is the same panel, with the
+ * event vocabulary appearing only when the kind is set to it.
  */
 
 function linkUrl(code) {
   const origin =
     typeof window !== 'undefined' ? window.location.origin : 'https://app.pholio.studio';
   return `${origin}/opencall/${code}`;
+}
+
+function formatEventDates(event) {
+  if (!event?.startsOn) return null;
+  if (!event.endsOn || event.endsOn === event.startsOn) return event.startsOn;
+  return `${event.startsOn} – ${event.endsOn}`;
+}
+
+const COMPENSATION_SUMMARY = {
+  paid: 'Paid',
+  stipend: 'Stipend',
+  unpaid: 'Unpaid',
+};
+
+/*
+ * The kind switch. Two AgencyButtons, the same idiom as the brief's closing
+ * control — a choice with two real answers reads better as two visible
+ * answers than as a dropdown that hides one of them.
+ */
+function CallKindChoice({ value, onChange, disabled }) {
+  return (
+    <div className="st-field">
+      <span className="st-label">
+        What kind of call<span className="st-req"> *</span>
+      </span>
+      <div className="st-brief-deadline">
+        <AgencyButton
+          type="button"
+          variant={isEventCastingCallKind(value) ? 'secondary' : 'primary'}
+          size="sm"
+          disabled={disabled}
+          aria-pressed={!isEventCastingCallKind(value)}
+          onClick={() => onChange(CALL_KINDS.REPRESENTATION)}
+        >
+          Representation
+        </AgencyButton>
+        <AgencyButton
+          type="button"
+          variant={isEventCastingCallKind(value) ? 'primary' : 'secondary'}
+          size="sm"
+          disabled={disabled}
+          aria-pressed={isEventCastingCallKind(value)}
+          onClick={() => onChange(CALL_KINDS.EVENT_CASTING)}
+        >
+          Event cast
+        </AgencyButton>
+      </div>
+      <span className="st-help">
+        {isEventCastingCallKind(value)
+          ? 'A dated job with compensation. Applicants consent to different terms, designers can be sent a pick list, and packages are deleted 90 days after the event ends.'
+          : 'A standing call for new faces. Applicants consent to representation review and the submission does not count against their monthly Pholio allowance.'}
+      </span>
+    </div>
+  );
 }
 
 async function copyToClipboard(text) {
@@ -36,11 +107,13 @@ export default function OpenCallPanel({ canManage = true }) {
   const queryClient = useQueryClient();
   const [label, setLabel] = useState('');
   const [brief, setBrief] = useState({ ...EMPTY_BRIEF });
+  const [call, setCall] = useState(() => cloneEventCall(EMPTY_EVENT_CALL));
   const [confirmRevokeId, setConfirmRevokeId] = useState(null);
   // Which existing link is having its brief edited. Links published before the
   // brief existed keep working and are prompted to add one.
   const [editingBriefId, setEditingBriefId] = useState(null);
   const [editingBrief, setEditingBrief] = useState({ ...EMPTY_BRIEF });
+  const [editingCall, setEditingCall] = useState(() => cloneEventCall(EMPTY_EVENT_CALL));
 
   const linksQuery = useQuery({
     queryKey: ['agency-open-call-links'],
@@ -53,12 +126,15 @@ export default function OpenCallPanel({ canManage = true }) {
     queryClient.invalidateQueries({ queryKey: ['agency-open-call-links'] });
 
   const createMutation = useMutation({
-    mutationFn: () => createOpenCallLink(label.trim(), brief),
+    mutationFn: () => createOpenCallLink(label.trim(), brief, callPayload(call)),
     onSuccess: () => {
       setLabel('');
       setBrief({ ...EMPTY_BRIEF });
+      setCall(cloneEventCall(EMPTY_EVENT_CALL));
       invalidate();
-      toast.success('Open call link created');
+      toast.success(
+        isEventCastingCallKind(call.callKind) ? 'Event call created' : 'Open call link created',
+      );
     },
     onError: (e) => toast.error(e?.data?.message || e?.message || 'Could not create the link'),
   });
@@ -81,6 +157,7 @@ export default function OpenCallPanel({ canManage = true }) {
 
   const unavailable = linksQuery.error?.status === 503;
   const links = linksQuery.data || [];
+  const isEventCall = isEventCastingCallKind(call.callKind);
 
   if (unavailable) {
     return (
@@ -110,9 +187,11 @@ export default function OpenCallPanel({ canManage = true }) {
       {canManage && (
         <div className="st-fieldset">
           <div className="st-fieldset-head">
-            <h3 className="st-fieldset-title">New link</h3>
+            <h3 className="st-fieldset-title">{isEventCall ? 'New event call' : 'New link'}</h3>
             <p className="st-fieldset-sub">
-              Name it for the channel it lives on — the label is only visible to your team.
+              {isEventCall
+                ? 'Name it for the edition it belongs to — the label is only visible to your team.'
+                : 'Name it for the channel it lives on — the label is only visible to your team.'}
             </p>
           </div>
           <form
@@ -134,16 +213,39 @@ export default function OpenCallPanel({ canManage = true }) {
               />
             </div>
 
+            <div className="st-brief">
+              <CallKindChoice
+                value={call.callKind}
+                disabled={createMutation.isPending}
+                onChange={(callKind) => setCall({ ...call, callKind })}
+              />
+            </div>
+
+            {isEventCall && (
+              <>
+                <p className="st-help st-brief-lead">
+                  The event, and the terms applicants consent to when they send.
+                </p>
+                <EventCallFields
+                  call={call}
+                  onChange={setCall}
+                  disabled={createMutation.isPending}
+                  idPrefix="new-event"
+                />
+              </>
+            )}
+
             <p className="st-help st-brief-lead">
-              Every open call carries a brief. Applicants read it before they
-              apply, so they arrive knowing who the call is for and what happens
-              after they send.
+              {isEventCall
+                ? 'Every call carries a brief. Applicants read it before they apply, so they arrive knowing what you are casting and how you decide.'
+                : 'Every open call carries a brief. Applicants read it before they apply, so they arrive knowing who the call is for and what happens after they send.'}
             </p>
             <OpenCallBriefFields
               brief={brief}
               onChange={setBrief}
               disabled={createMutation.isPending}
               idPrefix="new-brief"
+              eventMode={isEventCall}
             />
 
             <AgencyButton
@@ -151,9 +253,9 @@ export default function OpenCallPanel({ canManage = true }) {
               variant="primary"
               size="sm"
               loading={createMutation.isPending}
-              disabled={!label.trim()}
+              disabled={!label.trim() || !isEventCallComplete(call)}
             >
-              Create link
+              {isEventCall ? 'Create event call' : 'Create link'}
             </AgencyButton>
           </form>
         </div>
@@ -183,6 +285,8 @@ export default function OpenCallPanel({ canManage = true }) {
               const paused = link.status === 'paused';
               const confirming = confirmRevokeId === link.id;
               const editing = editingBriefId === link.id;
+              const linkIsEvent = isEventCastingCallKind(link.callKind);
+              const eventDates = formatEventDates(link.event);
               return (
                 <li key={link.id} className={`st-opencall-row${editing ? ' st-opencall-row--editing' : ''}`}>
                   <div className="st-opencall-main">
@@ -203,6 +307,18 @@ export default function OpenCallPanel({ canManage = true }) {
                       <code>{url}</code>
                       <ExternalLink size={12} className="st-opencall-ext" />
                     </a>
+                    {linkIsEvent && (
+                      <span className="st-opencall-brief-state">
+                        {[
+                          link.event?.name,
+                          eventDates,
+                          link.event?.location,
+                          COMPENSATION_SUMMARY[link.compensation?.type],
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    )}
                     <span className="st-opencall-funnel">
                       {link.arrivals || 0} arrivals · {link.claims || 0} invitations claimed ·{' '}
                       {link.submissions || 0} submissions
@@ -244,6 +360,7 @@ export default function OpenCallPanel({ canManage = true }) {
                           onClick={() => {
                             setEditingBriefId(editing ? null : link.id);
                             setEditingBrief(briefFromLink(link));
+                            setEditingCall(eventCallFromLink(link));
                           }}
                         >
                           {link.brief ? 'Edit brief' : 'Add brief'}
@@ -311,15 +428,30 @@ export default function OpenCallPanel({ canManage = true }) {
                         if (updateMutation.isPending) return;
                         updateMutation.mutate({
                           id: link.id,
-                          payload: { brief: editingBrief },
+                          payload: { brief: editingBrief, ...callPayload(editingCall) },
                         });
                       }}
                     >
+                      {/*
+                        A live call keeps its kind. Switching a representation
+                        link into an event cast after people have submitted to
+                        it would retro-fit a consent they never signed; the
+                        organizer creates a new call instead.
+                      */}
+                      {isEventCastingCallKind(editingCall.callKind) && (
+                        <EventCallFields
+                          call={editingCall}
+                          onChange={setEditingCall}
+                          disabled={updateMutation.isPending}
+                          idPrefix={`event-${link.id}`}
+                        />
+                      )}
                       <OpenCallBriefFields
                         brief={editingBrief}
                         onChange={setEditingBrief}
                         disabled={updateMutation.isPending}
                         idPrefix={`brief-${link.id}`}
+                        eventMode={isEventCastingCallKind(editingCall.callKind)}
                       />
                       <div className="st-opencall-brief-edit-actions">
                         <AgencyButton
@@ -327,6 +459,7 @@ export default function OpenCallPanel({ canManage = true }) {
                           variant="primary"
                           size="sm"
                           loading={updateMutation.isPending}
+                          disabled={!isEventCallComplete(editingCall)}
                         >
                           Save brief
                         </AgencyButton>
