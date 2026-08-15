@@ -25,25 +25,148 @@ function markState(description) {
     ?.getAttribute('data-mark-state');
 }
 
+/** A slice of `registryTaxonomyLabels()` — the vocabulary the panel speaks in. */
+const labels = {
+  'shot.frame': {
+    label: 'Shot frame',
+    values: { headshot: { label: 'Headshot' }, close_up: { label: 'Close-up' } },
+  },
+  'shot.view': { label: 'Shot view', values: { profile: { label: 'Profile' } } },
+  'appearance.hair_state': {
+    label: 'Hair state',
+    values: { pulled_back: { label: 'Pulled back' } },
+  },
+  'appearance.makeup_level': { label: 'Makeup level', values: {} },
+  'file.size_bytes': { label: 'File size', values: {} },
+  'applicant.age_years': { label: 'Age', values: {} },
+  'contact.email': { label: 'Email', values: {} },
+  'files.per_file_size': { label: 'Per-file size limit', values: {} },
+};
+
+function finding(overrides) {
+  return {
+    categoryKey: 'shots',
+    category: 'Shots',
+    outcome: 'satisfied',
+    modality: 'requested',
+    severity: null,
+    requiresAttention: false,
+    field: null,
+    matchValue: null,
+    matchValues: [],
+    matchKey: null,
+    guidance: null,
+    target: null,
+    assignments: [],
+    factStates: [],
+    ...overrides,
+  };
+}
+
 /*
  * Mirrors what `evaluationDto` actually sends (see
- * `src/domains/spec-registry/preflight-service.js`) — including `categoryKey`,
- * the machine-readable bucket the coverage schematic reads. `category` is only
- * its display name, so a fixture carrying just that would let the schematic
- * silently render nothing while the suite stayed green.
+ * `src/domains/spec-registry/preflight-service.js`) — including `slotKey`,
+ * `matchValues` and the top-level `labels` map. A fixture carrying only
+ * `sourceLabel` would let the panel render an agency's raw form wording while
+ * the suite stayed green.
  */
 const result = {
   available: true,
   sourceCheckedOn: '2026-08-09',
+  labels,
   summary: { needsAttention: 2, informational: 1, confirm: 1, included: 1 },
   shotCoverage: { selected: 4, published: 6, matched: 3 },
   findings: [
-    { id: 'shots:missing-profile', categoryKey: 'shots', category: 'Shots', outcome: 'missing', severity: 'attention', requiresAttention: true, sourceLabel: 'Profile image', guidance: 'Add a side profile.', target: { href: '/dashboard/talent/media', label: 'Open the book' } },
-    { id: 'files:filter', categoryKey: 'files', category: 'Files', outcome: 'violates', severity: 'attention', requiresAttention: true, sourceLabel: 'No filters', guidance: 'Choose an unfiltered image.' },
-    { id: 'setWide:preferred-height', categoryKey: 'setWide', category: 'Presentation', outcome: 'violates', severity: 'informational', requiresAttention: false, sourceLabel: 'Preferred height', guidance: 'This is agency guidance.' },
-    { id: 'shots:hair', categoryKey: 'shots', category: 'Shots', outcome: 'unknown', severity: null, requiresAttention: false, sourceLabel: 'Hair pulled back', guidance: 'Confirm this before sending.' },
-    { id: 'shots:headshot', categoryKey: 'shots', category: 'Shots', outcome: 'satisfied', severity: null, requiresAttention: false, sourceLabel: 'Headshot', guidance: 'Included.' },
-    { id: 'shots:skip', categoryKey: 'shots', category: 'Shots', outcome: 'not_applicable', severity: null, requiresAttention: false, sourceLabel: 'Not applicable' },
+    finding({
+      id: 'shots:missing-profile',
+      slotKey: 'elite#shots:missing-profile',
+      field: 'shot.view',
+      matchValue: 'profile',
+      matchValues: [{ field: 'shot.view', operator: 'equals', value: 'profile' }],
+      matchKey: 'shot.view:equals:profile',
+      // IMG's form calls it this; it is not the name of a picture.
+      sourceLabel: 'upload profile',
+      outcome: 'missing',
+      severity: 'attention',
+      requiresAttention: true,
+      target: { href: '/dashboard/talent/media', label: 'Open the book' },
+    }),
+    finding({
+      id: 'shots:headshot',
+      slotKey: 'elite#shots:headshot',
+      field: 'shot.frame',
+      matchValue: 'headshot',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'headshot' }],
+      matchKey: 'shot.frame:equals:headshot',
+      sourceLabel: 'Headshot *',
+    }),
+    finding({
+      id: 'shots:hair',
+      slotKey: 'elite#shots:hair',
+      matchValues: [
+        { field: 'shot.frame', operator: 'equals', value: 'close_up' },
+        { field: 'appearance.hair_state', operator: 'equals', value: 'pulled_back' },
+      ],
+      matchKey: 'appearance.hair_state:equals:pulled_back&shot.frame:equals:close_up',
+      sourceLabel: 'Close up (hair pulled back)',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'shots:skip',
+      slotKey: 'elite#shots:skip',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'close_up' }],
+      sourceLabel: 'Not applicable',
+      outcome: 'not_applicable',
+    }),
+    finding({
+      id: 'setWide:no-makeup',
+      slotKey: 'elite#setWide:no-makeup',
+      categoryKey: 'setWide',
+      category: 'Presentation',
+      field: 'appearance.makeup_level',
+      modality: 'prohibited',
+      sourceLabel: 'Wear no make-up',
+      outcome: 'missing',
+    }),
+    finding({
+      id: 'files:size',
+      slotKey: 'elite#files:size',
+      categoryKey: 'files',
+      category: 'Files',
+      field: 'file.size_bytes',
+      modality: 'required',
+      sourceLabel: 'Max. 5mb each',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'eligibility:age',
+      slotKey: 'elite#eligibility:age',
+      categoryKey: 'eligibility',
+      category: 'Eligibility',
+      field: 'applicant.age_years',
+      sourceLabel: 'ages 15 and up',
+      outcome: 'missing',
+      factStates: [{ field: 'applicant.age_years', state: 'missing', source: 'profile' }],
+      target: { href: '/dashboard/talent/profile', label: 'Open profile' },
+    }),
+    finding({
+      id: 'applicationFields:email',
+      slotKey: 'elite#applicationFields:email',
+      categoryKey: 'applicationFields',
+      category: 'Application fields',
+      field: 'contact.email',
+      sourceLabel: 'E-mail',
+      outcome: 'unknown',
+    }),
+    finding({
+      id: 'sourceUnknown:files.per_file_size:1',
+      slotKey: 'elite#sourceUnknown:files.per_file_size:1',
+      categoryKey: 'sourceUnknown',
+      category: 'Not published',
+      field: 'files.per_file_size',
+      sourceLabel: 'Per File Size',
+      outcome: 'unknown',
+    }),
   ],
 };
 
@@ -52,7 +175,7 @@ describe('RegistryPreflight', () => {
     const queryFn = vi.fn().mockResolvedValue(result);
     renderPreflight({ imageIds: ['b', 'a'], queryFn });
 
-    expect(await screen.findByText('3 of 6 shots matched')).toBeInTheDocument();
+    expect(await screen.findByText('1 of 3 shots in your set')).toBeInTheDocument();
     expect(
       screen.getByRole('heading', {
         name: 'Checked against Elite Models’ published route',
@@ -67,36 +190,52 @@ describe('RegistryPreflight', () => {
     });
   });
 
-  test('draws the published shots as the same three marks the ledger uses', async () => {
+  test('speaks the same three words the requirements page speaks (ruling R-D)', async () => {
     renderPreflight({ queryFn: () => Promise.resolve(result) });
 
     await screen.findByRole('list', { name: 'Published shots' });
-    expect(markState('Headshot — in your set')).toBe('covered');
-    expect(markState('Profile image — still needed')).toBe('wanted');
-    expect(markState('Hair pulled back — not asked for')).toBe('not_asked');
+    expect(markState('Headshot — in your set')).toBe('in_set');
+    expect(markState('Profile shot — still needed')).toBe('needed');
+    expect(markState('Close-up, hair pulled back — not asked for')).toBe('not_asked');
     // A requirement that does not apply is noise, not a slot.
     expect(screen.queryByTitle(/Not applicable/)).not.toBeInTheDocument();
   });
 
-  test('keeps what needs attention open and everything else behind one toggle', async () => {
+  test('names shots canonically — never the agency’s own form wording', async () => {
+    renderPreflight({ queryFn: () => Promise.resolve(result) });
+
+    expect(await screen.findByText('Profile shot')).toBeInTheDocument();
+    expect(screen.queryByText('upload profile')).not.toBeInTheDocument();
+    expect(screen.queryByText('Headshot *')).not.toBeInTheDocument();
+  });
+
+  test('keeps what is still needed open and everything else behind one toggle', async () => {
     const user = userEvent.setup();
     renderPreflight({ queryFn: () => Promise.resolve(result) });
 
-    await screen.findByText('Profile image');
-    expect(screen.getByText('No filters')).toBeInTheDocument();
-    expect(screen.queryByText('Hair pulled back')).not.toBeInTheDocument();
-    expect(screen.queryByText('Preferred height')).not.toBeInTheDocument();
-    expect(screen.queryByText('Headshot')).not.toBeInTheDocument();
+    await screen.findByText('Profile shot');
+    expect(screen.queryByText('Wear no make-up')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Their form publishes limits/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Details \(3\)/ }));
+    await user.click(screen.getByRole('button', { name: /What else they published \(5\)/ }));
 
-    expect(await screen.findByText('Hair pulled back')).toBeInTheDocument();
-    expect(screen.getByText('Preferred height')).toBeInTheDocument();
-    expect(screen.getByText('Headshot')).toBeInTheDocument();
-    const groups = screen
+    const blocks = screen
       .getAllByRole('heading', { level: 3 })
       .map((heading) => heading.textContent);
-    expect(groups).toEqual(['Confirm · 1', 'Guidance · 1', 'Included · 1']);
+    expect(blocks).toEqual([
+      'Set rules',
+      'Files',
+      'Eligibility',
+      'Their form asks for',
+      'Not published',
+    ]);
+    expect(await screen.findByText('Wear no make-up')).toBeInTheDocument();
+    expect(
+      screen.getByText('Age — Pholio can’t check this from your profile.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Elite Models doesn’t publish file limits.'),
+    ).toBeInTheDocument();
   });
 
   test('formats the source date rather than printing the raw calendar value', async () => {
@@ -125,7 +264,7 @@ describe('RegistryPreflight', () => {
 
     await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(3));
     expect(
-      await screen.findByText('No published requirement needs action for this package.'),
+      await screen.findByText('They publish no shot list — form details only.'),
     ).toBeInTheDocument();
   });
 
@@ -173,7 +312,7 @@ describe('RegistryPreflight', () => {
     const queryFn = vi.fn();
     renderPreflight({ result, isLoading: false, queryFn });
 
-    expect(await screen.findByText('Profile image')).toBeInTheDocument();
+    expect(await screen.findByText('Profile shot')).toBeInTheDocument();
     expect(queryFn).not.toHaveBeenCalled();
   });
 
@@ -195,18 +334,19 @@ describe('RegistryPreflight', () => {
     expect(action).not.toHaveAttribute('aria-disabled', 'true');
     await user.click(action);
     expect(onAction).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'shots:missing-profile' }),
+      expect.objectContaining({ key: 'elite#shots:missing-profile' }),
     );
   });
 
   test('unwraps the single result returned by the batched preflight endpoint', async () => {
     const queryFn = vi.fn().mockResolvedValue({
       available: true,
+      labels,
       results: [result],
     });
     renderPreflight({ queryFn });
 
-    expect(await screen.findByText('Profile image')).toBeInTheDocument();
+    expect(await screen.findByText('Profile shot')).toBeInTheDocument();
     expect(queryFn).toHaveBeenCalledTimes(1);
   });
 
@@ -228,6 +368,7 @@ describe('RegistryPreflight', () => {
     renderPreflight({
       queryFn: () => Promise.resolve({
         available: true,
+        labels,
         resolution: 'choice_required',
         results: [first, second],
       }),
