@@ -279,6 +279,37 @@ DESIGN RULES (talent-side frontend)
   via the internal review pipeline; verify netlify redirects deploy (/picks,/reply,
   /opencall — the latter two NEVER worked in prod before this branch).
 
+## Session 3 state (successor session, 2026-08-15 ~21:00 UTC)
+- Phase 6 investigation wave DONE (3 read-only agents; 4th agent = Phase 7 is_pro gate
+  audit, results pending/queued for Phase 7). Key findings: spec_registry_engagement_events
+  already records exports per profile (write-only today); auto-close is the pattern to
+  mirror; **reference-entry conversion NEVER happened** — seeds still wire Elite/Ford/IMG/
+  etc. as ACTIVE applyable w/ registry routes + demo applications (plan §9.2 Week-1 item;
+  folded into Phase 6 as migration M4 + directory filter); GET /api/talent/agencies also
+  missing the org_kind filter (flagged in 20260815093000 migration comment — same pass).
+  NY DOL Socrata hder-iq9y is LIVE and fetched: 75 rows w/ real cert numbers incl. DNA,
+  Elite, Ford, IMG, Muse, Next, Society, Wilhelmina, Women, State, Que — raw snapshot to
+  be committed into the trust pack (NEVER fabricate registry data — ruling R4).
+- Phase 6 DESIGN COMPLETE: docs/talent-trust-loop-design-2026-08.md — three tables
+  (off_platform_submissions, agency_verifications, agency_call_windows) + M4 reference
+  conversion; one curated trust-registry pack/pipeline (data/trust-registry/v1, npm
+  release:trust-registry); rulings R1-R9 (display-time lapse — no job; positive-only
+  verification; call_windows namespace to dodge the open-call collision; merged ledger in
+  ApplicationsView; hard delete OK on tracker rows). Lanes: 0 → (A1 ∥ A2) → (B ∥ C).
+  Folds in backlog item: readRoute channelType + email-route plate copy (Lane B).
+- RATE-LIMIT NOTE: first investigation wave was killed by a session limit; relaunched
+  after reset per standing rule 4. is_pro audit agent relaunched with the wave.
+- Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
+  portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
+  agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
+  "shipped" claims were WRONG — bdb0f15 never touched show.ejs). Also: intel.js:78
+  truncates the guidance stack for free (paid guidance = FWA prong-c), live Stripe product
+  description says "unlimited agency applications" (needs code fix + live re-provision
+  runbook item), Settings lede claims "submission volume" (false), ?debug=pro bypass in
+  analytics.js:882, QR/logo render gates half-reconciled (uploads freed, render still
+  gated). Billing is ROSCA-shaped already (server-enforced disclosure, 2-click portal
+  cancel); missing: portal-return confirmation, trial_will_end notice, any geofence.
+
 ## REMAINING ROADMAP (successor session picks up here)
 - Phase 6: off-platform submission tracker + auto-lapse ("sent what where, silence →
   assume pass, re-apply window"); verification rail (NY DOL registry overlay
