@@ -194,6 +194,9 @@ async function createVerificationSession(profile, { consent = false } = {}) {
       options: { document: { require_matching_selfie: true } },
       return_url: `${config.stripe.baseUrl}/dashboard/talent/profile?age_verification=return`,
     });
+    // Persist only the session id/status — session.client_secret is Stripe's
+    // short-lived, single-use secret for the client-side modal. It is returned
+    // to the caller (see route) and must never be logged or written to a column.
     await knex("age_verifications").where({ id }).update({
       provider_session_id: session.id,
       status: session.status || "requires_input",

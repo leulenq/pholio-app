@@ -52,7 +52,14 @@ router.post(
     }
     try {
       const { session } = await createVerificationSession(profile, { consent: true });
-      return apiResponse.success(res, { url: session.url, status: session.status }, 201);
+      // client_secret powers the in-app Stripe.js modal (stripe.verifyIdentity);
+      // session.url remains for the hosted-page redirect fallback. Additive only
+      // — never logged, never persisted (Stripe's own short-lived, single-use secret).
+      return apiResponse.success(
+        res,
+        { url: session.url, status: session.status, client_secret: session.client_secret || null },
+        201,
+      );
     } catch (error) {
       const status = error.code === "DOB_REQUIRED" ? 422 : error.code === "ADULT_ONLY" ? 403 : 503;
       return apiResponse.error(res, error.message || "Age verification could not start", status, {
