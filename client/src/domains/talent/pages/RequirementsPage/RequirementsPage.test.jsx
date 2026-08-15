@@ -32,6 +32,37 @@ function renderPage() {
   );
 }
 
+/**
+ * The ledger card mounts as soon as the directory resolves — the column heads
+ * are the page's navigation and must not wait on the per-route check. The rows
+ * arrive with the preflight, so tests about cells wait for a row.
+ */
+async function renderWithLedger() {
+  const utils = renderPage();
+  await screen.findByRole('rowheader', { name: /profile/i });
+  return utils;
+}
+
+async function renderWithPlate() {
+  const utils = renderPage();
+  await screen.findByRole('heading', { name: 'Attention · 4', level: 3 });
+  return utils;
+}
+
+/** The geometric state of the mark carrying a given description. */
+function markState(description) {
+  return screen
+    .getByText(description)
+    .closest('[data-mark-state]')
+    ?.getAttribute('data-mark-state');
+}
+
+function rowFor(pattern) {
+  return screen
+    .getAllByRole('row')
+    .find((row) => pattern.test(within(row).queryAllByRole('rowheader')[0]?.textContent || ''));
+}
+
 /*
  * Mirrors `routeDto` in `src/domains/spec-registry/preflight-service.js`.
  * `acceptsPholioSubmissions` comes from the agency-routes join, not from
@@ -102,8 +133,7 @@ const eliteEvaluation = {
       category: 'Shots',
     },
     // Not a shot. Real registry data puts file limits and social handles in
-    // this same flat list, and they must not land in the headline that counts
-    // shot slots.
+    // this same flat list, and they must not land in the shot grid.
     {
       id: 'files:maximum-image-count',
       categoryKey: 'files',
@@ -200,10 +230,24 @@ describe('RequirementsPage', () => {
     });
   });
 
-  describe('the matrix', () => {
+  test('states the page and its provenance without an eyebrow above the title', async () => {
+    renderPage();
+
+    const title = await screen.findByRole('heading', { level: 1 });
+    expect(title).toHaveTextContent('Agency requirements');
+    expect(
+      screen.getByText(
+        'What each agency’s published route asks for, checked against your current digitals.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText('Registry verified continuously · 2 agencies'),
+    ).toBeInTheDocument();
+  });
+
+  describe('the ledger', () => {
     test('aligns the same shot across agencies by taxonomy value, not by label', async () => {
-      renderPage();
-      await screen.findByRole('table');
+      await renderWithLedger();
 
       // Elite calls it "close-up profile, hair pulled back"; Models 1 calls the
       // same `shot.view: profile` "Profile shot". One row, not two — matching on
@@ -214,143 +258,129 @@ describe('RequirementsPage', () => {
     });
 
     test('leads with the shot that unlocks the most agencies', async () => {
-      renderPage();
-      await screen.findByRole('table');
+      await renderWithLedger();
 
       // Both agencies want a profile and neither is covered → unlocks 2, the
       // highest, so it sorts to the top and becomes the recommendation.
-      expect(
-        await screen.findByText(/would satisfy 2 more agencies/i),
-      ).toBeInTheDocument();
+      expect(await screen.findByText(/would satisfy 2 more agencies/i)).toBeInTheDocument();
       const firstRow = screen.getAllByRole('row')[1];
       expect(within(firstRow).getAllByRole('rowheader')[0].textContent).toMatch(/profile/i);
+      // Emphasis, not a chip: the highest-leverage row label is the only one
+      // set in the accent.
+      expect(within(firstRow).getByText('Profile shot').tagName).toBe('EM');
     });
 
-    test('does not count a shot an agency never asked for', async () => {
-      renderPage();
-      await screen.findByRole('table');
+    test('draws the three cell states as marks, never as coloured dots', async () => {
+      await renderWithLedger();
 
-      // Only Elite publishes a personality shot, so it can unlock exactly one.
-      const row = screen
-        .getAllByRole('row')
-        .find((r) => /personality/i.test(within(r).queryAllByRole('rowheader')[0]?.textContent || ''));
-      expect(within(row).getByText('1')).toBeInTheDocument();
+      expect(markState('Elite Models: full-length covered')).toBe('covered');
+      expect(markState('Models 1: Profile shot still needed')).toBe('wanted');
+      expect(markState('Models 1: does not ask for personality shot')).toBe('not_asked');
     });
 
-    test('marks a covered shot as covered rather than as leverage', async () => {
-      renderPage();
-      await screen.findByRole('table');
+    test('reads out how many agencies each missing shot would still satisfy', async () => {
+      await renderWithLedger();
 
-      const row = screen
-        .getAllByRole('row')
-        .find((r) => /full[- ]length/i.test(within(r).queryAllByRole('rowheader')[0]?.textContent || ''));
-      expect(within(row).getByText('covered')).toBeInTheDocument();
+      expect(within(rowFor(/profile/i)).getByText('Still needed by 2')).toBeInTheDocument();
+      expect(within(rowFor(/personality/i)).getByText('Still needed by 1')).toBeInTheDocument();
+      expect(within(rowFor(/full[- ]length/i)).getByText('Covered')).toBeInTheDocument();
     });
 
-    test('describes every cell for a screen reader', async () => {
-      renderPage();
-      await screen.findByRole('table');
+    test('names each column by agency and office, and legends the marks once', async () => {
+      await renderWithLedger();
 
-      expect(
-        screen.getByText('Elite Models: full-length covered'),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Models 1: .*still needed/),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Models 1: does not ask for personality shot/),
-      ).toBeInTheDocument();
+      const column = screen.getByRole('button', { name: /^Elite Models/ });
+      expect(within(column).getByText('New York')).toBeInTheDocument();
+      expect(screen.getByText('In your set')).toBeInTheDocument();
+      expect(screen.getByText('Asked for, not yet covered')).toBeInTheDocument();
+      expect(screen.getByText('Not asked for')).toBeInTheDocument();
     });
 
-    test('the grid is the navigation — a column head opens that agency', async () => {
+    test('the ledger is the navigation — a column head opens that agency', async () => {
       const user = userEvent.setup();
-      renderPage();
-      await screen.findByRole('table');
+      await renderWithLedger();
 
-      await user.click(screen.getByRole('button', { name: /models 1/i }));
+      const column = screen.getByRole('button', { name: /^Models 1/ });
+      expect(column).toHaveAttribute('aria-pressed', 'false');
+      await user.click(column);
+
       expect(
         await screen.findByRole('heading', { name: 'Models 1', level: 2 }),
       ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^Models 1/ })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
     });
   });
 
   describe('the opened agency', () => {
     test('opens on an agency that actually published a shot list', async () => {
-      renderPage();
+      await renderWithPlate();
       // Not simply the first route — one that can demonstrate the check.
+      const plate = screen
+        .getByRole('heading', { name: 'Elite Models', level: 2 })
+        .closest('section');
+      expect(within(plate).getByText('New York')).toBeInTheDocument();
+      expect(within(plate).getByText('Verified on August 9, 2026')).toBeInTheDocument();
+    });
+
+    test('stacks findings in a fixed order, with counts as plain text', async () => {
+      await renderWithPlate();
+
+      const plate = screen.getByRole('heading', { name: 'Elite Models', level: 2 }).closest('section');
+      const groups = within(plate)
+        .getAllByRole('heading', { level: 3 })
+        .map((heading) => heading.textContent);
+      expect(groups).toEqual(['Attention · 4', 'Confirm · 1', 'Included · 1']);
+    });
+
+    test('keeps what needs doing open and the long, quiet groups closed', async () => {
+      const user = userEvent.setup();
+      await renderWithPlate();
+
+      const plate = screen
+        .getByRole('heading', { name: 'Elite Models', level: 2 })
+        .closest('section');
+
+      // Attention and Confirm are expanded; Included waits to be asked for.
+      expect(within(plate).getByText('close-up profile, hair pulled back')).toBeInTheDocument();
+      expect(within(plate).getByText('Hair pulled back')).toBeInTheDocument();
+      expect(within(plate).queryByText('full-length')).not.toBeInTheDocument();
+
+      await user.click(within(plate).getByRole('button', { name: /Included · 1/ }));
+      expect(await within(plate).findByText('full-length')).toBeInTheDocument();
+    });
+
+    test('says plainly when an agency cannot be applied to through Pholio', async () => {
+      await renderWithPlate();
+
       expect(
-        await screen.findByRole('heading', { name: 'Elite Models', level: 2 }),
+        screen.getByText('Applies via their own site — we prepare a conforming set.'),
       ).toBeInTheDocument();
-      expect(await screen.findByText('4')).toBeInTheDocument();
-    });
-
-    test('names the shots still missing, and counts the rest separately', async () => {
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
-
-      // "Still needed" is both this inline label and, once the check is open, a
-      // group heading — so the query names which one it means.
-      const missing = await screen.findByText('Still needed', { selector: 'strong' });
-      const line = missing.closest('p');
-      expect(line).toHaveTextContent('close-up profile, hair pulled back');
-      // The figure counts shot slots, so the line beneath it names shots — a
-      // file limit and a social handle would be a different question.
-      expect(line).not.toHaveTextContent('Image count');
-      expect(line).toHaveTextContent('2 other published requirements to check');
-    });
-
-    test('marks deliverability inline rather than splitting the market', async () => {
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
-      expect(screen.getByText('Applies on their own site')).toBeInTheDocument();
     });
 
     test('never frames a reference agency as somewhere a package is sent', async () => {
-      const user = userEvent.setup();
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+      await renderWithPlate();
 
       expect(screen.queryByText(/prepare this package/i)).not.toBeInTheDocument();
-
-      // Open the full check so the server-supplied guidance is actually on the
-      // page — asserting against a collapsed panel would pass for the wrong reason.
-      await user.click(screen.getByRole('button', { name: /see the full check/i }));
       expect(screen.getByText(/Confirm it yourself\./)).toBeInTheDocument();
       expect(screen.queryByText(/before sending/i)).not.toBeInTheDocument();
     });
 
-    test('shows the full check for an agency that cannot receive a Pholio application', async () => {
-      const user = userEvent.setup();
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
-
-      await user.click(screen.getByRole('button', { name: /see the full check/i }));
-      expect(screen.getByRole('heading', { name: /Still needed/, level: 4 })).toBeInTheDocument();
-      expect(
-        screen.getByText('close-up profile, hair pulled back', { selector: 'p' }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /Already covered/, level: 4 })).toBeInTheDocument();
-    });
-
     test('carries provenance and non-affiliation, without needing to be opened', async () => {
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+      await renderWithPlate();
 
       // A calendar date on the wire, read back to the talent — not the raw value.
-      expect(
-        screen.getByText(/Requirements as published by Elite Models, checked August 9, 2026\./),
-      ).toBeInTheDocument();
       expect(screen.queryByText(/2026-08-09/)).not.toBeInTheDocument();
       expect(
-        screen.getByText(/Pholio is not affiliated with Elite Models\./),
+        screen.getByText(
+          'Requirements as published by Elite Models. Pholio is not affiliated with Elite Models.',
+        ),
       ).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'View their page' })).toHaveAttribute(
-        'href',
-        'https://example.com/elite',
-      );
     });
 
-    test('downloads a set prepared for the agency, from the same selection it checked', async () => {
+    test('exports a conforming set from the same selection it checked', async () => {
       const blob = new Blob(['zip'], { type: 'application/zip' });
       talentApi.exportSpecRegistrySet.mockResolvedValue({
         blob,
@@ -362,10 +392,11 @@ describe('RequirementsPage', () => {
       URL.revokeObjectURL = vi.fn();
 
       const user = userEvent.setup();
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+      await renderWithPlate();
 
-      await user.click(screen.getByRole('button', { name: /download the elite models-ready set/i }));
+      await user.click(
+        screen.getByRole('button', { name: 'Export the Elite Models conforming set' }),
+      );
 
       await waitFor(() => {
         expect(talentApi.exportSpecRegistrySet).toHaveBeenCalledWith({
@@ -384,10 +415,11 @@ describe('RequirementsPage', () => {
         new Error('None of your current images match a shot this agency publishes.'),
       );
       const user = userEvent.setup();
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+      await renderWithPlate();
 
-      await user.click(screen.getByRole('button', { name: /download the elite models-ready set/i }));
+      await user.click(
+        screen.getByRole('button', { name: 'Export the Elite Models conforming set' }),
+      );
 
       expect(
         await screen.findByText(
@@ -399,10 +431,9 @@ describe('RequirementsPage', () => {
     test('records the outbound click without standing between talent and agency', async () => {
       talentApi.recordSpecRegistryOutboundClick.mockResolvedValue({ recorded: true });
       const user = userEvent.setup();
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+      await renderWithPlate();
 
-      const link = screen.getByRole('link', { name: /apply on their site/i });
+      const link = screen.getByRole('link', { name: /Open their application page/ });
       // Straight to the agency, not through a Pholio redirect.
       expect(link).toHaveAttribute('href', 'https://example.com/elite');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
@@ -416,12 +447,13 @@ describe('RequirementsPage', () => {
     test('a failed click count never blocks the talent reaching the agency', async () => {
       talentApi.recordSpecRegistryOutboundClick.mockRejectedValue(new Error('offline'));
       const user = userEvent.setup();
-      renderPage();
-      await screen.findByRole('heading', { name: 'Elite Models', level: 2 });
+      await renderWithPlate();
 
-      await user.click(screen.getByRole('link', { name: /apply on their site/i }));
+      await user.click(screen.getByRole('link', { name: /Open their application page/ }));
       await waitFor(() => expect(talentApi.recordSpecRegistryOutboundClick).toHaveBeenCalled());
-      expect(screen.getByRole('button', { name: /see the full check/i })).toBeEnabled();
+      expect(
+        screen.getByRole('button', { name: 'Export the Elite Models conforming set' }),
+      ).toBeEnabled();
     });
   });
 
@@ -443,7 +475,7 @@ describe('RequirementsPage', () => {
       ).toBeInTheDocument();
     });
 
-    test('shows the empty state without checking or drawing a grid', async () => {
+    test('shows the empty state without checking or drawing a ledger', async () => {
       talentApi.getSpecRegistryRoutes.mockResolvedValue({ routes: [] });
       renderPage();
 
@@ -452,6 +484,23 @@ describe('RequirementsPage', () => {
       ).toBeInTheDocument();
       expect(talentApi.preflightSpecRegistry).not.toHaveBeenCalled();
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
+
+    test('is honest when catalogued agencies publish no shot list at all', async () => {
+      talentApi.preflightSpecRegistry.mockResolvedValue({
+        results: [
+          { ...eliteEvaluation, findings: [], shotCoverage: null },
+          { ...models1Evaluation, findings: [], shotCoverage: null },
+        ],
+      });
+      renderPage();
+
+      await waitFor(() => expect(talentApi.preflightSpecRegistry).toHaveBeenCalled());
+      expect(
+        await screen.findByText(/None of these agencies publishes a shot list yet/),
+      ).toBeInTheDocument();
+      // The column heads still work, so the plate is still reachable.
+      expect(screen.getByRole('button', { name: /^Models 1/ })).toBeInTheDocument();
     });
   });
 });

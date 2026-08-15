@@ -1,15 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
 import { apiClient } from '../../../shared/lib/api-client';
 import PholioButton from '../../../shared/components/ui/PholioButton';
+import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import {
+  MATRIX_CELL,
+  OUTCOME,
   formatRegistryDate,
   groupFindings,
-  readShotCoverage,
-  readSummary,
+  readFinding,
   readFreshnessNotice,
+  readShotCoverage,
   sourceNeedsReview,
 } from '../lib/specRegistry';
+import { SpecMark } from './spec-marks';
 import styles from './RegistryPreflight.module.css';
 
 /**
@@ -20,6 +26,9 @@ import styles from './RegistryPreflight.module.css';
 async function defaultRegistryPreflightQuery(payload) {
   return apiClient.post('/spec-registry/preflight', payload);
 }
+
+const EASE = [0.4, 0, 0.2, 1];
+const REQUIREMENTS_HREF = '/dashboard/talent/applications/requirements';
 
 function asObject(value) {
   return value && typeof value === 'object' ? value : {};
@@ -57,135 +66,77 @@ function externalLinkProps(href) {
     : {};
 }
 
-function Row({ finding, index, onAction }) {
+/** "Elite Models’ published route", not "Elite Models's published route". */
+function possessive(name) {
+  const value = String(name || '').trim();
+  if (!value) return 'this agency’s';
+  return /s$/i.test(value) ? `${value}’` : `${value}’s`;
+}
+
+/** The one figure the talent came for, as a sentence rather than a scoreboard. */
+function coverageSentence(coverage) {
+  if (!coverage || !coverage.published) return null;
+  const matched = coverage.matched ?? 0;
+  return `${matched} of ${coverage.published} shot${coverage.published === 1 ? '' : 's'} matched`;
+}
+
+/**
+ * Published shot slots, in the order the server listed them.
+ *
+ * `not_applicable` is dropped for the same reason `groupFindings` drops it: a
+ * requirement that does not apply to this talent is noise, and a mark for it
+ * would make the schematic count slots nobody is asking them to fill.
+ */
+function readShotSlots(findings) {
+  return asArray(findings)
+    .map(readFinding)
+    .filter(
+      (finding) =>
+        finding.categoryKey === 'shots' && finding.outcome !== OUTCOME.NOT_APPLICABLE,
+    )
+    .map((finding) => ({
+      id: finding.id,
+      label: finding.label,
+      outcome: finding.outcome,
+    }));
+}
+
+function FindingRow({ finding, withMark = false, onAction }) {
   return (
-    <li className={styles.row} style={{ '--row-index': index }}>
-      <div className={styles.rowCopy}>
-        {/* The server already sorts every requirement into Shots, Files,
-            Eligibility and so on. Showing it turns a flat list into something
-            a talent can act on: what kind of thing is this, before what to do. */}
-        {finding.category ? <p className={styles.rowCategory}>{finding.category}</p> : null}
-        <p className={styles.rowTitle}>{finding.label}</p>
-        {finding.guidance ? <p className={styles.rowDetail}>{finding.guidance}</p> : null}
-      </div>
+    <li className={styles.row}>
+      {withMark ? (
+        <SpecMark state={MATRIX_CELL.WANTED} size={12} className={styles.rowMark} />
+      ) : null}
+      <span className={styles.rowLabel}>{finding.label}</span>
+      {finding.guidance ? (
+        <span className={styles.rowGuidance}>{finding.guidance}</span>
+      ) : null}
       {finding.target ? (
-        <PholioButton
-          as="a"
+        <a
           href={finding.target.href}
           {...externalLinkProps(finding.target.href)}
-          variant="tertiary"
           className={styles.rowAction}
           onClick={() => onAction?.(finding)}
         >
           {finding.target.label}
-        </PholioButton>
+        </a>
       ) : null}
     </li>
   );
 }
 
-function Group({ id, title, findings, tone, onAction, collapsible = false }) {
+function DetailGroup({ title, findings, onAction }) {
   if (!findings.length) return null;
-
-  const body = (
-    <ul className={styles.list}>
-      {findings.map((finding, index) => (
-        <Row key={finding.id} finding={finding} index={index} onAction={onAction} />
-      ))}
-    </ul>
-  );
-
-  // Everything already satisfied is the least urgent thing on the panel and the
-  // longest list. Collapsing it is what gives the groups above it hierarchy.
-  if (collapsible) {
-    return (
-      <details className={`${styles.group} ${styles[tone]}`}>
-        <summary className={styles.groupSummary}>
-          <h3 id={id} className={styles.groupTitle}>{title}</h3>
-          <span className={styles.groupCount}>{findings.length}</span>
-        </summary>
-        {body}
-      </details>
-    );
-  }
-
   return (
-    <section className={`${styles.group} ${styles[tone]}`} aria-labelledby={id}>
-      <div className={styles.groupHeader}>
-        <h3 id={id} className={styles.groupTitle}>{title}</h3>
-        <span className={styles.groupCount}>{findings.length}</span>
-      </div>
-      {body}
-    </section>
-  );
-}
-
-function Coverage({ coverage }) {
-  if (!coverage) return null;
-  const figures = [
-    { label: 'Selected', value: coverage.selected },
-    { label: 'Matched to a slot', value: coverage.matched },
-    { label: 'Published slots', value: coverage.published },
-  ].filter((figure) => figure.value !== null);
-  if (!figures.length) return null;
-
-  return (
-    <dl className={styles.coverage}>
-      {figures.map((figure) => (
-        <div key={figure.label} className={styles.coverageItem}>
-          <dt>{figure.label}</dt>
-          <dd>{figure.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function LoadingLedger() {
-  return (
-    <div className={styles.loading} role="status" aria-live="polite">
-      <p>Checking published requirements…</p>
-      <div className={styles.skeletonList} aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </div>
-    </div>
-  );
-}
-
-function UnavailableState({ agencyName, sourceUrl, reason }) {
-  return (
-    <div className={styles.state}>
-      <p>
-        {reason === 'choice_required'
-          ? `${agencyName || 'This agency'} has more than one published submission route. Choose the route in Agency requirements.`
-          : agencyName
-            ? `Pholio does not yet have published requirements for ${agencyName}'s selected route.`
-            : 'Pholio does not yet have published requirements for this selected route.'}
-      </p>
-      <p>Check the agency&apos;s submission page before sending.</p>
-      {reason === 'choice_required' ? (
-        <PholioButton
-          as="a"
-          href="/dashboard/talent/applications/requirements"
-          variant="tertiary"
-          className={styles.sourceAction}
-        >
-          Open Agency requirements
-        </PholioButton>
-      ) : null}
-      {sourceUrl ? (
-        <PholioButton
-          as="a"
-          href={sourceUrl}
-          {...externalLinkProps(sourceUrl)}
-          variant="tertiary"
-          className={styles.sourceAction}
-        >
-          View agency source
-        </PholioButton>
-      ) : null}
+    <div className={styles.detailGroup}>
+      <h3 className={styles.detailTitle}>
+        {title} · {findings.length}
+      </h3>
+      <ul className={styles.rows}>
+        {findings.map((finding) => (
+          <FindingRow key={finding.id} finding={finding} onAction={onAction} />
+        ))}
+      </ul>
     </div>
   );
 }
@@ -193,6 +144,12 @@ function UnavailableState({ agencyName, sourceUrl, reason }) {
 /**
  * Score-free, advisory registry preflight for a selected application package.
  * Findings never prevent a caller from continuing their submission flow.
+ *
+ * Presented as a well panel rather than a card: this sits inside a wizard step
+ * beside the talent's actual work, and advisory furniture that carries card
+ * weight starts competing with the thing it is advising about. The three-state
+ * marks are the same ones the Agency requirements ledger uses — a talent who
+ * studied the grid an hour ago should recognise the answer here at a glance.
  */
 export default function RegistryPreflight({
   seriesId,
@@ -209,7 +166,9 @@ export default function RegistryPreflight({
   selectedRevisionId,
   onRevisionChange,
 }) {
+  const reduceMotion = useReducedMotion();
   const [internalRevisionId, setInternalRevisionId] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const announcedRevisionId = useRef(null);
   const normalizedImageIds = useMemo(
     () => asArray(imageIds).filter(Boolean).map(String).sort(),
@@ -267,164 +226,210 @@ export default function RegistryPreflight({
 
   if (!hasTarget) return null;
 
-  const handleRevisionChange = (event) => {
-    const revisionId = event.target.value || null;
-    if (!revisionIsControlled) setInternalRevisionId(revisionId);
-    announcedRevisionId.current = revisionId;
-    onRevisionChange?.(revisionId);
+  const handleRevisionChange = (revisionId) => {
+    const next = revisionId || null;
+    if (!revisionIsControlled) setInternalRevisionId(next);
+    announcedRevisionId.current = next;
+    onRevisionChange?.(next);
   };
 
-  const heading = (
-    <h2 id="registry-preflight-title" className={styles.title}>
-      Prepare this package for {resolvedAgencyName}
-    </h2>
-  );
+  const ready = !loading && !requestError && available;
+  const groups = ready ? groupFindings(evaluation.findings) : null;
+  const slots = ready ? readShotSlots(evaluation.findings) : [];
+  const coverage = ready ? coverageSentence(readShotCoverage(evaluation.shotCoverage)) : null;
+  const detailCount = groups
+    ? groups.confirm.length + groups.guidance.length + groups.included.length
+    : 0;
+  const checkedOn = ready ? formatRegistryDate(evaluation.sourceCheckedOn) : null;
+  const freshnessNotice = ready ? readFreshnessNotice(evaluation) : null;
+
+  const viewKey = loading
+    ? 'loading'
+    : requestError
+      ? 'error'
+      : !available
+        ? 'unavailable'
+        : `ready:${evaluation.revisionId || 'single'}`;
+
+  let body;
 
   if (loading) {
-    return (
-      <section className={styles.preflight} aria-labelledby="registry-preflight-title">
-        <header className={styles.header}>{heading}</header>
-        <LoadingLedger />
-      </section>
+    body = (
+      <p className={styles.note} role="status" aria-live="polite">
+        Checking published requirements…
+      </p>
     );
-  }
-
-  if (requestError) {
-    return (
-      <section className={styles.preflight} aria-labelledby="registry-preflight-title">
-        <header className={styles.header}>{heading}</header>
-        <div className={styles.state} role="alert">
-          <p>Requirements couldn&apos;t load. You can continue—the agency&apos;s site is the source of truth.</p>
-          {hasExternalState && typeof onRetry !== 'function' ? null : (
-            <PholioButton
-              variant="secondary"
-              onClick={hasExternalState ? onRetry : () => preflightQuery.refetch()}
+  } else if (requestError) {
+    body = (
+      <div className={styles.note} role="alert">
+        <p className={styles.noteLine}>
+          Requirements couldn’t load. You can continue — the agency’s site is the source of
+          truth.
+        </p>
+        {hasExternalState && typeof onRetry !== 'function' ? null : (
+          <PholioButton
+            variant="secondary"
+            className={styles.retry}
+            onClick={hasExternalState ? onRetry : () => preflightQuery.refetch()}
+          >
+            Try again
+          </PholioButton>
+        )}
+      </div>
+    );
+  } else if (!available) {
+    // Honest sentence, then the page that can actually resolve it. No panel
+    // chrome: there is nothing here to look at, only somewhere to go.
+    body = (
+      <div className={styles.note}>
+        <p className={styles.noteLine}>
+          {resolution === 'choice_required'
+            ? `${resolvedAgencyName} publishes more than one route — pick the one you plan to use in Agency requirements.`
+            : `Pholio has no published requirements for ${possessive(resolvedAgencyName)} selected route yet. Check their submission page before sending.`}
+        </p>
+        <span className={styles.noteLinks}>
+          <a className={styles.link} href={REQUIREMENTS_HREF}>
+            Agency requirements
+          </a>
+          {resolvedSourceUrl ? (
+            <a
+              className={styles.link}
+              href={resolvedSourceUrl}
+              {...externalLinkProps(resolvedSourceUrl)}
             >
-              Try again
-            </PholioButton>
-          )}
-        </div>
-      </section>
+              Their submission page
+            </a>
+          ) : null}
+        </span>
+      </div>
     );
-  }
-
-  if (!available) {
-    return (
-      <section className={styles.preflight} aria-labelledby="registry-preflight-title">
-        <header className={styles.header}>{heading}</header>
-        <UnavailableState
-          agencyName={agencyName}
-          sourceUrl={resolvedSourceUrl}
-          reason={resolution}
-        />
-      </section>
-    );
-  }
-
-  const groups = groupFindings(evaluation.findings);
-  const summary = readSummary(evaluation.summary);
-  const coverage = readShotCoverage(evaluation.shotCoverage);
-  const checkedOn = formatRegistryDate(evaluation.sourceCheckedOn);
-  const freshnessNotice = readFreshnessNotice(evaluation);
-  const hasFindings = Object.values(groups).some((findings) => findings.length > 0);
-
-  return (
-    <section className={styles.preflight} aria-labelledby="registry-preflight-title">
-      <header className={styles.header}>
-        {heading}
-        {checkedOn ? (
-          <p className={styles.provenance}>
-            Based on requirements published by the agency, checked {checkedOn}.
-          </p>
+  } else {
+    body = (
+      <>
+        {slots.length ? (
+          <ul className={styles.slots} aria-label="Published shots">
+            {slots.map((slot) => (
+              <li key={slot.id} className={styles.slot}>
+                <SpecMark outcome={slot.outcome} subject={slot.label} size={12} />
+              </li>
+            ))}
+          </ul>
         ) : null}
+
+        {groups.attention.length ? (
+          <ul className={styles.rows}>
+            {groups.attention.map((finding) => (
+              <FindingRow key={finding.id} finding={finding} withMark onAction={onAction} />
+            ))}
+          </ul>
+        ) : (
+          <p className={styles.noteLine}>
+            No published requirement needs action for this package.
+          </p>
+        )}
+
+        {detailCount > 0 ? (
+          <div className={styles.details}>
+            <button
+              type="button"
+              className={styles.detailsToggle}
+              aria-expanded={detailsOpen}
+              onClick={() => setDetailsOpen((value) => !value)}
+            >
+              Details ({detailCount})
+              <ChevronDown
+                size={13}
+                aria-hidden="true"
+                className={`${styles.detailsChevron}${
+                  detailsOpen ? ` ${styles.detailsChevronOpen}` : ''
+                }`}
+              />
+            </button>
+            <AnimatePresence initial={false}>
+              {detailsOpen ? (
+                <motion.div
+                  className={styles.detailsBody}
+                  initial={reduceMotion ? false : { height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2, ease: EASE }}
+                >
+                  <DetailGroup title="Confirm" findings={groups.confirm} onAction={onAction} />
+                  <DetailGroup title="Guidance" findings={groups.guidance} onAction={onAction} />
+                  <DetailGroup title="Included" findings={groups.included} onAction={onAction} />
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+        ) : null}
+
+        {/* Provenance stays on the panel: this is Pholio reading an agency's
+            published page, not Pholio speaking for the agency. */}
+        <p className={styles.provenance}>
+          Published by {resolvedAgencyName}
+          {checkedOn ? `, checked ${checkedOn}` : ''}.
+          {resolvedSourceUrl ? (
+            <>
+              {' '}
+              <a
+                className={styles.link}
+                href={resolvedSourceUrl}
+                {...externalLinkProps(resolvedSourceUrl)}
+              >
+                Their page
+              </a>
+            </>
+          ) : null}
+        </p>
         {sourceNeedsReview(evaluation) ? (
           <p className={styles.caution}>
             {freshnessNotice ||
               'Some published details could not be confirmed. Review the agency’s wording.'}
           </p>
         ) : null}
-        {/* The server counts these buckets already. Leading with them means the
-            talent reads the shape of the work before the list of it. */}
-        {summary && hasFindings ? (
-          <p className={styles.tally}>
-            {[
-              summary.needsAttention ? `${summary.needsAttention} need attention` : null,
-              summary.confirm ? `${summary.confirm} to confirm` : null,
-              summary.included ? `${summary.included} already included` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        ) : null}
-        <Coverage coverage={coverage} />
-      </header>
+      </>
+    );
+  }
 
-      {routeOptions.length > 1 ? (
-        <div className={styles.routeChoice}>
-          <label htmlFor="registry-route-select">Submission route</label>
-          <select
-            id="registry-route-select"
-            className={styles.routeSelect}
-            value={evaluation.revisionId || ''}
-            onChange={handleRevisionChange}
-          >
-            {routeOptions.map((option) => (
-              <option key={option.revisionId} value={option.revisionId}>
-                {option.agencyName} — {option.marketLabel || 'Published route'}
-              </option>
-            ))}
-          </select>
-          <p>Choose the exact market or application channel you plan to use.</p>
+  return (
+    <section
+      className={styles.panel}
+      aria-label={`Published requirements for ${resolvedAgencyName}`}
+    >
+      {available ? (
+        <div className={styles.head}>
+          <h2 className={styles.title}>
+            Checked against {possessive(resolvedAgencyName)} published route
+          </h2>
+          {routeOptions.length > 1 ? (
+            <div className={styles.route}>
+              <PholioCustomSelect
+                id="registry-route-select"
+                label="Submission route"
+                value={evaluation.revisionId || ''}
+                onChange={handleRevisionChange}
+                options={routeOptions.map((option) => ({
+                  value: option.revisionId,
+                  label: `${option.agencyName} — ${option.marketLabel || 'Published route'}`,
+                }))}
+              />
+            </div>
+          ) : null}
+          {coverage ? <p className={styles.coverage}>{coverage}</p> : null}
         </div>
       ) : null}
 
-      {hasFindings ? (
-        <div className={styles.ledger}>
-          <Group
-            id="registry-attention"
-            title="Needs attention"
-            tone="toneAttention"
-            findings={groups.attention}
-            onAction={onAction}
-          />
-          <Group
-            id="registry-confirm"
-            title="Confirm before sending"
-            tone="toneConfirm"
-            findings={groups.confirm}
-            onAction={onAction}
-          />
-          <Group
-            id="registry-guidance"
-            title="Published guidance"
-            tone="toneGuidance"
-            findings={groups.guidance}
-            onAction={onAction}
-          />
-          <Group
-            id="registry-included"
-            title="Included in this package"
-            tone="toneIncluded"
-            findings={groups.included}
-            onAction={onAction}
-            collapsible
-          />
-        </div>
-      ) : (
-        <p className={styles.empty}>No published requirements need action for this package.</p>
-      )}
-
-      {resolvedSourceUrl ? (
-        <PholioButton
-          as="a"
-          href={resolvedSourceUrl}
-          {...externalLinkProps(resolvedSourceUrl)}
-          variant="tertiary"
-          className={styles.sourceAction}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={viewKey}
+          initial={reduceMotion ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.15, ease: EASE }}
         >
-          View agency source
-        </PholioButton>
-      ) : null}
+          {body}
+        </motion.div>
+      </AnimatePresence>
     </section>
   );
 }

@@ -1,28 +1,22 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import { buildSpecMatrix, readEvaluationFor, readRoutes } from '../../lib/specRegistry';
-import SpecMatrix from './SpecMatrix';
+import SpecLedger from './SpecLedger';
 import AgencyPlate from './AgencyPlate';
 import styles from './RequirementsPage.module.css';
 
 /**
- * Agency requirements.
+ * Agency requirements, as one ledger.
  *
- * The grid is the surface and the per-agency plate hangs off it, rather than a
- * list of agencies with a detail view bolted on. That is the whole argument of
- * this page: a directory answers "what does Elite want?" one agency at a time,
- * which is not the question a talent has. Theirs is "what should I shoot next",
- * and it is only answerable across every agency at once.
- *
- * Which agencies can receive a Pholio application is carried per entry, where
- * it is decision-relevant, rather than by splitting the market into two
- * labelled groups — that split would make the customer list look thin beside
- * the researched one and front-load a distinction talent do not care about
- * until the moment they act.
+ * The talent's photo set is the constant; each agency is a column of demands.
+ * The page has to answer two questions in a glance — which agencies can I
+ * already satisfy, and what single shot unlocks the most of them — and neither
+ * is answerable one agency at a time, which is why the grid is the surface and
+ * the per-agency plate hangs off it rather than the other way round.
  */
 
 /**
@@ -69,7 +63,6 @@ export default function RequirementsPage() {
   const reduceMotion = useReducedMotion();
   const [exports, setExports] = useState({});
   const [selectedSeriesId, setSelectedSeriesId] = useState(null);
-  const [hoveredShot, setHoveredShot] = useState(null);
   const imageIds = useMemo(() => activeImageIds(images, profile), [images, profile]);
 
   const routesQuery = useQuery({
@@ -80,10 +73,6 @@ export default function RequirementsPage() {
   });
   const routes = useMemo(() => readRoutes(routesQuery.data), [routesQuery.data]);
   const seriesIds = useMemo(() => routes.map((route) => route.seriesId), [routes]);
-  const submittableCount = useMemo(
-    () => routes.filter((route) => route.acceptsPholioSubmissions).length,
-    [routes],
-  );
 
   const preflightQuery = useQuery({
     queryKey: ['spec-registry-preflight', seriesIds, imageIds],
@@ -118,9 +107,6 @@ export default function RequirementsPage() {
 
   const selectedRoute =
     routes.find((route) => route.seriesId === selectedSeriesId) || defaultRoute;
-  const selectedIndex = selectedRoute
-    ? routes.findIndex((route) => route.seriesId === selectedRoute.seriesId)
-    : 0;
 
   const handleExport = useCallback(
     async (route) => {
@@ -164,33 +150,24 @@ export default function RequirementsPage() {
         className={styles.masthead}
         initial={reduceMotion ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={reduceMotion ? { duration: 0.2 } : { type: 'spring', stiffness: 55, damping: 16 }}
+        transition={
+          reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 55, damping: 16 }
+        }
       >
-        <div className={styles.mastheadCopy}>
-          {/* No eyebrow above the masthead — banned pattern 1. The italic gold
-              word carries the accent a kicker would have. */}
-          <h1 className={styles.title}>
-            Agency <em>requirements</em>
-          </h1>
-          <div className={styles.sweep} aria-hidden="true" />
-          <p className={styles.subtitle}>
-            Every agency Pholio has catalogued, and how your current set measures against
-            each one. Take a set already prepared to their requirements, then apply
-            wherever they accept applications.
-          </p>
-        </div>
-
+        {/* No eyebrow above the masthead — banned pattern 1. The italic word
+            carries the accent a kicker would have. */}
+        <h1 className={styles.title}>
+          Agency <em>requirements</em>
+        </h1>
+        <p className={styles.subtitle}>
+          What each agency’s published route asks for, checked against your current
+          digitals.
+        </p>
         {routes.length > 0 ? (
-          <dl className={styles.index}>
-            <div className={styles.indexCell}>
-              <dt className={styles.indexTerm}>Agencies catalogued</dt>
-              <dd className={styles.indexValue}>{String(routes.length).padStart(2, '0')}</dd>
-            </div>
-            <div className={styles.indexCell}>
-              <dt className={styles.indexTerm}>Accept through Pholio</dt>
-              <dd className={styles.indexValue}>{String(submittableCount).padStart(2, '0')}</dd>
-            </div>
-          </dl>
+          <p className={styles.provenance}>
+            Registry verified continuously · {routes.length}{' '}
+            {routes.length === 1 ? 'agency' : 'agencies'}
+          </p>
         ) : null}
       </motion.header>
 
@@ -213,33 +190,33 @@ export default function RequirementsPage() {
         <div className={styles.state}>
           <p>No agency requirements are catalogued yet.</p>
           <p className={styles.stateHint}>
-            Pholio adds agencies as their requirements are researched and confirmed. Your book
-            stays ready in the meantime.
+            Pholio adds agencies as their requirements are researched and confirmed. Your
+            book stays ready in the meantime.
           </p>
         </div>
       ) : null}
 
-      <SpecMatrix
+      <SpecLedger
         matrix={matrix}
+        routes={routes}
         selectedSeriesId={selectedRoute?.seriesId || null}
         onSelectAgency={setSelectedSeriesId}
-        hoveredShot={hoveredShot}
-        onHoverShot={setHoveredShot}
       />
 
-      {selectedRoute ? (
-        <AgencyPlate
-          key={selectedRoute.seriesId}
-          route={selectedRoute}
-          index={selectedIndex}
-          evaluation={evaluationFor(selectedRoute.seriesId)}
-          isLoading={preflightQuery.isLoading}
-          error={preflightQuery.error}
-          exportState={exports[selectedRoute.seriesId]}
-          onExport={handleExport}
-          onOutboundClick={handleOutboundClick}
-        />
-      ) : null}
+      <AnimatePresence mode="wait" initial={false}>
+        {selectedRoute ? (
+          <AgencyPlate
+            key={selectedRoute.seriesId}
+            route={selectedRoute}
+            evaluation={evaluationFor(selectedRoute.seriesId)}
+            isLoading={preflightQuery.isLoading}
+            error={preflightQuery.error}
+            exportState={exports[selectedRoute.seriesId]}
+            onExport={handleExport}
+            onOutboundClick={handleOutboundClick}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
