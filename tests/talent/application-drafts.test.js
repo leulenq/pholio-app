@@ -1169,6 +1169,28 @@ describe("application drafts", () => {
       fullLengthImageId,
     ]);
     expect(profileDetail.body.submissionPackage.id).toBeTruthy();
+
+    // The same guarantee for the sibling endpoint. A submission is a frozen
+    // record of what the agency was sent; a talent editing their profile
+    // afterwards must not retroactively rewrite it. This endpoint was only ever
+    // asserted before the live edit above, so the property was untested here.
+    const detailAfterLiveEdit = await agencyAuth(
+      request(app)
+        .get(`/api/agency/applications/${submitted.body.id}/details`)
+        .set("Accept", "application/json"),
+    );
+    expect(detailAfterLiveEdit.status).toBe(200);
+    expect(detailAfterLiveEdit.body.profile).toMatchObject({
+      city: "Test",
+      nationality: "Canadian",
+      languages: ["English", "French"],
+    });
+    expect(detailAfterLiveEdit.body.profile.city).not.toBe("Live profile changed");
+    expect(detailAfterLiveEdit.body.submissionPackage.profile).toMatchObject({
+      city: "Test",
+      nationality: "Canadian",
+    });
+
     expect(agencyDetail.body.submissionPackage.compCard.viewUrl).toContain(
       "layoutFamily=editorial-grid",
     );

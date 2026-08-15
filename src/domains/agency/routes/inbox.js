@@ -3062,8 +3062,16 @@ router.get(
       const agencyId = getSessionAgencyId(req);
 
       // An existing submission may remain on record after the talent leaves
-      // Discover. Resolve it first so its immutable package—not today's live
-      // profile—is the source of truth.
+      // Discover, so resolve it before anything else — it decides both whether
+      // this agency may see the profile at all and what it sees.
+      //
+      // The live `profiles` row IS still read below, but only ever as an access
+      // gate (discoverability, block state, `user_id`, `slug`) and as the
+      // legacy fallback for rows submitted before packages carried a profile
+      // snapshot. Whenever a frozen snapshot exists it is what gets served, so
+      // a talent editing their profile after submitting cannot retroactively
+      // change what the agency was sent. Locked by the post-edit assertions in
+      // tests/talent/application-drafts.test.js.
       const application = await knex("applications")
         .where({ profile_id: profileId, agency_id: agencyId })
         .first();
