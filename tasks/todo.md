@@ -166,7 +166,15 @@
   (b) X-Pholio-Export-Files header counts images only (archive now +1-2 text files) —
   UI polish, entries semantics kept for engagement recording; (c) inline AI-consent
   grant in comp-card import overlay; (d) tests/notifications.test.js ordering fix.
-- IN FLIGHT: Phase 5 FWB event mode DESIGN (read-only Plan agent) — event open-call link
+- Phase 5 DESIGN COMPLETE + APPROVED: docs/event-casting-design-2026-08.md (14afda8) w/
+  lead rulings R1-R9 baked in (video=URL v1; SQLite CHECK introspect-rebuild + drift
+  guard; designer links accept-forwarding-risk; event retention event_end+90d COUNSEL
+  CONFIRM; statuses confirmed/declined_by_talent accepted; link cap by org_kind 20/60;
+  GET FWB FORM COUNTS from Alex; 18+ loud on arrival; Lane D fixes /picks+/reply+/opencall
+  netlify redirects). Lane plan: 0 → (A ∥ C ∥ D) → B → E; ownership in design §h.
+- IN FLIGHT: Lane 0 (schema M1-M5 + constants + schema tests, single writer, commits
+  locally, lead pushes). NEXT: launch A ∥ C ∥ D on Lane 0 integration; then B; then E.
+- (superseded design-phase note: Phase 5 FWB event mode DESIGN (read-only Plan agent) — event open-call link
   type + event consent fork, intake spec w/ walk video, organizer pool (reuse inbox) →
   per-designer pick-list share links (no designer account, magic-link precedent),
   confirmations on existing status machine, CSV lineup export, export-back-to-model
