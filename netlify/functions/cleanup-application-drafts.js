@@ -10,6 +10,9 @@ const {
 const {
   runApplicationAutoClose,
 } = require("../../src/shared/lib/application-auto-close");
+const {
+  recordReturnedD30Events,
+} = require("../../src/shared/services/event-funnel");
 
 exports.handler = async function handler() {
   try {
@@ -17,10 +20,16 @@ exports.handler = async function handler() {
     const redactedSubmissionPackages =
       await redactExpiredSubmissionPackages(knex);
     const autoClosed = await runApplicationAutoClose(knex);
+    // Funnel step 8 (design §g). Measured here rather than in the browser
+    // because "did they come back?" reported by the client is a number the
+    // client can invent. Swallows its own errors — it must never stop the
+    // retention and auto-close work above from being reported as done.
+    const returnedD30 = await recordReturnedD30Events({ db: knex });
     console.log("[ApplicationLifecycleCleanup]", {
       ...drafts,
       redactedSubmissionPackages,
       autoClosed,
+      returnedD30,
       completedAt: new Date().toISOString(),
     });
     return { statusCode: 204 };

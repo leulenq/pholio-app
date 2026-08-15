@@ -57,6 +57,7 @@ import { DIGITALS_ADVISORY_ITEMS, normalizeShotSlug, labelForStyle } from '../..
 import { BOOK_MIN_FRAME_COUNT } from '../../../../shared/constants/packageIntelligence';
 import { cmToFeetInches, cmToInches } from '../../../../shared/utils/measurementConversions';
 import { talentApi } from '../../api/talent';
+import { PAYOFF_ACTIONS } from '../../../../shared/constants/eventCasting';
 import { MARKETING_SITE_URL } from '../../../../shared/lib/logout';
 import '../../components/ApplicationsView.css';
 import './ApplyExperience.css';
@@ -697,10 +698,13 @@ export default function ApplyExperience() {
 
   const applyMutation = useMutation({
     mutationFn: talentApi.createApplication,
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       lastSavedFingerprintRef.current = '';
       setDraftStatus('submitted');
       setSubmitted({
+        // Carried purely so the success screen can report that it rendered
+        // (funnel step 6); the server derives everything else from the row.
+        applicationId: data?.id || null,
         agency: { name: variables?.submissionPackage?.agencyName },
         market: variables?.submissionPackage?.agencyLocation || null,
         submittedAt: new Date().toISOString(),
@@ -1671,6 +1675,7 @@ export default function ApplyExperience() {
   if (submitted) {
     return (
       <ApplySuccess
+        applicationId={submitted.applicationId}
         firstName={(profile?.first_name || '').trim()}
         agencyName={submitted.agency?.name || 'the agency'}
         submittedAt={submitted.submittedAt}
@@ -3997,7 +4002,7 @@ function ReviewSendPage({
    Submission success — a full-screen, motion-led confirmation
    ════════════════════════════════════════════════════════════ */
 
-function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName, compCardName, frameCount, isEventCall = false, eventName = null, portfolioSlug = null, onExit }) {
+function ApplySuccess({ applicationId = null, firstName, agencyName, submittedAt, market, mediaSetName, compCardName, frameCount, isEventCall = false, eventName = null, portfolioSlug = null, onExit }) {
   const reduce = useReducedMotion();
 
   useEffect(() => {
@@ -4007,6 +4012,23 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName
       document.body.style.overflow = prev;
     };
   }, []);
+
+  // Funnel step 6 (design §g). "What you keep" is the honest answer to twenty
+  // minutes of work on a casting nobody is promised, so whether it is actually
+  // seen — and whether either link is used — is the only evidence that the
+  // payoff landed. Best-effort: `recordApplyPayoffView` swallows its own
+  // failures, and a representation submission records nothing server-side.
+  const recordPayoff = useCallback(
+    (action) => {
+      if (!applicationId) return;
+      talentApi.recordApplyPayoffView(applicationId, action);
+    },
+    [applicationId],
+  );
+
+  useEffect(() => {
+    recordPayoff(PAYOFF_ACTIONS.VIEWED);
+  }, [recordPayoff]);
 
   const container = {
     hidden: {},
@@ -4093,9 +4115,19 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName
             </li>
           </ul>
           <div className="apply-success__keep-links">
-            <a href="/dashboard/talent/media">Download comp card</a>
+            <a
+              href="/dashboard/talent/media"
+              onClick={() => recordPayoff(PAYOFF_ACTIONS.COMP_CARD)}
+            >
+              Download comp card
+            </a>
             {portfolioSlug && (
-              <a href={`/portfolio/${portfolioSlug}`} target="_blank" rel="noreferrer">
+              <a
+                href={`/portfolio/${portfolioSlug}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => recordPayoff(PAYOFF_ACTIONS.PORTFOLIO_LINK)}
+              >
                 View portfolio link
               </a>
             )}

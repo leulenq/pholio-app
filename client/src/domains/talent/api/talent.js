@@ -132,6 +132,12 @@ export const talentApi = {
   // Answering an event slot offer — the only two statuses a talent may write.
   // Never `withdrawApplication`: that redacts the package and hides the row
   // from an organizer who still has to fill the slot.
+  // Funnel step 6 — best-effort instrumentation for the ApplySuccess payoff
+  // block. Never surfaced to the applicant: a lost count is not their problem.
+  recordApplyPayoffView: (id, action) =>
+    apiClient
+      .post(`/applications/${id}/payoff-viewed`, { action }, { skipRedirect: true })
+      .catch(() => null),
   confirmApplicationSlot: (id) => apiClient.post(`/applications/${id}/confirm`),
   declineApplicationSlot: (id) => apiClient.post(`/applications/${id}/decline-slot`),
   getSubmissionProgramStatus: (options) =>

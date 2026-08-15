@@ -526,6 +526,13 @@ const {
   isClosedByDeadline,
   isEventCall,
 } = require("../../domains/agency/services/open-call-brief");
+const {
+  FUNNEL_EVENT_TYPES,
+} = require("../../shared/constants/event-casting");
+const {
+  anonIdFromRequest,
+  recordEventFunnelEvent,
+} = require("../../shared/services/event-funnel");
 
 // How long an anonymous arrival context survives in the session while the
 // visitor signs up. A later re-visit of the link simply records a new arrival.
@@ -594,6 +601,32 @@ function openCallAgencyDTO(link) {
   };
 }
 
+/**
+ * Funnel step 1 — the denominator (design §g). Event calls only; a
+ * representation link has nothing in this table.
+ *
+ * Awaited rather than left dangling: under Netlify Functions the runtime can
+ * freeze the instant the response is written, and a promise nobody is holding
+ * simply never runs. It is one indexed insert on a page that loads once per
+ * arrival. Wrapped anyway, so that a writer which throws *synchronously* —
+ * a stubbed module, a missing dependency — cannot turn an arrival screen into
+ * a 500. Observability never changes behaviour.
+ */
+async function recordCallViewed(req, link, eventCall, profile) {
+  if (!eventCall || !isEventCall(eventCall)) return;
+  try {
+    await recordEventFunnelEvent({
+      openCallLinkId: link.id,
+      agencyId: link.agency_id,
+      profileId: profile?.id || null,
+      anonId: anonIdFromRequest(req),
+      eventType: FUNNEL_EVENT_TYPES.CALL_VIEWED,
+    });
+  } catch (error) {
+    console.debug("[EventFunnel] call_viewed failed:", error?.message);
+  }
+}
+
 // GET /api/public/open-call/:code — arrival-screen data. Safe agency fields
 // only; never confirms whether an unknown code maps to a real agency.
 router.get("/open-call/:code", async (req, res) => {
@@ -623,6 +656,7 @@ router.get("/open-call/:code", async (req, res) => {
       const existing = await query.first("id");
       alreadyApplied = Boolean(existing);
     }
+    await recordCallViewed(req, link, eventCall, profile);
     return res.json({
       success: true,
       data: {

@@ -95,7 +95,14 @@ const {
 const {
   CALL_PURPOSES,
   DEFAULT_CALL_PURPOSE,
+  FUNNEL_EVENT_TYPES,
 } = require("../../../shared/constants/event-casting");
+const {
+  PAYOFF_ACTIONS,
+  PAYOFF_ACTION_VALUES,
+  hasPriorEventSubmission,
+  recordEventFunnelEvent,
+} = require("../../../shared/services/event-funnel");
 const {
   CONFIRMED_APPLICATION_STATUS,
   OFFERED_APPLICATION_STATUSES,
@@ -259,6 +266,83 @@ async function previewClaimForAgency(db, profileId, agencyId) {
     );
   } catch {
     return null;
+  }
+}
+
+/**
+ * Funnel step 4 (design §g): why an event submission that was started never
+ * completed. `reason` is the stable blocker code the validate path emits
+ * (`event_walk_video_required` and friends) — codes and counts only, never the
+ * applicant-facing message, which is prose about a person.
+ */
+async function recordIntakeBlocked(eventCall, profileId, reason, blockerCount) {
+  if (!eventCall || !reason) return;
+  try {
+    await recordEventFunnelEvent({
+      openCallLinkId: eventCall.linkId,
+      agencyId: eventCall.link?.agency_id || null,
+      profileId,
+      eventType: FUNNEL_EVENT_TYPES.INTAKE_BLOCKED,
+      metadata: { reason, blockerCount },
+    });
+  } catch (error) {
+    console.debug("[EventFunnel] intake_blocked failed:", error?.message);
+  }
+}
+
+/**
+ * Funnel steps 3, 5 and 7 (design §g), written once the submission is durable.
+ *
+ * Deliberately after the transaction commits and outside it: a rolled-back
+ * submission is not a completion, and an analytics insert has no business
+ * holding a lock on the row the organizer is about to read. Everything here is
+ * swallowed — `recordEventFunnelEvent` never throws, and the try/catch covers
+ * the case where the writer itself has been stubbed out or torn down.
+ */
+async function recordSubmitFunnelEvents({
+  eventCall,
+  profileId,
+  strengthScore,
+  digitalSlotCount,
+  compCardPresent,
+}) {
+  if (!eventCall) return;
+  const base = {
+    openCallLinkId: eventCall.linkId,
+    agencyId: eventCall.link?.agency_id || null,
+    profileId,
+  };
+  try {
+    // Asked before the completion below is written, or every submission would
+    // find itself and every applicant would look like a returning one.
+    const isSecondRecipient = await hasPriorEventSubmission({
+      profileId,
+      excludeOpenCallLinkId: eventCall.linkId,
+    });
+
+    await recordEventFunnelEvent({
+      ...base,
+      eventType: FUNNEL_EVENT_TYPES.APPLICATION_COMPLETED,
+    });
+    await recordEventFunnelEvent({
+      ...base,
+      eventType: FUNNEL_EVENT_TYPES.PROFILE_COMPLETED_AT_SUBMIT,
+      metadata: {
+        // Already computed by the package validation a few lines up — this
+        // costs nothing beyond reading the number.
+        ...(Number.isFinite(strengthScore) ? { completeness: strengthScore } : {}),
+        digitalSlots: digitalSlotCount,
+        compCardPresent,
+      },
+    });
+    if (isSecondRecipient) {
+      await recordEventFunnelEvent({
+        ...base,
+        eventType: FUNNEL_EVENT_TYPES.SECOND_RECIPIENT_SUBMITTED,
+      });
+    }
+  } catch (error) {
+    console.debug("[EventFunnel] Submit instrumentation failed:", error?.message);
   }
 }
 
@@ -983,6 +1067,12 @@ router.post(
       eventSubmission: eventFields,
     });
     if (!packageValidation.ok) {
+      await recordIntakeBlocked(
+        eventCall,
+        profile.id,
+        packageValidation.errors[0]?.code,
+        packageValidation.errors.length,
+      );
       return res.status(400).json({
         success: false,
         error: "submission_package_incomplete",
@@ -1133,6 +1223,12 @@ router.post(
       },
     );
     if (!canonicalPackageValidation.ok) {
+      await recordIntakeBlocked(
+        eventCall,
+        profile.id,
+        canonicalPackageValidation.errors[0]?.code,
+        canonicalPackageValidation.errors.length,
+      );
       return res.status(400).json({
         success: false,
         error: "submission_package_incomplete",
@@ -1190,6 +1286,7 @@ router.post(
         packageFingerprint,
       )
     ) {
+      await recordIntakeBlocked(eventCall, profile.id, "consent_package_changed", 1);
       return res.status(409).json({
         success: false,
         error: "consent_package_changed",
@@ -1762,6 +1859,16 @@ router.post(
       throw error;
     }
 
+    await recordSubmitFunnelEvents({
+      eventCall,
+      profileId: profile.id,
+      strengthScore: canonicalPackageValidation.strength?.score,
+      digitalSlotCount: Object.keys(
+        normalizedSubmissionReferences.digitalSlotPicks || {},
+      ).length,
+      compCardPresent: Boolean(normalizedSubmissionReferences.compCardPreset),
+    });
+
     try {
       await notifyTalentApplicationSubmitted({
         userId: req.session.userId,
@@ -2047,6 +2154,36 @@ router.get(
   }),
 );
 
+/**
+ * Funnel step 2 (design §g): the numerator's numerator.
+ *
+ * Fires on the *first* write that carries a given call, not on every autosave —
+ * an apply flow saves a draft every few keystrokes and counting those would
+ * turn "applications started" into "keystrokes". First means either a freshly
+ * created draft or an existing one that did not previously name this call
+ * (a talent who opened a representation draft and then arrived through an
+ * event link genuinely started an event application at that moment).
+ */
+async function recordApplicationStarted({
+  previousPayload,
+  nextPayload,
+  profileId,
+  agencyId,
+}) {
+  const linkId = nextPayload?.openCallLinkId;
+  if (!linkId || previousPayload?.openCallLinkId === linkId) return;
+  try {
+    await recordEventFunnelEvent({
+      openCallLinkId: linkId,
+      agencyId,
+      profileId,
+      eventType: FUNNEL_EVENT_TYPES.APPLICATION_STARTED,
+    });
+  } catch (error) {
+    console.debug("[EventFunnel] application_started failed:", error?.message);
+  }
+}
+
 // PUT /api/talent/applications/drafts/:agencyId — upsert the in-progress dossier.
 router.put(
   "/drafts/:agencyId",
@@ -2130,11 +2267,15 @@ router.put(
     let savedRow = null;
 
     let inactiveRow = null;
+    // What the draft named before this write, for the first-write-only funnel
+    // check below. Read inside the transaction; used after it commits.
+    let previousPayload = null;
     try {
       await knex.transaction(async (trx) => {
         const existing = await trx("application_drafts")
           .where({ profile_id: profile.id, agency_id: agencyId })
           .first();
+        previousPayload = existing ? parseDraftPayload(existing.payload) : null;
 
         if (!existing) {
           if (expectedVersion !== 0 || expectedGeneration !== 0) return;
@@ -2238,6 +2379,13 @@ router.put(
       });
       return sendDraftLifecycleConflict(res, latest);
     }
+
+    await recordApplicationStarted({
+      previousPayload,
+      nextPayload: normalizedPayload,
+      profileId: profile.id,
+      agencyId,
+    });
 
     return res.json({
       success: true,
@@ -2745,6 +2893,60 @@ router.post(
   asyncHandler((req, res) =>
     respondToSlotOffer(req, res, TALENT_DECLINED_APPLICATION_STATUS),
   ),
+);
+
+/**
+ * POST /api/talent/applications/:id/payoff-viewed
+ *
+ * Funnel step 6 (design §g): did the "What you keep" block on ApplySuccess
+ * actually land? The mechanism is the cheapest correct one available.
+ *
+ *  - Not `navigator.sendBeacon`: this surface is behind the session cookie and
+ *    behind `sameOriginMutationGuard`, which requires a custom header that
+ *    sendBeacon cannot set. The success screen also stays mounted, so there is
+ *    no unload race for a beacon to win.
+ *  - Not the public `POST /portfolio/:slug/event` shape, where the *client*
+ *    names the subject: here the client sends only an action code, and the
+ *    server derives link, organizer and profile from an application row it has
+ *    already confirmed belongs to the caller. A client cannot inflate another
+ *    organizer's funnel.
+ *  - Not a new top-level analytics route: one verb on the application the
+ *    screen is confirming keeps the authorization question to "is this yours",
+ *    which the route already answers everywhere else.
+ *
+ * Always 204 — an analytics call has nothing to tell the browser, and a
+ * representation submission (no open call link) simply records nothing.
+ */
+router.post(
+  "/:id/payoff-viewed",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) return res.status(204).end();
+    // Deploy-before-migrate: without the event columns there is no link to
+    // attribute the view to, and selecting one would throw.
+    if (!(await hasApplicationEventColumns(knex))) return res.status(204).end();
+    const action = PAYOFF_ACTION_VALUES.includes(req.body?.action)
+      ? req.body.action
+      : PAYOFF_ACTIONS.VIEWED;
+    const application = await knex("applications")
+      .where({ id: req.params.id, profile_id: profile.id })
+      .first("id", "agency_id", "open_call_link_id");
+    if (application?.open_call_link_id) {
+      try {
+        await recordEventFunnelEvent({
+          openCallLinkId: application.open_call_link_id,
+          agencyId: application.agency_id,
+          profileId: profile.id,
+          eventType: FUNNEL_EVENT_TYPES.PAYOFF_VIEWED,
+          metadata: { action },
+        });
+      } catch (error) {
+        console.debug("[EventFunnel] payoff_viewed failed:", error?.message);
+      }
+    }
+    return res.status(204).end();
+  }),
 );
 
 /**

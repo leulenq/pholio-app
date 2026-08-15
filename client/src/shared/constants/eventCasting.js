@@ -31,5 +31,17 @@ export const PICK_MARKS = Object.freeze({
 });
 export const PICK_MARK_VALUES = Object.freeze(Object.values(PICK_MARKS));
 
+/**
+ * What the ApplySuccess "What you keep" block reports (funnel step 6, design
+ * §g). Mirror of `PAYOFF_ACTIONS` in `src/shared/services/event-funnel.js`,
+ * which is the server-side allowlist — an unknown action is recorded as a
+ * plain view rather than rejected.
+ */
+export const PAYOFF_ACTIONS = Object.freeze({
+  VIEWED: 'viewed',
+  COMP_CARD: 'comp_card',
+  PORTFOLIO_LINK: 'portfolio_link',
+});
+
 export const isEventCastingCallKind = (value) =>
   String(value || '').toLowerCase() === CALL_KINDS.EVENT_CASTING;

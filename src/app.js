@@ -822,6 +822,8 @@ app.use("/", require("./domains/events/routes/pick-share"));
 
 // API Routes
 app.use("/", internalAgencyRequestRoutes);
+// Platform-staff read of the event-casting funnel. Never agency-facing.
+app.use("/", require("./domains/internal/routes/event-funnel"));
 app.use("/api", apiRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api", moderationRoutes);
