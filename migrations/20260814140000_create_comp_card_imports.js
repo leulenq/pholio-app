@@ -25,37 +25,42 @@
  */
 
 exports.up = async function up(knex) {
-  await knex.schema.createTable("comp_card_imports", (table) => {
-    table.uuid("id").primary();
-    table
-      .uuid("user_id")
-      .notNullable()
-      .references("id")
-      .inTable("users")
-      .onDelete("CASCADE")
-      .index();
+  // Both steps are guarded so a run that aborted between them can be re-run.
+  if (!(await knex.schema.hasTable("comp_card_imports"))) {
+    await knex.schema.createTable("comp_card_imports", (table) => {
+      table.uuid("id").primary();
+      table
+        .uuid("user_id")
+        .notNullable()
+        .references("id")
+        .inTable("users")
+        .onDelete("CASCADE")
+        .index();
 
-    // How the text was obtained: 'pdf_text' (the card's own text layer),
-    // 'vision' (OCR fallback), or 'none' (nothing could be read).
-    table.string("extraction_method", 32).notNullable().defaultTo("none");
-    // Why nothing was read, when nothing was — 'pdf_no_text_layer' and friends.
-    table.string("extraction_reason", 64).nullable();
-    table.string("source_filename", 255).nullable();
-    table.string("source_mime_type", 100).nullable();
+      // How the text was obtained: 'pdf_text' (the card's own text layer),
+      // 'vision' (OCR fallback), or 'none' (nothing could be read).
+      table.string("extraction_method", 32).notNullable().defaultTo("none");
+      // Why nothing was read, when nothing was — 'pdf_no_text_layer' and friends.
+      table.string("extraction_reason", 64).nullable();
+      table.string("source_filename", 255).nullable();
+      table.string("source_mime_type", 100).nullable();
 
-    // The proposal exactly as shown, so confirm can validate against it.
-    table.text("proposal_json").notNullable();
-    // The field keys the talent accepted. Null until they confirm.
-    table.text("accepted_json").nullable();
+      // The proposal exactly as shown, so confirm can validate against it.
+      table.text("proposal_json").notNullable();
+      // The field keys the talent accepted. Null until they confirm.
+      table.text("accepted_json").nullable();
 
-    table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
-    table.timestamp("confirmed_at").nullable();
-    table.timestamp("discarded_at").nullable();
-  });
+      table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
+      table.timestamp("confirmed_at").nullable();
+      table.timestamp("discarded_at").nullable();
+    });
+  }
 
-  await knex.schema.alterTable("profiles", (table) => {
-    table.string("measurements_source", 32).nullable();
-  });
+  if (!(await knex.schema.hasColumn("profiles", "measurements_source"))) {
+    await knex.schema.alterTable("profiles", (table) => {
+      table.string("measurements_source", 32).nullable();
+    });
+  }
 };
 
 exports.down = async function down(knex) {

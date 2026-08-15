@@ -16,25 +16,40 @@
  * @param {import("knex").Knex} knex
  */
 exports.up = async function up(knex) {
-  await knex.schema.alterTable("agency_open_call_links", (table) => {
-    table.text("brief_who").nullable();
-    table.text("brief_what").nullable();
-    table.text("brief_eligibility").nullable();
-    table.text("brief_next_steps").nullable();
-
+  // Guarded per column so a partially-applied run can be re-run to completion.
+  const columns = [
+    ["brief_who", (table) => table.text("brief_who").nullable()],
+    ["brief_what", (table) => table.text("brief_what").nullable()],
+    ["brief_eligibility", (table) => table.text("brief_eligibility").nullable()],
+    ["brief_next_steps", (table) => table.text("brief_next_steps").nullable()],
     // A deadline is a decision, not always a date. Agencies run permanent open
     // calls — Storm takes walk-ins Mon–Fri — so an agency either names a
     // closing date or says explicitly that the call runs continuously. Both are
     // answers; neither is an omission.
-    table.date("brief_deadline").nullable();
-    table.boolean("brief_ongoing").notNullable().defaultTo(false);
+    ["brief_deadline", (table) => table.date("brief_deadline").nullable()],
+    [
+      "brief_ongoing",
+      (table) => table.boolean("brief_ongoing").notNullable().defaultTo(false),
+    ],
+    ["brief_completed_at", (table) => table.timestamp("brief_completed_at").nullable()],
+  ];
 
-    table.timestamp("brief_completed_at").nullable();
-  });
+  const missing = [];
+  for (const [name, build] of columns) {
+    if (!(await knex.schema.hasColumn("agency_open_call_links", name))) {
+      missing.push(build);
+    }
+  }
 
-  await knex.schema.alterTable("agency_open_call_links", (table) => {
-    table.index(["agency_id", "brief_deadline"], "idx_open_call_links_deadline");
-  });
+  if (missing.length) {
+    await knex.schema.alterTable("agency_open_call_links", (table) => {
+      for (const build of missing) build(table);
+    });
+
+    await knex.schema.alterTable("agency_open_call_links", (table) => {
+      table.index(["agency_id", "brief_deadline"], "idx_open_call_links_deadline");
+    });
+  }
 };
 
 /** @param {import("knex").Knex} knex */

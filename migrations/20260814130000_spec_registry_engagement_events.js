@@ -19,6 +19,8 @@
  * @param {import("knex").Knex} knex
  */
 exports.up = async function up(knex) {
+  if (await knex.schema.hasTable("spec_registry_engagement_events")) return;
+
   await knex.schema.createTable("spec_registry_engagement_events", (table) => {
     table.uuid("id").primary();
     table

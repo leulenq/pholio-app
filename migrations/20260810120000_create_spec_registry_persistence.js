@@ -10,6 +10,18 @@ function jsonColumn(knex, table, name) {
 }
 
 /**
+ * Create a table only if it is not already there.
+ *
+ * Seven tables in one migration means seven chances to abort halfway through on
+ * a database that has some of them. Guarding each one lets a partially-applied
+ * run be re-run to completion instead of needing a hand-repair.
+ */
+async function createTableIfMissing(knex, name, build) {
+  if (await knex.schema.hasTable(name)) return;
+  await knex.schema.createTable(name, build);
+}
+
+/**
  * Materialized persistence for the file-authored Spec Registry.
  *
  * The JSON package remains the editorial source of truth. These tables keep
@@ -19,7 +31,7 @@ function jsonColumn(knex, table, name) {
  * @param {import("knex").Knex} knex
  */
 exports.up = async function up(knex) {
-  await knex.schema.createTable("spec_registry_datasets", (table) => {
+  await createTableIfMissing(knex, "spec_registry_datasets", (table) => {
     table.string("dataset_version", 64).primary();
     table.string("schema_version", 24).notNullable();
     table.string("taxonomy_version", 24).notNullable();
@@ -32,13 +44,13 @@ exports.up = async function up(knex) {
     table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
   });
 
-  await knex.schema.createTable("spec_registry_series", (table) => {
+  await createTableIfMissing(knex, "spec_registry_series", (table) => {
     table.string("series_id", 180).primary();
     table.string("organization_key", 120).notNullable();
     table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
   });
 
-  await knex.schema.createTable("spec_registry_revisions", (table) => {
+  await createTableIfMissing(knex, "spec_registry_revisions", (table) => {
     table.string("revision_id", 200).primary();
     table
       .string("series_id", 180)
@@ -90,7 +102,7 @@ exports.up = async function up(knex) {
     );
   });
 
-  await knex.schema.createTable("spec_registry_dataset_records", (table) => {
+  await createTableIfMissing(knex, "spec_registry_dataset_records", (table) => {
     table
       .string("dataset_version", 64)
       .notNullable()
@@ -123,7 +135,7 @@ exports.up = async function up(knex) {
     table.index("revision_id", "idx_sr_dataset_records_revision");
   });
 
-  await knex.schema.createTable("spec_registry_sync_runs", (table) => {
+  await createTableIfMissing(knex, "spec_registry_sync_runs", (table) => {
     table.uuid("id").primary();
     table.string("dataset_version", 64).nullable();
     table.string("manifest_sha256", 64).nullable();
@@ -142,7 +154,7 @@ exports.up = async function up(knex) {
     );
   });
 
-  await knex.schema.createTable("spec_registry_state", (table) => {
+  await createTableIfMissing(knex, "spec_registry_state", (table) => {
     table.string("state_key", 32).primary();
     table
       .string("dataset_version", 64)
@@ -159,7 +171,7 @@ exports.up = async function up(knex) {
     table.timestamp("activated_at").notNullable().defaultTo(knex.fn.now());
   });
 
-  await knex.schema.createTable("spec_registry_agency_routes", (table) => {
+  await createTableIfMissing(knex, "spec_registry_agency_routes", (table) => {
     table
       .uuid("agency_id")
       .notNullable()
@@ -184,7 +196,7 @@ exports.up = async function up(knex) {
     );
   });
 
-  await knex.schema.createTable("application_spec_snapshots", (table) => {
+  await createTableIfMissing(knex, "application_spec_snapshots", (table) => {
     table.uuid("id").primary();
     table
       .uuid("application_id")

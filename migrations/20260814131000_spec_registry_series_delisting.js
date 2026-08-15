@@ -18,11 +18,19 @@
  * @param {import("knex").Knex} knex
  */
 exports.up = async function up(knex) {
+  // Guarded so a partially-applied run can be re-run to completion.
+  const [hasDelistedAt, hasDelistedReason] = await Promise.all([
+    knex.schema.hasColumn("spec_registry_series", "delisted_at"),
+    knex.schema.hasColumn("spec_registry_series", "delisted_reason"),
+  ]);
+
+  if (hasDelistedAt && hasDelistedReason) return;
+
   await knex.schema.alterTable("spec_registry_series", (table) => {
-    table.timestamp("delisted_at").nullable();
+    if (!hasDelistedAt) table.timestamp("delisted_at").nullable();
     // Why it came off, in the agency's terms. Read by the operator running the
     // removal script, not by talent — a delisted route is simply absent.
-    table.text("delisted_reason").nullable();
+    if (!hasDelistedReason) table.text("delisted_reason").nullable();
   });
 
   await knex.schema.alterTable("spec_registry_series", (table) => {

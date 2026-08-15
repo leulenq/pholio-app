@@ -25,60 +25,78 @@ function jsonColumn(knex, table, name) {
  * @param {import("knex").Knex} knex
  */
 exports.up = async function up(knex) {
-  await knex.schema.alterTable("spec_registry_series", (table) => {
-    // "editorial" — a head in the published dataset, as today.
-    // "agency"    — authored in-product, current revision named on this row.
-    table.string("origin", 16).notNullable().defaultTo("editorial");
-    table
-      .uuid("agency_id")
-      .nullable()
-      .references("id")
-      .inTable("agencies")
-      .onDelete("CASCADE");
-    table
-      .string("current_revision_id", 200)
-      .nullable()
-      .references("revision_id")
-      .inTable("spec_registry_revisions")
-      .onDelete("RESTRICT");
-  });
+  // Each step is guarded so a run that aborted partway can be re-run to
+  // completion rather than failing on the work it already did.
+  const [hasOrigin, hasAgencyId, hasCurrentRevision] = await Promise.all([
+    knex.schema.hasColumn("spec_registry_series", "origin"),
+    knex.schema.hasColumn("spec_registry_series", "agency_id"),
+    knex.schema.hasColumn("spec_registry_series", "current_revision_id"),
+  ]);
 
-  await knex.schema.alterTable("spec_registry_series", (table) => {
-    table.index(["origin", "agency_id"], "idx_sr_series_origin_agency");
-  });
+  if (!hasOrigin || !hasAgencyId || !hasCurrentRevision) {
+    await knex.schema.alterTable("spec_registry_series", (table) => {
+      // "editorial" — a head in the published dataset, as today.
+      // "agency"    — authored in-product, current revision named on this row.
+      if (!hasOrigin) {
+        table.string("origin", 16).notNullable().defaultTo("editorial");
+      }
+      if (!hasAgencyId) {
+        table
+          .uuid("agency_id")
+          .nullable()
+          .references("id")
+          .inTable("agencies")
+          .onDelete("CASCADE");
+      }
+      if (!hasCurrentRevision) {
+        table
+          .string("current_revision_id", 200)
+          .nullable()
+          .references("revision_id")
+          .inTable("spec_registry_revisions")
+          .onDelete("RESTRICT");
+      }
+    });
+
+    await knex.schema.alterTable("spec_registry_series", (table) => {
+      table.index(["origin", "agency_id"], "idx_sr_series_origin_agency");
+    });
+  }
 
   // One authored series per agency. A partial unique index would be tighter,
   // but SQLite and Postgres disagree on the syntax and the application-level
   // series id (`agency:<id>:open-call`) is already deterministic per agency.
-  await knex.schema.createTable("agency_spec_drafts", (table) => {
-    table.uuid("id").primary();
-    table
-      .uuid("agency_id")
-      .notNullable()
-      .unique()
-      .references("id")
-      .inTable("agencies")
-      .onDelete("CASCADE");
-    table.string("series_id", 180).notNullable();
-    // The revision this draft was opened from — null for a first draft.
-    table
-      .string("base_revision_id", 200)
-      .nullable()
-      .references("revision_id")
-      .inTable("spec_registry_revisions")
-      .onDelete("SET NULL");
-    jsonColumn(knex, table, "draft_json").notNullable();
-    table
-      .uuid("updated_by_user_id")
-      .nullable()
-      .references("id")
-      .inTable("users")
-      .onDelete("SET NULL");
-    table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
-    table.timestamp("updated_at").notNullable().defaultTo(knex.fn.now());
+  if (!(await knex.schema.hasTable("agency_spec_drafts"))) {
+    await knex.schema.createTable("agency_spec_drafts", (table) => {
+      table.uuid("id").primary();
+      table
+        .uuid("agency_id")
+        .notNullable()
+        .unique()
+        .references("id")
+        .inTable("agencies")
+        .onDelete("CASCADE");
+      table.string("series_id", 180).notNullable();
+      // The revision this draft was opened from — null for a first draft.
+      table
+        .string("base_revision_id", 200)
+        .nullable()
+        .references("revision_id")
+        .inTable("spec_registry_revisions")
+        .onDelete("SET NULL");
+      jsonColumn(knex, table, "draft_json").notNullable();
+      table
+        .uuid("updated_by_user_id")
+        .nullable()
+        .references("id")
+        .inTable("users")
+        .onDelete("SET NULL");
+      table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
+      table.timestamp("updated_at").notNullable().defaultTo(knex.fn.now());
 
-    table.index("series_id", "idx_agency_spec_drafts_series");
-  });
+      table.index("series_id", "idx_agency_spec_drafts_series");
+    });
+  }
 
   // An agency-authored revision has no dataset record, so a submission
   // evaluated against one cannot name a dataset version. The pairing is
