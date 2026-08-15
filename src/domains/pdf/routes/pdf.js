@@ -41,9 +41,7 @@ const {
   validateLayout,
 } = require("../layouts");
 const { requireRole } = require("../../auth/middleware/require-auth");
-const {
-  recordProfileEvent,
-} = require("../../talent/services/intel/capture");
+const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const knex = require("../../../shared/db/knex");
 const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
 const { buildCanonicalStats } = require("../../../shared/lib/stats-formatter");
@@ -1184,7 +1182,6 @@ async function renderComposedView(req, res, data, isDemo) {
           plan,
           statsBlock,
           imagesById,
-          watermark: !profile.is_pro,
           baseUrl,
           printBleed,
           fontsCss,
@@ -1354,7 +1351,6 @@ async function renderStandardView(req, res, data, isDemo) {
       // profile.bust/waist/hips columns (audit P1-6).
       stats: buildCanonicalStats(profile),
       baseUrl,
-      watermark: !profile.is_pro,
     });
   } catch (renderError) {
     console.error("[renderStandardView] ERROR:", renderError.message);
@@ -1573,7 +1569,6 @@ function renderPdfView(req, res, data, isDemo) {
       images: gallery,
       hero,
       heightFeet: toFeetInches(profile.height_cm),
-      watermark: !profile.is_pro,
       theme: mergedTheme,
       themeKey: themeKey,
       baseUrl,
@@ -2359,9 +2354,6 @@ router.get("/pdf/:slug", async (req, res, next) => {
         console.error("[PDF Download] Error logging download analytics:", err);
         // Don't block response - analytics is non-critical
       });
-
-      // Intel Capture v2 — a card pull is a Tier-3 intent event. Self pulls
-      // (the talent generating their own card) are dropped inside capture.
       recordProfileEvent({
         profile,
         action: "card_pull",
@@ -3359,10 +3351,6 @@ router.post(
         return res.status(403).json({ error: error || "Not authorized" });
       }
 
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
-      }
-
       if (!req.file) {
         return res.status(400).json({ error: "Logo file required" });
       }
@@ -3457,10 +3445,6 @@ router.post(
         return res.status(403).json({ error: error || "Not authorized" });
       }
 
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
-      }
-
       const { url, position, size } = req.body;
 
       if (!url || typeof url !== "string") {
@@ -3548,10 +3532,6 @@ router.delete(
 
       if (!authorized) {
         return res.status(403).json({ error: error || "Not authorized" });
-      }
-
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
       }
 
       // Load customizations
@@ -3659,14 +3639,12 @@ router.get("/p/:slug", async (req, res) => {
     } catch {
       /* analytics is observability, not behavior */
     }
-    // Intel Capture v2 — physical card tap/scan is a Tier-3 link open.
     recordProfileEvent({
       profile,
       action: "link_open",
       req,
       metadata: { via: "card_short_link" },
     });
-
     return res.redirect(302, `/portfolio/${encodeURIComponent(profile.slug)}`);
   } catch (error) {
     console.warn("[compcard-link] lookup failed:", error.message);

@@ -154,7 +154,7 @@ export function representationRead(representation) {
           placements.length ? ` · ${placements.length} market placement${placements.length > 1 ? 's' : ''}` : ''
         }`
       : who
-        ? `Signed with ${who}`
+        ? `Represented by ${who}`
         : 'Agency undisclosed by the talent';
   } else if (status === 'seeking') {
     detail = 'Open to signing — no active representation on record.';
@@ -357,39 +357,6 @@ const ACTIVITY_VERBS = {
 };
 
 export const activityVerb = (type) => ACTIVITY_VERBS[type] || titleCase(type);
-
-/** Open follow-ups, split so overdue work reads first. */
-export function followUps(standing) {
-  const reminders = (standing?.reminders || []).filter((r) => r.status !== 'completed');
-  const now = Date.now();
-  const overdue = reminders.filter((r) => new Date(r.reminder_date).getTime() < now);
-  const upcoming = reminders.filter((r) => new Date(r.reminder_date).getTime() >= now);
-  const interviews = (standing?.interviews || []).filter(
-    (i) => !['cancelled', 'declined'].includes(String(i.status)),
-  );
-  const nextInterview = interviews
-    .filter((i) => new Date(i.proposed_datetime).getTime() >= now)
-    .sort((a, b) => new Date(a.proposed_datetime) - new Date(b.proposed_datetime))[0] || null;
-  return { overdue, upcoming, interviews, nextInterview };
-}
-
-/* -------------------------------------------------------------- position */
-
-/**
- * Market position, expressed against this agency's own book — the only
- * comparison a booker can act on.
- */
-export function positionRead(position, talent) {
-  if (!position || !position.roster_size) return null;
-  // One plain-English line only — the ledger beneath it carries the numbers, so
-  // repeating market and board counts here would just be the same fact twice.
-  if (position.height_percentile == null || position.track_peers < 2) return null;
-  return [
-    `Taller than ${position.height_percentile}% of your ${position.track_peers} active ${
-      TRACK_LABELS[talent?.stats_track]?.toLowerCase() || 'roster'
-    } talent`,
-  ];
-}
 
 /* ------------------------------------------------------------ asset guard */
 

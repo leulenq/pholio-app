@@ -33,6 +33,42 @@ function safeFlow(input) {
   return input === "signup" ? "signup" : "login";
 }
 
+function adultDateOfBirth(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return null;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const birth = new Date(Date.UTC(year, month - 1, day));
+  if (
+    birth.getUTCFullYear() !== year ||
+    birth.getUTCMonth() !== month - 1 ||
+    birth.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  const calendar = {};
+  new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(new Date())
+    .forEach(({ type, value: part }) => {
+      if (type !== "literal") calendar[type] = Number(part);
+    });
+
+  let age = calendar.year - year;
+  if (
+    calendar.month < month ||
+    (calendar.month === month && calendar.day < day)
+  ) {
+    age -= 1;
+  }
+
+  return age >= 18 && age < 130 ? value : null;
+}
+
 router.get("/api/auth/instagram/status", (req, res) => {
   res.json({
     success: true,
@@ -40,7 +76,7 @@ router.get("/api/auth/instagram/status", (req, res) => {
   });
 });
 
-router.get("/api/auth/instagram/start", (req, res) => {
+async function startInstagramAuth(req, res) {
   if (!isInstagramConfigured()) {
     return res.status(503).json({
       success: false,
@@ -51,17 +87,31 @@ router.get("/api/auth/instagram/start", (req, res) => {
 
   const flow = safeFlow(req.query.flow);
   const nextPath = safeNext(req.query.next);
+  const dateOfBirth = req.body?.date_of_birth;
+
+  if (flow === "signup" && !adultDateOfBirth(dateOfBirth)) {
+    return res.status(400).json({
+      success: false,
+      error: "ADULT_ELIGIBILITY_REQUIRED",
+      message: "A valid adult date of birth is required before Instagram sign-up.",
+    });
+  }
+
   const state = crypto.randomBytes(24).toString("hex");
 
   req.session.instagramOAuth = {
     state,
     flow,
     next: nextPath,
+    dateOfBirth: flow === "signup" ? dateOfBirth : null,
     createdAt: Date.now(),
   };
 
   try {
     const authorizeUrl = buildInstagramAuthorizeUrl(state);
+    if (req.method === "POST") {
+      return res.json({ success: true, authorize_url: authorizeUrl });
+    }
     return res.redirect(authorizeUrl);
   } catch (error) {
     console.error("[Instagram OAuth] Start error:", error.message);
@@ -70,7 +120,10 @@ router.get("/api/auth/instagram/start", (req, res) => {
       error: "Unable to start Instagram sign-in.",
     });
   }
-});
+}
+
+router.get("/api/auth/instagram/start", startInstagramAuth);
+router.post("/api/auth/instagram/start", startInstagramAuth);
 
 router.get("/api/auth/instagram/callback", async (req, res) => {
   const { code, state, error, error_reason: errorReason } = req.query;
@@ -118,6 +171,7 @@ router.get("/api/auth/instagram/callback", async (req, res) => {
       customToken,
       flow,
       next: nextPath,
+      dateOfBirth: sessionState.dateOfBirth || null,
       createdAt: Date.now(),
     };
 
@@ -141,7 +195,7 @@ router.get("/api/auth/instagram/complete", (req, res) => {
     });
   }
 
-  const { customToken, flow, next } = pending;
+  const { customToken, flow, next, dateOfBirth } = pending;
   delete req.session.instagramOAuth;
 
   return res.json({
@@ -149,6 +203,7 @@ router.get("/api/auth/instagram/complete", (req, res) => {
     custom_token: customToken,
     flow: flow || "login",
     next: next || null,
+    date_of_birth: flow === "signup" ? dateOfBirth || null : null,
   });
 });
 

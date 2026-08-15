@@ -2,11 +2,17 @@ import React from 'react';
 import { Controller, useFieldArray } from 'react-hook-form';
 import { Building2, Plus, Trash2 } from 'lucide-react';
 import { PholioInput, PholioTextarea } from '../../../shared/components/ui/forms';
+import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import PholioButton, {
   PholioIconButton,
 } from '../../../shared/components/ui/PholioButton';
 import { Section } from './Section';
 import styles from '../pages/ProfilePage/ProfilePage.module.css';
+
+const RELATIONSHIP_OPTIONS = [
+  { value: 'placement', label: 'Placement agency' },
+  { value: 'mother', label: 'Mother agency' },
+];
 
 const STATUS = {
   SEEKING: 'seeking',
@@ -161,13 +167,22 @@ export const RepresentationSection = ({ register, control, errors, setValue, wat
                     <input type="hidden" {...register(`representations.${index}.status`)} />
 
                     <div className={styles.repRelationshipTop}>
-                      <label className={styles.repNativeField}>
-                        <span>Relationship</span>
-                        <select {...register(`representations.${index}.relationship_type`)}>
-                          <option value="mother">Mother agency</option>
-                          <option value="placement">Placement agency</option>
-                        </select>
-                      </label>
+                      <div style={{ flex: 1 }}>
+                        <Controller
+                          name={`representations.${index}.relationship_type`}
+                          control={control}
+                          render={({ field: selectField }) => (
+                            <PholioCustomSelect
+                              label="Relationship"
+                              id={`relationship_type_${index}`}
+                              options={RELATIONSHIP_OPTIONS}
+                              value={selectField.value || 'placement'}
+                              onChange={selectField.onChange}
+                              error={fieldErrors.relationship_type}
+                            />
+                          )}
+                        />
+                      </div>
                       <PholioIconButton
                         label={`Remove ${field.agency_name || field.external_agency_name || 'agency'}`}
                         danger

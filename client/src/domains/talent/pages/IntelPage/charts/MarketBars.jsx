@@ -16,15 +16,11 @@ const LABEL_W = 128;
 const RIGHT_W = 96;
 const GAP = 2; // surface gap between stacked segments — never a stroke
 
-const ORDER = ['agency', 'client', 'public'];
+const ORDER = ['agency', 'shared', 'public'];
 
 /**
- * Where attention comes from, and — the part that decides anything — who it is.
- *
- * Bar length is volume; the segments are the viewer mix, ordered agency →
- * client → public on the same ordinal ramp used everywhere else on the page.
- * A long public-only bar and a short agency bar are opposite findings, and the
- * mix is what tells them apart.
+ * Approximate market distribution segmented by known request context. A shared
+ * token proves only that the visitor used that link, not who the visitor was.
  */
 export default function MarketBars({ rows, showShare, showDelta }) {
   const reduce = useReducedMotion();
@@ -37,12 +33,12 @@ export default function MarketBars({ rows, showShare, showDelta }) {
 
   return (
     <Figure
-      caption="segments · who was looking"
+      caption="segments · request context · market inferred from coarse IP location"
     >
       <div ref={ref} className="iv-markets">
         {width > 0 && (
           <svg width={width} height={height} role="img"
-            aria-label="Attention by market, segmented by viewer type">
+            aria-label="Recorded activity by approximate market and request context">
             {list.map((row, i) => {
               const y = i * ROW_H;
               const barY = y + 12;

@@ -68,6 +68,12 @@
   color: #c0392b;
 }
 
+.alertWarning {
+  background: rgba(194, 133, 14, 0.07);
+  border: 1px solid rgba(194, 133, 14, 0.2);
+  color: #76520b;
+}
+
 /* ── Form ───────────────────────────────────────────── */
 
 .form {

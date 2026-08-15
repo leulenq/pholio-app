@@ -206,42 +206,6 @@ async function createSchema() {
     t.string("status").notNullable().defaultTo("submitted");
   });
 
-  /* The roster access check reads this table before it can decide whether to
-     return 403. Without it the guarded handler 500s on SQLite with "no such
-     table: roster_memberships", so the suite could not distinguish "correctly
-     forbidden" from "crashed". */
-  if (!(await knex.schema.hasTable("roster_memberships")))
-    await knex.schema.createTable("roster_memberships", (t) => {
-      t.string("id", 36).primary();
-      t.string("agency_id", 36).notNullable();
-      t.string("profile_id", 36).nullable();
-      t.string("talent_record_id", 36).nullable();
-      t.string("board_id", 36).nullable();
-      t.string("stage", 20).notNullable().defaultTo("main");
-      t.string("status", 20).notNullable().defaultTo("active");
-      t.string("source_application_id", 36).nullable();
-      t.timestamp("created_at").defaultTo(knex.fn.now());
-    });
-
-  /* Intel capture writes here on every agency view. It swallows its own
-     errors, so a missing table only shows up as console noise — but the noise
-     obscures the real failures this suite is meant to surface. */
-  if (!(await knex.schema.hasTable("profile_events")))
-    await knex.schema.createTable("profile_events", (t) => {
-      t.string("id", 36).primary();
-      t.string("profile_id", 36).notNullable();
-      t.string("action").notNullable();
-      t.string("source").nullable();
-      t.string("viewer_class").nullable();
-      t.string("session_id", 64).nullable();
-      t.string("share_token_id", 36).nullable();
-      t.string("image_id", 36).nullable();
-      t.string("market").nullable();
-      t.string("referrer").nullable();
-      t.integer("dwell_ms").nullable();
-      t.json("metadata").nullable();
-      t.timestamp("occurred_at").defaultTo(knex.fn.now());
-    });
 }
 
 async function seedData() {
@@ -427,27 +391,6 @@ describe("DTO security path integration tests", () => {
   });
 
   describe("2. Agency No-Application Path", () => {
-    test("Agency B attempts to view roster profile of Adult (no application to Agency B) -> Forbidden (403)", async () => {
-      const cookie = await createAgencySessionCookie(
-        AGENCY_B_ID,
-        USER_OWNER_B_ID,
-        MEMBERSHIP_B_ID,
-      );
-      const res = await request(app)
-        .get(`/api/agency/roster/${ADULT_DISCOVERABLE_ID}`)
-        .set("Cookie", cookie);
-
-      /* Roster access moved from application-derived (403 "Talent is not on
-         your roster") to membership-derived (404 "Roster membership not
-         found"). Both deny; 404 additionally declines to confirm the profile
-         exists, which is the stronger answer for an enumeration probe. The
-         security property under test is "denied, and no profile data leaks",
-         so assert that rather than one specific code. */
-      expect([403, 404]).toContain(res.status);
-      expect(String(res.body.error)).toMatch(/roster/i);
-      expect(res.body).not.toHaveProperty("profile");
-    });
-
     test("Agency B fetches discover preview of Adult (discoverable, no active app) -> Shaped DTO returned", async () => {
       const cookie = await createAgencySessionCookie(
         AGENCY_B_ID,
@@ -464,29 +407,7 @@ describe("DTO security path integration tests", () => {
     });
   });
 
-  describe("3. Agency B Path", () => {
-    test("Agency B requests roster for talent that applied to Agency A only -> Forbidden (403)", async () => {
-      const cookie = await createAgencySessionCookie(
-        AGENCY_B_ID,
-        USER_OWNER_B_ID,
-        MEMBERSHIP_B_ID,
-      );
-      const res = await request(app)
-        .get(`/api/agency/roster/${ADULT_DISCOVERABLE_ID}`)
-        .set("Cookie", cookie);
-
-      /* Roster access moved from application-derived (403 "Talent is not on
-         your roster") to membership-derived (404 "Roster membership not
-         found"). Both deny; 404 additionally declines to confirm the profile
-         exists, which is the stronger answer for an enumeration probe. The
-         security property under test is "denied, and no profile data leaks",
-         so assert that rather than one specific code. */
-      expect([403, 404]).toContain(res.status);
-      expect(res.body).not.toHaveProperty("profile");
-    });
-  });
-
-  describe("4. Minor Path", () => {
+  describe("3. Minor Path", () => {
     test("Minor WITHOUT guardian consent is excluded from public home response", async () => {
       const res = await request(app).get("/api/public/home");
       expect(res.status).toBe(200);

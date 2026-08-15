@@ -1,7 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowLeft, ArrowRight } from 'lucide-react';
-import MatchScore from '../components/ui/MatchScore';
 import { DivisionMark } from '../components/status';
 import { formatLocation } from '../../../shared/utils/locationFormat';
 import './DiscoverDetail.css';
@@ -89,7 +88,7 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
             ? <img src={talent.photo} alt={talent.name} className="dd-photo-img" />
             : <div className="dd-photo-empty"><span>{talent.name.charAt(0)}</span></div>
           }
-          {/* bottom gradient so the score reads cleanly */}
+          {/* bottom gradient keeps photography legible against the frame */}
           <div className="dd-photo-scrim" />
         </div>
 
@@ -111,7 +110,6 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
               )}
               <div className="dd-name-row">
                 <h2 className="dd-name">{talent.name}</h2>
-                {talent.resonance != null && <MatchScore score={talent.resonance} size="md" tone="dark" className="dd-score-num" />}
               </div>
             </div>
 

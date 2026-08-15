@@ -43,8 +43,6 @@ const pdfRoutes = require("./domains/pdf/routes/pdf");
 const agencyDomainRoutes = require("./domains/agency/routes/index");
 const proRoutes = require("./routes/pro");
 const stripeRoutes = require("./routes/stripe");
-const chatRoutes = require("./routes/chat");
-const scoutRoutes = require("./routes/scout");
 const apiRoutes = require("./routes/api");
 const publicRoutes = require("./routes/api/public");
 const portfolioRoutes = require("./routes/portfolio");
@@ -656,6 +654,7 @@ app.use("/api/public/open-call", authLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
+app.use("/api/talent/comp-card-import", uploadLimiter);
 app.use(["/onboarding/scout", "/casting/scout"], uploadLimiter);
 app.use(talentAiWriterLimiter);
 app.use((req, res, next) => {
@@ -816,11 +815,6 @@ app.use("/", authRoutes);
 // Magic-link message replies (token auth, no login required)
 app.use("/", require("./domains/messaging/routes/message-reply"));
 
-// High-frequency API routes (chat/scout - used in onboarding flow)
-// These are moved higher to reduce middleware processing overhead
-app.use("/", chatRoutes);
-app.use("/", scoutRoutes);
-
 // API Routes
 app.use("/", internalAgencyRequestRoutes);
 app.use("/api", apiRoutes);
@@ -832,7 +826,7 @@ app.use("/", guardianConsentRoutes);
 // Casting onboarding API must run before requireActiveAccount so stale/deleted
 // sessions do not block new Google/email sign-up at POST /onboarding/entry.
 app.use("/", onboardingRoutes);
-app.use("/", requireActiveAccount(), agencyDomainRoutes); // Agency domain routes (inbox, overview, roster)
+app.use("/", requireActiveAccount(), agencyDomainRoutes); // Agency domain routes (inbox, overview, casting, Discover)
 
 // Application/onboarding routes mounted above (casting API)
 

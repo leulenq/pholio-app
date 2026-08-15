@@ -5,7 +5,7 @@ import { getAgencyProfile } from '../api/agency';
 import { useAgencyOverview, useRecentApplicants } from '../hooks/useAgencyOverview';
 import { useBoards, useAgencyActivity } from '../hooks/useOverviewModules';
 import {
-  selectKpis, selectPipeline, selectPulse, selectTalentMix,
+  selectKpis, selectPipeline, selectPulse,
   buildNextMoves, mapApplicant,
 } from '../components/overview/overviewData';
 import TodayDocket from '../components/overview/TodayDocket';
@@ -77,10 +77,9 @@ export default function OverviewPage() {
   const kpis = selectKpis(overview);
   const stages = selectPipeline(overview);
   const pulse = selectPulse(overview);
-  const talentMix = selectTalentMix(overview);
-  const nextMoves = buildNextMoves(pulse, talentMix);
+  const nextMoves = buildNextMoves(pulse);
   const incoming = applicants.map(mapApplicant);
-  const topMatches = [...incoming].sort((a, b) => (b.match || 0) - (a.match || 0)).slice(0, 20);
+  const recentTalent = incoming.slice(0, 20);
   const firstName = profile?.first_name || null;
   const agencyName = profile?.agency_name || null;
 
@@ -102,7 +101,7 @@ export default function OverviewPage() {
       />
       <TalentStrip
         title="Top matches today"
-        talents={topMatches}
+          talents={recentTalent}
         onSelect={setSelected}
         viewAllTo="/dashboard/agency/submissions"
       />

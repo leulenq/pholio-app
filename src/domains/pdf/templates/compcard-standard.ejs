@@ -362,19 +362,6 @@
       display: block;
     }
 
-    /* Watermark */
-    .watermark {
-      position: absolute;
-      bottom: 0.15in;
-      right: 0.3in;
-      font-family: var(--font-ui);
-      font-size: 5.5pt;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      font-weight: 500;
-      color: var(--text);
-      opacity: 0.25;
-    }
   </style>
 </head>
 <body data-compcard-seed="<%= safeCompCardMetadata.seed || 'auto' %>" data-compcard-layout-family="<%= safeCompCardMetadata.layoutFamily || layoutFamilyClass %>" data-compcard-style-variant="<%= safeCompCardMetadata.styleVariant || styleVariantClass %>">
@@ -411,10 +398,6 @@
       <div class="front__slug"><%= slugText %></div>
     </div>
 
-    <%/* Watermark for free users */%>
-    <% if (!isPro) { %>
-      <div class="watermark">Pholio</div>
-    <% } %>
   </div>
 
   <%/* ─────────────────────────────────────────────
@@ -484,7 +467,7 @@
           <div class="back__footer">
             <hr class="back__footer-rule">
             <div class="back__footer-slug"><%= slugText %></div>
-            <% if (isPro && typeof qrCode !== 'undefined' && qrCode) { %>
+            <% if (typeof qrCode !== 'undefined' && qrCode) { %>
               <div class="back__qr">
                 <img src="<%= qrCode %>" alt="QR Code">
               </div>
@@ -494,9 +477,6 @@
       </div>
     </div>
 
-    <% if (!isPro) { %>
-      <div class="watermark">Pholio</div>
-    <% } %>
   </div>
 
 </body>

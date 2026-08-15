@@ -220,7 +220,8 @@ export const calculateProfileStrength = (data) => {
   }
 
   const hasRecencyAnchor = hasHeadshot || hasFullBody;
-  const hasCurrentDigitals = hasRecencyAnchor && !pkg.recency.isStale;
+  // `isCurrent`, not `!isStale`: an undated set is not stale and not current.
+  const hasCurrentDigitals = hasRecencyAnchor && pkg.recency.isCurrent;
   if (hasCurrentDigitals) {
     improveScore += IMPROVE_FIELD_POINTS.digitals_recency;
   } else if (pkg.recency.isStale && hasRecencyAnchor) {
@@ -346,7 +347,7 @@ export const calculateProfileStrength = (data) => {
     photo_back: digitals.hasBack,
     photo_editorial: digitals.hasEditorial,
     photo_lifestyle: digitals.hasLifestyle,
-    digitals_recency: !pkg.recency.isStale,
+    digitals_recency: pkg.recency.isCurrent,
     bio: hasBio,
     look: hasLook,
     shoe: hasShoe,
@@ -374,41 +375,5 @@ export const calculateProfileStrength = (data) => {
     scrollTargetByKey: PROFILE_STRENGTH_SCROLL_TARGETS,
     bookReadiness: book,
     digitalsReadiness: digitals,
-  };
-};
-
-export const getStrengthUI = (score, isRequiredComplete = false) => {
-  if (!isRequiredComplete) {
-    return {
-      label: 'Build your package',
-      color: '#C0392B',
-      message: 'Add missing essentials.',
-      status: 'locked',
-    };
-  }
-
-  if (score < 85) {
-    return {
-      label: 'Essentials complete',
-      color: '#C9A55A',
-      message: 'Add look details and contact to strengthen your package.',
-      status: 'improvement',
-    };
-  }
-
-  if (score < 100) {
-    return {
-      label: 'Strong package',
-      color: '#2D8A56',
-      message: 'Your profile matches what bookers look for when shortlisting.',
-      status: 'improvement',
-    };
-  }
-
-  return {
-    label: 'Agency grade',
-    color: '#C9A55A',
-    message: 'Complete and current — ready for agency review.',
-    status: 'perfect',
   };
 };

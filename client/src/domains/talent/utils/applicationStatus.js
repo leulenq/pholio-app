@@ -6,7 +6,7 @@ import { AlertCircle, Bookmark, Calendar, Camera, Check, Clock, X } from 'lucide
 //           Values: 'pending' | 'accepted' | 'file' | 'closed'
 //
 // `group` — drives industry-true standing counts in bucketCounts().
-//           Values: 'inReview' | 'advancing' | 'signed' | 'closed'
+//           Values: 'inReview' | 'advancing' | 'represented' | 'closed'
 //           KEY RULE: shortlisted and kept_on_file are soft-yes outcomes and
 //           MUST be in group:'advancing', never in group:'closed'.
 export function statusConfig(status) {
@@ -76,22 +76,22 @@ export function statusConfig(status) {
       detail: 'The agency has taken you on for development before full representation.',
     },
     accepted: {
-      label: 'Representation',
-      short: 'Moving forward',
+      label: 'Offer / Moving Forward',
+      short: 'Offer',
       tone: 'accepted',
-      group: 'signed',
+      group: 'advancing',
       icon: Check,
-      next: 'The agency wants to move forward with representation — expect direct follow-up.',
-      detail: 'The agency will contact you about representation and next steps.',
+      next: 'The agency wants to move forward — review the offer and agreement directly with them.',
+      detail: 'An offer is not yet a completed representation agreement.',
     },
-    booked: {
+    represented: {
       label: 'Represented',
-      short: 'Signed',
+      short: 'Represented',
       tone: 'accepted',
-      group: 'signed',
+      group: 'represented',
       icon: Check,
       next: "You're represented — expect onboarding details directly from the agency.",
-      detail: 'The agency has taken you onto its roster.',
+      detail: 'You and the agency have completed the representation agreement.',
     },
     declined: {
       label: 'Not Selected',
@@ -119,6 +119,19 @@ export function statusConfig(status) {
       icon: AlertCircle,
       next: 'This submission is closed. Keep your book current for future outreach.',
       detail: 'The agency did not move forward with this submission.',
+    },
+    // Distinct from `passed`: the agency made no decision, and saying it did
+    // would put a verdict in its mouth. The label names the silence and the
+    // guidance tells the talent what to do about it, which is the whole
+    // point of closing these automatically.
+    closed_no_response: {
+      label: 'No Response',
+      short: 'Closed',
+      tone: 'closed',
+      group: 'closed',
+      icon: AlertCircle,
+      next: 'Treat this as a pass. Keep your book current and keep submitting.',
+      detail: 'The agency did not respond within its review window.',
     },
     archived: {
       label: 'Closed',
@@ -164,17 +177,18 @@ export function statusConfig(status) {
 }
 
 // Count applications by industry-true standing group.
-// Returns { inReview, advancing, signed, closed } — never buries a soft-yes
+// Returns { inReview, advancing, represented, closed } — never buries a soft-yes
 // outcome (shortlisted, kept_on_file) alongside rejections.
 //
 // Groups:
 //   inReview  — pending, submitted, reviewing (agency has not decided)
 //   advancing — shortlisted, requested_more, meeting_requested, development,
-//               kept_on_file (soft yes; NON-terminal)
-//   signed    — accepted, booked             (positive outcome)
-//   closed    — declined, passed, rejected, archived, withdrawn
+//               accepted, kept_on_file (soft yes / offer; NON-terminal)
+//   represented — represented                (agreement complete)
+//   closed    — declined, passed, rejected, archived, withdrawn,
+//               closed_no_response (review window lapsed, no decision made)
 export function bucketCounts(applications = []) {
-  const counts = { inReview: 0, advancing: 0, signed: 0, closed: 0 };
+  const counts = { inReview: 0, advancing: 0, represented: 0, closed: 0 };
   for (const app of applications) {
     const group = statusConfig(app.status).group;
     if (group in counts) counts[group] += 1;

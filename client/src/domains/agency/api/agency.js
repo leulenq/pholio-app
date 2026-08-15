@@ -167,6 +167,11 @@ export async function acceptApplication(applicationId) {
   return apiClient.post(`/applications/${applicationId}/accept`);
 }
 
+/** Mark the representation agreement complete. */
+export async function confirmRepresentationApplication(applicationId) {
+  return apiClient.patch(`/applications/${applicationId}/status`, { status: 'represented' });
+}
+
 /**
  * Decline application. Optionally accepts a reason/note payload for structured
  * pass reasons; the endpoint accepts the body even before storage is wired.
@@ -241,7 +246,7 @@ export async function getProfilePreview(profileId) {
 }
 
 /**
- * Get full profile details for a discoverable talent (Discover + Roster via separate endpoint)
+ * Get full profile details for a discoverable talent.
  */
 export async function fetchProfileDetails(profileId) {
   return apiClient.get(`/profiles/${profileId}/details`);
@@ -257,61 +262,12 @@ export async function getApplicationDetails(applicationId) {
 
 /**
  * The talent dossier — the aggregate read behind the expanded talent view.
- * One request carries identity, canonical stats, representation, availability,
- * standing with this agency, the book, the submitted package, roster position,
- * and the working record. Unwrapped by apiClient to the `data` payload.
+ * One request carries identity, canonical stats, representation, application
+ * standing, the book, the submitted package, and the working record. Unwrapped
+ * by apiClient to the `data` payload.
  */
 export async function getTalentDossier(applicationId) {
   return apiClient.get(`/applications/${applicationId}/dossier`);
-}
-
-/**
- * Get full agency roster
- */
-export async function fetchRoster(params = {}) {
-  const queryString = new URLSearchParams(
-    Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== ''),
-  ).toString();
-  return apiClient.get(`/roster${queryString ? `?${queryString}` : ''}`);
-}
-
-/**
- * Get roster profile — bypasses is_discoverable filter, includes booking stats
- */
-export async function fetchRosterProfile(profileId) {
-  return apiClient.get(`/roster/${profileId}`);
-}
-
-export async function createTalentRecord(data) {
-  return apiClient.post('/talent-records', data);
-}
-
-export async function updateTalentRecord(recordId, data) {
-  return apiClient.patch(`/talent-records/${recordId}`, data);
-}
-
-export async function updateRosterMembership(membershipId, data) {
-  return apiClient.patch(`/roster-memberships/${membershipId}`, data);
-}
-
-export async function getCommitments({ start, end }) {
-  return apiClient.get(`/commitments?${new URLSearchParams({ start, end })}`);
-}
-
-export async function createCommitment(data) {
-  return apiClient.post('/commitments', data);
-}
-
-export async function updateCommitment(id, data) {
-  return apiClient.patch(`/commitments/${id}`, data);
-}
-
-export async function confirmCommitment(id, releaseConflictIds = []) {
-  return apiClient.post(`/commitments/${id}/confirm`, { releaseConflictIds });
-}
-
-export async function releaseCommitment(id) {
-  return apiClient.delete(`/commitments/${id}`);
 }
 
 /**
@@ -329,43 +285,8 @@ export async function inviteTalent(profileId, queryLogId = null) {
 /**
  * Get all boards
  */
-/**
- * Season Report aggregates. The endpoint returns { success, analytics } (not
- * the standardized { success, data } envelope), so unwrap here.
- */
-export async function getAgencyAnalytics(range = 90) {
-  const res = await apiClient.get(`/analytics?range=${range}`);
-  return res?.analytics || res;
-}
-
-/**
- * Season analytics — the aggregate behind the Season surface.
- *
- * Sends the browser's IANA timezone as a fallback. The server prefers the
- * agency timezone saved during setup, so historic DST boundaries stay correct.
- */
-export async function getSeasonAnalytics({ range = 90, boardId = null, signal } = {}) {
-  const params = new URLSearchParams({
-    range: String(range),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-  });
-  if (boardId) params.set('board', boardId);
-  const res = await apiClient.get(`/analytics/season?${params.toString()}`, { signal });
-  return res?.data || res;
-}
-
-/**
- * Replace the full set of boards a roster member sits on.
- *
- * @param {string} membershipId
- * @param {Array<{boardId: string, standing: string, isPrimary?: boolean}>} boards
- */
-export async function updateRosterBoards(membershipId, boards) {
-  return apiClient.put(`/roster-memberships/${membershipId}/boards`, { boards });
-}
-
 export async function getBoards(type) {
-  // `type` is optional: 'division' for standing boards (Women, Editorial),
+  // `type` is optional: 'division' for agency boards (Women, Editorial),
   // 'package' for casting boards. Omitted returns both, as before.
   return apiClient.get(type ? `/boards?type=${encodeURIComponent(type)}` : '/boards');
 }
@@ -375,20 +296,6 @@ export async function getBoards(type) {
  */
 export async function getCastingBoardPipeline(boardId) {
   return apiClient.get(`/boards/${boardId}/candidates`);
-}
-
-/**
- * Rank a board's applicants with the Fit Briefs decision-support engine.
- * This is decision support, not a decision — the response includes an explanatory
- * case for / against each candidate, an eligibility split, and a required disclosure
- * notice. `opts` may set { withCases, withReasoning } to include past-case context
- * and the optional AI read.
- */
-export async function rankBoard(boardId, opts = {}) {
-  const body = {};
-  if (opts.withCases) body.withCases = true;
-  if (opts.withReasoning) body.withReasoning = true;
-  return apiClient.post(`/boards/${boardId}/rank`, body);
 }
 
 /**
@@ -759,107 +666,6 @@ export async function setDefaultPreset(id) {
   return apiClient.put(`/filter-presets/${id}/set-default`);
 }
 
-// ============================================================================
-// Interview Scheduling API
-// ============================================================================
-
-/**
- * Schedule interview with talent
- */
-export async function scheduleInterview(applicationId, interviewData) {
-  return apiClient.post(`/applications/${applicationId}/interviews`, interviewData);
-}
-
-/**
- * Get all interviews for agency
- */
-export async function getInterviews(params = {}) {
-  const queryString = new URLSearchParams(params).toString();
-  return apiClient.get(`/interviews${queryString ? '?' + queryString : ''}`);
-}
-
-/**
- * Get interviews for specific application
- */
-export async function getApplicationInterviews(applicationId) {
-  return apiClient.get(`/applications/${applicationId}/interviews`);
-}
-
-/**
- * Update/reschedule interview
- */
-export async function updateInterview(interviewId, updates) {
-  return apiClient.patch(`/interviews/${interviewId}`, updates);
-}
-
-/**
- * Cancel interview
- */
-export async function cancelInterview(interviewId) {
-  return apiClient.delete(`/interviews/${interviewId}`);
-}
-
-// ============================================================================
-// Reminders API
-// ============================================================================
-
-/**
- * Create reminder
- */
-export async function createReminder(applicationId, reminderData) {
-  return apiClient.post(`/applications/${applicationId}/reminders`, reminderData);
-}
-
-/**
- * Get all reminders for agency
- */
-export async function getReminders(params = {}) {
-  const queryString = new URLSearchParams(params).toString();
-  return apiClient.get(`/reminders${queryString ? '?' + queryString : ''}`);
-}
-
-/**
- * Get due reminders count
- */
-export async function getDueRemindersCount() {
-  return apiClient.get('/reminders/due');
-}
-
-/**
- * Get reminders for specific application
- */
-export async function getApplicationReminders(applicationId) {
-  return apiClient.get(`/applications/${applicationId}/reminders`);
-}
-
-/**
- * Update reminder
- */
-export async function updateReminder(reminderId, updates) {
-  return apiClient.patch(`/reminders/${reminderId}`, updates);
-}
-
-/**
- * Mark reminder as completed
- */
-export async function completeReminder(reminderId) {
-  return apiClient.post(`/reminders/${reminderId}/complete`);
-}
-
-/**
- * Snooze reminder
- */
-export async function snoozeReminder(reminderId, snoozeUntil) {
-  return apiClient.post(`/reminders/${reminderId}/snooze`, { snooze_until: snoozeUntil });
-}
-
-/**
- * Delete reminder
- */
-export async function deleteReminder(reminderId) {
-  return apiClient.delete(`/reminders/${reminderId}`);
-}
-
 export async function getAgencyNotifications(options = {}) {
   const limit = options.limit ? `?limit=${options.limit}` : '';
   return apiClient.get(`/notifications${limit}`);
@@ -881,12 +687,34 @@ export async function getOpenCallLinks() {
   return apiClient.get('/open-call/links');
 }
 
-export async function createOpenCallLink(label) {
-  return apiClient.post('/open-call/links', { label });
+export async function createOpenCallLink(label, brief) {
+  return apiClient.post('/open-call/links', { label, brief });
 }
 
 export async function updateOpenCallLink(linkId, payload) {
   return apiClient.patch(`/open-call/links/${linkId}`, payload);
+}
+
+/*
+ * Spec Builder — the requirements an agency publishes for its open call.
+ * Everything here is advisory: it tells an applicant what is missing and never
+ * stops them sending.
+ */
+
+export async function getSpecBuilder() {
+  return apiClient.get('/spec-builder');
+}
+
+export async function saveSpecDraft(draft) {
+  return apiClient.put('/spec-builder/draft', { draft });
+}
+
+export async function publishSpecDraft() {
+  return apiClient.post('/spec-builder/publish', {});
+}
+
+export async function getSpecRevisions() {
+  return apiClient.get('/spec-builder/revisions');
 }
 
 export default {
@@ -897,6 +725,7 @@ export default {
   getApplicants,
   getApplication,
   acceptApplication,
+  confirmRepresentationApplication,
   declineApplication,
   shortlistApplication,
   keepOnFileApplication,
@@ -908,12 +737,9 @@ export default {
   fetchProfileDetails,
   getApplicationDetails,
   getTalentDossier,
-  fetchRoster,
-  fetchRosterProfile,
   inviteTalent,
   getBoards,
   getCastingBoardPipeline,
-  rankBoard,
   createBoard,
   updateBoard,
   deleteBoard,
@@ -941,4 +767,8 @@ export default {
   getOpenCallLinks,
   createOpenCallLink,
   updateOpenCallLink,
+  getSpecBuilder,
+  saveSpecDraft,
+  publishSpecDraft,
+  getSpecRevisions,
 };

@@ -13,11 +13,11 @@ export function buildProfileHydration(profile, images) {
     bio: profile.bio_curated || profile.bio_raw || null,
     slug: profile.slug || null,
     portfolioUrl: findSocialUrl(profile, 'portfolio'),
-    isPro: Boolean(profile.is_pro),
     // Measurements — feed the panel's vitals band. Present in both the
     // discover profile DTO and the application-details submitted profile.
     measurements: {
       height_cm: profile.height_cm ?? null,
+      weight_kg: profile.weight_kg ?? null,
       bust_cm: profile.bust_cm ?? null,
       waist_cm: profile.waist_cm ?? null,
       hips_cm: profile.hips_cm ?? null,
@@ -42,10 +42,9 @@ function formatSiteLabel(href) {
   }
 }
 
-export function getTalentSiteLink({ isPro, slug, portfolioUrl }) {
+export function getTalentSiteLink({ slug, portfolioUrl }) {
   const hasTarget = Boolean(portfolioUrl || slug);
-  const showLink = hasTarget && (isPro || (import.meta.env.DEV && slug));
-  if (!showLink) return null;
+  if (!hasTarget) return null;
   const href = portfolioUrl || `/portfolio/${slug}`;
   return {
     href,

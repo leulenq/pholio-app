@@ -1,6 +1,10 @@
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const { seedAgencyDemo } = require("../scripts/seed-agency-demo");
+const { validateRegistry } = require("../scripts/validate-spec-registry");
+const {
+  publishRegistry,
+} = require("../src/domains/spec-registry/store/publisher");
 
 /* Legal acceptance must track the live constant. This file used to hardcode
    "2026-06-25"; CURRENT_LEGAL_VERSION has since moved to a later date, so every
@@ -51,7 +55,7 @@ async function seedDemoData(knex, talentId, profileId) {
     },
     {
       name: "The Society Management",
-      location: "Los Angeles, CA",
+      location: "New York, NY",
       website: "https://thesocietymanagement.com",
       openBoards: ["Women", "Men"],
     },
@@ -88,6 +92,35 @@ async function seedDemoData(knex, talentId, profileId) {
       open_boards: JSON.stringify(ag.openBoards),
       status: "ACTIVE",
     });
+  }
+
+  // Seed links are explicit route assignments, not runtime name matching.
+  // Production assignments use the same join table with operator-chosen IDs.
+  if (await knex.schema.hasTable("spec_registry_agency_routes")) {
+    const explicitRegistryRoutes = [
+      [0, "wilhelmina:selected-market-online"],
+      [1, "img-models-global:online"],
+      [2, "elite-model-management-global:online"],
+      [3, "ford-models:selected-city-online"],
+      [5, "the-society-management-nyc:online"],
+    ];
+    const availableSeries = new Set(
+      (await knex("spec_registry_series").select("series_id")).map(
+        (row) => row.series_id,
+      ),
+    );
+    const routeRows = explicitRegistryRoutes
+      .filter(([, seriesId]) => availableSeries.has(seriesId))
+      .map(([agencyIndex, seriesId]) => ({
+        agency_id: agencyIds[agencyIndex],
+        series_id: seriesId,
+        priority: 100,
+        created_at: knex.fn.now(),
+        updated_at: knex.fn.now(),
+      }));
+    if (routeRows.length) {
+      await knex("spec_registry_agency_routes").insert(routeRows);
+    }
   }
 
   // ─── Applications ─────────────────────────────────────────────────────────
@@ -346,6 +379,10 @@ exports.seed = async function seed(knex) {
   await knex("images").del();
   await knex("profiles").del();
   await knex("users").del();
+
+  if (await knex.schema.hasTable("spec_registry_datasets")) {
+    await publishRegistry(knex, validateRegistry());
+  }
 
   const passwordHash = await bcrypt.hash("password123", 10);
 

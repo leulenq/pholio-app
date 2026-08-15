@@ -335,8 +335,7 @@ router.get(
         .whereNotNull("visitor_id")
         .countDistinct({ total: "visitor_id" })
         .first(),
-      // Repeat visitors are the strongest interest signal the site can report:
-      // a scout who comes back is worth more than a hundred one-off hits.
+      // Count repeat sessions as an observed traffic fact; do not infer intent.
       knex("visitor_sessions")
         .where({ profile_id: profile.id })
         .modify((query) =>
@@ -473,8 +472,7 @@ router.get(
             count: Number(item.total || 0),
           })),
         },
-        // Intel spec §6: the invented engagement score does not migrate.
-        // Raw event counts remain; interpretation happens on the intel page.
+        // Raw event counts only; passive activity does not establish intent.
         engagement: {
           counts: engagementMap,
         },
@@ -802,11 +800,7 @@ router.get(
   }),
 );
 
-/*
- * Removed (intel spec §6, explicit kills): GET /insights (fabricated
- * multipliers) and GET /cohorts (website-operator retention metric).
- * The intel endpoint (routes/intel.js) is the replacement surface.
- */
+/* Fabricated insight multipliers and retention cohorts are intentionally absent. */
 
 /**
  * GET /api/talent/analytics/sessions

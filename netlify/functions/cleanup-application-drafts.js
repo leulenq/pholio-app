@@ -7,15 +7,20 @@ const {
 const {
   redactExpiredSubmissionPackages,
 } = require("../../src/shared/lib/submission-retention");
+const {
+  runApplicationAutoClose,
+} = require("../../src/shared/lib/application-auto-close");
 
 exports.handler = async function handler() {
   try {
     const drafts = await runDraftLifecycleCleanup(knex);
     const redactedSubmissionPackages =
       await redactExpiredSubmissionPackages(knex);
+    const autoClosed = await runApplicationAutoClose(knex);
     console.log("[ApplicationLifecycleCleanup]", {
       ...drafts,
       redactedSubmissionPackages,
+      autoClosed,
       completedAt: new Date().toISOString(),
     });
     return { statusCode: 204 };

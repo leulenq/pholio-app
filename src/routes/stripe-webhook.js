@@ -4,6 +4,11 @@ const {
   updateSubscription,
   upsertSubscriptionFromStripe,
 } = require('../shared/lib/subscriptions');
+const {
+  applyProviderSession,
+  syncVerification,
+  markVerificationRedacted,
+} = require('../domains/talent/services/age-verification');
 
 /**
  * Stripe Webhook Handler
@@ -106,6 +111,22 @@ async function handleStripeWebhook(req, res) {
       case 'customer.subscription.trial_will_end': {
         // Optional: Send notification to user about trial ending
         console.log('[Stripe Webhook] Trial will end:', event.data.object.id);
+        break;
+      }
+
+      case 'identity.verification_session.verified': {
+        await syncVerification(event.data.object.id);
+        break;
+      }
+
+      case 'identity.verification_session.requires_input':
+      case 'identity.verification_session.canceled': {
+        await applyProviderSession(event.data.object);
+        break;
+      }
+
+      case 'identity.verification_session.redacted': {
+        await markVerificationRedacted(event.data.object.id);
         break;
       }
 

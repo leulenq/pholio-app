@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2, X } from 'lucide-react';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import './AgencyButton.css';
 
@@ -16,7 +17,7 @@ export function AgencyButton({
   let pholioVariant = 'primary';
   if (variant === 'secondary') pholioVariant = 'secondary';
   else if (variant === 'ghost' || variant === 'tertiary') pholioVariant = 'tertiary';
-  else if (variant === 'danger' || variant === 'destructive') pholioVariant = 'destructive';
+  else if (variant === 'destructive') pholioVariant = 'destructive';
   else if (variant === 'icon') pholioVariant = 'icon';
 
   let resolvedIcon = null;
@@ -39,10 +40,16 @@ export function AgencyButton({
   );
 }
 
-export function DeclineButton({ children = 'Decline', ...props }) {
+export function DeclineButton({ children = 'Decline', loading, disabled, ...props }) {
   return (
-    <AgencyButton variant="danger" {...props}>
-      {children}
-    </AgencyButton>
+    <button
+      type="button"
+      className="tact-btn tact-btn--danger"
+      disabled={loading || disabled}
+      {...props}
+    >
+      {loading ? <Loader2 className="agency-btn-spinner" size={15} /> : <X size={15} />}
+      <span>{children}</span>
+    </button>
   );
 }

@@ -16,8 +16,9 @@ const ADVANCING = new Set([
   "requested_more",
   "meeting_requested",
   "development",
+  "accepted",
 ]);
-const SIGNED = new Set(["accepted", "booked", "represented"]);
+const REPRESENTED = new Set(["represented"]);
 const PASSED = new Set(["passed", "declined"]);
 
 const STATUS_LABELS = {
@@ -27,7 +28,6 @@ const STATUS_LABELS = {
   meeting_requested: "Meeting requested",
   development: "Development",
   accepted: "Accepted",
-  booked: "Booked",
   represented: "Represented",
   kept_on_file: "Kept on file",
   passed: "Passed",
@@ -90,7 +90,7 @@ function tier12Counts(activities) {
     if (a.activity_type === "profile_viewed") reviews += 1;
     if (a.activity_type === "status_change") {
       const next = activityMeta(a).new_status;
-      if (ADVANCING.has(next) || SIGNED.has(next)) advances += 1;
+      if (ADVANCING.has(next) || REPRESENTED.has(next)) advances += 1;
     }
   }
   return { reviews, advances };
@@ -106,14 +106,14 @@ function pipelineEventsByDay(activities) {
     if (a.activity_type === "profile_viewed") day.reviews += 1;
     if (a.activity_type === "status_change") {
       const next = activityMeta(a).new_status;
-      if (ADVANCING.has(next) || SIGNED.has(next)) day.advances += 1;
+      if (ADVANCING.has(next) || REPRESENTED.has(next)) day.advances += 1;
     }
   }
   return out;
 }
 
 function classifyOutcome(status) {
-  if (SIGNED.has(status)) return "signed";
+  if (REPRESENTED.has(status)) return "represented";
   if (status === "kept_on_file") return "keptOnFile";
   if (PASSED.has(status)) return "passed";
   if (status === "withdrawn") return "withdrawn";
@@ -130,7 +130,7 @@ function flowCounts(applications, activitiesByApp) {
     advanced: 0,
     stages: { shortlisted: 0, requestedMore: 0, meeting: 0, development: 0 },
     outcomes: {
-      signed: 0,
+      represented: 0,
       keptOnFile: 0,
       passed: 0,
       withdrawn: 0,
@@ -154,7 +154,7 @@ function flowCounts(applications, activitiesByApp) {
     // submission could settle positively having never been "advanced", which
     // makes stage-to-stage conversion rates meaningless.
     const everAdvanced = [...touched].some(
-      (s) => ADVANCING.has(s) || SIGNED.has(s) || s === "kept_on_file",
+      (s) => ADVANCING.has(s) || REPRESENTED.has(s) || s === "kept_on_file",
     );
     if (everAdvanced) flow.advanced += 1;
 
@@ -174,7 +174,7 @@ function flowCounts(applications, activitiesByApp) {
     if (touched.has("development")) flow.stages.development += 1;
 
     const outcome = classifyOutcome(app.status);
-    if (outcome === "signed") flow.outcomes.signed += 1;
+    if (outcome === "represented") flow.outcomes.represented += 1;
     else if (outcome === "keptOnFile") flow.outcomes.keptOnFile += 1;
     else if (outcome === "passed") flow.outcomes.passed += 1;
     else if (outcome === "withdrawn") flow.outcomes.withdrawn += 1;
@@ -192,7 +192,7 @@ function diagnose(flow) {
   if (flow.entered < 2) return null;
   if (flow.reviewed === 0) return "targeting"; // never-opened
   if (flow.advanced === 0) return "materials"; // opened, never advanced
-  const settledPositive = flow.outcomes.signed + flow.outcomes.keptOnFile;
+  const settledPositive = flow.outcomes.represented + flow.outcomes.keptOnFile;
   if (flow.advanced > 0 && settledPositive === 0 && flow.outcomes.inMotion === 0)
     return "follow_through"; // advancing but stalling out
   return "healthy";
@@ -307,7 +307,7 @@ function withinWindow(dateValue, since) {
 
 module.exports = {
   ADVANCING,
-  SIGNED,
+  REPRESENTED,
   PASSED,
   STATUS_LABELS,
   loadApplications,

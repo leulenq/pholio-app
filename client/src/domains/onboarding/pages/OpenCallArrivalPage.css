@@ -188,6 +188,53 @@
   color: var(--app-text);
 }
 
+/*
+ * The agency's own brief, in place of the generic steps. Same rhythm as the
+ * step list it replaces — a hairline rule, left-aligned, quiet labels — so the
+ * screen reads the same whether or not the agency has published one.
+ */
+.opencall__brief {
+  margin: 0 0 26px;
+  padding: 20px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  text-align: left;
+  border-top: 1px solid var(--app-hair);
+  max-width: 56ch;
+}
+
+.opencall__brief-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.opencall__brief-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--app-gold-warm);
+}
+
+.opencall__brief-body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--app-text);
+  white-space: pre-line;
+}
+
+.opencall__closing {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12.5px;
+  color: var(--app-text-soft);
+  margin: 0 0 24px;
+}
+
 .opencall__signin-note {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 12.5px;
@@ -196,7 +243,8 @@
 }
 
 @media (max-width: 560px) {
-  .opencall__steps {
+  .opencall__steps,
+  .opencall__brief {
     align-self: stretch;
   }
 }

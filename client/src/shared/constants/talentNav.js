@@ -13,6 +13,7 @@ export const TALENT_NAV_SECTIONS = [
     items: [
       { label: 'The Book', to: '/dashboard/talent/media', pageKicker: 'The Book' },
       { label: 'Profile', to: '/dashboard/talent/profile', pageKicker: 'Profile' },
+      { label: 'Intel', to: '/dashboard/talent/intel', pageKicker: 'Intel' },
     ],
   },
   {
@@ -21,12 +22,6 @@ export const TALENT_NAV_SECTIONS = [
         label: 'Market',
         to: '/dashboard/talent/applications',
         pageKicker: 'Market',
-        requiresProfileGate: true,
-      },
-      {
-        label: 'Intel',
-        to: '/dashboard/talent/intel',
-        pageKicker: 'Intel',
         requiresProfileGate: true,
       },
     ],

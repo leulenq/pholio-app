@@ -302,6 +302,7 @@ export function draftFingerprint(document) {
         : [],
       digitalSlotPicks: payload.digitalSlotPicks || {},
       compCardPresetId: payload.compCardPreset?.id || payload.compCardPresetId || null,
+      specRegistryRevisionId: payload.specRegistryRevisionId || null,
       note: typeof payload.note === 'string' ? payload.note : '',
       consent: payload.consent === true,
     },
@@ -319,6 +320,7 @@ export function draftMaterialFingerprint(document) {
       : [],
     digitalSlotPicks: payload.digitalSlotPicks || {},
     compCardPresetId: payload.compCardPreset?.id || payload.compCardPresetId || null,
+    specRegistryRevisionId: payload.specRegistryRevisionId || null,
     note: typeof payload.note === 'string' ? payload.note : '',
   });
 }

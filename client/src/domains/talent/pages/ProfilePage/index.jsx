@@ -5,7 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { pholioToast } from '../../../../shared/lib/pholio-toast';
 import { motion } from 'framer-motion';
-import { Menu, X, Camera } from 'lucide-react';
+import { Menu, X, Camera, FileUp } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import { profileSchema } from '../../../../schemas/profileSchema';
@@ -21,7 +21,7 @@ import CreditsEditor from '../../../../shared/components/ui/forms/CreditsEditor'
 import { Controller } from 'react-hook-form';
 import ProfileNav from '../../components/ProfileNav';
 import { NAV_LABELS_BY_ID } from '../../components/profileNavItems';
-import ProfileStrengthSidebar from '../../components/ProfileStrengthSidebar';
+import ProfileReadinessSidebar from '../../components/ProfileReadinessSidebar';
 import { calculateProfileStrength } from '../../../../shared/utils/profileScoring';
 import {
   Section,
@@ -35,6 +35,8 @@ import { DisciplineSection } from './DisciplineSection';
 import { MeasurementsSection } from './MeasurementsSection';
 import { AvailabilitySection } from './AvailabilitySection';
 import { SocialSection } from './SocialSection';
+import { VerifiedAdultSection } from './VerifiedAdultSection';
+import CompCardImportOverlay from '../../components/CompCardImport/CompCardImportOverlay';
 import WritingAssistToolbar from '../../../../shared/components/writing/WritingAssistToolbar';
 import PholioButton, {
   PholioIconButton,
@@ -61,15 +63,6 @@ const UNION_OPTIONS = [
   { value: 'Equity (UK)', label: 'Equity (UK)' },
   { value: 'ACTRA', label: 'ACTRA' },
   { value: 'UAD', label: 'Union des artistes (UDA)' }
-];
-
-const COMFORT_LEVEL_OPTIONS = [
-  { value: 'Swimwear', label: 'Swimwear' },
-  { value: 'Lingerie', label: 'Lingerie' },
-  { value: 'Implied Nudity', label: 'Implied Nudity' },
-  { value: 'Artistic Nudity', label: 'Artistic Nudity' },
-  { value: 'Fitness/Athletic', label: 'Fitness / Athletic' },
-  { value: 'Body Paint', label: 'Body Paint' }
 ];
 
 const AVAILABILITY_OPTIONS = [
@@ -153,6 +146,7 @@ export default function ProfilePage() {
   const [guardianLinkSent, setGuardianLinkSent] = useState(false);
   const [guardianSentTo, setGuardianSentTo] = useState('');
   const [readinessAuditOpen, setReadinessAuditOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [gateItemsExpanded, setGateItemsExpanded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const pageRef = useRef(null);
@@ -609,11 +603,11 @@ export default function ProfilePage() {
     [values, authImages, profile?.email, profile?.phone, profile?.guardian_consent_at],
   );
 
-  const profileStrength = useMemo(
+  const profileReadiness = useMemo(
     () => calculateProfileStrength(strengthValues),
     [strengthValues],
   );
-  const { isCoreReady, missingCoreItems } = profileStrength;
+  const { isCoreReady, missingCoreItems } = profileReadiness;
 
   const scrollToProfileSection = (sectionId) => {
     if (sectionId === 'media' || sectionId === 'photos-tab' || sectionId === 'hero-section') {
@@ -903,12 +897,12 @@ export default function ProfilePage() {
         </motion.div>
       </header>
 
-      {/* Profile Strength — docked right under the hero so it reads as page
+      {/* Submission checklist — docked right under the hero so it reads as page
           context, not an appendage after the whole form (mobile stacks this
           here via DOM order; desktop/tablet still pin it to the grid's third
           column via explicit grid-column on .sidebar). */}
-      <ProfileStrengthSidebar
-        strength={profileStrength}
+      <ProfileReadinessSidebar
+        readiness={profileReadiness}
         profile={readinessProfile}
         images={Array.isArray(authImages) ? authImages : []}
         isSaving={isSubmitting}
@@ -953,6 +947,29 @@ export default function ProfilePage() {
 
         {/* Center - Form Fields */}
         <main className={styles.centerContent}>
+          {/*
+            Import is a one-off act, so it lives behind a trigger rather than
+            occupying the page. The trigger sits outside the form: applying an
+            import writes through its own endpoint and then rehydrates this form,
+            so it must not be able to submit the profile form itself.
+          */}
+          <div className={styles.importTriggerRow}>
+            <button
+              type="button"
+              className={styles.importTrigger}
+              onClick={() => setImportOpen(true)}
+            >
+              <FileUp size={13} strokeWidth={1.5} aria-hidden="true" />
+              Import an existing card
+            </button>
+          </div>
+
+          <CompCardImportOverlay
+            open={importOpen}
+            onClose={() => setImportOpen(false)}
+            onApplied={reloadProfile}
+          />
+
           <form
             id="profile-form"
             onSubmit={(e) => {
@@ -1236,27 +1253,6 @@ export default function ProfilePage() {
              />
           </div>
 
-          {/* Comfort Levels */}
-          <div className={styles.formRow}>
-            <Controller
-              name="comfort_levels"
-              control={control}
-              render={({ field }) => (
-                <PholioMultiSelect
-                  label="Comfort Levels"
-                  id="comfort_levels"
-                  options={COMFORT_LEVEL_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={errors.comfort_levels}
-                  placeholder="Select what you're comfortable with"
-                />
-              )}
-            />
-          </div>
-
-
-
           {/* Administrative Details */}
           <div className={`${styles.formGrid3} ${styles.formRow}`}>
             <Controller
@@ -1539,50 +1535,7 @@ export default function ProfilePage() {
           )}
         </Section>
 
-        {/* Verified-Adult Creator Context — conditional on 18+ and verified */}
-        {!isMinor && (
-          <Section
-            id="verified-adult"
-            title="Verified-Adult Creator Context"
-            titleEmphasis="Creator"
-            description="Verified adults only. Share boundaries and creator links so agencies don’t pitch mismatched work — and you stay in control."
-            showDivider={false}
-          >
-            <div className={styles.formRow}>
-              <Controller
-                name="comfort_levels"
-                control={control}
-                render={({ field }) => (
-                  <PholioMultiSelect
-                    label="Content Boundaries"
-                    id="comfort_levels"
-                    options={COMFORT_LEVEL_OPTIONS}
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={errors.comfort_levels}
-                    placeholder="Select content you're comfortable with"
-                  />
-                )}
-              />
-            </div>
-            <div className={`${styles.formRow} ${styles.platformOnlyfans}`}>
-              <Controller
-                name="onlyfans_url"
-                control={control}
-                render={({ field }) => (
-                  <PholioInput
-                    label="OnlyFans"
-                    id="onlyfans_url"
-                    type="text"
-                    placeholder="onlyfans.com/username"
-                    {...field}
-                    error={errors.onlyfans_url}
-                  />
-                )}
-              />
-            </div>
-          </Section>
-        )}
+        <VerifiedAdultSection dateOfBirth={values.date_of_birth} />
 
         <Section
           id="contact"

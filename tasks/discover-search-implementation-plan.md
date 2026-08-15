@@ -132,7 +132,7 @@ New module layout under `src/domains/agency/services/discover/`:
 2. **Tattoos/piercings** into `AGENCY_DISCOVERY_FIELDS` (adults only), talent-side copy reframed to "visible when dressed".
 3. **Caches** — `parse.js` and embedding calls read/write the WS3 cache tables; TTL enforced by `created_at` sweep in the existing daily scheduled function. In-process Maps removed.
 4. **Stats recency** — DTO exposes `measurements_updated_at` (renders "last updated") and `measured_in_person_at` (renders "measured in person <date>"). Agency-side action to set it lives on the roster/detail surface (small endpoint + button in `DiscoverDetail`/roster).
-5. **Query/outcome logging** — route handler writes `discover_query_log` per search; impression logging extends the existing `recordDiscoveryImpressions` call site (`inbox.js:3388`) to also write `discover_query_events`; invite/tag/shortlist endpoints write events when a `query_log_id` is passed by the client.
+5. **Query/outcome logging** — route handler writes `discover_query_log` per search; result impressions write `discover_query_events` for search-quality evaluation only; invite/tag/shortlist endpoints write events when a `query_log_id` is passed by the client. These operational logs do not feed talent-facing intent claims.
 
 ---
 
@@ -166,8 +166,7 @@ New module layout under `src/domains/agency/services/discover/`:
 
 1. **Bookouts UI** — Profile/Settings section ("Availability", industry copy: status select + bookout date ranges list, add/remove). API under `domains/talent/routes/settings.js` pattern; minors inherit consent gating (measurements-locked profiles get no public availability exposure).
 2. **Stats-currency prompt** — dashboard nudge when `measurements_updated_at` > 90 days: one-tap "still accurate" (touches timestamp) or link to MeasurementsSection.
-3. **Intel nudges** — extend the existing `profile_events` demand pipeline: aggregate which parsed constraint fields appeared in agency searches; surface "N searches this week filtered by <field> — yours is blank" on IntelPage. Uses `discover_query_log`, no new capture needed.
-4. Booking-lane vocabulary extension (e-comm, fit, curve, petite, parts, athletic) in `BookingLanesControl` options + whitelist sync.
+3. Booking-lane vocabulary extension (e-comm, fit, curve, petite, parts, athletic) in `BookingLanesControl` options + whitelist sync.
 
 ## WS10 — Moderation (PR 12, before open signup)
 **DECIDED (2026-07-11): manual review queue at launch + Hive adapter behind env config; Rekognition rejected.** Rationale: at ~30 uploads/day human review of flagged items is feasible and highest-precision; the trust risk is silent heuristic failure, fixed by making "flagged" a visible, actionable queue. Hive over Rekognition because it is a single REST call via native fetch (matching the repo's SDK-free OpenAI pattern), has finer NSFW granularity, and avoids introducing AWS credentials into a Cloudflare R2 + Neon + Netlify stack. Flagged uploads → `pending_review` (owner-visible "Under review", excluded from public/agency/comp-card surfaces); ops CLI for list/approve/reject; Hive activates via `MODERATION_PROVIDER=hive` + `HIVE_API_KEY`, flags to queue (never auto-rejects), degrades to heuristic on failure. CSAM escalation unchanged per `tasks/csam-escalation-runbook.md`.

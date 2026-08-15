@@ -42,13 +42,10 @@ Pholio connects talent with agencies through polished digital portfolios, AI-ass
 - **Messaging** — In-app direct messaging with agencies
 
 ### For Agencies
-- **Talent Roster Management** — Browse, filter, tag, and manage represented talent
-- **Application Inbox** — Accept, reject, or shortlist incoming talent applications
-- **Casting Boards** — Kanban-style boards for organising talent across castings
-- **Commission Tracking** — Log and monitor talent earnings and agency commission splits
-- **Interview & Reminder Scheduling** — Attach interviews and reminders to talent profiles
-- **Activity Timeline** — Full audit trail of roster events and interactions
-- **Scout / Discover** — Semantic natural-language search across all platform talent using OpenAI embeddings
+- **Application Inbox** — Review, pass, shortlist, or offer representation to incoming talent
+- **Casting Boards** — Organise applicants across declared casting requirements
+- **Activity Timeline** — Audit trail of submission and casting interactions
+- **Scout / Discover** — Natural-language search over declared, factual attributes of opt-in talent
 - **Team RBAC** — Role-based access control for agency team members
 
 ### Platform
@@ -179,9 +176,6 @@ S3_BUCKET_NAME=
 # Groq (AI photo analysis)
 GROQ_API_KEY=
 
-# OpenAI (Discover semantic search — text-embedding-3-small @ 512 dims)
-OPENAI_API_KEY=
-
 # Email
 SMTP_HOST=
 SMTP_PORT=587
@@ -265,18 +259,9 @@ Migrations live in `migrations/` as timestamped Knex files (`YYYYMMDDhhmmss_desc
 
 > **Note:** PostgreSQL stores `date_of_birth` as a full ISO timestamp. The frontend handles both `"1995-03-15"` and `"1995-03-15T05:00:00.000Z"`.
 
-### Discover Semantic Search
+### Discover natural-language search
 
-Agency Discover natural-language search (`GET /api/agency/discover?q=...`) uses OpenAI **text-embedding-3-small** (512 dimensions). SQLite stores vectors in `talent_embedding_cache` and runs semantic search in-process; Postgres uses pgvector.
-
-```bash
-# Add OPENAI_API_KEY to .env, then:
-npm run verify:embeddings     # Confirm the key works
-npm run backfill:discover     # Index all talent (works on SQLite and Postgres)
-# Restart the server — response meta.semantic_search should be true
-```
-
-Optional tuning: `DISCOVER_MAX_DISTANCE` (default `0.55`), `DISCOVER_FUSION_TEXT_WEIGHT` (`0.6`), `DISCOVER_FUSION_IMAGE_WEIGHT` (`0.4`).
+Agency Discover (`GET /api/agency/discover?q=...`) turns a written brief into declared factual constraints, filters discoverable talent against those constraints, and returns the remaining directory in a stable order. It does not calculate affinity scores or use AI to rank talent.
 
 ---
 

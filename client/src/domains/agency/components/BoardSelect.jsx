@@ -7,8 +7,8 @@ import './BoardSelect.css';
 const STAGE_COLORS = [
   { test: (s) => s === 'submitted' || s === 'pending', color: '#2D2A26' },
   { test: (s) => s === 'shortlisted' || s === 'requested_more' || s === 'meeting_requested', color: '#C9A55A' },
-  { test: (s) => s === 'development', color: '#8A7A55' },
-  { test: (s) => s === 'accepted' || s === 'represented' || s === 'booked', color: '#050505' },
+  { test: (s) => s === 'development' || s === 'accepted', color: '#8A7A55' },
+  { test: (s) => s === 'represented', color: '#050505' },
   { test: (s) => s === 'declined' || s === 'passed' || s === 'archived', color: '#C8C2BA' },
 ];
 

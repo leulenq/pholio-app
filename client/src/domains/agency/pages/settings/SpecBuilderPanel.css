@@ -1,0 +1,151 @@
+/*
+ * Spec Builder — rule rows inside the agency settings panel.
+ *
+ * Deliberately quiet: this is a form an agency fills in once and revisits
+ * rarely, so it borrows the settings surface rather than inventing a look. No
+ * badges, no accent stripes, no frosted panels.
+ */
+
+.sb-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sb-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: var(--ag-surface-2, #F5F2EE);
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.12));
+  border-radius: var(--ag-radius-lg, 12px);
+}
+
+.sb-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sb-label {
+  font-weight: 500;
+}
+
+.sb-row-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sb-control {
+  flex: 1 1 160px;
+  min-width: 0;
+  width: auto;
+}
+
+.sb-control--narrow { flex: 0 1 140px; }
+.sb-control--tiny { flex: 0 0 72px; }
+
+.sb-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ag-text-2, #6B6560);
+  white-space: nowrap;
+}
+
+.sb-row-scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.sb-scope-lead {
+  font-size: 12px;
+  color: var(--ag-text-2, #6B6560);
+}
+
+.sb-remove {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--ag-radius-md, 8px);
+  background: transparent;
+  color: var(--ag-text-3, #756E68);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sb-remove:hover {
+  color: #c0563f;
+  border-color: rgba(192, 86, 63, 0.28);
+  background: #ffffff;
+}
+
+.sb-remove:focus-visible {
+  outline: 2px solid var(--ag-gold, #C9A55A);
+  outline-offset: 2px;
+}
+
+.sb-empty {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--ag-text-3, #756E68);
+}
+
+.sb-issues {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  list-style: none;
+  background: #fdf6f4;
+  border: 1px solid rgba(192, 86, 63, 0.22);
+  border-radius: var(--ag-radius-md, 8px);
+  font-size: 12.5px;
+  color: #8f4632;
+}
+
+.sb-issues li + li { margin-top: 6px; }
+
+.sb-issues--summary { margin-top: 12px; }
+.sb-issues--summary ul { margin: 6px 0 0; padding-left: 16px; }
+
+.sb-issues-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.sb-refused { margin-top: 12px; }
+
+.sb-refused-list {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  font-size: 12.5px;
+  color: var(--ag-text-2, #6B6560);
+}
+
+.sb-refused-list li + li { margin-top: 4px; }
+
+@media (max-width: 720px) {
+  .sb-control,
+  .sb-control--narrow { flex: 1 1 100%; }
+  .sb-control--tiny { flex: 0 0 84px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-remove { transition: none; }
+}

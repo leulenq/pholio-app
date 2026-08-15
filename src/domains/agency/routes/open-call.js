@@ -14,11 +14,43 @@ const {
   LINK_STATUSES,
   CLAIM_STATUSES,
 } = require("../../talent/services/open-call-claims");
+const {
+  OpenCallBriefError,
+  briefColumns,
+  briefDTO,
+  hasBrief,
+  isClosedByDeadline,
+  normalizeBrief,
+} = require("../services/open-call-brief");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
 
 const MAX_LINKS_PER_AGENCY = 20;
+
+// Deploy-before-migrate guard for the brief columns specifically: link
+// management keeps working on an older schema, only the brief is withheld.
+let briefSchemaPromise = null;
+function hasBriefSchema(db) {
+  if (!briefSchemaPromise) {
+    briefSchemaPromise = db.schema
+      .hasColumn("agency_open_call_links", "brief_completed_at")
+      .catch(() => {
+        briefSchemaPromise = null;
+        return false;
+      });
+  }
+  return briefSchemaPromise;
+}
+
+function briefErrorResponse(error, res) {
+  return res.status(error.status || 400).json({
+    success: false,
+    error: error.code,
+    message: error.message,
+    field: error.field || null,
+  });
+}
 
 function serializeLink(link, stats = null) {
   return {
@@ -28,6 +60,11 @@ function serializeLink(link, stats = null) {
     status: link.status,
     createdAt: link.created_at,
     revokedAt: link.revoked_at || null,
+    brief: briefDTO(link),
+    // Links published before the brief existed keep working. They are reported
+    // as needing one rather than silently treated as complete.
+    needsBrief: !hasBrief(link),
+    closedByDeadline: isClosedByDeadline(link),
     ...(stats
       ? {
           arrivals: Number(stats.arrivals || 0),
@@ -147,6 +184,20 @@ router.post(
       });
     }
 
+    // The brief is mandatory on every new link. An open call that cannot tell
+    // an applicant who it is for, what to send, or what happens next is the
+    // silence this feature exists to remove.
+    const briefRequired = await hasBriefSchema(knex);
+    let brief = null;
+    if (briefRequired) {
+      try {
+        brief = normalizeBrief(req.body?.brief);
+      } catch (error) {
+        if (error instanceof OpenCallBriefError) return briefErrorResponse(error, res);
+        throw error;
+      }
+    }
+
     const id = uuidv4();
     await knex("agency_open_call_links").insert({
       id,
@@ -157,6 +208,7 @@ router.post(
       created_by_user_id: getSessionActorUserId(req),
       created_at: knex.fn.now(),
       updated_at: knex.fn.now(),
+      ...(brief ? briefColumns(brief, knex.fn.now()) : {}),
     });
     const link = await knex("agency_open_call_links").where({ id }).first();
     return res.json({ success: true, data: serializeLink(link) });
@@ -228,11 +280,29 @@ router.patch(
         updates.revoked_at = knex.fn.now();
       }
     }
+    // Editing the brief is how a grandfathered link gets one, and how a live
+    // call corrects itself without being revoked and republished elsewhere.
+    if (req.body?.brief !== undefined) {
+      if (!(await hasBriefSchema(knex))) {
+        return res.status(503).json({
+          success: false,
+          error: "brief_unavailable",
+          message: "Open call briefs are not available yet.",
+        });
+      }
+      try {
+        Object.assign(updates, briefColumns(normalizeBrief(req.body.brief), knex.fn.now()));
+      } catch (error) {
+        if (error instanceof OpenCallBriefError) return briefErrorResponse(error, res);
+        throw error;
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
         error: "no_changes",
-        message: "Provide a label or status to update.",
+        message: "Provide a label, status, or brief to update.",
       });
     }
 

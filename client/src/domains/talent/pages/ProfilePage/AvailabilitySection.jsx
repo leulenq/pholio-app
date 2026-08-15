@@ -65,14 +65,13 @@ function BookoutRow({ bookout, onDelete, deleting }) {
   );
 }
 
-function AddBookoutForm({ onCreate, creating }) {
+function AddBookoutEditor({ onCreate, creating }) {
   const [startsOn, setStartsOn] = useState('');
   const [endsOn, setEndsOn] = useState('');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState({});
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async () => {
     const result = bookoutSchema.safeParse({ starts_on: startsOn, ends_on: endsOn, note });
     if (!result.success) {
       const fieldErrors = result.error.flatten().fieldErrors;
@@ -94,8 +93,32 @@ function AddBookoutForm({ onCreate, creating }) {
     }
   };
 
+  const handleKeyDown = (event) => {
+    const elementName = event.target?.tagName?.toLowerCase();
+    if (
+      event.key !== 'Enter' ||
+      event.shiftKey ||
+      elementName === 'textarea' ||
+      elementName === 'button'
+    ) {
+      return;
+    }
+
+    // This editor lives inside the page-wide profile form. Stop the browser's
+    // implicit outer-form submit and treat Enter in either date field as the
+    // local "Add bookout" action instead.
+    event.preventDefault();
+    event.stopPropagation();
+    void handleSubmit();
+  };
+
   return (
-    <form className={styles.bookoutForm} onSubmit={handleSubmit}>
+    <div
+      className={styles.bookoutForm}
+      role="group"
+      aria-label="Add a bookout"
+      onKeyDown={handleKeyDown}
+    >
       <div className={styles.bookoutFormDates}>
         <PholioInput
           label="Starts"
@@ -120,10 +143,15 @@ function AddBookoutForm({ onCreate, creating }) {
         onChange={(e) => setNote(e.target.value)}
         error={errors.note}
       />
-      <PholioButton type="submit" variant="secondary" loading={creating}>
+      <PholioButton
+        type="button"
+        variant="secondary"
+        loading={creating}
+        onClick={() => void handleSubmit()}
+      >
         Add bookout
       </PholioButton>
-    </form>
+    </div>
   );
 }
 
@@ -222,7 +250,7 @@ export function AvailabilitySection({ measurementsLocked = false }) {
             </AnimatePresence>
           </ul>
         )}
-        <AddBookoutForm onCreate={handleCreateBookout} creating={createBookout.isPending} />
+        <AddBookoutEditor onCreate={handleCreateBookout} creating={createBookout.isPending} />
       </div>
     </Section>
   );

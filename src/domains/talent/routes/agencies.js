@@ -15,16 +15,15 @@ router.get(
   "/",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await knex("profiles")
-      .where({ user_id: req.session.userId })
-      .first("is_pro");
-    const isPro = !!profile?.is_pro;
-
+    // Every vetted agency is visible to every talent, paid or not. Payment
+    // may only change what the talent keeps for themselves — never who they
+    // can reach.
     // 1. Fetch Agencies as organizations, not login rows
     const blockedAgencyIds = await getBlockedAgencyIds(
       knex,
       req.session.userId,
     );
+    const includeBlocked = req.query.includeBlocked === "1";
     const agenciesQuery = knex("agencies")
       .where({ status: "ACTIVE" })
       .select(
@@ -47,10 +46,10 @@ router.get(
       // affinity and prevents the chooser from reshuffling between requests.
       .orderBy("name", "asc")
       .orderBy("id", "asc");
-    // Blocked organizations remain visible in the dedicated draft-management
-    // list when a historical draft exists, but are never offered as a new
-    // application destination.
-    if (blockedAgencyIds.size > 0) {
+    // Settings may request the complete directory so a stored stable agency ID
+    // can be named and removed. The application chooser never offers a blocked
+    // organization as a new destination.
+    if (!includeBlocked && blockedAgencyIds.size > 0) {
       agenciesQuery.whereNotIn("id", [...blockedAgencyIds]);
     }
     const agencies = await agenciesQuery;
@@ -73,9 +72,7 @@ router.get(
       ...agency,
       open_boards: parseOpenBoards(agency.open_boards),
     }));
-    const result = isPro ? normalizedAgencies : normalizedAgencies.slice(0, 20);
-
-    res.json({ success: true, data: result });
+    res.json({ success: true, data: normalizedAgencies });
   }),
 );
 

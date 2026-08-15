@@ -1,0 +1,75 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "muse-model-management-nyc:email",
+  "revisionId": "muse-model-management-nyc:email@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": { "id": "muse-model-management", "name": "Muse Model Management", "legalName": null, "officialDomains": ["musenyc.com"] },
+    "office": { "id": "new-york", "name": "New York" },
+    "market": { "kind": "city", "code": "new-york-us", "countryCodes": ["US"], "city": "New York" },
+    "channel": { "id": "scouting-email", "type": "official_email", "url": "https://www.musenyc.com/contact" },
+    "divisions": { "mode": "unspecified", "values": [] },
+    "applicantTracks": { "mode": "unspecified", "values": [] },
+    "evidenceIds": ["muse-nyc-contact-20260809"]
+  },
+  "lifecycle": { "observedOn": "2026-08-09", "effectiveFrom": null, "effectiveUntil": null, "reviewedOn": "2026-08-09", "nextReviewOn": "2026-11-07" },
+  "rules": {
+    "shots": {
+      "count": { "minimum": 3, "maximum": null, "basis": "derived_from_explicit_assertions", "evidenceIds": ["muse-nyc-contact-20260809"] },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        { "id": "close-up-hair-up", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "explicit_text", "sourceLabel": "Close ups ... hair up", "match": { "all": [{ "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null }, { "field": "appearance.hair_state", "operator": "equals", "value": "up", "unit": null }] }, "appliesWhen": null, "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+        { "id": "close-up-hair-down", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "explicit_text", "sourceLabel": "Close ups ... hair down", "match": { "all": [{ "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null }, { "field": "appearance.hair_state", "operator": "equals", "value": "down", "unit": null }] }, "appliesWhen": null, "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+        { "id": "full-length", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "explicit_text", "sourceLabel": "full length", "match": { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null }, "appliesWhen": null, "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" }
+      ]
+    },
+    "setWide": [
+      { "id": "clear-background", "modality": "requested", "basis": "explicit_text", "constraint": { "field": "capture.background", "operator": "equals", "value": "uncluttered", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "background is clear from clutter", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "automatic" },
+      { "id": "natural-light", "modality": "preferred", "basis": "explicit_text", "constraint": { "field": "capture.lighting", "operator": "equals", "value": "natural_light", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "Natural light is always best", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "natural-relaxed-expression", "modality": "requested", "basis": "explicit_text", "constraint": { "field": "expression.style", "operator": "equals", "value": "natural_relaxed", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "show us what you look like at your most natural and relaxed", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "women-form-fitted", "modality": "requested", "basis": "explicit_text", "constraint": { "field": "clothing.fit", "operator": "equals", "value": "form_fitted", "unit": null }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "female", "unit": null }, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "simple and form fitting", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "women-bikini-allowed", "modality": "allowed", "basis": "explicit_text", "constraint": { "field": "clothing.category", "operator": "equals", "value": "swimwear", "unit": null }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "female", "unit": null }, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "or a bikini", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "women-no-heels", "modality": "prohibited", "basis": "explicit_text", "constraint": { "field": "clothing.category", "operator": "equals", "value": "high_heels", "unit": null }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "female", "unit": null }, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "DO NOT wear: HEELS", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "women-no-makeup", "modality": "prohibited", "basis": "explicit_text", "constraint": { "field": "appearance.makeup_level", "operator": "not_equals", "value": "none", "unit": null }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "female", "unit": null }, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "DO NOT wear: MAKE UP", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "women-no-jewelry", "modality": "prohibited", "basis": "explicit_text", "constraint": { "field": "appearance.accessory_type", "operator": "equals", "value": "jewelry", "unit": null }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "female", "unit": null }, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "DO NOT wear: JEWELRY", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "men-form-fitted", "modality": "requested", "basis": "explicit_text", "constraint": { "field": "clothing.fit", "operator": "equals", "value": "form_fitted", "unit": null }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "male", "unit": null }, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "simple and form fitting", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" },
+      { "id": "men-shirtless-allowed", "modality": "allowed", "basis": "explicit_text", "constraint": { "field": "clothing.upper_body_state", "operator": "equals", "value": "shirtless", "unit": null }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "male", "unit": null }, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "shirtless is ok", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "hybrid" }
+    ],
+    "files": [],
+    "eligibility": [
+      { "id": "preferred-minimum-height", "modality": "preferred", "basis": "explicit_text", "constraint": { "field": "applicant.height_cm", "operator": "gte", "value": 175.26, "unit": "cm" }, "appliesWhen": null, "sourceLabel": "We prefer our models to be a minimum of 5’9” and taller.", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "automatic" },
+      { "id": "men-preferred-minimum-height", "modality": "preferred", "basis": "explicit_text", "constraint": { "field": "applicant.height_cm", "operator": "gte", "value": 180.34, "unit": "cm" }, "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "male", "unit": null }, "sourceLabel": "For Men: models should be 5’11 and taller.", "evidenceIds": ["muse-nyc-contact-20260809"], "matchability": "automatic" }
+    ],
+    "applicationFields": [
+      { "id": "name", "field": "applicant.full_name", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Name", "evidenceIds": ["muse-nyc-contact-20260809"] },
+      { "id": "age", "field": "applicant.age_years", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Age", "evidenceIds": ["muse-nyc-contact-20260809"] },
+      { "id": "location", "field": "contact.location", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Location", "evidenceIds": ["muse-nyc-contact-20260809"] },
+      { "id": "height", "field": "measurements.height", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "height", "evidenceIds": ["muse-nyc-contact-20260809"] },
+      { "id": "bust", "field": "measurements.bust", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "bust", "evidenceIds": ["muse-nyc-contact-20260809"] },
+      { "id": "waist", "field": "measurements.waist", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "waist", "evidenceIds": ["muse-nyc-contact-20260809"] },
+      { "id": "hips", "field": "measurements.hips", "presence": "required", "appliesWhen": null, "basis": "explicit_text", "sourceLabel": "Hips", "evidenceIds": ["muse-nyc-contact-20260809"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "shots.count.maximum", "appliesWhen": null, "reason": "not_published", "note": "The email instructions do not publish a maximum number of images.", "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "files.per_file_size", "appliesWhen": null, "reason": "ambiguous", "note": "Each image should be about 1MB; the source does not publish a maximum.", "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "files.mime_types", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "eligibility.age", "appliesWhen": null, "reason": "not_published", "note": "The source gives guidance for minors but no age floor or range.", "evidenceIds": ["muse-nyc-contact-20260809"] },
+    { "fact": "application.guardian_fields", "appliesWhen": null, "reason": "not_published", "note": "Parents are asked to be aware for applicants under 18, but no guardian fields are published.", "evidenceIds": ["muse-nyc-contact-20260809"] }
+  ],
+  "evidence": [
+    { "id": "muse-nyc-contact-20260809", "authority": "first_party_published", "publisher": "Muse Model Management", "url": "https://www.musenyc.com/contact", "title": "CONTACT | MUSE MODEL MANAGEMENT", "locale": "en-US", "retrievedOn": "2026-08-09", "locator": { "kind": "section", "value": "BE A MODEL" }, "excerpt": null, "archivedUrl": null, "contentHash": null }
+  ],
+  "review": { "authority": "first_party_published", "method": "dual_reviewer", "reviewers": [{ "id": "web-source-review-b-20260809", "reviewedOn": "2026-08-09" }, { "id": "normalization-review-20260809", "reviewedOn": "2026-08-09" }], "notes": "The official New York email-submission instructions were independently reviewed. The source's preferred heights are represented as preferences, and its about-1MB wording is intentionally not converted into a hard cap. Email-package requests remain advisory because the channel has no technical slot enforcement." }
+}

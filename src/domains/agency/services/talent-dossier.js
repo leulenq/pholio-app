@@ -15,7 +15,7 @@
  *   4. Did they send a real package? → the frozen submission package, the book,
  *                                      and digitals-set coverage
  *   5. What else do we know?         → professional record + market position
- *   6. What do I do next?            → follow-ups, interviews, conversation
+ *   6. What do I do next?            → conversation
  *
  * Privacy posture — this module composes existing audience DTOs, it does not
  * invent a wider one:
@@ -250,65 +250,6 @@ function buildRepresentationLines(rows, viewingAgencyId) {
 }
 
 /**
- * Market position — where this talent sits inside THIS agency's own book.
- * Deliberately relative to the agency, not to some invented global index: a
- * booker's real question is "how does this compare to what we already carry?"
- *
- * Returns null-ish fields rather than throwing when the roster tables are
- * absent or the agency has no roster yet.
- */
-async function buildRosterPosition(db, { agencyId, profile, boardId }) {
-  const empty = {
-    roster_size: 0,
-    track_peers: 0,
-    market_peers: 0,
-    height_rank: null,
-    height_percentile: null,
-    board_size: null,
-  };
-  if (!(await tableExists(db, "roster_memberships"))) return empty;
-
-  const rows = await db("roster_memberships as rm")
-    .join("profiles as p", "p.id", "rm.profile_id")
-    .where({ "rm.agency_id": agencyId, "rm.status": "active" })
-    .select("p.id", "p.height_cm", "p.stats_track", "p.market", "rm.board_id");
-
-  const rosterSize = rows.length;
-  if (rosterSize === 0) return empty;
-
-  const track = profile.stats_track || null;
-  const trackRows = track
-    ? rows.filter((row) => row.stats_track === track)
-    : rows;
-  const heights = trackRows
-    .map((row) => Number(row.height_cm))
-    .filter((n) => Number.isFinite(n) && n > 0)
-    .sort((a, b) => b - a);
-
-  const height = Number(profile.height_cm);
-  let heightRank = null;
-  let heightPercentile = null;
-  if (Number.isFinite(height) && height > 0 && heights.length > 0) {
-    heightRank = heights.filter((h) => h > height).length + 1;
-    const atOrBelow = heights.filter((h) => h <= height).length;
-    heightPercentile = Math.round((atOrBelow / heights.length) * 100);
-  }
-
-  return {
-    roster_size: rosterSize,
-    track_peers: trackRows.length,
-    market_peers: profile.market
-      ? rows.filter((row) => row.market === profile.market).length
-      : 0,
-    height_rank: heightRank,
-    height_percentile: heightPercentile,
-    board_size: boardId
-      ? rows.filter((row) => row.board_id === boardId).length
-      : null,
-  };
-}
-
-/**
  * Availability: what the talent declared, the dates they blocked, and the
  * options/holds/bookings THIS agency is carrying on them. Together these are
  * what an agency needs before it promises a client anything.
@@ -367,7 +308,7 @@ async function buildAvailability(db, { agencyId, profile }) {
 async function buildStanding(db, { agencyId, application }) {
   const applicationId = application.id;
 
-  const [board, tags, notes, activities, interviews, reminders, messageStats] =
+  const [board, tags, notes, activities, messageStats] =
     await Promise.all([
       application.board_id
         ? db("boards")
@@ -384,17 +325,6 @@ async function buildStanding(db, { agencyId, application }) {
         .where({ application_id: applicationId })
         .orderBy("created_at", "desc")
         .limit(TIMELINE_LIMIT),
-      (await tableExists(db, "interviews"))
-        ? db("interviews")
-            .where({ application_id: applicationId, agency_id: agencyId })
-            .orderBy("proposed_datetime", "desc")
-        : Promise.resolve([]),
-      (await tableExists(db, "reminders"))
-        ? db("reminders")
-            .where({ application_id: applicationId, agency_id: agencyId })
-            .whereNot("status", "cancelled")
-            .orderBy("reminder_date", "asc")
-        : Promise.resolve([]),
       (await tableExists(db, "messages"))
         ? db("messages")
             .where({ application_id: applicationId })
@@ -418,8 +348,6 @@ async function buildStanding(db, { agencyId, application }) {
     tags,
     notes,
     timeline,
-    interviews,
-    reminders,
     messages: {
       total: messageStats.length,
       unread_from_talent: inboundUnread,
@@ -519,14 +447,9 @@ async function buildTalentDossier(db, { application, agencyId }) {
     representationRows,
   );
 
-  const [standing, availability, position] = await Promise.all([
+  const [standing, availability] = await Promise.all([
     buildStanding(db, { agencyId, application }),
     buildAvailability(db, { agencyId, profile }),
-    buildRosterPosition(db, {
-      agencyId,
-      profile,
-      boardId: application.board_id || null,
-    }),
   ]);
 
   const contact = minor
@@ -540,8 +463,6 @@ async function buildTalentDossier(db, { application, agencyId }) {
     application: {
       id: application.id,
       status: application.status,
-      match_score: application.match_score ?? null,
-      match_calculated_at: application.match_calculated_at || null,
       board_id: application.board_id || null,
       created_at: application.created_at || null,
       viewed_at: application.viewed_at || null,
@@ -571,7 +492,6 @@ async function buildTalentDossier(db, { application, agencyId }) {
     },
     availability,
     standing,
-    position,
     compliance: {
       is_minor: minor,
       age_band: snapshot.age_band || null,
@@ -586,7 +506,6 @@ module.exports = {
   loadRepresentationRecord,
   buildRepresentationLines,
   buildProfessionalRecord,
-  buildRosterPosition,
   CALENDAR_WINDOW_DAYS,
   DOSSIER_PROFESSIONAL_FIELDS,
 };

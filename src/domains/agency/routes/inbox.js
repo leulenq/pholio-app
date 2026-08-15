@@ -28,15 +28,11 @@ const {
   writeImpressionEvents,
   writeInviteEvent,
 } = require("../services/discover/query-log");
-const {
-  recordDiscoveryImpressions,
-  recordProfileEvent,
-} = require("../../talent/services/intel/capture");
+const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const {
   createDiscoverRateLimit,
 } = require("../../../shared/middleware/discover-rate-limit");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
-const { recalculateBoardScores } = require("./recalculate-board-scores");
 const {
   mapApplicationStatusToCastingStage,
   mapCastingStageToApplicationStatus,
@@ -48,6 +44,14 @@ const {
 const {
   notifyTalentAgencyProfileView,
 } = require("../../../shared/services/notifications");
+const {
+  REPRESENTED_APPLICATION_STATUSES,
+  WRITABLE_APPLICATION_STATUSES,
+  isRepresentedApplicationStatus,
+} = require("../../../shared/constants/application-status");
+const {
+  resolveWindowDays,
+} = require("../../../shared/lib/application-auto-close");
 
 const { recordAuditEvent } = require("../services/audit");
 const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
@@ -79,9 +83,6 @@ const {
   computeAge,
   isMinorProfile,
 } = require("../../../shared/lib/talent-age");
-const {
-  syncRosterMembershipForApplication,
-} = require("../services/roster-memberships");
 const {
   applyMinorSubmissionFilter,
 } = require("../services/minor-submission-access");
@@ -277,7 +278,7 @@ router.get(
             applyMinorSubmissionFilter(knex("board_applications as ba")
               .join("applications as a", "a.id", "ba.application_id")
               .where({ "ba.board_id": board.id })
-              .whereIn("a.status", ["booked", "represented"])
+              .whereIn("a.status", REPRESENTED_APPLICATION_STATUSES)
               .count("* as count")
               .first(), { alias: "a", allowMinor: req.allowMinorSubmissions }),
           ]);
@@ -286,7 +287,6 @@ router.get(
             application_count: parseInt(count?.count || 0),
             submitted_count: parseInt(submittedCount?.count || 0),
             represented_count: parseInt(representedCount?.count || 0),
-            booked_count: parseInt(representedCount?.count || 0),
             pipeline_counts: pipelineByBoard[board.id] || [],
             preview: previewByBoard[board.id] || [],
           };
@@ -301,7 +301,7 @@ router.get(
   },
 );
 
-// GET /api/agency/boards/:boardId - Get board details with requirements and weights
+// GET /api/agency/boards/:boardId - Get board details with requirements
 router.get(
   "/api/agency/boards/:boardId",
   requireRole("AGENCY"),
@@ -321,11 +321,6 @@ router.get(
 
       // Get requirements
       const requirements = await knex("board_requirements")
-        .where({ board_id: boardId })
-        .first();
-
-      // Get scoring weights
-      const scoring_weights = await knex("board_scoring_weights")
         .where({ board_id: boardId })
         .first();
 
@@ -357,7 +352,6 @@ router.get(
       return res.json({
         ...board,
         requirements: parsedRequirements,
-        scoring_weights,
       });
     } catch (error) {
       console.error("[Boards API] Error fetching board:", error);
@@ -392,7 +386,6 @@ router.post(
         is_active = true,
         sort_order = 0,
         requirements,
-        scoring_weights,
         brand_color,
         plate_style,
         board_type,
@@ -466,27 +459,6 @@ router.post(
           updated_at: knex.fn.now(),
         });
       }
-
-      // Create default scoring weights
-      const defaultWeights = scoring_weights || {
-        age_weight: 0,
-        height_weight: 0,
-        measurements_weight: 0,
-        body_type_weight: 0,
-        comfort_weight: 0,
-        experience_weight: 0,
-        skills_weight: 0,
-        location_weight: 0,
-        social_reach_weight: 0,
-      };
-
-      await knex("board_scoring_weights").insert({
-        id: require("crypto").randomUUID(),
-        board_id: board.id,
-        ...defaultWeights,
-        created_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
-      });
 
       return res.json(board);
     } catch (error) {
@@ -741,94 +713,10 @@ router.put(
         });
       }
 
-      // Recalculate match scores for all applications in this board
-      await recalculateBoardScores(boardId, agencyId);
-
       return res.json({ success: true });
     } catch (error) {
       console.error("[Boards API] Error updating requirements:", error);
       return res.status(500).json({ error: "Failed to update requirements" });
-    }
-  },
-);
-
-// PUT /api/agency/boards/:boardId/weights - Update scoring weights
-router.put(
-  "/api/agency/boards/:boardId/weights",
-  requireRole("AGENCY"),
-  async (req, res, next) => {
-    try {
-      const { boardId } = req.params;
-      const agencyId = req.session.userId;
-      const weights = req.body;
-
-      // Verify board belongs to agency
-      const board = await knex("boards")
-        .where({ id: boardId, agency_id: agencyId })
-        .first();
-
-      if (!board) {
-        return res.status(404).json({ error: "Board not found" });
-      }
-
-      // Validate weights (0-5)
-      const weightFields = [
-        "age_weight",
-        "height_weight",
-        "measurements_weight",
-        "body_type_weight",
-        "comfort_weight",
-        "experience_weight",
-        "skills_weight",
-        "location_weight",
-        "social_reach_weight",
-      ];
-      const weightsData = {};
-      weightFields.forEach((field) => {
-        if (weights[field] !== undefined) {
-          const val = parseFloat(weights[field]);
-          weightsData[field] = Math.max(0, Math.min(5, val));
-        }
-      });
-
-      // Check if weights exist
-      const existing = await knex("board_scoring_weights")
-        .where({ board_id: boardId })
-        .first();
-
-      if (existing) {
-        await knex("board_scoring_weights")
-          .where({ board_id: boardId })
-          .update({
-            ...weightsData,
-            updated_at: knex.fn.now(),
-          });
-      } else {
-        await knex("board_scoring_weights").insert({
-          id: require("crypto").randomUUID(),
-          board_id: boardId,
-          age_weight: 0,
-          height_weight: 0,
-          measurements_weight: 0,
-          body_type_weight: 0,
-          comfort_weight: 0,
-          experience_weight: 0,
-          skills_weight: 0,
-          location_weight: 0,
-          social_reach_weight: 0,
-          ...weightsData,
-          created_at: knex.fn.now(),
-          updated_at: knex.fn.now(),
-        });
-      }
-
-      // Recalculate match scores
-      await recalculateBoardScores(boardId, agencyId);
-
-      return res.json({ success: true });
-    } catch (error) {
-      console.error("[Boards API] Error updating weights:", error);
-      return res.status(500).json({ error: "Failed to update weights" });
     }
   },
 );
@@ -880,12 +768,8 @@ router.post(
         return res.status(404).json({ error: "Board not found" });
       }
 
-      // Get requirements and weights
+      // Get requirements
       const requirements = await knex("board_requirements")
-        .where({ board_id: boardId })
-        .first();
-
-      const weights = await knex("board_scoring_weights")
         .where({ board_id: boardId })
         .first();
 
@@ -913,22 +797,6 @@ router.post(
           id: require("crypto").randomUUID(),
           board_id: newBoardId,
           ...newReq,
-          created_at: knex.fn.now(),
-          updated_at: knex.fn.now(),
-        });
-      }
-
-      // Copy weights
-      if (weights) {
-        const newWeights = { ...weights };
-        delete newWeights.id;
-        delete newWeights.board_id;
-        delete newWeights.created_at;
-        delete newWeights.updated_at;
-        await knex("board_scoring_weights").insert({
-          id: require("crypto").randomUUID(),
-          board_id: newBoardId,
-          ...newWeights,
           created_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
@@ -985,7 +853,6 @@ router.get(
           }),
           "applications.status as application_status",
           "applications.id as application_id",
-          "applications.match_score as match_score",
           "applications.created_at as application_created_at",
         ])
         .innerJoin("applications", (join) => {
@@ -1181,7 +1048,6 @@ router.get(
           ...submitted,
           application_status: profile.application_status,
           application_id: profile.application_id,
-          match_score: profile.match_score,
           application_created_at: profile.application_created_at,
           submission_package: submissionPackage || null,
           tags: tagsByApplication[profile.application_id] || [],
@@ -1244,7 +1110,7 @@ router.get(
   },
 );
 
-// POST /api/agency/applications/:applicationId/accept - Accept application
+// POST /api/agency/applications/:applicationId/accept - Record an offer to move forward
 router.post(
   "/api/agency/applications/:applicationId/accept",
   requireRole("AGENCY"),
@@ -1252,8 +1118,6 @@ router.post(
     try {
       const { applicationId } = req.params;
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
-
       const application = await knex.transaction(async (trx) => {
         const row = await trx("applications")
           .where({ id: applicationId, agency_id: agencyId })
@@ -1267,19 +1131,13 @@ router.post(
           declined_at: null,
           updated_at: trx.fn.now(),
         });
-        await syncRosterMembershipForApplication(
-          trx,
-          { ...row, accepted_at: acceptedAt },
-          "accepted",
-          { actorUserId },
-        );
         await logActivity(
           req,
           trx,
           applicationId,
           agencyId,
           "status_change",
-          "Representation confirmed",
+          "Representation offered",
           { old_status: row.status, new_status: "accepted" },
         );
         return row;
@@ -1326,7 +1184,7 @@ router.post(
         }
       })();
 
-      return res.json({ success: true, message: "Representation confirmed" });
+      return res.json({ success: true, message: "Representation offer recorded" });
     } catch (error) {
       console.error("[Accept Application API] Error:", error);
       return res.status(500).json({ error: "Failed to accept application" });
@@ -1342,7 +1200,6 @@ router.patch(
     try {
       const { applicationId } = req.params;
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
       const requestedStatus =
         req.body?.status || mapCastingStageToApplicationStatus(req.body?.stage);
 
@@ -1352,22 +1209,7 @@ router.patch(
         });
       }
 
-      const allowedStatuses = [
-        "submitted",
-        "shortlisted",
-        "requested_more",
-        "meeting_requested",
-        "development",
-        "accepted",
-        "booked",
-        "represented",
-        "passed",
-        "declined",
-        "archived",
-        "kept_on_file",
-      ];
-
-      if (!allowedStatuses.includes(requestedStatus)) {
+      if (!WRITABLE_APPLICATION_STATUSES.includes(requestedStatus)) {
         return res
           .status(400)
           .json({ error: "Unsupported application status" });
@@ -1382,7 +1224,7 @@ router.patch(
         const acceptedAt =
           requestedStatus === "accepted"
             ? new Date()
-            : requestedStatus === "booked" || requestedStatus === "represented"
+            : isRepresentedApplicationStatus(requestedStatus)
               ? row.accepted_at || new Date()
               : null;
         await trx("applications").where({ id: applicationId }).update({
@@ -1392,14 +1234,11 @@ router.patch(
             requestedStatus === "declined" || requestedStatus === "passed"
               ? trx.fn.now()
               : null,
+          // Resets the auto-close review window: the agency just moved this,
+          // so its silence starts again from here.
+          status_changed_at: trx.fn.now(),
           updated_at: trx.fn.now(),
         });
-        await syncRosterMembershipForApplication(
-          trx,
-          { ...row, accepted_at: acceptedAt },
-          requestedStatus,
-          { actorUserId },
-        );
         await logActivity(
           req,
           trx,
@@ -1605,7 +1444,7 @@ router.get(
   },
 );
 
-// POST /api/agency/applications/bulk-accept - Bulk accept applications
+// POST /api/agency/applications/bulk-accept - Bulk record offers to move forward
 router.post(
   "/api/agency/applications/bulk-accept",
   requireRole("AGENCY"),
@@ -1613,8 +1452,6 @@ router.post(
     try {
       const { applicationIds } = req.body;
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
-
       if (
         !applicationIds ||
         !Array.isArray(applicationIds) ||
@@ -1640,19 +1477,13 @@ router.post(
         });
 
         for (const app of rows) {
-          await syncRosterMembershipForApplication(
-            trx,
-            { ...app, accepted_at: acceptedAt },
-            "accepted",
-            { actorUserId },
-          );
           await logActivity(
             req,
             trx,
             app.id,
             agencyId,
             "status_change",
-            "Representation confirmed (bulk)",
+            "Representation offered (bulk)",
             {
               old_status: app.status,
               new_status: "accepted",
@@ -1683,7 +1514,6 @@ router.patch(
     try {
       const { applicationIds, status, stage } = req.body || {};
       const agencyId = getSessionAgencyId(req.session);
-      const actorUserId = getSessionActorUserId(req.session);
       const requestedStatus =
         status || mapCastingStageToApplicationStatus(stage);
 
@@ -1699,22 +1529,7 @@ router.patch(
         });
       }
 
-      const allowedStatuses = [
-        "submitted",
-        "shortlisted",
-        "requested_more",
-        "meeting_requested",
-        "development",
-        "accepted",
-        "booked",
-        "represented",
-        "passed",
-        "declined",
-        "archived",
-        "kept_on_file",
-      ];
-
-      if (!allowedStatuses.includes(requestedStatus)) {
+      if (!WRITABLE_APPLICATION_STATUSES.includes(requestedStatus)) {
         return res
           .status(400)
           .json({ error: "Unsupported application status" });
@@ -1732,26 +1547,20 @@ router.patch(
           accepted_at:
             requestedStatus === "accepted"
               ? acceptedAt
-              : requestedStatus === "booked" || requestedStatus === "represented"
+              : isRepresentedApplicationStatus(requestedStatus)
                 ? trx.raw("COALESCE(accepted_at, CURRENT_TIMESTAMP)")
                 : null,
           declined_at:
             requestedStatus === "declined" || requestedStatus === "passed"
               ? trx.fn.now()
               : null,
+          // Resets the auto-close review window, same as the single-status
+          // path — a bulk triage is still the agency acting.
+          status_changed_at: trx.fn.now(),
           updated_at: trx.fn.now(),
         });
 
         for (const application of rows) {
-          await syncRosterMembershipForApplication(
-            trx,
-            {
-              ...application,
-              accepted_at: application.accepted_at || acceptedAt,
-            },
-            requestedStatus,
-            { actorUserId },
-          );
           await logActivity(
             req,
             trx,
@@ -1958,6 +1767,9 @@ router.get("/api/agency/me", requireRole("AGENCY"), async (req, res, next) => {
         notify_new_applications: agency.notify_new_applications,
         notify_status_changes: agency.notify_status_changes,
         default_view: agency.default_view,
+        application_review_window_days: resolveWindowDays(
+          agency.application_review_window_days,
+        ),
         onboarding: {
           started_at: agency.onboarding_started_at || null,
           completed_at: agency.onboarding_completed_at || null,
@@ -2191,8 +2003,12 @@ router.put(
   async (req, res, next) => {
     try {
       const agencyId = getSessionAgencyId(req);
-      const { notify_new_applications, notify_status_changes, default_view } =
-        req.body;
+      const {
+        notify_new_applications,
+        notify_status_changes,
+        default_view,
+        application_review_window_days: reviewWindowDays,
+      } = req.body;
 
       const updateData = {};
       if (notify_new_applications !== undefined)
@@ -2201,6 +2017,19 @@ router.put(
         updateData.notify_status_changes = !!notify_status_changes;
       if (default_view !== undefined)
         updateData.default_view = default_view || null;
+      if (reviewWindowDays !== undefined) {
+        // 0 disables auto-close for this agency. The upper bound keeps the
+        // window from being set so far out that it silently disables it while
+        // appearing to be on.
+        const days = Number(reviewWindowDays);
+        if (!Number.isInteger(days) || days < 0 || days > 365) {
+          return res.status(400).json({
+            error:
+              "application_review_window_days must be a whole number of days between 0 and 365 (0 turns auto-close off).",
+          });
+        }
+        updateData.application_review_window_days = days;
+      }
 
       updateData.updated_at = knex.fn.now();
       await knex("agencies").where({ id: agencyId }).update(updateData);
@@ -3199,7 +3028,6 @@ router.get(
         application: {
           id: application.id,
           status: application.status,
-          match_score: application.match_score,
           created_at: application.created_at,
           accepted_at: application.accepted_at,
           declined_at: application.declined_at,
@@ -3233,9 +3061,23 @@ router.get(
       const { profileId } = req.params;
       const agencyId = getSessionAgencyId(req);
 
-      // Get profile
-      const profile = await knex("profiles")
-        .where({ id: profileId, is_discoverable: true })
+      // An existing submission may remain on record after the talent leaves
+      // Discover. Resolve it first so its immutable package—not today's live
+      // profile—is the source of truth.
+      const application = await knex("applications")
+        .where({ profile_id: profileId, agency_id: agencyId })
+        .first();
+      if (application?.status === "withdrawn") {
+        return res.status(410).json({
+          error: "application_withdrawn",
+          message:
+            "The talent withdrew this submission and Pholio revoked access to its disclosure package.",
+        });
+      }
+
+      const profileQuery = knex("profiles").where({ id: profileId });
+      if (!application) profileQuery.where({ is_discoverable: true });
+      const profile = await profileQuery
         .select(
           [...new Set([
             ...selectColumnsForAudience(AUDIENCE.AGENCY_DISCOVERY, {
@@ -3254,27 +3096,62 @@ router.get(
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Check if there's an existing application for this profile
-      const application = await knex("applications")
-        .where({ profile_id: profileId, agency_id: agencyId })
-        .first();
+      const agencyBlocked = profile.user_id
+        ? await isAgencyBlockedForTalent(knex, profile.user_id, agencyId)
+        : false;
 
       // Without an application this is GENERIC discovery — a minor (no named-
       // agency guardian auth) or a profile excluding this agency must not be
       // exposed here (audit P0-3, fail closed).
-      if (!application && !isAgencyDiscoverable(profile, { agencyId })) {
+      if (
+        !application &&
+        (agencyBlocked || !isAgencyDiscoverable(profile, { agencyId }))
+      ) {
         return res
           .status(404)
           .json({ error: "Profile not found or not discoverable" });
       }
 
-      // Get visible images only (moderation + agency-exclusion filtered).
-      await ensureModerationColumnChecked(knex);
-      const imageQuery = knex("images").where({ profile_id: profileId });
-      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
-        table: "images",
-      });
-      const images = await imageQuery.orderBy(["sort", "created_at"]);
+      const submissionPackages = application
+        ? await loadApplicationSubmissionPackages(knex, [
+            {
+              id: application.id,
+              profile_id: profileId,
+              slug: profile.slug,
+            },
+          ])
+        : new Map();
+      const submittedPackage = application
+        ? submissionPackages.get(application.id) || null
+        : null;
+      if (submittedPackage?.redacted) {
+        return res.status(410).json({
+          error: "submission_package_unavailable",
+          message: "This submission package is no longer available.",
+        });
+      }
+
+      // A block may leave the historical application row in place, but it must
+      // never reopen live-profile access. A frozen package is the only material
+      // the agency may continue to see.
+      if (application && agencyBlocked && !submittedPackage?.profile) {
+        return res.status(403).json({
+          error: "PROFILE_ACCESS_BLOCKED",
+          message: "This talent has blocked profile access from your agency.",
+        });
+      }
+
+      let images;
+      if (submittedPackage?.profile) {
+        images = submittedPackage.images;
+      } else {
+        await ensureModerationColumnChecked(knex);
+        const imageQuery = knex("images").where({ profile_id: profileId });
+        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        images = await imageQuery.orderBy(["sort", "created_at"]);
+      }
 
       // If application exists, get notes and tags
       let notes = [];
@@ -3292,10 +3169,14 @@ router.get(
       // Static-allowlist DTO — never spread the raw profile row and never leak
       // the owner's account email. An actual submission gets the richer (still
       // minor-safe) submission snapshot; generic discovery gets the tighter card.
-      const social = await loadSocialAccountsForProfile(profileId);
-      const profileDto = application
-        ? buildAgencySubmissionDTO(profile, { images, social })
-        : buildAgencyDiscoveryDTO(profile, { images, social });
+      const social = submittedPackage?.profile
+        ? []
+        : await loadSocialAccountsForProfile(profileId);
+      const profileDto = submittedPackage?.profile
+        ? { ...submittedPackage.profile, images }
+        : application
+          ? buildAgencySubmissionDTO(profile, { images, social })
+          : buildAgencyDiscoveryDTO(profile, { images, social });
 
       return res.json({
         application: application
@@ -3310,402 +3191,13 @@ router.get(
             }
           : null,
         profile: profileDto,
+        submissionPackage: submittedPackage,
         notes,
         tags,
       });
     } catch (error) {
       console.error("[Profile Details API] Error:", error);
       return res.status(500).json({ error: "Failed to fetch profile details" });
-    }
-  },
-);
-
-// GET /api/agency/analytics - Get detailed analytics
-router.get(
-  "/api/agency/analytics",
-  requireRole("AGENCY"),
-  async (req, res, next) => {
-    try {
-      const agencyId = req.session.userId;
-
-      // Get all applications for this agency
-      const allApplications = await knex("applications")
-        .where({ agency_id: agencyId })
-        .select("status", "created_at", "accepted_at", "declined_at");
-
-      // Calculate time ranges
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const weekAgo = new Date(now);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const monthAgo = new Date(now);
-      monthAgo.setMonth(monthAgo.getMonth() - 1);
-      const threeMonthsAgo = new Date(now);
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-      // Applications by status
-      const byStatus = {
-        total: allApplications.length,
-        pending: allApplications.filter(
-          (a) => !a.status || a.status === "pending",
-        ).length,
-        accepted: allApplications.filter((a) => a.status === "accepted").length,
-        declined: allApplications.filter((a) => a.status === "declined").length,
-        archived: allApplications.filter((a) => a.status === "archived").length,
-      };
-
-      // Applications over time
-      const overTime = {
-        today: allApplications.filter((a) => new Date(a.created_at) >= today)
-          .length,
-        thisWeek: allApplications.filter(
-          (a) => new Date(a.created_at) >= weekAgo,
-        ).length,
-        thisMonth: allApplications.filter(
-          (a) => new Date(a.created_at) >= monthAgo,
-        ).length,
-        last3Months: allApplications.filter(
-          (a) => new Date(a.created_at) >= threeMonthsAgo,
-        ).length,
-      };
-
-      // Applications by board
-      const applicationsByBoard = await knex("board_applications")
-        .select("boards.name as board_name", "boards.id as board_id")
-        .count("board_applications.id as count")
-        .join("boards", "board_applications.board_id", "boards.id")
-        .join(
-          "applications",
-          "board_applications.application_id",
-          "applications.id",
-        )
-        .where("applications.agency_id", agencyId)
-        .groupBy("boards.id", "boards.name")
-        .orderBy("count", "desc");
-
-      // Match score distribution
-      const matchScores = await knex("board_applications")
-        .select("board_applications.match_score")
-        .join(
-          "applications",
-          "board_applications.application_id",
-          "applications.id",
-        )
-        .where("applications.agency_id", agencyId)
-        .whereNotNull("board_applications.match_score")
-        .pluck("board_applications.match_score");
-
-      const scoreDistribution = {
-        excellent: matchScores.filter((s) => s >= 80).length,
-        good: matchScores.filter((s) => s >= 60 && s < 80).length,
-        fair: matchScores.filter((s) => s >= 40 && s < 60).length,
-        poor: matchScores.filter((s) => s < 40).length,
-      };
-
-      // Average match score
-      const avgMatchScore =
-        matchScores.length > 0
-          ? Math.round(
-              matchScores.reduce((a, b) => a + b, 0) / matchScores.length,
-            )
-          : 0;
-
-      // Applications timeline (last 30 days) with status breakdown
-      const timeline = [];
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i);
-        const dayStart = new Date(
-          date.getFullYear(),
-          date.getMonth(),
-          date.getDate(),
-        );
-        const dayEnd = new Date(dayStart);
-        dayEnd.setDate(dayEnd.getDate() + 1);
-
-        const dayApplications = allApplications.filter((a) => {
-          const created = new Date(a.created_at);
-          return created >= dayStart && created < dayEnd;
-        });
-
-        const dayStatusBreakdown = {
-          pending: dayApplications.filter(
-            (a) => !a.status || a.status === "pending",
-          ).length,
-          accepted: dayApplications.filter((a) => a.status === "accepted")
-            .length,
-          declined: dayApplications.filter((a) => a.status === "declined")
-            .length,
-          archived: dayApplications.filter((a) => a.status === "archived")
-            .length,
-        };
-
-        timeline.push({
-          date: dayStart.toISOString().split("T")[0],
-          count: dayApplications.length,
-          pending: dayStatusBreakdown.pending,
-          accepted: dayStatusBreakdown.accepted,
-          declined: dayStatusBreakdown.declined,
-          archived: dayStatusBreakdown.archived,
-        });
-      }
-
-      // Acceptance rate
-      const acceptedCount = byStatus.accepted;
-      const processedCount = acceptedCount + byStatus.declined;
-      const acceptanceRate =
-        processedCount > 0
-          ? Math.round((acceptedCount / processedCount) * 100)
-          : 0;
-
-      // ── The Season Report (T10) — funnel, velocity, roster growth ──
-      // Canonical pipeline stages come from casting-stage-helpers.js, the
-      // same mapping the Kanban board (casting.js) uses, so "funnel" here
-      // reflects the exact stages agencies see in Casting.
-      const { CASTING_PIPELINE_STAGES } = require("./casting-stage-helpers");
-
-      // ?range=30|90|365 (default 90). Bounds funnel + velocity only —
-      // `timeline` above is a fixed 30-day window per the existing contract.
-      const ALLOWED_ANALYTICS_RANGES = [30, 90, 365];
-      const requestedRange = parseInt(req.query.range, 10);
-      const rangeDays = ALLOWED_ANALYTICS_RANGES.includes(requestedRange)
-        ? requestedRange
-        : 90;
-      const rangeStart = new Date(now);
-      rangeStart.setDate(rangeStart.getDate() - rangeDays);
-
-      // ---- funnel: current stage distribution for apps created in range ----
-      // conversionFromPrevious is a bucket-size ratio (stage count / previous
-      // stage count), not a cohort/flow conversion — we only have current
-      // status snapshots for most applications, not full transition history,
-      // so a true per-application cohort funnel would be fabricated. "Passed"
-      // is an exit lane, not a forward step, so it never carries a conversion.
-      const FUNNEL_FORWARD_STAGES = [
-        "Applied",
-        "Shortlisted",
-        "Offered",
-        "Represented",
-      ];
-      const funnelWindowApplications = allApplications.filter(
-        (a) => new Date(a.created_at) >= rangeStart,
-      );
-      const funnelCounts = {};
-      CASTING_PIPELINE_STAGES.forEach((stage) => {
-        funnelCounts[stage] = 0;
-      });
-      funnelWindowApplications.forEach((a) => {
-        const stage = mapApplicationStatusToCastingStage(a.status);
-        funnelCounts[stage] = (funnelCounts[stage] || 0) + 1;
-      });
-
-      const funnelStages = CASTING_PIPELINE_STAGES.map((stage) => {
-        const forwardIndex = FUNNEL_FORWARD_STAGES.indexOf(stage);
-        let conversionFromPrevious = null;
-        if (forwardIndex > 0) {
-          const previousCount =
-            funnelCounts[FUNNEL_FORWARD_STAGES[forwardIndex - 1]] || 0;
-          conversionFromPrevious =
-            previousCount > 0
-              ? Math.round((funnelCounts[stage] / previousCount) * 100)
-              : null;
-        }
-        return {
-          stage,
-          count: funnelCounts[stage] || 0,
-          conversionFromPrevious,
-        };
-      });
-
-      // ---- velocity: stage-transition speed from application_activities ----
-      // Every status_change activity carries { old_status, new_status } in
-      // metadata (see agency-log-activity.js call sites) — that's the real
-      // event vocabulary recording stage changes. We replay each
-      // application's status_change activities in order, map old/new_status
-      // through the same casting-stage mapping, and time how long the app
-      // sat in the prior stage before crossing into the next one. Only the
-      // three canonical forward transitions are measured; a status jump that
-      // skips a stage (e.g. Applied straight to Represented) is not forced
-      // into an adjacent bucket, since that would fabricate a transition
-      // that never happened. Transitions with zero observed samples return
-      // null rather than a guessed number.
-      const STAGE_TRANSITIONS = [
-        ["Applied", "Shortlisted"],
-        ["Shortlisted", "Offered"],
-        ["Offered", "Represented"],
-      ];
-
-      function parseActivityMetadata(raw) {
-        if (!raw) return {};
-        if (typeof raw === "object") return raw;
-        try {
-          return JSON.parse(raw);
-        } catch (_) {
-          return {};
-        }
-      }
-
-      function median(values) {
-        if (!values.length) return null;
-        const sorted = [...values].sort((a, b) => a - b);
-        const mid = Math.floor(sorted.length / 2);
-        return sorted.length % 2 !== 0
-          ? sorted[mid]
-          : (sorted[mid - 1] + sorted[mid]) / 2;
-      }
-
-      function average(values) {
-        if (!values.length) return null;
-        return values.reduce((sum, v) => sum + v, 0) / values.length;
-      }
-
-      // Bounded to this agency's own applications/activities — small volume,
-      // so date math happens in JS after the fetch (matches this handler's
-      // existing style) rather than per-client SQL date predicates.
-      const applicationsWithId = await knex("applications")
-        .where({ agency_id: agencyId })
-        .select("id", "created_at");
-      const applicationCreatedAt = new Map(
-        applicationsWithId.map((a) => [a.id, new Date(a.created_at)]),
-      );
-
-      const statusChangeActivities = await knex("application_activities")
-        .where({ agency_id: agencyId, activity_type: "status_change" })
-        .select("application_id", "created_at", "metadata")
-        .orderBy("created_at", "asc");
-
-      const activitiesByApplication = new Map();
-      statusChangeActivities.forEach((activity) => {
-        if (!activitiesByApplication.has(activity.application_id)) {
-          activitiesByApplication.set(activity.application_id, []);
-        }
-        activitiesByApplication.get(activity.application_id).push(activity);
-      });
-
-      const transitionDurations = {};
-      STAGE_TRANSITIONS.forEach(([from, to]) => {
-        transitionDurations[`${from}->${to}`] = [];
-      });
-
-      for (const [applicationId, activities] of activitiesByApplication) {
-        const createdAt = applicationCreatedAt.get(applicationId);
-        if (!createdAt) continue; // app out of scope/deleted — skip, don't guess
-
-        let currentStage = "Applied";
-        let currentStageEnteredAt = createdAt;
-
-        for (const activity of activities) {
-          const metadata = parseActivityMetadata(activity.metadata);
-          if (!metadata.new_status) continue; // no real signal — skip, don't guess
-
-          const newStage = mapApplicationStatusToCastingStage(
-            metadata.new_status,
-          );
-          const activityAt = new Date(activity.created_at);
-
-          if (newStage !== currentStage) {
-            const key = `${currentStage}->${newStage}`;
-            if (transitionDurations[key] && activityAt >= rangeStart) {
-              const days =
-                (activityAt.getTime() - currentStageEnteredAt.getTime()) /
-                86400000;
-              transitionDurations[key].push(days);
-            }
-            currentStage = newStage;
-            currentStageEnteredAt = activityAt;
-          }
-        }
-      }
-
-      const velocity = STAGE_TRANSITIONS.map(([from, to]) => {
-        const durations = transitionDurations[`${from}->${to}`];
-        return {
-          from,
-          to,
-          medianDays:
-            durations.length > 0
-              ? Math.round(median(durations) * 10) / 10
-              : null,
-          averageDays:
-            durations.length > 0
-              ? Math.round(average(durations) * 10) / 10
-              : null,
-          sampleSize: durations.length,
-        };
-      });
-
-      // ---- rosterGrowth: cumulative signed-roster size by month (12mo) ----
-      // Roster membership = applications in accepted/booked/represented
-      // status (the exact definition GET /api/agency/roster uses). Join
-      // date mirrors that same route's `dateAdded` field (accepted_at,
-      // falling back to updated_at then created_at). This is a snapshot of
-      // CURRENT roster members grouped by when they joined — it cannot
-      // reconstruct historical roster size for talent who has since left
-      // representation, since we don't retain point-in-time roster
-      // membership, only current status. That's a real data-model gap, not
-      // fabrication: the counts shown are always real join dates of real,
-      // currently-represented talent.
-      const rosterApplications = await knex("applications")
-        .where({ agency_id: agencyId })
-        .whereIn("status", ["accepted", "booked", "represented"])
-        .select("accepted_at", "updated_at", "created_at");
-
-      const rosterJoinDates = rosterApplications.map(
-        (a) => new Date(a.accepted_at || a.updated_at || a.created_at),
-      );
-
-      const rosterGrowth = [];
-      for (let i = 11; i >= 0; i--) {
-        const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthEnd = new Date(
-          now.getFullYear(),
-          now.getMonth() - i + 1,
-          0,
-          23,
-          59,
-          59,
-          999,
-        );
-        const count = rosterJoinDates.filter((d) => d <= monthEnd).length;
-        rosterGrowth.push({
-          month: `${monthDate.getFullYear()}-${String(
-            monthDate.getMonth() + 1,
-          ).padStart(2, "0")}`,
-          count,
-        });
-      }
-
-      return res.json({
-        success: true,
-        analytics: {
-          byStatus,
-          overTime,
-          byBoard: applicationsByBoard.map((b) => ({
-            board_id: b.board_id,
-            board_name: b.board_name,
-            count: parseInt(b.count || 0),
-          })),
-          matchScores: {
-            distribution: scoreDistribution,
-            average: avgMatchScore,
-            total: matchScores.length,
-          },
-          timeline,
-          acceptanceRate,
-          range: rangeDays,
-          funnel: {
-            stages: funnelStages,
-          },
-          velocity,
-          rosterGrowth,
-        },
-      });
-    } catch (error) {
-      console.error("[Dashboard/Agency Analytics] Error:", error);
-      return res.status(500).json({
-        error: "Failed to load analytics",
-        details:
-          process.env.NODE_ENV !== "production" ? error.message : undefined,
-      });
     }
   },
 );
@@ -3729,7 +3221,6 @@ router.get(
           "applications.id as application_id",
           "applications.status as application_status",
           "applications.created_at as application_created_at",
-          "applications.match_score as app_match",
           "profiles.id as profile_id",
           "profiles.first_name",
           "profiles.last_name",
@@ -3782,7 +3273,6 @@ router.get(
           height: app.height_cm || null,
           age: ageFrom(app.date_of_birth),
           profileImage: imageByProfile[app.profile_id] || null,
-          matchScore: app.app_match ? Math.round(app.app_match) : null,
           isNew: isNew,
           slug: app.slug,
           createdAt: app.application_created_at,
@@ -3812,10 +3302,10 @@ router.get(
     try {
       const agencyId = req.session.userId;
 
-      // Calculate total talent pool (signed applications + public talent).
+      // Calculate total talent pool (completed representation agreements + public talent).
       const acceptedCount = await knex("applications")
         .where({ agency_id: agencyId })
-        .whereIn("status", ["accepted", "booked", "represented"])
+        .whereIn("status", REPRESENTED_APPLICATION_STATUSES)
         .count("id as count")
         .first();
 
@@ -3886,7 +3376,7 @@ router.get(
 const discoverLimiter = createDiscoverRateLimit();
 
 // GET /api/agency/discover - Get discoverable talent (for React frontend)
-// Supports optional ?q= parameter for multi-vector semantic search via pgvector.
+// Supports optional ?q= natural-language briefs parsed into factual constraints.
 router.get(
   "/api/agency/discover",
   discoverLimiter,
@@ -3924,18 +3414,10 @@ router.get(
         delete result._launch;
       }
 
-      // Intel Capture v2 — discovery demand ("the market is searching for
-      // someone like you"). Aggregate only: no agency identity on the event.
       const shownIds = (result?.profiles || [])
         .map((p) => p?.id)
         .filter(Boolean);
       if (shownIds.length) {
-        const filterKeys = Object.keys(req.query).filter(
-          (k) => !["page", "limit", "offset"].includes(k),
-        );
-        recordDiscoveryImpressions(shownIds, {
-          filters: filterKeys.length ? filterKeys : null,
-        });
         // Attribute impressions to the logged query (launch engine only).
         if (queryLogId) {
           writeImpressionEvents(knex, queryLogId, shownIds).catch(() => {});
@@ -3970,11 +3452,22 @@ router.get(
       // Generic discovery preview — fail closed on minors (no named-agency
       // guardian auth here) and agency-excluded profiles (audit P0-3).
       const agencyId = getSessionAgencyId(req);
-      if (!isAgencyDiscoverable(profile, { agencyId })) {
+      if (
+        !isAgencyDiscoverable(profile, { agencyId }) ||
+        (profile.user_id &&
+          (await isAgencyBlockedForTalent(knex, profile.user_id, agencyId)))
+      ) {
         return res
           .status(404)
           .json({ error: "Profile not found or not discoverable" });
       }
+
+      recordProfileEvent({
+        profile,
+        action: "discovery_open",
+        req,
+        viewerClass: "agency",
+      });
 
       // Get visible images only (moderation + agency-exclusion filtered).
       await ensureModerationColumnChecked(knex);
@@ -3997,15 +3490,6 @@ router.get(
           console.error("[Discover Preview] Notification failed:", err),
         );
       }
-
-      // Intel Capture v2 — profile opened from discovery results (aggregate
-      // only; the agency identity is never stored on the event).
-      recordProfileEvent({
-        profile,
-        action: "discovery_open",
-        req,
-        viewerClass: "agency",
-      });
 
       // Static-allowlist DTO — never spread the raw discoverable profile row.
       const social = await loadSocialAccountsForProfile(profileId);

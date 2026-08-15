@@ -6,10 +6,8 @@ const { v4: uuidv4 } = require("uuid");
 const {
   ageFilterDobCutoffs,
   utcDateString,
-} = require("../../src/domains/agency/services/discover-age");
-const {
   loadEligibleProfileIds,
-} = require("../../src/domains/agency/services/discover-retrieval");
+} = require("../../src/domains/agency/services/discover-age");
 
 // UTC date string for a DOB `yearsAgo` years and `dayOffset` days from the
 // reference date — mirrors the boundary seeding in agency-discover-search.

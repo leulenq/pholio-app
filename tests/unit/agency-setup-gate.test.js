@@ -4,8 +4,8 @@ describe('requireAgencyOnboardingComplete', () => {
   function runMiddleware(reqOverrides = {}, allow = []) {
     const req = {
       method: 'GET',
-      originalUrl: '/api/agency/roster',
-      path: '/api/agency/roster',
+      originalUrl: '/api/agency/applications',
+      path: '/api/agency/applications',
       session: { role: 'AGENCY', userId: 'agency-1', agencyId: 'agency-1' },
       get: () => 'application/json',
       xhr: false,

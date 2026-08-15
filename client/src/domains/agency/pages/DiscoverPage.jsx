@@ -1,19 +1,15 @@
 /**
  * DiscoverPage — "The Signal"
  *
- * AI-powered semantic talent discovery. Agency-branded dark surface.
+ * Natural-language talent discovery. Agency-branded dark surface.
  *
  *   1. Threshold — dark hero with a natural-language search bar + example intents
  *   2. Brief     — server-only provenance + editable chips (launch mode)
- *   3. Grid      — grouped masonry portraits, tier-band rings when AI-ranked
+ *   3. Grid      — factual filters in stable directory order
  *   4. Detail    — full-frame modal
  *
- * The visual design (dark surface, card grid, MatchScore ring, detail modal) is
- * frozen; this file adds search-bar behaviour + informational content only.
- *
- * Response handling is dual-shape (WS5.6): launch mode returns `discover_v2`
- * (grouped, provenance, honest-zero); hybrid mode returns the legacy flat
- * `{ profiles, meta }`. Everything below feature-detects on `data.discover_v2`.
+ * Natural language is used to extract declared, factual constraints. The
+ * resulting people are never assigned an affinity score or reranked.
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -24,8 +20,7 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/agency';
 import { predictCompletion } from '../lib/intentParser';
-import { resolveMatchScore, tierBandToScore, constraintAnnotations, amendBriefRemove } from '../lib/discoverMatch';
-import MatchScore from '../components/ui/MatchScore';
+import { constraintAnnotations, amendBriefRemove } from '../lib/discoverMatch';
 import { DivisionMark } from '../components/status';
 import BriefUnderstanding from '../components/BriefUnderstanding';
 import { DiscoverDetail } from './DiscoverDetail';
@@ -73,10 +68,6 @@ function PholioMark() {
 }
 
 function mapTalent(p, invitedIds) {
-  // tier_band is the only ranking signal launch mode exposes; legacy shapes fall
-  // back to the raw match score. Null → the card omits the ring numeral.
-  const tierBand = p.tier_band || null;
-  const resonance = tierBand ? tierBandToScore(tierBand) : resolveMatchScore(p);
   return {
     id: p.id,
     first: p.first_name || '',
@@ -90,16 +81,12 @@ function mapTalent(p, invitedIds) {
     exp: p.experience_level ? cap(p.experience_level) : null,
     photo: firstPhoto(p.images),
     bio: realBio(p.bio_curated),
-    resonance,
-    // discover_v2 launch-mode content (undefined in legacy shape)
+    // Natural-language response content (undefined in browse mode).
     keyStat: p.key_stat || null,
     ageBand: p.age_band || null,
     whyFacts: p.why_facts || null,
     constraintTruth: p.constraint_truth || null,
     annotations: constraintAnnotations(p.constraint_truth),
-    tierBand,
-    matchBreakdown: p.match_breakdown || null,
-    matchRationale: p.match_rationale || null,
     isInvited: p.is_invited || (invitedIds && invitedIds.has(p.id)) || false,
   };
 }
@@ -154,9 +141,6 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
       <div className="dc-card-body">
         <div className="dc-card-namerow">
           <h3 className="dc-card-name">{talent.name}</h3>
-          {talent.resonance != null && (
-            <MatchScore score={talent.resonance} size="xs" className="dc-card-score" />
-          )}
         </div>
         <div className="dc-card-line">
           {talent.archetype && <DivisionMark division={talent.archetype} size="sm" onDark />}
@@ -286,7 +270,6 @@ export default function DiscoverPage() {
   const pool = v2?.pool || data?.meta?.pool || null;
   const honestZero = v2?.honest_zero || null;
   const understanding = v2?.understanding || null;
-  const semanticActive = data?.meta?.semantic_search === true || isLaunch;
 
   // Build render groups. Launch: server groups[] in order. Legacy: one flat group.
   const groups = useMemo(() => {
@@ -299,9 +282,8 @@ export default function DiscoverPage() {
       }));
     }
     const mapped = (data?.profiles || []).map((p) => mapTalent(p, invitedIds));
-    if (semanticActive) mapped.sort((a, b) => (b.resonance ?? 0) - (a.resonance ?? 0));
     return mapped.length ? [{ key: 'flat', kind: 'flat', heading: null, talents: mapped }] : [];
-  }, [v2, data, semanticActive, invitedIds]);
+  }, [v2, data, invitedIds]);
 
   // Flat list across groups — detail nav + invite state.
   const talents = useMemo(() => groups.flatMap((g) => g.talents), [groups]);
@@ -499,7 +481,7 @@ export default function DiscoverPage() {
           >
             <p className="dc-curated-head">
               {submitted
-                ? <>Closest matches to <em>“{submitted}”</em></>
+                ? <>Results for <em>“{submitted}”</em></>
                 : <>Newest talent{agencyName ? <> for <em>{agencyName}</em></> : null}</>}
             </p>
             {!submitted && pool && (
@@ -528,7 +510,7 @@ export default function DiscoverPage() {
               <>
                 <p className="dc-empty-text">
                   {isFetching ? 'Searching the network…'
-                    : submitted ? 'No talent resonated with that description.'
+                    : submitted ? 'No discoverable talent meet every factual requirement in that brief.'
                       : 'No discoverable talent yet.'}
                 </p>
                 {submitted && <button className="dc-empty-reset" onClick={clear}>Clear search</button>}

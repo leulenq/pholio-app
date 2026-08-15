@@ -276,7 +276,9 @@ const calculateProfileStrength = (data) => {
   }
 
   const hasRecencyAnchor = hasHeadshot || hasFullBody;
-  const hasCurrentDigitals = hasRecencyAnchor && !pkg.recency.isStale;
+  // Credit for current digitals needs a *known* recent shoot date. An undated
+  // set is not current — it is unknown — and unknown earns nothing.
+  const hasCurrentDigitals = hasRecencyAnchor && pkg.recency.isCurrent;
   if (hasCurrentDigitals) {
     improveScore += IMPROVE_FIELD_POINTS.digitals_recency;
   } else if (pkg.recency.isStale && hasRecencyAnchor) {
@@ -576,46 +578,9 @@ const calculateProfileStrength = (data) => {
   };
 };
 
-const getStrengthUI = (score, isRequiredComplete = false) => {
-  if (!isRequiredComplete) {
-    return {
-      label: "Build your package",
-      color: "#C0392B",
-      message: "Complete the essentials agencies expect on every submission.",
-      status: "locked",
-    };
-  }
-
-  if (score < 85) {
-    return {
-      label: "Essentials complete",
-      color: "#C9A55A",
-      message: "Add look details and contact to strengthen your package.",
-      status: "improvement",
-    };
-  }
-
-  if (score < 100) {
-    return {
-      label: "Strong package",
-      color: "#2D8A56",
-      message: "Your profile matches what bookers look for when shortlisting.",
-      status: "improvement",
-    };
-  }
-
-  return {
-    label: "Agency grade",
-    color: "#C9A55A",
-    message: "Complete and current — ready for agency review.",
-    status: "perfect",
-  };
-};
-
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     calculateProfileStrength,
-    getStrengthUI,
     REQUIRED_POINTS,
     IMPROVE_POINTS,
   };

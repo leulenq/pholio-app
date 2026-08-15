@@ -11,9 +11,36 @@ jest.mock("../../src/domains/auth/services/firebase-admin", () => ({
 const { s3 } = require("../../src/shared/lib/uploader");
 const { deleteUser } = require("../../src/domains/auth/services/firebase-admin");
 const {
+  buildAccountDeletionResponse,
   deleteUserAccount,
   processPendingDeletions,
 } = require("../../src/shared/lib/account-deletion");
+
+describe("buildAccountDeletionResponse", () => {
+  it("returns 202 and a pending-erasure redirect when provider deletion is incomplete", () => {
+    expect(buildAccountDeletionResponse({ deleted: true, fullyErased: false })).toEqual({
+      status: 202,
+      payload: {
+        deleted: true,
+        fullyErased: false,
+        erasureStatus: "pending_provider_purge",
+        redirect: "/login?erasure=pending",
+      },
+    });
+  });
+
+  it("returns 200 only for verified complete erasure", () => {
+    expect(buildAccountDeletionResponse({ deleted: true, fullyErased: true })).toEqual({
+      status: 200,
+      payload: {
+        deleted: true,
+        fullyErased: true,
+        erasureStatus: "complete",
+        redirect: "/login",
+      },
+    });
+  });
+});
 
 function createKnexMock(seed = {}, { tables } = {}) {
   const state = {

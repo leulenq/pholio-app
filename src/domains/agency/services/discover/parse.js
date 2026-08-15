@@ -18,8 +18,8 @@
  * into a best-effort single-role contract whose numeric constraints are only
  * applied when extract-values confirms them (never a hard-applied regex guess).
  *
- * This module is STANDALONE — the live hybrid engine keeps using
- * query-understanding.js untouched until PR5 flips the flag.
+ * This is the live natural-language boundary for Discover. Its contract is
+ * evaluated only as factual filtering; it is never used to score or rank talent.
  */
 
 const crypto = require("crypto");

@@ -61,6 +61,7 @@ import { MARKETING_SITE_URL } from '../../../../shared/lib/logout';
 import '../../components/ApplicationsView.css';
 import './ApplyExperience.css';
 import SubmissionThreshold from './SubmissionThreshold';
+import RegistryPreflight from '../../components/RegistryPreflight';
 import { draftFingerprint, getDraftClientId } from './applicationDraftStorage';
 
 const XIcon = ({ size = 24, className }) => (
@@ -171,6 +172,9 @@ function repairStepIndex(warnings = []) {
   const fields = new Set(warnings.map((warning) => warning?.field).filter(Boolean));
   if (fields.has('boards')) return PAGES.findIndex((page) => page.id === 'board');
   if (fields.has('digitalSlotPicks')) {
+    return PAGES.findIndex((page) => page.id === 'digitals');
+  }
+  if (fields.has('specRegistryRevisionId')) {
     return PAGES.findIndex((page) => page.id === 'digitals');
   }
   if (fields.has('mediaSetId') || fields.has('excludedImageIds')) {
@@ -570,6 +574,7 @@ export default function ApplyExperience() {
   const [selectedCompCardPreset, setSelectedCompCardPreset] = useState(null);
   // Submission-scoped: which qualifying digital represents each slot (swap).
   const [digitalSlotPicks, setDigitalSlotPicks] = useState({});
+  const [specRegistryRevisionId, setSpecRegistryRevisionId] = useState(null);
   const [excludedImageIds, setExcludedImageIds] = useState(() => new Set());
   const [note, setNote] = useState('');
   const [consent, setConsent] = useState(false);
@@ -700,20 +705,16 @@ export default function ApplyExperience() {
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
     },
     onError: (err) => {
-      if (err?.data?.upgradeRequired) {
+      if (err?.data?.error === 'monthly_discovery_limit_reached') {
         const claims = err?.data?.activeClaims || [];
-        if (err?.data?.error === 'open_call_exemption_cap_reached') {
-          toast.error(
-            "You've used this month's invited submissions. Invited submissions now count toward your monthly limit.",
-          );
-        } else if (claims.length > 0) {
-          // Never upsell past a free entitlement the talent already holds.
-          toast.error(
-            `Monthly discovery limit reached. You can still submit to ${claims[0].agencyName} — they invited you.`,
-          );
-        } else {
-          toast.error('Monthly discovery limit reached.');
-        }
+        // The limit is anti-spam and applies to every plan, so there is
+        // nothing to upsell — point at the open-call path, which is free
+        // and unlimited.
+        toast.error(
+          claims.length > 0
+            ? `Monthly discovery limit reached. You can still submit to ${claims[0].agencyName} — they invited you.`
+            : "Monthly discovery limit reached. Submissions through an agency's own open call link don't count toward it.",
+        );
         return;
       }
       const code = err?.data?.error;
@@ -819,6 +820,7 @@ export default function ApplyExperience() {
       mediaSetId: selectedMediaSetId,
       excludedImageIds: [...excludedImageIds],
       digitalSlotPicks,
+      specRegistryRevisionId,
       compCardPreset: selectedCompCardPreset
         ? {
             id: selectedCompCardPreset.id,
@@ -837,6 +839,7 @@ export default function ApplyExperience() {
     adultAuthorityConfirmed,
     consent,
     digitalSlotPicks,
+    specRegistryRevisionId,
     excludedImageIds,
     note,
     pageIndex,
@@ -882,6 +885,11 @@ export default function ApplyExperience() {
     setSelectedMediaSetId(mediaSetValid ? payload.mediaSetId : 'current');
     setExcludedImageIds(new Set(validExcludedIds));
     setDigitalSlotPicks(validDigitalPicks);
+    setSpecRegistryRevisionId(
+      typeof payload.specRegistryRevisionId === 'string'
+        ? payload.specRegistryRevisionId
+        : null,
+    );
     setSelectedCompCardPreset(payload.compCardPreset || null);
     setNote(typeof payload.note === 'string' ? payload.note.slice(0, 1200) : '');
     setConsent(false);
@@ -1187,11 +1195,9 @@ export default function ApplyExperience() {
   );
   const monthlyLimitLabel = openCallClaim
     ? `Invited by ${openCallClaim.agencyName} — this submission won't use your monthly allowance`
-    : applicationQuota?.unlimited
-      ? 'Unlimited submissions this month'
-      : applicationQuota
-        ? `${applicationQuota.used}/${applicationQuota.limit} discovery submissions this month`
-        : 'Submission limit unavailable';
+    : applicationQuota
+      ? `${applicationQuota.used}/${applicationQuota.limit} discovery submissions this month`
+      : 'Submission limit unavailable';
 
   const visibleImages = useMemo(
     () => authImages.filter((image) => !image.exclude_from_agency && imageUrl(image)),
@@ -1292,7 +1298,8 @@ export default function ApplyExperience() {
       {
         key: 'digitals_recency',
         label: 'Current digitals',
-        complete: !packageAudit.recency.isStale,
+        // A set of unknown age is not a current set. `!isStale` said it was.
+        complete: packageAudit.recency.isCurrent,
         note: 'Refresh your digitals — agencies expect a current set',
       },
       {
@@ -1582,6 +1589,7 @@ export default function ApplyExperience() {
         compCardPresetName: selectedCompCardPreset?.name || null,
         compCardSeed: selectedCompCardPreset?.seed || null,
         digitalSlotPicks,
+        specRegistryRevisionId,
         imageIds: packageImages.map((img) => img.id),
         readiness: missingChecks.length === 0 ? 'Ready' : `Missing ${missingChecks.length}`,
         digitalsGaps: digitalsGaps.map((g) => g.label),
@@ -1703,6 +1711,7 @@ export default function ApplyExperience() {
             setSelectedMediaSetId('current');
             setSelectedCompCardPreset(null);
             setDigitalSlotPicks({});
+            setSpecRegistryRevisionId(null);
             setExcludedImageIds(new Set());
             setNote('');
             setConsent(false);
@@ -1905,6 +1914,10 @@ export default function ApplyExperience() {
               <DigitalsPage
                 slots={digitalSet}
                 intel={digitalsIntel}
+                agencyId={selectedAgency?.id}
+                agencyName={selectedAgency?.name}
+                specRegistryRevisionId={specRegistryRevisionId}
+                onSpecRegistryRevisionChange={setSpecRegistryRevisionId}
                 isMinor={minor}
                 guardianConsent={agencyConsentGranted}
                 accountGuardianConsent={Boolean(profile?.guardian_consent_at)}
@@ -2554,6 +2567,10 @@ function ageLabel(image) {
 function DigitalsPage({
   slots,
   intel,
+  agencyId,
+  agencyName,
+  specRegistryRevisionId,
+  onSpecRegistryRevisionChange,
   isMinor = false,
   guardianConsent = false,
   accountGuardianConsent = false,
@@ -2591,6 +2608,15 @@ function DigitalsPage({
 
   return (
     <div className="apply-digitals">
+      <RegistryPreflight
+        agencyId={agencyId}
+        agencyName={agencyName}
+        selectedRevisionId={specRegistryRevisionId}
+        onRevisionChange={onSpecRegistryRevisionChange}
+        imageIds={presentedSlots.flatMap((slot) =>
+          slot.image?.id ? [slot.image.id] : [],
+        )}
+      />
       {/* Minors are a distinct legal regime: full-length/form-fitting body
           frames need guardian consent before they can be sent, and go only to
           the named agency — never public. The send itself is gated upstream;

@@ -5,6 +5,7 @@ import { addAgencyTeamMember } from '../api/agency';
 import { ASSIGNABLE_ROLES } from './team-presence';
 import { useAgencyPermissions } from '../hooks/useAgencyPermissions';
 import { AgencyModal, AgencyButton } from './ui';
+import { PholioInput } from '../../../shared/components/ui/forms';
 
 const DEFAULT_ROLE = 'SCOUT';
 

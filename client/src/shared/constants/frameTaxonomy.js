@@ -11,9 +11,13 @@ export const SHOT_ALIASES = {
 
 export const SHOT_LABELS = {
   headshot: 'Headshot',
+  close_up: 'Close-up',
   beauty: 'Beauty close-up',
+  waist_up: 'Waist-up',
   half_body: 'Half body',
+  mid_length: 'Mid-length',
   three_quarter: 'Three-quarter',
+  portrait_length: 'Portrait length',
   full_length: 'Full length',
   profile: 'Profile',
   profile_left: 'Profile',
@@ -25,9 +29,13 @@ export const SHOT_LABELS = {
 const SHOT_PICKER_OPTIONS = [
   { value: '', label: 'Unplaced', hint: '' },
   { value: 'headshot', label: 'Headshot', hint: 'Face-forward reference' },
+  { value: 'close_up', label: 'Close-up', hint: 'Tight face or head-and-shoulders frame' },
   { value: 'beauty', label: 'Beauty close-up', hint: 'Tight beauty framing' },
+  { value: 'waist_up', label: 'Waist-up', hint: 'Approximately the waist upward' },
   { value: 'half_body', label: 'Half body', hint: 'Waist or mid-thigh up' },
+  { value: 'mid_length', label: 'Mid-length', hint: 'Agency-labelled mid-length frame' },
   { value: 'three_quarter', label: 'Three-quarter', hint: 'Knee or thigh up' },
+  { value: 'portrait_length', label: 'Portrait length', hint: 'Use when the agency names this exact crop' },
   { value: 'full_length', label: 'Full length', hint: 'Head to toe' },
   { value: 'profile', label: 'Profile', hint: 'Side view of face or body' },
   { value: 'back', label: 'Back', hint: 'Back of head or body' },

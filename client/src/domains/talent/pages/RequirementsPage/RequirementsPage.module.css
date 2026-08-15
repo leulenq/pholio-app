@@ -1,0 +1,778 @@
+/* ============================================================
+   AGENCY REQUIREMENTS — talent editorial ledger
+
+   Speaks the language the apply workspace and the profile tab
+   already speak: cream canvas, ink, one gold accent, hairline
+   rules, Noto Serif Display for names and figures, JetBrains
+   Mono for every label and action, and the ink-inversion hover
+   that makes a directory row feel like a plate rather than a
+   card. Token values are deliberately identical to the --app-*
+   set in components/ApplicationsView.css and the --pf-* set in
+   pages/ProfilePage/ProfilePage.module.css.
+
+   Not a card grid. The entries are one continuous ledger,
+   hairline-separated, because the directory is a list of
+   published sources — an index — and indices are ruled, not
+   boxed.
+   ============================================================ */
+
+.page {
+  --rq-ink: #050505;
+  --rq-cream: #faf7f2;
+  --rq-cream-warm: #f5f0e8;
+  --rq-cream-deep: #ede8dd;
+  --rq-gold: #c9a55a;
+  --rq-gold-warm: #c8a96e;
+  --rq-text: #1a1a1a;
+  --rq-text-soft: rgba(26, 26, 26, 0.62);
+  --rq-text-faint: rgba(26, 26, 26, 0.38);
+  --rq-ink-text: rgba(245, 240, 232, 0.88);
+  --rq-ink-soft-text: rgba(245, 240, 232, 0.52);
+  --rq-ink-faint: rgba(245, 240, 232, 0.26);
+  --rq-hair: rgba(26, 26, 26, 0.09);
+  --rq-hair-strong: rgba(26, 26, 26, 0.16);
+  --rq-hair-gold: rgba(201, 165, 90, 0.24);
+  --rq-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --rq-radius: 6px;
+  --rq-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  --rq-serif: 'Noto Serif Display', Georgia, serif;
+
+  min-height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  padding: clamp(40px, 4.4vw, 78px) clamp(28px, 5.4vw, 104px) 104px;
+  color: var(--rq-text);
+  background:
+    linear-gradient(180deg, var(--rq-cream-warm) 0%, var(--rq-cream) 260px),
+    var(--rq-cream);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 300;
+  animation: rqEntrance 0.6s var(--rq-ease) both;
+}
+
+@keyframes rqEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── masthead ─────────────────────────────────────────────── */
+
+.masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 480px);
+  gap: clamp(48px, 7.5vw, 128px);
+  align-items: end;
+  padding-bottom: clamp(36px, 4.5vw, 52px);
+}
+
+.mastheadCopy {
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--rq-text);
+  font-family: var(--rq-serif);
+  font-size: clamp(3.2rem, 7.6vw, 6.4rem);
+  font-weight: 300;
+  letter-spacing: 0;
+  line-height: 0.92;
+}
+
+/* A single italic gold word carries the accent. Not gradient text —
+   `background-clip: text` is banned, and this is better anyway. */
+.title em {
+  color: var(--rq-gold-warm);
+  font-style: italic;
+  font-weight: 300;
+}
+
+.sweep {
+  width: 154px;
+  height: 1px;
+  margin-top: 32px;
+  background: linear-gradient(to right, var(--rq-gold-warm), transparent);
+}
+
+.subtitle {
+  max-width: 34rem;
+  margin: 24px 0 0;
+  color: var(--rq-text-soft);
+  font-size: clamp(1rem, 1.5vw, 1.15rem);
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+/* The two figures worth stating up front, set as an index. */
+.index {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin: 0;
+  border-top: 1px solid var(--rq-hair);
+  border-left: 1px solid var(--rq-hair);
+}
+
+.indexCell {
+  min-width: 0;
+  padding: clamp(18px, 2vw, 26px);
+  border-right: 1px solid var(--rq-hair);
+  border-bottom: 1px solid var(--rq-hair);
+}
+
+.indexTerm {
+  margin: 0 0 12px;
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.indexValue {
+  margin: 0;
+  color: var(--rq-text);
+  font-family: var(--rq-serif);
+  font-size: clamp(1.65rem, 4vw, 3rem);
+  font-weight: 300;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ── the matrix: shots down, agencies across ──────────────── */
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.matrix {
+  margin: 0 0 clamp(44px, 5vw, 72px);
+  border-top: 1px solid var(--rq-hair-gold);
+}
+
+.matrixHead {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 10px clamp(28px, 4vw, 64px);
+  align-items: baseline;
+  padding: clamp(26px, 3vw, 36px) 0 clamp(22px, 2.6vw, 30px);
+}
+
+.matrixTitle {
+  margin: 0;
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The one sentence a directory of agencies cannot produce. */
+.matrixLede {
+  margin: 0;
+  color: var(--rq-text);
+  font-family: var(--rq-serif);
+  font-size: clamp(1.3rem, 2.4vw, 2rem);
+  font-weight: 300;
+  line-height: 1.15;
+}
+
+.matrixLede em {
+  color: var(--rq-gold-warm);
+  font-style: italic;
+}
+
+.matrixScroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.matrixTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.matrixCorner {
+  width: clamp(140px, 18vw, 230px);
+  border-bottom: 1px solid var(--rq-hair-strong);
+}
+
+/* Agency names run vertically so ten of them fit without truncation and the
+   grid stays the widest thing on the page. */
+.matrixColHead {
+  padding: 0 0 12px;
+  vertical-align: bottom;
+  border-bottom: 1px solid var(--rq-hair-strong);
+}
+
+.matrixColButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 46px;
+  padding: 10px 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--rq-text-faint);
+  cursor: pointer;
+  transition: color 0.25s var(--rq-ease);
+}
+
+/*
+ * A fixed height is what keeps ten names on one baseline. Left after the 180°
+ * rotation is the bottom of the column, so every name ends flush against the
+ * grid regardless of its length — without it, short names float and the header
+ * reads as broken rather than as a rotated axis.
+ */
+.matrixColName {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  height: 158px;
+  overflow: hidden;
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-align: left;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.matrixColIndex {
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.matrixColButton:hover,
+.matrixColButton:focus-visible {
+  color: var(--rq-text);
+}
+
+.matrixColButton:focus-visible {
+  outline: 1px solid var(--rq-hair-gold);
+  outline-offset: 2px;
+}
+
+.matrixColHeadOn .matrixColButton {
+  color: var(--rq-gold);
+}
+
+.matrixColHeadOn {
+  border-bottom-color: var(--rq-gold);
+}
+
+.matrixLeverageHead {
+  padding: 0 0 12px 22px;
+  vertical-align: bottom;
+  border-bottom: 1px solid var(--rq-hair-strong);
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.matrixRow {
+  animation: rqEntrance 0.5s var(--rq-ease) both;
+  animation-delay: calc(var(--rq-row-index, 0) * 55ms);
+  transition: background 0.2s var(--rq-ease);
+}
+
+.matrixRow:hover,
+.matrixRowOn {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrixRow {
+    animation: none;
+  }
+}
+
+.matrixRowHead {
+  padding: 15px 24px 15px 0;
+  border-bottom: 1px solid var(--rq-hair);
+  color: var(--rq-text);
+  font-family: var(--rq-serif);
+  font-size: clamp(1rem, 1.5vw, 1.22rem);
+  font-weight: 300;
+  line-height: 1.15;
+  text-align: left;
+}
+
+.matrixCell {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--rq-hair);
+  text-align: center;
+}
+
+/*
+ * Cells are filled, outlined or empty — not coloured dots. A status dot is a
+ * banned pattern here, and an ink fill reads as a spec sheet, which is what
+ * this is.
+ */
+.mark {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 1px;
+}
+
+.markCovered {
+  background: var(--rq-ink);
+}
+
+.markWanted {
+  border: 1px solid var(--rq-gold);
+  background: transparent;
+}
+
+.markNone {
+  border: 1px solid var(--rq-hair);
+  background: transparent;
+}
+
+.matrixLeverage {
+  padding: 15px 0 15px 22px;
+  border-bottom: 1px solid var(--rq-hair);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.matrixLeverageValue {
+  color: var(--rq-text);
+  font-family: var(--rq-serif);
+  font-size: 1.3rem;
+  font-weight: 300;
+}
+
+.matrixLeverageDone {
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  margin: 20px 0 0;
+}
+
+.legend > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.legend dt {
+  display: flex;
+  margin: 0;
+}
+
+.legend dd {
+  margin: 0;
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* ── the opened agency ────────────────────────────────────── */
+
+.plate {
+  padding: clamp(30px, 3.6vw, 46px) clamp(24px, 3vw, 40px) 0;
+  border: 1px solid var(--rq-hair);
+  border-top: 1px solid var(--rq-hair-gold);
+  border-radius: var(--rq-radius);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.plateHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px 40px;
+  align-items: start;
+}
+
+.plateIdentity {
+  min-width: 0;
+}
+
+.plateIndex {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--rq-gold);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+}
+
+.plateName {
+  margin: 0;
+  color: var(--rq-text);
+  font-family: var(--rq-serif);
+  font-size: clamp(1.9rem, 3.6vw, 3rem);
+  font-weight: 300;
+  line-height: 1.02;
+  overflow-wrap: anywhere;
+}
+
+.plateMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  margin: 16px 0 0;
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.plateMetaRule {
+  width: 14px;
+  height: 1px;
+  background: var(--rq-hair-strong);
+}
+
+.plateMetaOn {
+  color: var(--rq-gold);
+}
+
+.plateStatus {
+  min-width: 0;
+  text-align: right;
+}
+
+.plateMissing {
+  max-width: 62ch;
+  margin: 22px 0 0;
+  color: var(--rq-text);
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.55;
+}
+
+.plateMissing strong {
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.plateOther {
+  color: var(--rq-text-soft);
+}
+
+.plateActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  align-items: center;
+  margin-top: clamp(24px, 2.8vw, 32px);
+}
+
+.check {
+  margin-top: clamp(26px, 3vw, 34px);
+  overflow: hidden;
+  border: 1px solid var(--rq-hair);
+  border-top-color: var(--rq-hair-gold);
+  border-radius: var(--rq-radius);
+  background: rgba(255, 255, 255, 0.5);
+  animation: rqEntrance 0.4s var(--rq-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .check {
+    animation: none;
+  }
+}
+
+/* ── the full check ───────────────────────────────────────── */
+
+.tally {
+  margin: 0;
+  padding: clamp(16px, 1.9vw, 22px) clamp(18px, 2.2vw, 28px);
+  border-bottom: 1px solid var(--rq-hair);
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.group {
+  border-bottom: 1px solid var(--rq-hair);
+}
+
+.group:last-of-type {
+  border-bottom: 0;
+}
+
+.groupHead,
+.groupSummary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: clamp(15px, 1.8vw, 19px) clamp(18px, 2.2vw, 28px);
+  cursor: default;
+}
+
+.groupSummary {
+  cursor: pointer;
+  list-style: none;
+  transition: background 0.2s var(--rq-ease);
+}
+
+.groupSummary::-webkit-details-marker {
+  display: none;
+}
+
+.groupSummary:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.groupSummary:focus-visible {
+  outline: 1px solid var(--rq-hair-gold);
+  outline-offset: -3px;
+}
+
+.groupTitle {
+  margin: 0;
+  color: var(--rq-text);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.groupCount {
+  color: var(--rq-gold);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+/* Rotates when the group is open — the only disclosure affordance,
+   since a chevron graphic would be one ornament too many. */
+.groupMark {
+  margin-left: auto;
+  color: var(--rq-text-faint);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  transition: transform 0.25s var(--rq-ease);
+}
+
+.group[open] .groupMark {
+  transform: rotate(45deg);
+}
+
+.findings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--rq-hair);
+}
+
+.finding {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 4px 20px;
+  padding: 14px clamp(18px, 2.2vw, 28px);
+  border-bottom: 1px solid var(--rq-hair);
+  animation: rqEntrance 0.5s var(--rq-ease) both;
+  animation-delay: calc(var(--rq-row-index, 0) * 45ms);
+  transition: background 0.2s var(--rq-ease);
+}
+
+.finding:last-child {
+  border-bottom: 0;
+}
+
+.finding:hover {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .finding {
+    animation: none;
+  }
+}
+
+.findingIndex {
+  grid-row: 1 / span 2;
+  color: var(--rq-gold);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+}
+
+.findingLabel {
+  min-width: 0;
+  margin: 0;
+  color: var(--rq-text);
+  font-family: var(--rq-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+.findingGuidance {
+  min-width: 0;
+  max-width: 62ch;
+  margin: 0;
+  color: var(--rq-text-soft);
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* ── provenance ───────────────────────────────────────────── */
+
+.provenance,
+.provenanceCaution {
+  max-width: 78ch;
+  margin: clamp(26px, 3vw, 34px) 0 0;
+  padding: clamp(16px, 1.9vw, 20px) 0 clamp(26px, 3vw, 34px);
+  border-top: 1px solid var(--rq-hair);
+  color: var(--rq-text-faint);
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+.provenanceCaution {
+  padding-top: 0;
+  border-top: 0;
+  color: #8a3f2c;
+}
+
+.provenanceLink {
+  color: var(--rq-text-soft);
+  text-decoration: none;
+  border-bottom: 1px solid var(--rq-hair-gold);
+  transition: color 0.2s var(--rq-ease);
+}
+
+.provenanceLink:hover,
+.provenanceLink:focus-visible {
+  color: var(--rq-gold);
+}
+
+.detailEmpty {
+  margin: 0;
+  padding: clamp(18px, 2.2vw, 26px);
+  color: var(--rq-text-soft);
+  font-size: 13.5px;
+  font-weight: 300;
+}
+
+/* ── page states ──────────────────────────────────────────── */
+
+.state {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  max-width: 60ch;
+  padding: clamp(30px, 3.6vw, 44px);
+  border: 1px solid var(--rq-hair);
+  border-top-color: var(--rq-hair-gold);
+  border-radius: var(--rq-radius);
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.state p {
+  margin: 0;
+  color: var(--rq-text);
+  font-size: 14.5px;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+.stateHint {
+  color: var(--rq-text-soft);
+}
+
+/* ── narrow viewports ─────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .masthead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .page {
+    padding: 32px 20px 80px;
+  }
+
+  .entryHead {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 8px 14px;
+  }
+
+  .entryStatus {
+    grid-column: 2;
+    margin-top: 16px;
+  }
+
+  .entryActions {
+    margin-left: 0;
+    gap: 12px 22px;
+  }
+
+  .detail {
+    margin-left: 0;
+  }
+
+  .index {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

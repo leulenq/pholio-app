@@ -45,7 +45,7 @@ export default function DecisionStack({ decisions, sendability, standing }) {
 
       {rows.length === 0 ? (
         <p className="iv-lead-clear">
-          Nothing needs fixing. The work now is more submissions, not more maintenance.
+          No current materials or submission record calls for an action.
         </p>
       ) : (
         <ol className="iv-decisions">

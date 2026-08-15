@@ -519,6 +519,10 @@ const {
   mintClaim,
   CLAIM_STATUSES,
 } = require("../../domains/talent/services/open-call-claims");
+const {
+  briefDTO,
+  isClosedByDeadline,
+} = require("../../domains/agency/services/open-call-brief");
 
 // How long an anonymous arrival context survives in the session while the
 // visitor signs up. A later re-visit of the link simply records a new arrival.
@@ -580,6 +584,10 @@ router.get("/open-call/:code", async (req, res) => {
       data: {
         valid: true,
         agency: openCallAgencyDTO(link),
+        brief: briefDTO(link),
+        // A call past its published closing date says so, rather than taking
+        // submissions the agency has stopped reading.
+        closed: isClosedByDeadline(link),
         alreadyApplied,
         authenticated: Boolean(profile),
       },
@@ -604,6 +612,12 @@ router.post("/open-call/:code/arrival", async (req, res) => {
     const link = await findActiveLinkByCode(knex, req.params.code);
     if (!link) {
       return res.json({ success: true, data: { valid: false } });
+    }
+    // Past its published closing date the call mints nothing. The invitation
+    // was time-bound and the agency said so; honouring it afterwards would
+    // hand out an entitlement into a call nobody is reading.
+    if (isClosedByDeadline(link)) {
+      return res.json({ success: true, data: { valid: true, closed: true, claimed: false } });
     }
 
     const arrivalId = await recordArrival(knex, {

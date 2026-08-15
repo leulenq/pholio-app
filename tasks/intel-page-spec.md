@@ -1,4 +1,8 @@
-# Intel — Ground-Up Spec (v2, 2026-07-01)
+# Intel — Factual Analytics Spec (v3, 2026-08-09)
+
+This revision supersedes any v2 language below that infers intent, audience
+identity, quality, demand, causality, or career momentum from behavioral events.
+Intel reports observable first-party activity and submission outcomes only.
 
 The talent-facing intelligence hub, designed from a blank slate. The old
 analytics page is not a reference, and neither is its data plumbing: this spec
@@ -13,27 +17,27 @@ rendering and a defined meaning.
 
 A working model never asks their booker for pageviews. They ask:
 
-1. **"Am I getting requested?"** — is anyone with buying power pulling my materials?
-2. **"Are my materials working?"** — does attention convert into next steps?
-3. **"Where are my submissions dying?"** — what stage, and why?
-4. **"What's holding me back?"** — the one thing a booker would tell me to fix.
+1. **"What happened around my profile?"** — visits, shared-link opens and card pulls.
+2. **"What happened after I submitted?"** — recorded reads and status changes.
+3. **"Are my materials current?"** — capture dates and package readiness.
+4. **"Which frames were opened?"** — impressions and opens, without a quality claim.
 
 Generic SaaS metrics (sessions, bounce, retention cohorts, invented
 "engagement scores") answer none of these and instantly read as fake to
 anyone from the industry. Every number on this page must pass one test:
 **would a booker mention it to their talent across the desk?**
 
-### The signal hierarchy
-Not all attention is equal. The page is organized top-down by signal value —
-the inverse of a normal analytics dashboard, and the whole point:
+### Recorded event types
+Event types are shown separately. Their order or color never implies viewer
+quality, purchasing intent, or likelihood of an outcome:
 
 | Tier | Signal |
 |---|---|
 | 1 | A booker reviewed your submission |
 | 2 | A submission advanced (shortlisted / requested more / meeting) |
 | 3 | Your comp card was pulled or your shared link was opened |
-| 4 | A qualified visit (real dwell, external referrer, images actually viewed) |
-| 5 | Raw reach (social taps, passing traffic) |
+| 4 | A public or shared-link profile visit |
+| 5 | An image impression or open |
 
 ---
 
@@ -43,14 +47,13 @@ This is the data the page is designed around. Some of it exists, most of it
 must be captured; §6 sequences that. The design does not bend to today's
 tables.
 
-- **Classified attention.** Every portfolio/profile view resolved to a viewer
+- **Request context.** Every portfolio/profile view resolved to a known context:
   class: `agency` (authenticated agency user, or arrival via a submission),
-  `client/casting` (arrival via a shared package link), `public` (social,
-  search, direct), `self` (excluded). Plus per-visit depth: dwell time, images
-  opened, scroll reach, actions taken (card pull, contact, save).
-- **Image-level attention.** Per-image impressions, lightbox opens, dwell,
-  zoom, and attribution ("this image was on screen when the card was pulled").
-  The book is the product; the page must know which frames carry it.
+  `shared` (arrival via a shared package link; recipient identity unknown),
+  `public` (social, search, direct), `self` (excluded). A shared token never
+  proves the visitor is the named recipient, a client, or casting.
+- **Image-level activity.** Per-image impressions and lightbox opens. Dwell is
+  not used as a proxy for interest or quality.
 - **Market resolution.** Attention resolved to industry markets (NYC, LA,
   Paris, Milan, London, Tokyo, home region) — the industry thinks in markets
   and stays, not in "countries."
@@ -60,9 +63,8 @@ tables.
 - **Card & link lifecycle.** Card generations and pulls by version/theme;
   per-recipient share tokens: opened, re-opened days later (re-opens are
   filing behavior — a strong tell), forwarded.
-- **Discovery demand.** Appearances in agency-side discovery/scout searches:
-  which filters matched, whether the profile was opened from results. This is
-  the closest thing to "the market is searching for someone like you."
+- **Discovery activity.** Authenticated agency profile opens may be counted in
+  aggregate. Search-result impressions are not presented as demand.
 - **Materials currency.** Dated digitals, dated (versioned) measurements, comp
   card version vs latest photo/stat change — judged against real industry
   windows (digitals ≤ 3 months; stats reconfirmed ≤ 90 days).
@@ -86,18 +88,17 @@ The one-glance answer, composed as an editorial statement, not a KPI row.
 - **Signal Spectrum** — the signature instrument. A single horizontal band
   showing the *composition* of this period's attention across the five tiers,
   segments animating in by weight. It replaces every fake "score": instead of
-  one invented number, the talent sees the quality mix of their attention and
-  watches it shift toward Tier 1–3 as their materials improve.
+  one invented number, the talent sees each recorded event type separately.
 - **In Motion ticker** — open submissions in advancing states, the most urgent
   named: "Wilhelmina requested more digitals — 3 days ago. Respond today."
 - **Materials verdict** — one word, *Current / Aging / Stale*, linked to Zone 6.
 - Period control: 30 / 90 days (free tier: 7).
 
-### Zone 2 — The Seismograph (attention over time)
+### Zone 2 — The Seismograph (activity over time)
 A tall, layered, scrubbable time-field — the page's centerpiece chart.
-- **Base layer:** qualified visits as a soft area (ink wash).
+- **Base layer:** recorded visitor sessions as a soft area (ink wash).
 - **Strike layer:** card pulls and link opens as vertical ticks — discrete
-  strikes, because they are discrete intent events, not a smoothed line.
+  observed actions, not a smoothed inference.
 - **Event layer:** agency reviews and submission advances as marked glyphs
   sitting above the field.
 - **Ghost layer:** prior period as a faint offset line.
@@ -106,9 +107,8 @@ A tall, layered, scrubbable time-field — the page's centerpiece chart.
 - Scrubbing collapses the day under the cursor into a micro-ledger (who
   classes, what actions). Draw-on entrance tied to scroll.
 
-Beneath it, the **Rhythm Field**: a 7×24 heat grid of *when* attention
-arrives (day × hour). Genuinely actionable — it tells talent when to share,
-post, and follow up.
+Beneath it, the **Rhythm Field** reports when recorded visits arrived in the
+talent's own time zone. It is descriptive and makes no recommendation.
 
 ### Zone 3 — The Market Board (where attention comes from)
 Geography rendered the way the industry thinks: **markets**, not countries.
@@ -117,9 +117,8 @@ Geography rendered the way the industry thinks: **markets**, not countries.
 - Above it, a minimal **arc map**: a dark, elegant world projection with
   glowing market nodes sized by attention and arcs converging on the talent's
   base. Premium, quiet, no cartoon choropleth.
-- Industry framing in the copy: sustained attention from a market is a
-  placement signal ("Paris agencies keep returning — talk to your mother
-  agent about a Paris stay").
+- Market is approximate, inferred from coarse IP location, and is never called
+  a placement signal or evidence of market demand.
 - Source narrative (Instagram, direct link, search, agency inbound) folds in
   here as a ranked list with one sentence of meaning per source — never a
   donut chart.
@@ -130,9 +129,9 @@ The funnel the model actually lives, drawn as a **flow instrument**
 shortlisted / requested more / meeting* and settle into outcomes —
 *development, signed/booked, kept on file, passed, withdrawn*. Stream
 thickness = count; period and lifetime toggles.
-- **Automatic diagnosis** written under the flow: opened-but-never-advanced →
-  materials problem (routes to Zone 6); never-opened → targeting/volume
-  problem; advancing-but-stalling → follow-through.
+- **Observed transition gap** written under the flow with its denominator.
+  The page does not claim whether targeting, materials, or follow-through
+  caused the gap.
 - **Stage Clock** — a dot-plot of time-in-stage: your median review latency
   drawn against the platform-typical band, setting honest expectations
   (agencies are slow; silence ≠ rejection).
@@ -145,13 +144,11 @@ thickness = count; period and lifetime toggles.
 The most talent-native visualization possible: **the photography is the
 chart.** The talent's actual book laid out as a grid, each frame carrying a
 quiet data layer:
-- Attention rank and dwell bar per image.
-- Attribution flags: "your most-opened frame," "on screen when cards were
-  pulled," "most-skipped."
-- **Lead Image Test:** which frame, when first, holds visitors longest —
-  evidence for choosing the card front and portfolio opener.
-- Feeds the comp card composition engine — the strongest frames should be on
-  the card, and now there's data to say so.
+- Impression and open counts per image, with open rate withheld below the
+  stated sample floor.
+- Attribution flags are limited to observable facts such as "most opened."
+- The current card front is identified for comparison, without calling any
+  frame stronger or recommending a composition.
 
 ### Zone 6 — The Agency Lens (materials desk)
 Your profile read through a booker's eyes — the improvement engine.
@@ -166,15 +163,11 @@ Your profile read through a booker's eyes — the improvement engine.
   months — reshoot before your next submission." Ranked by expected effect on
   Tier 1–3 signal. This replaces completeness bars and horoscope tips.
 
-### Zone 7 — Trajectory (am I trending?)
-- **Momentum line** over 90 days — a composite drawn from Tier 1–4 events
-  (composition always inspectable; never a hidden formula) — rendered against
-  an **anonymized percentile band** of comparable talent (division × market ×
-  experience tier): "you're in the upper band for new faces in your market."
-- Annotated with self events, so the story reads causally: new digitals →
-  attention shift → first shortlist.
-- Benchmarks ship only when population size makes them honest — the band
-  renders as "calibrating" until then (§4). Never faked.
+### Zone 7 — Activity history
+- Twelve weekly counts, separated by event type: submissions sent, recorded
+  reviews, status advances, and profile activity.
+- Recent and prior six-week totals are compared only as counts. There is no
+  composite momentum score, cohort percentile, causal story, or career claim.
 
 ### Low-data & calibrating states (first-class design)
 Most new faces have thin data. Every instrument defines a designed
@@ -229,15 +222,16 @@ The pipeline exists to feed the instruments above — not the other way around.
 
 ### Capture v2 — enriched event stream (build first)
 A `profile_events` write path (superseding the thin `analytics` table)
-recording per event: `viewer_class` (agency/client/public/self — resolved
-from auth, submission linkage, and share token), `session_id`, `market`
+recording per event: `viewer_class` (agency/shared/public/self — resolved
+from auth and request context), `session_id`, `market`
 (resolved server-side at write from IP via `shared/lib/geolocation.js`; store
-market only, never raw precision), `image_id` + `dwell_ms` (from a lightweight
-client beacon), `share_token`, `source/referrer`, `action`. Plus:
-- **Share tokens** on portfolio/card links (per-recipient, open + re-open).
-- **Discovery impressions** logged from agency-side search/scout.
-- **Nightly aggregates** job: market rollups, image ranks, cohort benchmark
-  bands, momentum composites — the page reads aggregates, not raw events.
+market only, never raw precision), `image_id`, `share_token`,
+`source/referrer`, and `action`. Plus:
+- **Share tokens** on portfolio/card links (open + re-open; visitor identity unknown).
+- **Authenticated discovery opens** recorded in aggregate. Search-result
+  impressions are not translated into demand.
+- Aggregates remain reproducible counts. No cohort band, image-quality rank,
+  or momentum composite is generated.
 
 ### Already flowing (feeds instruments from day one)
 Submission status machine + per-stage activity (`applications`,

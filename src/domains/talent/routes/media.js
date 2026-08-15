@@ -209,6 +209,10 @@ function fieldsFromProcessed(processed) {
       storage_key: null,
       absolute_path: null,
       imageIntel: null,
+      delivery_mime_type: null,
+      delivery_size_bytes: null,
+      delivery_width_px: null,
+      delivery_height_px: null,
     };
   }
   return {
@@ -217,6 +221,14 @@ function fieldsFromProcessed(processed) {
     storage_key: processed.storageKey || processed.storage_key || null,
     absolute_path: processed.absolutePath || processed.absolute_path || null,
     imageIntel: processed.imageIntel || processed.image_intel || null,
+    delivery_mime_type:
+      processed.deliveryMimeType || processed.delivery_mime_type || null,
+    delivery_size_bytes:
+      processed.deliverySizeBytes ?? processed.delivery_size_bytes ?? null,
+    delivery_width_px:
+      processed.deliveryWidthPx ?? processed.delivery_width_px ?? null,
+    delivery_height_px:
+      processed.deliveryHeightPx ?? processed.delivery_height_px ?? null,
   };
 }
 
@@ -1058,6 +1070,21 @@ router.post(
               stored.imageIntel,
               { classificationPending: imageAiProcessingAllowed(profile) },
             );
+            // A framing value chosen in the upload form is a direct talent
+            // declaration, not an AI suggestion. Preserve that provenance so
+            // conservative agency-spec matching can rely on the exact label.
+            if (structuredInsert.shot_type) {
+              initialMetadata.ai.classification = {
+                ...initialMetadata.ai.classification,
+                source: "user",
+                confirmed: true,
+                band: "confirmed",
+                shot_type: {
+                  value: structuredInsert.shot_type,
+                  confidence: 1,
+                },
+              };
+            }
 
             await trx("images").insert({
               id: imageId,
@@ -1066,6 +1093,11 @@ router.post(
               public_url: stored.public_url,
               storage_key: stored.storage_key,
               absolute_path: stored.absolute_path,
+              delivery_mime_type: stored.delivery_mime_type,
+              delivery_size_bytes: stored.delivery_size_bytes,
+              delivery_width_px: stored.delivery_width_px,
+              delivery_height_px: stored.delivery_height_px,
+              delivery_metadata_recorded_at: trx.fn.now(),
               label: "Portfolio image",
               sort: sort,
               metadata: JSON.stringify(initialMetadata),
@@ -1897,6 +1929,46 @@ router.put(
     }
     Object.assign(patch, structuredParsed.values);
 
+    if (Object.hasOwn(structuredParsed.values, "shot_type")) {
+      const confirmedClassification = {
+        ...(updatedMetadata?.ai?.classification || {}),
+        source: "user",
+        confirmed: true,
+        band: "confirmed",
+      };
+
+      if (structuredParsed.values.shot_type) {
+        confirmedClassification.shot_type = {
+          value: structuredParsed.values.shot_type,
+          confidence: 1,
+        };
+      } else {
+        // Clearing a talent-selected frame must also remove any stale AI frame
+        // suggestion. The registry matcher will then report the fact unknown.
+        delete confirmedClassification.shot_type;
+      }
+
+      updatedMetadata = {
+        ...updatedMetadata,
+        ai: {
+          ...(updatedMetadata?.ai || {}),
+          classification: confirmedClassification,
+        },
+      };
+
+      const metadataSizeBytes = Buffer.byteLength(
+        JSON.stringify(updatedMetadata),
+        "utf8",
+      );
+      if (metadataSizeBytes > IMAGE_METADATA_MAX_BYTES) {
+        return res.status(400).json({
+          success: false,
+          message: "Image metadata is too large",
+        });
+      }
+      patch.metadata = updatedMetadata;
+    }
+
     if (Object.keys(patch).length === 0) {
       return res.status(400).json({
         success: false,
@@ -2280,6 +2352,11 @@ router.post(
         public_url: stored.public_url,
         storage_key: stored.storage_key,
         absolute_path: stored.absolute_path,
+        delivery_mime_type: stored.delivery_mime_type,
+        delivery_size_bytes: stored.delivery_size_bytes,
+        delivery_width_px: stored.delivery_width_px,
+        delivery_height_px: stored.delivery_height_px,
+        delivery_metadata_recorded_at: trx.fn.now(),
         metadata: JSON.stringify(mergedMeta),
       };
 
@@ -2295,6 +2372,16 @@ router.post(
         updatePatch.original_public_url = image.public_url || null;
         updatePatch.original_storage_key = image.storage_key || null;
         updatePatch.original_absolute_path = image.absolute_path || null;
+        updatePatch.original_delivery_mime_type =
+          image.delivery_mime_type || null;
+        updatePatch.original_delivery_size_bytes =
+          image.delivery_size_bytes ?? null;
+        updatePatch.original_delivery_width_px =
+          image.delivery_width_px ?? null;
+        updatePatch.original_delivery_height_px =
+          image.delivery_height_px ?? null;
+        updatePatch.original_delivery_metadata_recorded_at =
+          image.delivery_metadata_recorded_at || null;
       } else {
         // Subsequent replacement: current file is an intermediate edit → schedule for deletion.
         // original_* remains pointing to the very first file.
@@ -2406,10 +2493,21 @@ router.post(
         public_url: image.original_public_url || null,
         storage_key: image.original_storage_key || null,
         absolute_path: image.original_absolute_path || null,
+        delivery_mime_type: image.original_delivery_mime_type || null,
+        delivery_size_bytes: image.original_delivery_size_bytes ?? null,
+        delivery_width_px: image.original_delivery_width_px ?? null,
+        delivery_height_px: image.original_delivery_height_px ?? null,
+        delivery_metadata_recorded_at:
+          image.original_delivery_metadata_recorded_at || null,
         original_path: null,
         original_public_url: null,
         original_storage_key: null,
         original_absolute_path: null,
+        original_delivery_mime_type: null,
+        original_delivery_size_bytes: null,
+        original_delivery_width_px: null,
+        original_delivery_height_px: null,
+        original_delivery_metadata_recorded_at: null,
       });
 
     // Delete the edited version from storage (best-effort).
@@ -2969,12 +3067,64 @@ router.post(
       }
     }
 
-    // Update DB
+    const hasShotTypePatch = Object.hasOwn(updateValues, "shot_type");
+    const perImageUpdates = hasShotTypePatch
+      ? images.map((image) => {
+          const metadata = parseImageMetadataFromDb(image.metadata);
+          const classification = {
+            ...(metadata?.ai?.classification || {}),
+            source: "user",
+            confirmed: true,
+            band: "confirmed",
+          };
+          if (updateValues.shot_type) {
+            classification.shot_type = {
+              value: updateValues.shot_type,
+              confidence: 1,
+            };
+          } else {
+            delete classification.shot_type;
+          }
+          const updatedMetadata = {
+            ...metadata,
+            ai: {
+              ...(metadata?.ai || {}),
+              classification,
+            },
+          };
+          const serialized = JSON.stringify(updatedMetadata);
+          if (Buffer.byteLength(serialized, "utf8") > IMAGE_METADATA_MAX_BYTES) {
+            return null;
+          }
+          return {
+            id: image.id,
+            values: { ...updateValues, metadata: serialized },
+          };
+        })
+      : null;
+
+    if (perImageUpdates?.some((entry) => entry === null)) {
+      return res.status(400).json({
+        success: false,
+        message: "Image metadata is too large",
+      });
+    }
+
+    // Update DB. A bulk talent-selected frame remains a direct declaration on
+    // every row; do not leave an old AI suggestion paired with the new slug.
     await knex.transaction(async (trx) => {
-      await trx("images")
-        .where({ profile_id: profile.id })
-        .whereIn("id", imageIds)
-        .update(updateValues);
+      if (perImageUpdates) {
+        for (const entry of perImageUpdates) {
+          await trx("images")
+            .where({ id: entry.id, profile_id: profile.id })
+            .update(entry.values);
+        }
+      } else {
+        await trx("images")
+          .where({ profile_id: profile.id })
+          .whereIn("id", imageIds)
+          .update(updateValues);
+      }
     });
 
     return res.json({

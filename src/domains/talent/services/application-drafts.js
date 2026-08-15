@@ -273,6 +273,24 @@ async function normalizeDraftPayloadWithRepairs(
     );
   }
 
+  const rawSpecRegistryRevisionId =
+    typeof source.specRegistryRevisionId === "string"
+      ? source.specRegistryRevisionId.trim()
+      : "";
+  const specRegistryRevisionId =
+    /^[a-z0-9][a-z0-9:_@-]{0,199}$/.test(rawSpecRegistryRevisionId)
+      ? rawSpecRegistryRevisionId
+      : null;
+  if (rawSpecRegistryRevisionId && !specRegistryRevisionId) {
+    repairs.push(
+      repairWarning(
+        "spec_registry_revision_invalid",
+        "specRegistryRevisionId",
+        "The saved agency-requirements route is no longer valid; choose it again.",
+      ),
+    );
+  }
+
   return {
     payload: {
       schemaVersion: DRAFT_SCHEMA_VERSION,
@@ -281,6 +299,7 @@ async function normalizeDraftPayloadWithRepairs(
       excludedImageIds,
       digitalSlotPicks,
       compCardPreset,
+      specRegistryRevisionId,
       note,
       consent: source.consent === true,
       accuracyConfirmed: source.accuracyConfirmed === true,

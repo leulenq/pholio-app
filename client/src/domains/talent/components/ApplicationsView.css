@@ -110,6 +110,28 @@
   line-height: 1.65;
 }
 
+.app-requirements-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: #75501b;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-requirements-link:hover {
+  color: var(--app-text);
+}
+
+.app-requirements-link:focus-visible {
+  outline: 2px solid var(--app-gold);
+  outline-offset: 4px;
+}
+
 
 
 .app-market-index {

@@ -108,9 +108,8 @@
 .st-platform-disconnect {
   font-size: 12px;
   font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid #e2dac9;
+  padding: 6px 0;
+  border: none;
   background: transparent;
   color: #8a8073;
   cursor: pointer;
@@ -121,9 +120,9 @@
 }
 
 .st-platform-disconnect:hover:not(:disabled) {
-  border-color: #c0563f;
+  border: none;
   color: #c0563f;
-  background: rgba(192, 86, 63, 0.04);
+  background: transparent;
 }
 
 .st-platform-disconnect:disabled {

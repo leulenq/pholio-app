@@ -25,7 +25,7 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName } = {}) {
     blocks: [
       heading("Your board is ready."),
       goldRule(),
-      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, roster review, messaging, and casting work.`),
+      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, messaging, discovery, and casting work.`),
       button("Open agency workspace", `${appUrl()}/dashboard/agency`),
       signoff(),
     ],
@@ -46,7 +46,7 @@ function buildAgencyActivationEmailHtml({ contactName, agencyName, activationUrl
       heading("Your access is granted."),
       goldRule(),
       paragraph(`${greet(contactName)} ${agencyName ? strong(agencyName) : "your agency"} has been reviewed and accepted into Pholio.`),
-      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, and decide how your roster arrives — most of it is confirmation rather than new information."),
+      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, configure intake, and invite your team — most of it is confirmation rather than new information."),
       button("Set your password", activationUrl),
       note(`This link expires in ${expiresMinutes || 60} minutes and can be used once. If it has lapsed, request a new one from the sign-in page or reply to this email.`),
       signoff(),
@@ -137,12 +137,26 @@ function buildMagicSignInEmailHtml({ firstName, signInUrl, expiresMinutes } = {}
 function buildApplicationStatusEmailHtml({ talentName, agencyName, status } = {}) {
   const agency = agencyName || "the agency";
   const accepted = status === "accepted";
+  const represented = status === "represented";
+  const positive = accepted || represented;
   return renderEmail({
-    previewText: accepted ? `${agency} wants to move forward with representation.` : `${agency} sent an update on your submission.`,
+    previewText: represented
+      ? `${agency} confirmed your representation agreement.`
+      : accepted
+        ? `${agency} wants to move forward with representation.`
+        : `${agency} sent an update on your submission.`,
     blocks: [
-      heading(accepted ? "The agency wants to move forward." : "A decision on your submission."),
+      heading(represented
+        ? "Your representation is confirmed."
+        : accepted
+          ? "The agency wants to move forward."
+          : "A decision on your submission."),
       goldRule(),
-      paragraph(accepted ? `${greet(talentName)} ${strong(agency)} would like to move forward with representation and will follow up with next steps. Keep your book and measurements current in the meantime.` : `${greet(talentName)} ${strong(agency)} is not moving forward this time. That is a normal part of representation submissions — keep your digitals current and your package ready for the next review.`),
+      paragraph(represented
+        ? `${greet(talentName)} ${strong(agency)} confirmed that your representation agreement is complete. They will follow up with onboarding details.`
+        : positive
+          ? `${greet(talentName)} ${strong(agency)} would like to move forward with representation and will follow up with next steps. An offer is not a completed representation agreement.`
+          : `${greet(talentName)} ${strong(agency)} is not moving forward this time. That is a normal part of representation submissions — keep your digitals current and your package ready for the next review.`),
       button("View submissions", `${appUrl()}/dashboard/talent/applications`),
       signoff(),
     ],

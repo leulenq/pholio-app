@@ -28,7 +28,6 @@ const path = require("path");
 const Groq = require("groq-sdk");
 const config = require("../../config");
 const { scoreFromImageAnalysis, buildDescriptorPrompt } = require("./scoring");
-const { reindexDiscoverProfile } = require("./embeddings");
 const {
   hasRecordedDateOfBirth,
   isMinorProfile,
@@ -239,15 +238,6 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
       lookType: castingAnalysis.lookType,
       descriptor: descriptor ? "Generated" : "Failed",
     });
-
-    try {
-      await reindexDiscoverProfile(knex, profileId);
-    } catch (reindexErr) {
-      console.warn(
-        "[MasterVision] discover_index re-index failed (non-blocking):",
-        reindexErr.message,
-      );
-    }
 
     // Return the sanitized casting analysis (no consumer prefills
     // measurements from this pipeline — see WS2 compliance note above).

@@ -38,7 +38,6 @@ async function injectSocialFields(profile) {
   profile.youtube_followers = null;
   profile.youtube_engagement = null;
 
-  profile.onlyfans_url = null;
   profile.portfolio_url = null;
 
   for (const acct of accounts) {
@@ -66,8 +65,6 @@ async function injectSocialFields(profile) {
       profile.youtube_verified = acct.verified;
       profile.youtube_followers = acct.follower_count;
       profile.youtube_engagement = acct.engagement_rate;
-    } else if (acct.platform === "onlyfans") {
-      profile.onlyfans_url = acct.url;
     } else if (acct.platform === "portfolio") {
       profile.portfolio_url = acct.url;
     }
@@ -110,13 +107,15 @@ async function injectAgencySocialFields(agency) {
 /**
  * Save profile social accounts and update profiles.social_reach
  */
-async function saveProfileSocialFields(profileId, data, isPro = false) {
+// Canonical URLs are generated for every account. A handle resolves to the
+// same link regardless of plan — what an agency sees must not depend on what
+// the talent pays.
+async function saveProfileSocialFields(profileId, data) {
   const platforms = [
     { name: "instagram", handleKey: "instagram_handle", urlKey: "instagram_url" },
     { name: "tiktok", handleKey: "tiktok_handle", urlKey: "tiktok_url" },
     { name: "twitter", handleKey: "twitter_handle", urlKey: "twitter_url" },
     { name: "youtube", handleKey: "youtube_handle", urlKey: "youtube_url" },
-    { name: "onlyfans", handleKey: null, urlKey: "onlyfans_url" },
     { name: "portfolio", handleKey: null, urlKey: "portfolio_url" }
   ];
 
@@ -128,13 +127,12 @@ async function saveProfileSocialFields(profileId, data, isPro = false) {
     // Check if field was passed in the request body (handling undefined vs null/empty)
     if (p.handleKey && data[p.handleKey] !== undefined) {
       handle = data[p.handleKey] ? parseSocialMediaHandle(data[p.handleKey]) : null;
-      if (isPro && handle) {
+      if (handle) {
         url = generateSocialMediaUrl(p.name, handle);
       } else if (data[p.urlKey] !== undefined) {
         url = data[p.urlKey] || null;
       } else {
-        // Compute static default url if not pro
-        url = handle ? generateSocialMediaUrl(p.name, handle) : null;
+        url = null;
       }
       hasValue = true;
     } else if (p.urlKey && data[p.urlKey] !== undefined) {

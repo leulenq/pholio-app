@@ -12,7 +12,7 @@ import './dossier.css';
  * confirmed bookings on the same rule, because a first option that collides
  * with a bookout is the exact problem the booker is looking for. Colour comes
  * from the house status system (`--ss-*`), so a span here means the same thing
- * it means on the roster.
+ * it means throughout the submission dossier.
  */
 const SPAN_TITLE = (span) => {
   const kind = span.kindLabel || titleCase(span.kind);

@@ -4,12 +4,14 @@
 
 const { randomUUID } = require("crypto");
 const knex = require("../db/knex");
+const {
+  REPRESENTED_APPLICATION_STATUSES,
+} = require("../constants/application-status");
 
 const NOTIFICATION_TYPES = {
   AGENCY_PROFILE_VIEW: "agency_profile_view",
   APPLICATION_SUBMITTED: "application_submitted",
   APPLICATION_STATUS: "application_status",
-  INTERVIEW_SCHEDULED: "interview_scheduled",
   MESSAGE_RECEIVED: "message_received",
   PROFILE_NOT_SUBMISSION_READY: "profile_not_submission_ready",
   CONFIRMATION: "confirmation",
@@ -39,8 +41,8 @@ function serializeMetadata(metadata) {
 /**
  * Respect the talent's in-app notification preferences for the two opt-out-able
  * categories. Defaults are ON, so a missing/failed lookup never suppresses.
- * Time-sensitive categories (messages, interviews) are intentionally not gated
- * here — a booker reaching out or a scheduled interview always reaches the bell.
+ * Time-sensitive categories (messages) are intentionally not gated here — a
+ * booker reaching out always reaches the bell.
  *
  * @param {string} userId
  * @param {"profileViews"|"applicationUpdates"} prefKey
@@ -262,12 +264,12 @@ function applicationStatusCopy(status, agencyName) {
       body: `${agency} wants to develop you as a new face before full representation.`,
     },
     accepted: {
-      title: "Representation update",
-      body: `${agency} would like to move forward with representation.`,
+      title: "Representation offer",
+      body: `${agency} would like to move forward. Review the offer and next steps directly with them.`,
     },
-    booked: {
-      title: "Booking confirmed",
-      body: `${agency} marked your application as booked.`,
+    represented: {
+      title: "Representation confirmed",
+      body: `${agency} marked your representation agreement complete.`,
     },
     declined: {
       title: "Application closed",
@@ -276,6 +278,13 @@ function applicationStatusCopy(status, agencyName) {
     passed: {
       title: "Application closed",
       body: `${agency} passed on this application.`,
+    },
+    // Says how to treat it, not what the agency decided — because it did not
+    // decide. Naming the silence is the point: vague copy here would recreate
+    // the not-knowing that auto-close exists to end.
+    closed_no_response: {
+      title: "Application closed — no response",
+      body: `${agency} did not respond within its review window. Treat this as a pass and keep going.`,
     },
     archived: {
       title: "Application archived",
@@ -302,11 +311,12 @@ const NOTIFY_STATUSES = new Set([
   "meeting_requested",
   "development",
   "accepted",
-  "booked",
+  ...REPRESENTED_APPLICATION_STATUSES,
   "declined",
   "passed",
   "archived",
   "kept_on_file",
+  "closed_no_response",
 ]);
 
 async function notifyTalentApplicationSubmitted({
@@ -353,7 +363,7 @@ async function notifyTalentApplicationStatusChange({
     priority: [
       "development",
       "accepted",
-      "booked",
+      ...REPRESENTED_APPLICATION_STATUSES,
       "meeting_requested",
       "requested_more",
     ].includes(status)
@@ -376,8 +386,8 @@ async function notifyTalentAgencyProfileView({ userId, agencyId, agencyName }) {
     userId,
     type: NOTIFICATION_TYPES.AGENCY_PROFILE_VIEW,
     title: `${name} viewed your profile`,
-    body: "An agency reviewed your portfolio in Scout.",
-    routeTarget: "/dashboard/talent/analytics",
+    body: "An agency opened your portfolio in Scout.",
+    routeTarget: "/dashboard/talent",
     priority: PRIORITIES.NORMAL,
     groupKey: `agency_view:${agencyId}`,
     sourceType: "agency",
@@ -513,7 +523,9 @@ async function notifyTalentConfirmation({
 
 module.exports = {
   NOTIFICATION_TYPES,
+  NOTIFY_STATUSES,
   PRIORITIES,
+  applicationStatusCopy,
   upsertUserNotification,
   createUserNotification,
   listUserNotifications,

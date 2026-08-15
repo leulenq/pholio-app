@@ -1,6 +1,13 @@
 "use strict";
 
-const FREE_MONTHLY_APPLICATION_LIMIT = 5;
+// A flat anti-spam ceiling on platform-discovery submissions. No tier lifts
+// it. Selling a higher submission ceiling would make Pholio a "talent listing
+// service" under Cal. Lab. Code §1701 (storage/distribution of promotional
+// material to purported opportunity-givers, for a fee), which carries a
+// $50,000 bond, mandatory contract disclosures and a 10-business-day
+// cancellation right. Studio+ sells talent-owned artifacts only, and nothing
+// that touches the submission pipeline.
+const MONTHLY_DISCOVERY_SUBMISSION_LIMIT = 5;
 
 // Deploy-before-migrate guard: quota math must not throw while the
 // quota_exempt column is still rolling out. Checked once per process.
@@ -46,7 +53,6 @@ function monthWindowQuery(db, query, periodStart, periodEnd) {
 
 async function loadApplicationQuota(db, profile, referenceDate = new Date()) {
   const { periodStart, periodEnd } = utcMonthWindow(referenceDate);
-  const unlimited = Boolean(profile?.is_pro);
   const exemptAware = await hasQuotaExemptColumn(db);
 
   // Only platform-discovery submissions count toward the monthly limit.
@@ -71,13 +77,12 @@ async function loadApplicationQuota(db, profile, referenceDate = new Date()) {
     exemptUsed = Number(exemptCount?.count || 0);
   }
 
-  const limit = unlimited ? null : FREE_MONTHLY_APPLICATION_LIMIT;
+  const limit = MONTHLY_DISCOVERY_SUBMISSION_LIMIT;
 
   return {
     used,
     limit,
-    remaining: unlimited ? null : Math.max(0, limit - used),
-    unlimited,
+    remaining: Math.max(0, limit - used),
     exemptUsed,
     periodStart: periodStart.toISOString(),
     periodEnd: periodEnd.toISOString(),
@@ -85,7 +90,7 @@ async function loadApplicationQuota(db, profile, referenceDate = new Date()) {
 }
 
 module.exports = {
-  FREE_MONTHLY_APPLICATION_LIMIT,
+  MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
   loadApplicationQuota,
   utcMonthWindow,
 };

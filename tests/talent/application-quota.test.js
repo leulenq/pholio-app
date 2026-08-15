@@ -3,7 +3,7 @@
 const createKnex = require("knex");
 
 const {
-  FREE_MONTHLY_APPLICATION_LIMIT,
+  MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
   loadApplicationQuota,
   utcMonthWindow,
 } = require("../../src/domains/talent/services/application-quota");
@@ -71,13 +71,14 @@ describe("application submission quota", () => {
       ),
     ).resolves.toMatchObject({
       used: 2,
-      limit: FREE_MONTHLY_APPLICATION_LIMIT,
+      limit: MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
       remaining: 3,
-      unlimited: false,
     });
   });
 
-  test("reports unlimited accounts without changing usage evidence", async () => {
+  // Selling a higher submission ceiling would make Pholio a regulated
+  // "talent listing service" under Cal. Lab. Code §1701. The cap is flat.
+  test("applies the same limit to a paid account", async () => {
     await db("application_submission_requests").insert({
       profile_id: "profile-1",
       status: "completed",
@@ -92,9 +93,8 @@ describe("application submission quota", () => {
       ),
     ).resolves.toMatchObject({
       used: 1,
-      limit: null,
-      remaining: null,
-      unlimited: true,
+      limit: MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
+      remaining: MONTHLY_DISCOVERY_SUBMISSION_LIMIT - 1,
     });
   });
 });

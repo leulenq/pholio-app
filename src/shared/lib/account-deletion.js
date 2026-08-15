@@ -78,7 +78,6 @@ function collectImageKeys(imageRow) {
   const seedCandidates = [
     imageRow.storage_key,
     imageRow.original_storage_key,
-    imageRow.r2_key,
     keyFromUrl(imageRow.path),
     keyFromUrl(imageRow.public_url),
     keyFromUrl(imageRow.original_path),
@@ -239,7 +238,6 @@ async function deleteUserAccount(knex, userId) {
           "original_path",
           "original_public_url",
           "original_storage_key",
-          "r2_key",
         )
     : [];
 
@@ -426,7 +424,21 @@ async function processPendingDeletions(knex) {
   return { processed, resolved, failed };
 }
 
+function buildAccountDeletionResponse(result = {}) {
+  const fullyErased = result.fullyErased === true;
+  return {
+    status: fullyErased ? 200 : 202,
+    payload: {
+      deleted: result.deleted === true,
+      fullyErased,
+      erasureStatus: fullyErased ? "complete" : "pending_provider_purge",
+      redirect: fullyErased ? "/login" : "/login?erasure=pending",
+    },
+  };
+}
+
 module.exports = {
+  buildAccountDeletionResponse,
   deleteUserAccount,
   processPendingDeletions,
 };

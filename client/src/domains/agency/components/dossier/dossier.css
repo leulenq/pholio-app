@@ -834,22 +834,6 @@
   font-weight: 500;
 }
 
-/* -------------------------------------------------------------- position */
-
-.dx-position__list {
-  margin: 0 0 20px;
-  padding: 16px 18px;
-  list-style: none;
-  display: grid;
-  gap: 8px;
-  background: var(--dx-tint);
-  border-radius: 3px;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  line-height: 1.5;
-  color: var(--dx-body);
-}
-
 /* ---------------------------------------------------------- calendar line */
 
 .dx-cal { display: grid; gap: 20px; }

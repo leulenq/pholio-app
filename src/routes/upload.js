@@ -20,11 +20,12 @@ router.post('/upload', requireRole('TALENT'), upload.single('file'), async (req,
       return res.status(400).json({ error: 'Invalid metadata', details: parsed.error.flatten() });
     }
 
-    const { publicUrl } = await processImage(req.file, profile.id);
     const profile = await knex('profiles').where({ user_id: req.session.userId }).first();
     if (!profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
+    const processed = await processImage(req.file, profile.id);
+    const { publicUrl } = processed;
 
     // Calculate sort order
     const countResult = await knex('images')
@@ -42,6 +43,14 @@ router.post('/upload', requireRole('TALENT'), upload.single('file'), async (req,
         id: imageId,
         profile_id: profile.id,
         path: publicUrl,
+        public_url: publicUrl,
+        storage_key: processed.storageKey || null,
+        absolute_path: processed.absolutePath || null,
+        delivery_mime_type: processed.deliveryMimeType || null,
+        delivery_size_bytes: processed.deliverySizeBytes ?? null,
+        delivery_width_px: processed.deliveryWidthPx ?? null,
+        delivery_height_px: processed.deliveryHeightPx ?? null,
+        delivery_metadata_recorded_at: knex.fn.now(),
         label: 'Polaroid',
         sort: nextSort,
         created_at: new Date().toISOString()

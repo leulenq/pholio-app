@@ -183,22 +183,22 @@ describe("GET /api/talent/intel", () => {
     ]);
   });
 
-  test("intent series covers the window and aligns the prior period by index", async () => {
+  test("activity series covers the window and aligns the prior period by index", async () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/intel?days=30"),
     );
-    const { intent } = res.body.data.attention;
-    expect(intent.series).toHaveLength(30);
-    for (const d of intent.series) {
+    const { activity } = res.body.data.attention;
+    expect(activity.series).toHaveLength(30);
+    for (const d of activity.series) {
       expect(d).toHaveProperty("date");
-      expect(Number.isFinite(d.intent)).toBe(true);
+      expect(Number.isFinite(d.activity)).toBe(true);
       // Prior is a number when comparable, null when the earlier window was
       // too thin — never an implied zero.
       expect(d.prior === null || Number.isFinite(d.prior)).toBe(true);
     }
     if (res.body.data.meta.deltasSuppressed) {
-      expect(intent.priorTotal).toBeNull();
-      expect(intent.changePct).toBeNull();
+      expect(activity.priorTotal).toBeNull();
+      expect(activity.changePct).toBeNull();
     }
   });
 
@@ -227,7 +227,7 @@ describe("GET /api/talent/intel", () => {
     expect(momentum).not.toHaveProperty("bandState");
     for (const week of momentum.weeks) {
       expect(week).not.toHaveProperty("value");
-      for (const key of ["sent", "reviews", "advances", "intent"]) {
+      for (const key of ["sent", "reviews", "advances", "activity"]) {
         expect(Number.isInteger(week[key])).toBe(true);
       }
     }
@@ -342,26 +342,25 @@ describe("Capture v2 — profile_events integrity", () => {
     expect(rows).toHaveLength(0);
   });
 
-  test("image beacon validates image ownership and records dwell", async () => {
+  test("image beacon validates image ownership and records an observed open", async () => {
     const image = await knex("images")
       .where({ profile_id: PROFILE.id })
       .first();
     const bad = await request(app)
       .post(`/portfolio/${PROFILE.slug}/event`)
-      .send({ eventType: "image_dwell", imageId: uuidv4(), dwellMs: 4000 });
+      .send({ eventType: "image_open", imageId: uuidv4() });
     expect(bad.status).toBe(400);
 
     const ok = await request(app)
       .post(`/portfolio/${PROFILE.slug}/event`)
-      .send({ eventType: "image_dwell", imageId: image.id, dwellMs: 4000 });
+      .send({ eventType: "image_open", imageId: image.id });
     expect(ok.status).toBe(200);
     await new Promise((r) => setTimeout(r, 300));
     const row = await knex("profile_events")
-      .where({ profile_id: PROFILE.id, action: "image_dwell" })
+      .where({ profile_id: PROFILE.id, action: "image_open" })
       .first();
     expect(row).toBeTruthy();
     expect(row.image_id).toBe(image.id);
-    expect(row.dwell_ms).toBe(4000);
   });
 });
 
@@ -376,7 +375,7 @@ describe("Share tokens", () => {
     const token = created.body.data.token;
     expect(token.url).toContain(`?st=${token.token}`);
 
-    // Anonymous open through the share link classifies as client attention.
+    // Anonymous open through a share link proves only shared-link provenance.
     const open = await request(app).get(
       `/portfolio/${PROFILE.slug}?st=${token.token}`,
     );
@@ -387,7 +386,7 @@ describe("Share tokens", () => {
       .where({ profile_id: PROFILE.id, share_token_id: token.id })
       .select("action", "viewer_class");
     expect(events.some((e) => e.action === "link_open")).toBe(true);
-    expect(events.every((e) => e.viewer_class === "client")).toBe(true);
+    expect(events.every((e) => e.viewer_class === "shared")).toBe(true);
 
     const list = await withTalentSession(
       request(app).get("/api/talent/intel/share-tokens"),

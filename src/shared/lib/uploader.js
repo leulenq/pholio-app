@@ -200,7 +200,7 @@ const uploadAgencyLogo = multer({
  * @param {Object} file - The file object from multer (Express.MulterS3.File | Express.Multer.File)
  * @param {string|Object} identifierOrOptions - Profile ID or Options object
  * @param {Object} [passedOptions] - Optional options if identifier is string
- * @returns {Promise<{path: string, storageKey: string, publicUrl: string, absolutePath: string|null}>}
+ * @returns {Promise<{path: string, storageKey: string, publicUrl: string, absolutePath: string|null, deliveryMimeType?: string, deliverySizeBytes?: number, deliveryWidthPx?: number|null, deliveryHeightPx?: number|null}>}
  */
 async function processImage(file, identifierOrOptions, passedOptions = {}) {
   let id = "unknown";
@@ -267,8 +267,12 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
     // so the composition engine never has to fetch pixels in the render
     // path. Best-effort — failures never block the upload.
     let imageIntel = null;
+    let deliveryWidthPx = null;
+    let deliveryHeightPx = null;
     try {
       const meta = await sharp(processedBuffer).metadata();
+      deliveryWidthPx = meta.width || null;
+      deliveryHeightPx = meta.height || null;
       const { measureImage } = require("../../domains/pdf/composition/image-forensics");
       const forensics = await measureImage(processedBuffer);
       // Subject matte (P1) — best-effort; null unless the matte dep is
@@ -284,8 +288,8 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
         matte = null;
       }
       imageIntel = {
-        width: meta.width || null,
-        height: meta.height || null,
+        width: deliveryWidthPx,
+        height: deliveryHeightPx,
         ...(forensics ? { forensics } : {}),
         ...(matte ? { matte } : {}),
       };
@@ -359,6 +363,10 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       publicUrl: publicUrl,
       absolutePath: absolutePath,
       imageIntel,
+      deliveryMimeType: "image/webp",
+      deliverySizeBytes: processedBuffer.length,
+      deliveryWidthPx,
+      deliveryHeightPx,
       // Processed bytes are exposed so callers (e.g. content moderation) can
       // analyze the exact image we persisted without re-fetching from storage.
       processedBuffer,

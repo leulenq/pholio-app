@@ -50,22 +50,67 @@ function digitalSlotImages(images) {
   return (images || []).filter(isDigitalSlot);
 }
 
+/**
+ * Digitals recency.
+ *
+ * ---------------------------------------------------------------------------
+ * The canonical rule lives in `src/domains/talent/services/digitals-freshness.js`
+ * on the server. This is a browser-side mirror of the part of it the client
+ * needs; there is no shared build between `src/` and `client/src/`, so the two
+ * are kept in step by hand. **Change both, or neither.**
+ * ---------------------------------------------------------------------------
+ *
+ * This used to return only `isStale` / `oldestDays`, and returned
+ * `isStale: false` when *nothing* carried a date — so every caller reading
+ * `!isStale` as "current" treated a set of unknown age as a met requirement.
+ * That is exactly what the server engine refuses to do: an undated set is not
+ * current, because "current" is a claim about the whole set and one unknown
+ * makes it unsupportable.
+ *
+ * So `isCurrent` is now its own answer rather than the negation of `isStale`.
+ * `isStale` keeps its original meaning — genuinely past the window — because
+ * callers that want "old" mean old, not "not known to be fresh".
+ */
 function analyzeRecency(images, now = new Date()) {
   const digitals = digitalSlotImages(images);
   const ages = digitals
     .map((img) => ({ id: img.id, days: getImageAgeDays(img, now) }))
     .filter((x) => x.days != null);
+
+  const undatedImageIds = digitals
+    .filter((img) => getImageAgeDays(img, now) == null)
+    .map((img) => img.id);
+  const isUndated = undatedImageIds.length > 0;
+
   if (!ages.length) {
-    return { isStale: false, oldestDays: null, staleImageIds: [] };
+    return {
+      // No dated frame anywhere. Not stale — nobody knows — and emphatically
+      // not current.
+      isStale: false,
+      isCurrent: false,
+      isUndated: digitals.length > 0,
+      state: digitals.length > 0 ? 'undated' : 'none',
+      oldestDays: null,
+      staleImageIds: [],
+      undatedImageIds,
+    };
   }
+
   const oldest = ages.reduce((a, b) => (a.days >= b.days ? a : b));
   const staleImageIds = ages
     .filter((a) => a.days > DIGITALS_STALE_DAYS)
     .map((a) => a.id);
+  const isStale = oldest.days > DIGITALS_STALE_DAYS;
+
   return {
-    isStale: oldest.days > DIGITALS_STALE_DAYS,
+    isStale,
+    // Dated, inside the window, and nothing of unknown age alongside it.
+    isCurrent: !isStale && !isUndated,
+    isUndated,
+    state: isUndated ? 'undated' : isStale ? 'stale' : 'current',
     oldestDays: oldest.days,
     staleImageIds,
+    undatedImageIds,
   };
 }
 

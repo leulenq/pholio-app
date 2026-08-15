@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -16,6 +16,7 @@ vi.mock('lucide-react', () => {
     return IconMock;
   };
   return {
+    FileUp: makeIconMock('FileUp'),
     Instagram: makeIconMock('Instagram'),
     PlaySquare: makeIconMock('PlaySquare'),
     Trash2: makeIconMock('Trash2'),
@@ -37,6 +38,12 @@ vi.mock('lucide-react', () => {
     CheckCircle2: makeIconMock('CheckCircle2'),
     Sparkle: makeIconMock('Sparkle'),
     Building2: makeIconMock('Building2'),
+    ShieldCheck: makeIconMock('ShieldCheck'),
+    Shield: makeIconMock('Shield'),
+    Lock: makeIconMock('Lock'),
+    FileCheck2: makeIconMock('FileCheck2'),
+    ArrowRight: makeIconMock('ArrowRight'),
+    ShieldAlert: makeIconMock('ShieldAlert'),
   };
 });
 
@@ -75,6 +82,15 @@ vi.mock('../../../api/talent', () => ({
     getBookouts: vi.fn().mockResolvedValue({ bookouts: [] }),
     createBookout: vi.fn().mockResolvedValue({}),
     deleteBookout: vi.fn().mockResolvedValue({}),
+    getAgeVerification: vi.fn().mockResolvedValue({
+      verifiedAdult: false,
+      verifiedAt: null,
+      status: 'not_started',
+      failureCode: null,
+    }),
+    createAgeVerificationSession: vi.fn(),
+    getAdultContext: vi.fn(),
+    updateAdultContext: vi.fn(),
   },
 }));
 
@@ -128,6 +144,14 @@ describe('ProfilePage Component', () => {
     });
     vi.resetAllMocks();
     talentApi.listCompCardPresets.mockResolvedValue({ presets: [] });
+    talentApi.getAvailability.mockResolvedValue({ availability_status: 'available' });
+    talentApi.getBookouts.mockResolvedValue({ bookouts: [] });
+    talentApi.getAgeVerification.mockResolvedValue({
+      verifiedAdult: false,
+      verifiedAt: null,
+      status: 'not_started',
+      failureCode: null,
+    });
   });
 
   test('renders loading skeleton initially', () => {
@@ -164,8 +188,47 @@ describe('ProfilePage Component', () => {
     expect(screen.getByRole('textbox', { name: /first name/i })).toHaveValue('Nova');
     expect(screen.getByRole('textbox', { name: /last name/i })).toHaveValue('Lane');
     expect(screen.getByPlaceholderText(/tell us about yourself/i)).toHaveValue('Professional model.');
+    expect(screen.getByRole('complementary', { name: /submission checklist/i })).toBeInTheDocument();
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    expect(screen.queryByText(/profile strength|strong package|agency grade/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save profile/i })).toBeDisabled();
     expect(screen.queryByText(/unsaved changes/i)).not.toBeInTheDocument();
+    expect(document.querySelector('form form')).toBeNull();
+  });
+
+  test('adds a bookout from a date field without submitting the profile form', async () => {
+    talentApi.getProfile.mockResolvedValue({ profile: mockProfile });
+    talentApi.createBookout.mockResolvedValue({});
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <ProfilePage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByLabelText('Loading profile...')).not.toBeInTheDocument();
+    });
+
+    const startsInput = screen.getByLabelText('Starts');
+    const endsInput = screen.getByLabelText('Ends');
+    fireEvent.change(startsInput, { target: { value: '2026-09-10' } });
+    fireEvent.change(endsInput, { target: { value: '2026-09-12' } });
+    endsInput.focus();
+    const user = userEvent.setup();
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => {
+      expect(talentApi.createBookout).toHaveBeenCalledWith({
+        starts_on: '2026-09-10',
+        ends_on: '2026-09-12',
+        note: null,
+      });
+    });
+    expect(talentApi.updateProfile).not.toHaveBeenCalled();
+    expect(document.querySelector('form form')).toBeNull();
   });
 
   test('shows validation errors for invalid input and blocks saving', async () => {

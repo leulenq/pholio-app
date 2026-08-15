@@ -14,6 +14,19 @@ import './OpenCallArrivalPage.css';
 
 const SPRING = { type: 'spring', stiffness: 55, damping: 16 };
 
+function formatDeadline(iso) {
+  if (!iso) return 'a date the agency has not published';
+  // Parsed as UTC so a published date never slips a day in a western timezone.
+  const date = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
 function agencyInitial(name) {
   return String(name || 'A').trim().charAt(0).toUpperCase() || 'A';
 }
@@ -64,7 +77,10 @@ export default function OpenCallArrivalPage() {
         // The arrival beacon parks the invitation server-side (session for
         // anonymous visitors, a claim for signed-in talent). Fire once —
         // StrictMode double-mount guarded by the ref.
-        if (!arrivalSent.current && !data.alreadyApplied) {
+        // A closed call mints nothing, so do not even ask. The server refuses
+        // too; this keeps the page from recording an arrival into a call the
+        // agency has finished reading.
+        if (!arrivalSent.current && !data.alreadyApplied && !data.closed) {
           arrivalSent.current = true;
           recordArrival(code);
         }
@@ -120,8 +136,26 @@ export default function OpenCallArrivalPage() {
     );
   }
 
-  const { agency, alreadyApplied, authenticated } = state.data;
+  const { agency, alreadyApplied, authenticated, brief, closed } = state.data;
   const name = agency.name || 'The agency';
+
+  // What the agency published about its own call, in its own words. Only shown
+  // when it actually wrote one — links predate the brief, and inventing
+  // reassuring filler on their behalf would be worse than the generic steps.
+  const briefSections = brief
+    ? [
+        ['Who this is for', brief.who],
+        ['What to send', brief.what],
+        ['Eligibility', brief.eligibility],
+        ['What happens next', brief.nextSteps],
+      ].filter(([, body]) => Boolean(body))
+    : [];
+
+  const closingLine = !brief
+    ? null
+    : brief.ongoing
+      ? 'This call runs continuously.'
+      : `Closes ${formatDeadline(brief.deadline)}.`;
 
   const handleBegin = () => {
     if (alreadyApplied) {
@@ -136,6 +170,31 @@ export default function OpenCallArrivalPage() {
     }
     navigate('/login');
   };
+
+  if (closed) {
+    return (
+      <div className="opencall">
+        <div className="opencall__glow" aria-hidden />
+        <main className="opencall__stage" aria-label={`${name} open call closed`}>
+          <motion.h1 className="opencall__headline" {...enter(0.1)}>
+            {name}&apos;s open call has closed.
+          </motion.h1>
+          <motion.p className="opencall__support" {...enter(0.25)}>
+            {brief?.deadline
+              ? `It closed on ${formatDeadline(brief.deadline)}. `
+              : ''}
+            You can still build your book on Pholio and submit to agencies that
+            are open now.
+          </motion.p>
+          <motion.div {...enter(0.4)}>
+            <PholioButton variant="primary" onClick={() => navigate('/login')}>
+              Continue to Pholio
+            </PholioButton>
+          </motion.div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="opencall">
@@ -203,30 +262,50 @@ export default function OpenCallArrivalPage() {
               Invited submissions to {name} don&apos;t use your monthly Pholio
               allowance.
             </motion.p>
-            <motion.ol
-              className="opencall__steps"
-              aria-label="What happens next"
-              {...enter(0.8)}
-            >
-              <li>
-                <span className="opencall__step-num">01</span>
-                <span className="opencall__step-text">
-                  Prepare your digitals — current, unretouched, head to toe.
-                </span>
-              </li>
-              <li>
-                <span className="opencall__step-num">02</span>
-                <span className="opencall__step-text">
-                  Review your package — stats, book, and comp card.
-                </span>
-              </li>
-              <li>
-                <span className="opencall__step-num">03</span>
-                <span className="opencall__step-text">
-                  {name} reviews your submission directly.
-                </span>
-              </li>
-            </motion.ol>
+            {briefSections.length > 0 ? (
+              <motion.dl
+                className="opencall__brief"
+                aria-label={`What ${name} is asking for`}
+                {...enter(0.8)}
+              >
+                {briefSections.map(([label, body]) => (
+                  <div className="opencall__brief-row" key={label}>
+                    <dt className="opencall__brief-label">{label}</dt>
+                    <dd className="opencall__brief-body">{body}</dd>
+                  </div>
+                ))}
+              </motion.dl>
+            ) : (
+              <motion.ol
+                className="opencall__steps"
+                aria-label="What happens next"
+                {...enter(0.8)}
+              >
+                <li>
+                  <span className="opencall__step-num">01</span>
+                  <span className="opencall__step-text">
+                    Prepare your digitals — current, unretouched, head to toe.
+                  </span>
+                </li>
+                <li>
+                  <span className="opencall__step-num">02</span>
+                  <span className="opencall__step-text">
+                    Review your package — stats, book, and comp card.
+                  </span>
+                </li>
+                <li>
+                  <span className="opencall__step-num">03</span>
+                  <span className="opencall__step-text">
+                    {name} reviews your submission directly.
+                  </span>
+                </li>
+              </motion.ol>
+            )}
+            {closingLine && (
+              <motion.p className="opencall__closing" {...enter(0.88)}>
+                {closingLine}
+              </motion.p>
+            )}
             <motion.div {...enter(0.95)}>
               <PholioButton variant="primary" onClick={handleBegin}>
                 Begin your submission <ArrowUpRight size={14} aria-hidden />

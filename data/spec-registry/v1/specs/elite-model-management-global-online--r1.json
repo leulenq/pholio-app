@@ -1,0 +1,225 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "elite-model-management-global:online",
+  "revisionId": "elite-model-management-global:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": {
+      "id": "elite-model-management",
+      "name": "Elite Model Management",
+      "legalName": null,
+      "officialDomains": ["elitemodelmanagement.com"]
+    },
+    "office": {
+      "id": null,
+      "name": null
+    },
+    "market": {
+      "kind": "global",
+      "code": "global",
+      "countryCodes": [],
+      "city": null
+    },
+    "channel": {
+      "id": "get-scouted-web-form",
+      "type": "official_web_form",
+      "url": "https://elitemodelmanagement.com/get-scouted.web"
+    },
+    "divisions": {
+      "mode": "unspecified",
+      "values": []
+    },
+    "applicantTracks": {
+      "mode": "unspecified",
+      "values": []
+    },
+    "evidenceIds": ["elite-global-get-scouted-20260809"]
+  },
+  "lifecycle": {
+    "observedOn": "2026-08-09",
+    "effectiveFrom": null,
+    "effectiveUntil": null,
+    "reviewedOn": "2026-08-09",
+    "nextReviewOn": "2026-11-07"
+  },
+  "rules": {
+    "shots": {
+      "count": {
+        "minimum": null,
+        "maximum": 3,
+        "basis": "explicit_text",
+        "evidenceIds": ["elite-global-get-scouted-20260809"]
+      },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        {
+          "id": "full-length",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_text",
+          "sourceLabel": "full-length",
+          "match": { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-global-get-scouted-20260809"],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "close-up",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_text",
+          "sourceLabel": "close-up",
+          "match": { "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-global-get-scouted-20260809"],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "profile",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_text",
+          "sourceLabel": "profile",
+          "match": { "field": "shot.view", "operator": "equals", "value": "profile", "unit": null },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-global-get-scouted-20260809"],
+          "matchability": "automatic"
+        }
+      ]
+    },
+    "setWide": [
+      {
+        "id": "no-makeup",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+        "constraint": { "field": "appearance.makeup_level", "operator": "not_equals", "value": "none", "unit": null },
+        "appliesWhen": null,
+        "sourceLabel": "Do not wear makeup",
+        "evidenceIds": ["elite-global-get-scouted-20260809"],
+        "matchability": "automatic",
+        "appliesTo": { "mode": "all_shots", "shotIds": [] }
+      },
+      {
+        "id": "front-facing-natural-daylight",
+        "modality": "requested",
+        "basis": "explicit_text",
+        "constraint": { "field": "capture.lighting", "operator": "equals", "value": "front_facing_natural_daylight", "unit": null },
+        "appliesWhen": null,
+        "sourceLabel": "front facing natural daylight",
+        "evidenceIds": ["elite-global-get-scouted-20260809"],
+        "matchability": "hybrid",
+        "appliesTo": { "mode": "all_shots", "shotIds": [] }
+      },
+      {
+        "id": "clean-simple-images",
+        "modality": "preferred",
+        "basis": "explicit_text",
+        "constraint": { "field": "capture.image_style", "operator": "equals", "value": "clean_simple", "unit": null },
+        "appliesWhen": null,
+        "sourceLabel": "Clean and simple images are best",
+        "evidenceIds": ["elite-global-get-scouted-20260809"],
+        "matchability": "hybrid",
+        "appliesTo": { "mode": "all_shots", "shotIds": [] }
+      }
+    ],
+    "files": [
+      {
+        "id": "maximum-image-count",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": { "field": "file.count", "operator": "lte", "value": 3, "unit": "count" },
+        "appliesWhen": null,
+        "sourceLabel": "up to 3 images",
+        "evidenceIds": ["elite-global-get-scouted-20260809"],
+        "matchability": "automatic",
+        "scope": "whole_package",
+        "sourceValue": null
+      },
+      {
+        "id": "maximum-image-size",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": { "field": "file.size_bytes", "operator": "lte", "value": 5000000, "unit": "byte" },
+        "appliesWhen": null,
+        "sourceLabel": "Max. 5mb each",
+        "evidenceIds": ["elite-global-get-scouted-20260809"],
+        "matchability": "automatic",
+        "scope": "per_file",
+        "sourceValue": { "value": 5, "unit": "MB", "normalization": "decimal_conservative" }
+      }
+    ],
+    "eligibility": [
+      {
+        "id": "minor-guardian-approval",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": { "field": "guardian.approval", "operator": "equals", "value": true, "unit": null },
+        "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" },
+        "sourceLabel": "approved by your parents/legal guardian",
+        "evidenceIds": ["elite-global-get-scouted-20260809"],
+        "matchability": "manual_confirmation"
+      }
+    ],
+    "applicationFields": [
+      { "id": "first-name", "field": "applicant.first_name", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "First Name", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "last-name", "field": "applicant.last_name", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Last Name", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "email", "field": "contact.email", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Email", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "phone", "field": "contact.phone", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Phone", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "address", "field": "contact.address", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Address", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "postcode", "field": "contact.postal_code", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Postcode", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "city", "field": "contact.city", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "City", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "birth-date", "field": "applicant.date_of_birth", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Birth date", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "guardian-name", "field": "guardian.name", "presence": "conditional_required", "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" }, "basis": "explicit_text", "sourceLabel": "First and Last Name", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "guardian-phone", "field": "guardian.phone", "presence": "conditional_required", "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" }, "basis": "explicit_text", "sourceLabel": "Phone", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "guardian-email", "field": "guardian.email", "presence": "conditional_required", "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" }, "basis": "explicit_text", "sourceLabel": "Email", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "instagram", "field": "social.instagram", "presence": "optional", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Instagram (Optional)", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+      { "id": "tiktok", "field": "social.tiktok", "presence": "optional", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "TikTok (Optional)", "evidenceIds": ["elite-global-get-scouted-20260809"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "scope.receiving_office", "appliesWhen": null, "reason": "not_published", "note": "The route offers a city selection but the source does not expose the selected city-to-office or legal-entity mapping.", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "shots.count.minimum", "appliesWhen": null, "reason": "ambiguous", "note": "The source says up to three images while its guide names three views; it does not publish a minimum count or required upload semantics.", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": "The source does not state whether one image may satisfy more than one guided view.", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "files.mime_types", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "presentation.clothing", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "presentation.hair", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "eligibility.age", "appliesWhen": null, "reason": "not_published", "note": "No age floor or upper bound is published; only the under-18 guardian flow is explicit.", "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-global-get-scouted-20260809"] },
+    { "fact": "application.unresolved_fields", "appliesWhen": null, "reason": "not_published", "note": "Several select controls are present without visible labels or option values in the retrieved content.", "evidenceIds": ["elite-global-get-scouted-20260809"] }
+  ],
+  "evidence": [
+    {
+      "id": "elite-global-get-scouted-20260809",
+      "authority": "first_party_published",
+      "publisher": "Elite Model Management",
+      "url": "https://elitemodelmanagement.com/get-scouted.web",
+      "title": "Elite Model Management",
+      "locale": "en",
+      "retrievedOn": "2026-08-09",
+      "locator": { "kind": "whole_page", "value": null },
+      "excerpt": null,
+      "archivedUrl": null,
+      "contentHash": null
+    }
+  ],
+  "review": {
+    "authority": "first_party_published",
+    "method": "dual_reviewer",
+    "reviewers": [
+      { "id": "source-review-20260809", "reviewedOn": "2026-08-09" },
+      { "id": "normalization-review-20260809", "reviewedOn": "2026-08-09" }
+    ],
+    "notes": "Official published web form and normalization reviewed independently. The three named views are requested guidance, not hard form-required semantics. Public-source assertions remain advisory."
+  }
+}

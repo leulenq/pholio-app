@@ -149,7 +149,10 @@ async function sendApplicationStatusEmail({
 }) {
   const messages = {
     accepted: {
-      subject: `Representation update from ${agencyName}`,
+      subject: `Representation offer from ${agencyName}`,
+    },
+    represented: {
+      subject: `Representation confirmed by ${agencyName}`,
     },
     declined: {
       subject: `Application update from ${agencyName}`,

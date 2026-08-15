@@ -8,8 +8,6 @@ const { upsertUserNotification, PRIORITIES } = require("./notifications");
 const AGENCY_NOTIFICATION_TYPES = {
   APPLICATION_RECEIVED: "application_received",
   APPLICATION_WITHDRAWN: "application_withdrawn",
-  INTERVIEW_SCHEDULED: "interview_scheduled",
-  INTERVIEW_RESPONSE: "interview_response",
   MESSAGE_RECEIVED: "message_received",
 };
 
@@ -93,38 +91,6 @@ async function notifyAgencyNewApplication({
   });
 }
 
-async function notifyAgencyInterviewScheduled({
-  agencyId,
-  applicationId,
-  interviewId,
-  talentName,
-  proposedDatetime,
-}) {
-  const name = talentName || "Talent";
-  const when = proposedDatetime
-    ? new Date(proposedDatetime).toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      })
-    : "soon";
-
-  return notifyAgencyMembers({
-    agencyId,
-    type: AGENCY_NOTIFICATION_TYPES.INTERVIEW_SCHEDULED,
-    title: "Interview scheduled",
-    body: `${name} — ${when}`,
-    routeTarget: `/dashboard/agency/inbox?application=${applicationId}`,
-    groupKey: `agency_interview:${interviewId}`,
-    sourceType: "interview",
-    sourceId: interviewId,
-    metadata: { applicationId, interviewId, proposedDatetime },
-    priority: PRIORITIES.NORMAL,
-    reopenOnRepeat: false,
-  });
-}
-
 async function notifyAgencyApplicationWithdrawn({
   agencyId,
   applicationId,
@@ -143,30 +109,6 @@ async function notifyAgencyApplicationWithdrawn({
     metadata: { applicationId, talentName: name },
     priority: PRIORITIES.NORMAL,
     reopenOnRepeat: false,
-  });
-}
-
-async function notifyAgencyInterviewResponse({
-  agencyId,
-  applicationId,
-  interviewId,
-  talentName,
-  response,
-}) {
-  const name = talentName || "Talent";
-  const accepted = response === "accepted";
-  return notifyAgencyMembers({
-    agencyId,
-    type: AGENCY_NOTIFICATION_TYPES.INTERVIEW_RESPONSE,
-    title: accepted ? "Interview accepted" : "Interview declined",
-    body: `${name} ${accepted ? "accepted" : "declined"} the interview.`,
-    routeTarget: `/dashboard/agency/inbox?application=${applicationId}`,
-    groupKey: `agency_interview_response:${interviewId}`,
-    sourceType: "interview",
-    sourceId: interviewId,
-    metadata: { applicationId, interviewId, response },
-    priority: PRIORITIES.HIGH,
-    reopenOnRepeat: true,
   });
 }
 
@@ -199,7 +141,5 @@ module.exports = {
   notifyAgencyMembers,
   notifyAgencyNewApplication,
   notifyAgencyApplicationWithdrawn,
-  notifyAgencyInterviewScheduled,
-  notifyAgencyInterviewResponse,
   notifyAgencyNewMessage,
 };

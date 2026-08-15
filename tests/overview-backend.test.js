@@ -115,9 +115,10 @@ describe("GET /api/talent/overview", () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/overview"),
     );
-    expect(res.body).toHaveProperty("profileStrength");
     expect(res.body).toHaveProperty("nextPriority");
     expect(res.body).toHaveProperty("activityStream");
+    expect(res.body).not.toHaveProperty("profileStrength");
+    expect(res.body).not.toHaveProperty("recommendedAgencies");
   });
 });
 
@@ -309,6 +310,18 @@ describe("Public portfolio analytics integrity", () => {
     const res = await request(app)
       .post(`/portfolio/${profile.slug}/event`)
       .send({ eventType: "download", metadata: {} });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Unsupported analytics event");
+  });
+
+  test("rejects retired image-attention events", async () => {
+    const profile = await knex("profiles")
+      .where({ user_id: TALENT_USER_ID })
+      .first();
+    const res = await request(app)
+      .post(`/portfolio/${profile.slug}/event`)
+      .send({ eventType: "image_dwell", imageId: "retired", dwellMs: 5000 });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("Unsupported analytics event");

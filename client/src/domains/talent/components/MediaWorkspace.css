@@ -533,7 +533,7 @@
   box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.6);
   padding: 26px 26px 22px;
 }
-.mw-modal__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mw-modal__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .mw-modal__title { font-family: var(--mw-serif); font-weight: 400; font-size: 24px; color: var(--mw-text); margin: 0; }
 .mw-modal__close {
   min-width: 34px;
@@ -541,7 +541,7 @@
 }
 .mw-modal__body {
   font-family: var(--mw-sans); font-weight: 300; font-size: 14px;
-  line-height: 1.6; color: var(--mw-text-soft); margin: 12px 0 18px;
+  line-height: 1.6; color: var(--mw-text-soft); margin: 2px 0 16px;
 }
 .mw-modal__field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .mw-modal__row { display: flex; gap: 14px; }

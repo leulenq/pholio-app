@@ -13,13 +13,17 @@ import {
 import BoardSelect from '../components/BoardSelect';
 import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
 import ReviewRoom from '../components/review/ReviewRoom';
-import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, MatchScore, StatusCell } from '../components/ui';
+import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, StatusCell } from '../components/ui';
 import { DivisionMark } from '../components/status';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
 import { formatLocation } from '../../../shared/utils/locationFormat';
 import { Moment } from '../components/meta';
+import {
+  isOfferedApplicationStatus,
+  isRepresentedApplicationStatus,
+} from '../../../shared/constants/applicationStatus';
 import './ApplicantsPage.css';
 
 const PAGE_SIZE = 60;
@@ -33,10 +37,12 @@ const initials = (name) => (name || '')
   .toUpperCase();
 
 const isNew = (s) => s === 'submitted' || s === 'pending' || s === 'new' || !s;
-const SIGNED_STATES = ['represented', 'booked', 'accepted', 'signed'];
-const isSigned = (s) => SIGNED_STATES.includes(s);
 // A submission is "decided" once it has left the review ladder in either direction.
-const isDecided = (s) => isSigned(s) || s === 'declined' || s === 'passed';
+const isDecided = (s) =>
+  isOfferedApplicationStatus(s)
+  || isRepresentedApplicationStatus(s)
+  || s === 'declined'
+  || s === 'passed';
 // The in-flight / awaiting-talent band: advancing states that sit between "New"
 // and a decision (digitals requested, meeting set, mid-review).
 const IN_FLIGHT_STATES = ['requested_more', 'meeting_requested', 'under_review'];
@@ -59,7 +65,8 @@ const STATUS_FOR = {
 const LIFECYCLE_TABS = [
   { key: 'to_review', label: 'To Review', match: isNew },
   { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
-  { key: 'offered', label: 'Offered', match: isSigned },
+  { key: 'offered', label: 'Offered', match: isOfferedApplicationStatus },
+  { key: 'represented', label: 'Represented', match: isRepresentedApplicationStatus },
   { key: 'passed', label: 'Passed', match: (s) => s === 'declined' || s === 'passed' },
   { key: 'all', label: 'All', match: () => true },
 ];
@@ -69,7 +76,6 @@ const INITIAL_FILTERS = {
   talent: [],
   source: [],
   locations: [],
-  matchTier: null,
 };
 
 function mapRow(p) {
@@ -83,7 +89,6 @@ function mapRow(p) {
     photo: img ? (img.public_url || img.path) : null,
     status,
     appliedAt: p.application_created_at,
-    match: p.match_score ?? null,
     slug: p.slug,
     type: p.archetype || 'editorial',
   };
@@ -99,7 +104,6 @@ function mapCandidate(c) {
     photo: c.avatar || null,
     status: c.backendStatus || 'submitted',
     appliedAt: c.created_at,
-    match: c.score ?? null,
     slug: c.slug,
     type: c.archetype || 'editorial',
   };
@@ -147,8 +151,8 @@ function TriageActions({ a, busy, onShortlist, onAccept, onDecline, light = fals
       <button
         type="button"
         className={`${cls} ap-icon--sign`}
-        aria-label={`Sign ${a.name}`}
-        data-tip="Sign · A"
+        aria-label={`Offer representation to ${a.name}`}
+        data-tip="Offer · A"
         disabled={busy}
         onClick={() => onAccept(a.applicationId)}
       >
@@ -193,9 +197,6 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
           <span className="ap-card-img" style={{ backgroundImage: `url(${a.photo})` }} />
         ) : (
           <span className="ap-card-img ap-card-img--empty">{initials(a.name)}</span>
-        )}
-        {a.match != null && (
-          <MatchScore score={a.match} size="xs" tone="overlay" className="ap-card-match" />
         )}
         {!decided && (
           <PickButton
@@ -270,7 +271,6 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
         </div>
       </div>
       <Moment value={a.appliedAt} className="ap-applied" />
-      <span className="ap-score-cell">{a.match != null && <MatchScore score={a.match} size="xs" tone="overlay" />}</span>
       <span className="ap-status">
         {isNew(a.status)
           ? <span className="ap-status-quiet">Submitted</span>
@@ -294,7 +294,7 @@ function BoardBand({ board }) {
   const identity = resolveBoardIdentity(board);
   const pipeline = board.application_count || 0;
   const waiting = board.submitted_count || 0;
-  const represented = board.represented_count || board.booked_count || 0;
+  const represented = board.represented_count || 0;
   const brief = board.description
     ? board.description
     : 'No brief written for this board yet. Add one so every reviewer shares the same point of view.';
@@ -341,7 +341,6 @@ function ApplicationsPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef(null);
   const [q, setQ] = useState('');
-  const [sort, setSort] = useState('recent');
   const [view, setView] = useState(() => {
     try {
       return localStorage.getItem(VIEW_KEY) === 'ledger' ? 'ledger' : 'book';
@@ -466,7 +465,7 @@ function ApplicationsPage() {
   });
 
   const shortlist = useMutation(triageOptions('shortlist', shortlistApplication, 'Shortlisted'));
-  const accept = useMutation(triageOptions('accept', acceptApplication, 'Signed'));
+  const accept = useMutation(triageOptions('accept', acceptApplication, 'Representation offered'));
   // Decline supports an optional structured reason/note. The backend currently
   // accepts the body; when reason storage lands it will already be sent.
   const decline = useMutation({
@@ -493,7 +492,7 @@ function ApplicationsPage() {
     LIFECYCLE_TABS.forEach((t) => { c[t.key] = applicants.filter((a) => t.match(a.status)).length; });
     c.in_progress = applicants.filter((a) => isInFlightState(a.status)).length;
     c.kept_on_file = applicants.filter((a) => a.status === 'kept_on_file').length;
-    c.represented = applicants.filter((a) => isSigned(a.status)).length;
+    c.represented = applicants.filter((a) => isRepresentedApplicationStatus(a.status)).length;
     c.declined = applicants.filter((a) => a.status === 'declined' || a.status === 'passed').length;
     return c;
   }, [applicants]);
@@ -504,15 +503,6 @@ function ApplicationsPage() {
       const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
       return { ...prev, [category]: next };
     });
-    setFocusedIndex(-1);
-    setVisibleCount(PAGE_SIZE);
-  };
-
-  const setMatchTierFilter = (tier) => {
-    setFilters((prev) => ({
-      ...prev,
-      matchTier: prev.matchTier === tier ? null : tier,
-    }));
     setFocusedIndex(-1);
     setVisibleCount(PAGE_SIZE);
   };
@@ -529,7 +519,6 @@ function ApplicationsPage() {
     c += filters.talent.length;
     c += filters.source.length;
     c += filters.locations.length;
-    if (filters.matchTier) c += 1;
     return c;
   }, [filters]);
 
@@ -582,20 +571,13 @@ function ApplicationsPage() {
       list = list.filter((a) => a.city && filters.locations.includes(a.city));
     }
 
-    // Match tier filter
-    if (filters.matchTier) {
-      const minScore = filters.matchTier === 'exceptional' ? 85 : filters.matchTier === 'strong' ? 70 : 50;
-      list = list.filter((a) => (a.match || 0) >= minScore);
-    }
-
     // Search query
     if (q.trim()) {
       const s = q.toLowerCase();
       list = list.filter((a) => a.name.toLowerCase().includes(s) || (a.city || '').toLowerCase().includes(s));
     }
-    return [...list].sort((a, b) =>
-      sort === 'match' ? (b.match || 0) - (a.match || 0) : new Date(b.appliedAt) - new Date(a.appliedAt));
-  }, [applicants, tab, filters, q, sort]);
+    return [...list].sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
+  }, [applicants, tab, filters, q]);
 
   const total = applicants.length;
   // The lead hero figure = what's actually on the desk: submissions still
@@ -634,7 +616,6 @@ function ApplicationsPage() {
   }, []);
   const changeTab = useCallback((next) => { setTab(next); resetTriage(); }, [resetTriage]);
   const changeQuery = useCallback((next) => { setQ(next); resetTriage(); }, [resetTriage]);
-  const changeSort = useCallback((next) => { setSort(next); resetTriage(); }, [resetTriage]);
   const changeBoard = useCallback((next) => { setBoardId(next); resetTriage(); }, [resetTriage]);
 
   const focusRow = useCallback((i) => {
@@ -742,7 +723,7 @@ function ApplicationsPage() {
     setBulkBusy(false);
     const ok = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.length - ok;
-    const verb = kind === 'shortlist' ? 'Shortlisted' : kind === 'accept' ? 'Signed' : 'Passed';
+    const verb = kind === 'shortlist' ? 'Shortlisted' : kind === 'accept' ? 'Offered' : 'Passed';
     if (ok === 0) { rollback(snapshot); toast.error(`${verb} 0 · ${failed} failed`); }
     else if (failed) toast(`${verb} ${ok} · ${failed} failed`);
     else toast.success(`${verb} ${ok}`);
@@ -978,10 +959,6 @@ function ApplicationsPage() {
               aria-label="Search submissions"
             />
           </div>
-          <div className="ap-seg" role="group" aria-label="Sort submissions">
-            <button type="button" className={sort === 'recent' ? 'is-on' : ''} aria-pressed={sort === 'recent'} onClick={() => changeSort('recent')}>Newest</button>
-            <button type="button" className={sort === 'match' ? 'is-on' : ''} aria-pressed={sort === 'match'} onClick={() => changeSort('match')}>Match</button>
-          </div>
           <div className="ap-seg" role="group" aria-label="View">
             <button
               type="button"
@@ -1177,37 +1154,6 @@ function ApplicationsPage() {
                     </div>
                   )}
 
-                  {/* MATCH GROUP */}
-                  <div className="ap-filter-group">
-                    <span className="ap-filter-group-label">MATCH</span>
-                    <label className="ap-filter-option">
-                      <input
-                        type="radio"
-                        name="matchTier"
-                        checked={filters.matchTier === 'exceptional'}
-                        onChange={() => setMatchTierFilter('exceptional')}
-                      />
-                      <span>Exceptional (85+)</span>
-                    </label>
-                    <label className="ap-filter-option">
-                      <input
-                        type="radio"
-                        name="matchTier"
-                        checked={filters.matchTier === 'strong'}
-                        onChange={() => setMatchTierFilter('strong')}
-                      />
-                      <span>Strong (70+)</span>
-                    </label>
-                    <label className="ap-filter-option">
-                      <input
-                        type="radio"
-                        name="matchTier"
-                        checked={filters.matchTier === 'fair'}
-                        onChange={() => setMatchTierFilter('fair')}
-                      />
-                      <span>Fair (50+)</span>
-                    </label>
-                  </div>
                 </div>
               </motion.div>
             )}
@@ -1307,7 +1253,7 @@ function ApplicationsPage() {
               <Star size={15} aria-hidden="true" /> Shortlist
             </button>
             <button type="button" className="ap-bulk-act ap-bulk-act--sign" disabled={bulkBusy} onClick={() => runBulk('accept')}>
-              <Check size={15} aria-hidden="true" /> Sign
+              <Check size={15} aria-hidden="true" /> Offer representation
             </button>
             <button type="button" className="ap-bulk-act ap-bulk-act--pass" disabled={bulkBusy} onClick={() => runBulk('decline')}>
               <X size={15} aria-hidden="true" /> Pass
