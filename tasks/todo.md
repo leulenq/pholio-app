@@ -261,10 +261,41 @@ DESIGN RULES (talent-side frontend)
   B follow-ups: drafts still keyed (profile_id,agency_id) → two editions of one
   organizer share a draft row (schema change, unowned); undated event calls keep 24mo
   retention (Lane A copy has undated variant — check alignment).
-- IN FLIGHT: Lane E (instrumentation + all call sites since surface owners landed).
-  THEN: talent_id email fix (inbox accept/decline reads nonexistent applications.
-  talent_id — status emails never sent), then full-suite + lint + build verification
-  pass over the whole feature.
+- LANE E LANDED (3609fc6): funnel writer + 8 call sites (file:line receipts in agent
+  report), internal reporting route, returned_d30 daily job; awaited-try/catch writer
+  pattern (correct under serverless), payoff beacon via authenticated endpoint.
+- EMAIL FIX LANDED (146d0f6): inbox accept/decline resolved recipients via profile →
+  user (was reading nonexistent applications.talent_id — emails NEVER sent; also fixed
+  users.name → profile first/last). Fails-before/passes-after evidence in test.
+- ★ EVENT-CASTING FEATURE COMPLETE AND VERIFIED (2026-08-15): all 6 lanes merged.
+  Full suite 207 pass / 6 fail — ALL SIX are the canonical pre-existing failures
+  (app, notifications[ordering], overview-backend, talent/intel,
+  security/password-changed-notification, talent/representations+submission-program
+  under full-suite ordering). Client lint 0 errors (1 pre-existing warning). Vite
+  build green. Comp-card-presets-403 did not reproduce.
+- DEPLOY RUNBOOK ITEMS for FWB launch: run `npm run release:spec-registry` in prod
+  (requirements feature inert until then); set VITE_STRIPE_PUBLISHABLE_KEY for the
+  Stripe Identity modal; provision FWB as agencies row w/ org_kind='event_organizer'
+  via the internal review pipeline; verify netlify redirects deploy (/picks,/reply,
+  /opencall — the latter two NEVER worked in prod before this branch).
+
+## REMAINING ROADMAP (successor session picks up here)
+- Phase 6: off-platform submission tracker + auto-lapse ("sent what where, silence →
+  assume pass, re-apply window"); verification rail (NY DOL registry overlay
+  hder-iq9y + verified official-link display, plain text); open-call calendar
+  (hand-curated: Muse Thu 3-4pm, Q Thu 10-11am, MSA Tue — strategic analysis §9.2).
+- Phase 7: Studio+ restructure per strategic analysis §9.5 — audit remaining is_pro
+  gates against "payment buys only kept craft"; craft tier (editions, 300dpi/print,
+  custom domain, storage, Intel history); ROSCA-clean billing; NY-first, CA geofenced
+  pending counsel.
+- Phase 8: full green + polish.
+- FOLLOW-UP BACKLOG: inbox pagination + SUBMISSIONS_HARD_CAP counts; pick-list
+  name-display column; drafts keyed per-link (editions collide); client readRoute
+  channelType + email-route plate copy; comp-card import inline consent grant;
+  notifications test ordering fix; 20260701111000 FK-pragma hazard; eventCasting
+  client constants alignment; X-Pholio-Export-Files count polish; undated-event
+  retention copy alignment (24mo fallback vs A copy); HEIC fixture upstream license
+  glance; ProfilePage bio-save timeout ticket.
 - NOTE for future parallel waves: two agents ran `git stash -u` on the shared tree
   mid-wave (both restored cleanly). Ban stashing in worker briefs going forward.
 - (history) Lanes A ∥ C ∥ D were (parallel, disjoint per design §h, NO worker commits —
