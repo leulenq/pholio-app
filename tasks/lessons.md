@@ -843,3 +843,23 @@
 - A new database-backed UI is not locally complete until migrations and publication have been
   applied to the database serving the dev process. Treat an advisory API's missing-table 503 as a
   release-state defect to diagnose, not as a frontend retry problem.
+
+## 2026-08-15 — New surfaces must clear the bar of the strongest live pages, verified visually
+
+- Shipping a feature's data plumbing with a first-pass presentation is a regression, not a
+  milestone. Owner review of the FE wave (readiness numeral, requirements ledger, age
+  verification, import overlay) found raw backend vocabulary leaking into copy ("profile",
+  "close-up" as db values), malformed shared border/selector treatments, weak hierarchy, and
+  an overlay positioned wrong. Rules going forward:
+  1. Presentation-layer formatting is mandatory: never render an enum, slug, series id, or
+     backend field name to a user. Every label goes through a copy map.
+  2. Before calling FE work done, run the app and LOOK at it (Playwright screenshots) —
+     compare side-by-side against /media, /profile, Apply Workspace, Settings on origin/main.
+  3. When a component looks malformed, trace the shared component/global.css root cause and
+     fix it everywhere; never patch one instance.
+  4. Redesigns must preserve the strong parts of what they replace; "new" is not a license
+     to be visually weaker. When an owner correction and a plan line conflict (numeral:
+     correction #4 says keep), the dated owner correction governs — re-read it before
+     rebuilding a surface it names.
+  5. Overlay/popup components must use the established portal/positioning pattern; verify
+     placement at common viewport sizes.
