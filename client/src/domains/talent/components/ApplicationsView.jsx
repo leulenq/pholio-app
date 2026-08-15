@@ -11,6 +11,7 @@ import {
   Lock,
   MapPin,
   MessageSquare,
+  Plus,
   RotateCcw,
   Send,
   Trash2,
@@ -34,7 +35,14 @@ import {
   isEventApplication,
   statusConfig,
 } from '../utils/applicationStatus';
+import {
+  trackerChannelLine,
+  trackerMatchesFilter,
+  trackerStatusConfig,
+} from '../utils/submissionTracker';
 import ApplicationMessages from './ApplicationMessages';
+import LogSubmissionOverlay from './tracker/LogSubmissionOverlay';
+import TrackerDetail from './tracker/TrackerDetail';
 import './ApplicationsView.css';
 
 const FILTERS = [
@@ -120,6 +128,41 @@ function applicationMatchesFilter(app, filter) {
   return statusConfig(app.status, { purpose: app.call_purpose }).group === filter;
 }
 
+// The ledger is one chronology (ruling R7): submissions made on Pholio and
+// submissions the talent logged themselves, interleaved by the date they went
+// out, because that is the order the talent actually lived them. Each entry
+// carries its own kind so the row and the detail panel can speak the right
+// language without the list having to.
+function ledgerEntry(record, kind) {
+  return kind === 'tracker'
+    ? {
+        kind,
+        id: record.id,
+        key: `tracker:${record.id}`,
+        sortDate: record.submittedOn || record.createdAt || null,
+        row: record,
+      }
+    : {
+        kind,
+        id: record.id,
+        key: `application:${record.id}`,
+        sortDate: record.created_at || null,
+        app: record,
+      };
+}
+
+function entryConfig(entry) {
+  return entry.kind === 'tracker'
+    ? trackerStatusConfig(entry.row)
+    : statusConfig(entry.app.status, { purpose: entry.app.call_purpose });
+}
+
+function entryMatchesFilter(entry, filter) {
+  return entry.kind === 'tracker'
+    ? trackerMatchesFilter(entry.row, filter)
+    : applicationMatchesFilter(entry.app, filter);
+}
+
 // An event row is about the event, not the organizer's city.
 function eventDateRange(event) {
   if (!event?.startsOn) return null;
@@ -152,7 +195,8 @@ export default function ApplicationsView() {
   const queryClient = useQueryClient();
   const { profile, images } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(null);
+  const [loggingSubmission, setLoggingSubmission] = useState(false);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
   // { application, confirmed } — the slot answer awaiting its confirm dialog.
   const [slotAnswer, setSlotAnswer] = useState(null);
@@ -161,11 +205,11 @@ export default function ApplicationsView() {
   // On mobile the ledger collapses to a single column and the detail panel sits
   // beneath the full submission list, so a tap silently swaps content far below
   // the viewport. When the layout is stacked (≤1180px), bring the detail into
-  // view on an explicit selection. `selectedId` is null on first mount, so the
+  // view on an explicit selection. `selectedKey` is null on first mount, so the
   // default parked selection never triggers a scroll — desktop side-by-side is
   // untouched because the media query never matches there.
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedKey) return;
     if (typeof window === 'undefined' || !window.matchMedia) return;
     if (!window.matchMedia('(max-width: 1180px)').matches) return;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -173,11 +217,20 @@ export default function ApplicationsView() {
       behavior: prefersReduced ? 'auto' : 'smooth',
       block: 'start',
     });
-  }, [selectedId]);
+  }, [selectedKey]);
 
   const applicationsQuery = useQuery({
     queryKey: ['applications'],
     queryFn: talentApi.getApplications,
+    staleTime: 1000 * 60,
+    retry: 1,
+  });
+
+  // ['tracker'] exactly — the post-export prompt on the requirements page
+  // invalidates this key after logging a submission from there.
+  const trackerQuery = useQuery({
+    queryKey: ['tracker'],
+    queryFn: talentApi.listTrackedSubmissions,
     staleTime: 1000 * 60,
     retry: 1,
   });
@@ -302,12 +355,26 @@ export default function ApplicationsView() {
     };
   }, [gating.isSendReady, gating.sendBlockers, profile, images]);
 
-  const selectedApplication =
-    applications.find((app) => app.id === selectedId) ||
-    (deepLinkId ? applications.find((app) => app.id === deepLinkId) : null) ||
-    applications[0] ||
+  const trackedSubmissions = useMemo(() => asArray(trackerQuery.data), [trackerQuery.data]);
+
+  const ledgerEntries = useMemo(
+    () =>
+      [
+        ...applications.map((app) => ledgerEntry(app, 'application')),
+        ...trackedSubmissions.map((row) => ledgerEntry(row, 'tracker')),
+      ].sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0)),
+    [applications, trackedSubmissions],
+  );
+
+  const selectedEntry =
+    ledgerEntries.find((entry) => entry.key === selectedKey) ||
+    (deepLinkId
+      ? ledgerEntries.find((entry) => entry.kind === 'application' && entry.id === deepLinkId)
+      : null) ||
+    ledgerEntries[0] ||
     null;
-  const filteredApplications = applications.filter((app) => applicationMatchesFilter(app, activeFilter));
+  const selectedApplication = selectedEntry?.kind === 'application' ? selectedEntry.app : null;
+  const filteredEntries = ledgerEntries.filter((entry) => entryMatchesFilter(entry, activeFilter));
   const appliedAgencyIds = new Set(
     applications
       .filter((app) => app.status !== 'withdrawn')
@@ -561,25 +628,38 @@ export default function ApplicationsView() {
         <section className="app-ledger" aria-labelledby="application-ledger-title">
           <div className="app-section-head" data-tour="app-ledger">
             <h2 id="application-ledger-title">Submission history</h2>
-            <PholioToggleGroup
-              className="app-filter-row"
-              role="tablist"
-              aria-label="Filter applications"
-            >
-              {FILTERS.map((filter) => (
-                <PholioToggleButton
-                  key={filter.id}
-                  type="button"
-                  role="tab"
-                  active={activeFilter === filter.id}
-                  aria-selected={activeFilter === filter.id}
-                  className={`app-filter ${activeFilter === filter.id ? 'app-filter--active' : ''}`}
-                  onClick={() => setActiveFilter(filter.id)}
-                >
-                  {filter.label}
-                </PholioToggleButton>
-              ))}
-            </PholioToggleGroup>
+            <div className="app-ledger-tools">
+              <PholioToggleGroup
+                className="app-filter-row"
+                role="tablist"
+                aria-label="Filter applications"
+              >
+                {FILTERS.map((filter) => (
+                  <PholioToggleButton
+                    key={filter.id}
+                    type="button"
+                    role="tab"
+                    active={activeFilter === filter.id}
+                    aria-selected={activeFilter === filter.id}
+                    className={`app-filter ${activeFilter === filter.id ? 'app-filter--active' : ''}`}
+                    onClick={() => setActiveFilter(filter.id)}
+                  >
+                    {filter.label}
+                  </PholioToggleButton>
+                ))}
+              </PholioToggleGroup>
+              {/* Most submissions a model makes never touch Pholio. This is how
+                  they join the same chronology. */}
+              <PholioButton
+                type="button"
+                variant="meta"
+                className="app-ledger-log"
+                onClick={() => setLoggingSubmission(true)}
+              >
+                <Plus size={14} aria-hidden />
+                Log a submission
+              </PholioButton>
+            </div>
           </div>
 
           {applicationsQuery.isLoading ? (
@@ -588,51 +668,68 @@ export default function ApplicationsView() {
                 <div key={item} className="app-ledger-card app-ledger-card--skeleton" />
               ))}
             </div>
-          ) : filteredApplications.length > 0 ? (
+          ) : filteredEntries.length > 0 ? (
             <ol className="app-ledger-list">
-              {filteredApplications.map((app, index) => {
-                const config = statusConfig(app.status, { purpose: app.call_purpose });
+              {filteredEntries.map((entry, index) => {
+                const config = entryConfig(entry);
                 const StatusIcon = config.icon;
-                const isSelected = selectedApplication?.id === app.id;
+                const isSelected = selectedEntry?.key === entry.key;
+                const app = entry.kind === 'application' ? entry.app : null;
+                const row = entry.kind === 'tracker' ? entry.row : null;
                 return (
-                  <li key={app.id} className={`app-ledger-item app-ledger-item--${config.tone}`}>
+                  <li key={entry.key} className={`app-ledger-item app-ledger-item--${config.tone}`}>
                     <button
                       type="button"
                       data-button-exception="submission-history-agency"
                       aria-pressed={isSelected}
                       className={`app-ledger-card ${isSelected ? 'app-ledger-card--selected' : ''}`}
-                      onClick={() => setSelectedId(app.id)}
+                      onClick={() => setSelectedKey(entry.key)}
                     >
                       <span className="app-ledger-card__index">{String(index + 1).padStart(2, '0')}</span>
                       <span className="app-ledger-card__main">
-                        <span className="app-ledger-card__agency">{app.agency_name || 'Unknown Agency'}</span>
+                        <span className="app-ledger-card__agency">
+                          {app ? app.agency_name || 'Unknown Agency' : row.agencyName}
+                        </span>
                         <span className="app-ledger-card__meta">
-                          <MapPin size={13} aria-hidden />
-                          {(isEventApplication(app) ? app.event?.location : null) ||
-                            app.agency_location ||
-                            'Location pending'}
-                          {isEventApplication(app)
-                            ? ` · ${app.event?.name || 'Event casting'}`
-                            : app.source === 'open_call'
-                              ? ' · Open call'
-                              : ''}
+                          {app ? (
+                            <>
+                              <MapPin size={13} aria-hidden />
+                              {(isEventApplication(app) ? app.event?.location : null) ||
+                                app.agency_location ||
+                                'Location pending'}
+                              {isEventApplication(app)
+                                ? ` · ${app.event?.name || 'Event casting'}`
+                                : app.source === 'open_call'
+                                  ? ' · Open call'
+                                  : ''}
+                            </>
+                          ) : (
+                            // Plain line, never a chip: where it went is a fact
+                            // about the submission, not a label on it.
+                            trackerChannelLine(row.channel)
+                          )}
                         </span>
                       </span>
                       <span className={`app-status app-status--${config.tone}`}>
                         <StatusIcon size={13} aria-hidden />
                         {config.short}
                       </span>
-                      <span className="app-ledger-card__date">{relativeDate(app.created_at)}</span>
+                      <span className="app-ledger-card__date">
+                        {relativeDate(app ? app.created_at : row.submittedOn)}
+                      </span>
                     </button>
                   </li>
                 );
               })}
             </ol>
-          ) : applications.length === 0 ? (
+          ) : ledgerEntries.length === 0 ? (
             <div className="app-empty-state">
               <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
               <h3>You haven&apos;t applied yet</h3>
-              <p>Browse agencies below and send your first submission.</p>
+              <p>
+                Browse agencies below and send your first submission — or log one you already made
+                somewhere else.
+              </p>
             </div>
           ) : (
             <div className="app-empty-state">
@@ -656,6 +753,12 @@ export default function ApplicationsView() {
                 slotAnswer?.application?.id === selectedApplication.id
               }
             />
+          ) : selectedEntry?.kind === 'tracker' ? (
+            <TrackerDetail
+              key={selectedEntry.key}
+              row={selectedEntry.row}
+              onDeleted={() => setSelectedKey(null)}
+            />
           ) : (
             <div className="app-detail-empty">
               <p>No submission selected.</p>
@@ -663,6 +766,17 @@ export default function ApplicationsView() {
           )}
         </aside>
       </div>
+
+      {/* Mounted only while open, so the form is blank every time. */}
+      {loggingSubmission && (
+        <LogSubmissionOverlay
+          open
+          onClose={() => setLoggingSubmission(false)}
+          onLogged={(submission) => {
+            if (submission?.id) setSelectedKey(`tracker:${submission.id}`);
+          }}
+        />
+      )}
 
       <ConfirmationDialog
         isOpen={slotAnswer !== null}

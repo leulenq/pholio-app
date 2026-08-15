@@ -28,6 +28,7 @@ import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import { bucketCounts } from '../../utils/applicationStatus';
 import { StatsCurrencyPrompt } from '../../components/StatsCurrencyPrompt';
+import OpenCallsCard from './OpenCallsCard';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import {
   isMinorProfile,
@@ -615,6 +616,8 @@ export default function OverviewPage() {
             </div>
           </div>
         </div>
+
+        <OpenCallsCard />
 
         {showPublicWebsite && (
           <motion.section

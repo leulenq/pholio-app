@@ -145,6 +145,42 @@ export const talentApi = {
   acknowledgeSubmissionProgram: () =>
     apiClient.post('/applications/submission-program-acknowledgment', { acknowledged: true }),
 
+  /*
+   * Off-platform submission tracker — the talent's own private record of
+   * submissions made outside Pholio. No agency ever reads these rows.
+   *
+   * The router answers `{ submissions: [...] }` / `{ submission: {...} }`
+   * inside the standard envelope, which `apiClient` has already unwrapped by
+   * the time these run; the array/object fallbacks keep a bare payload working
+   * too. Lapse is never stored — every row arrives with server-computed
+   * `isLapsed` / `lapseDate` / `reapplyOpensOn` (ruling R1), so the client only
+   * ever formats them.
+   */
+  listTrackedSubmissions: async () => {
+    const data = await apiClient.get('/tracker');
+    return Array.isArray(data) ? data : data?.submissions || [];
+  },
+  logTrackedSubmission: async (payload) => {
+    const data = await apiClient.post('/tracker', payload);
+    return data?.submission || data;
+  },
+  /**
+   * Send only the fields that actually change: a PATCH carrying the status the
+   * row already has is rejected as "No editable fields were provided." (422).
+   */
+  updateTrackedSubmission: async (id, payload) => {
+    const data = await apiClient.patch(`/tracker/${encodeURIComponent(id)}`, payload);
+    return data?.submission || data;
+  },
+  // Hard delete (ruling R9) — confirm before calling.
+  deleteTrackedSubmission: (id) => apiClient.delete(`/tracker/${encodeURIComponent(id)}`),
+
+  // Curated recurring open-call windows. Ungated, free, no counters.
+  listCallWindows: async () => {
+    const data = await apiClient.get('/call-windows');
+    return Array.isArray(data) ? data : data?.callWindows || [];
+  },
+
   // Published agency requirements and score-free package preflight.
   getSpecRegistryRoutes: ({ agencyId } = {}) =>
     apiClient.get(

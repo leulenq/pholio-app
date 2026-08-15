@@ -1621,6 +1621,64 @@
   flex-shrink: 0;
 }
 
+/* ── Tracker rows — the talent's own record, in the same ledger ───────────── */
+
+/* Filters and the log action share the head's right-hand column so the ledger
+   keeps its two-column masthead at every width. */
+.app-ledger-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 14px 20px;
+}
+
+.app-ledger-log {
+  flex-shrink: 0;
+}
+
+.app-tracker-edit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* Pressed-paper well, sized to the panel. Never resizable. */
+.app-tracker-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: 8px;
+  background: rgba(26, 26, 26, 0.02);
+  color: var(--app-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  resize: none;
+  transition:
+    border-color 0.25s var(--app-ease),
+    box-shadow 0.25s var(--app-ease);
+}
+
+.app-tracker-textarea:focus {
+  outline: none;
+  border-color: rgba(201, 165, 90, 0.42);
+  box-shadow: 0 0 0 4px rgba(201, 165, 90, 0.12);
+}
+
+.app-tracker-privacy {
+  margin: 18px 0 0;
+  max-width: 34rem;
+  color: var(--app-text-faint);
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
 .app-detail__withdraw {
   flex-shrink: 0;
 }
@@ -2062,6 +2120,10 @@
   .app-filter-row {
     width: 100%;
     overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .app-ledger-tools {
     justify-content: flex-start;
   }
 
