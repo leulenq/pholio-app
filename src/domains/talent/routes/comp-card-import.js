@@ -36,7 +36,14 @@ const {
   buildProfileUpdate,
   importCompCard,
   isSupportedMime,
+  requiresVision,
 } = require("../services/comp-card-import");
+const {
+  currentImageAiConsentGranted,
+} = require("../../ai/analyzeProfileImage");
+
+/** Stable code the client keys its consent prompt off. */
+const AI_IMAGE_CONSENT_REQUIRED = "ai_image_consent_required";
 
 /**
  * In-memory only. A comp card is read and dropped; there is no storage engine
@@ -102,14 +109,56 @@ router.post(
       });
     }
 
+    /*
+     * Consent gate — the vision path only.
+     *
+     * A PDF is read through its own text layer with no model involved at all,
+     * so it proceeds regardless: gating it would block the deterministic,
+     * privacy-preserving path on a permission it does not need. An image goes
+     * to a third-party vision model, and a comp card is mostly photographs of
+     * the talent, so that upload requires the same image-processing consent
+     * every other picture-to-a-model path in the product requires.
+     *
+     * Checked before extraction, not inside it, so nothing is sent and nothing
+     * is written when consent is absent.
+     */
+    if (requiresVision(req.file.mimetype)) {
+      const profile = await knex("profiles")
+        .where({ user_id: req.session.userId })
+        .first("id");
+      const consented = await currentImageAiConsentGranted(knex, profile?.id);
+      if (!consented) {
+        return apiResponse.error(
+          res,
+          "Reading a comp card image sends it to Pholio's image-analysis provider, which needs your permission first. Turn on image processing in Settings → Privacy, or upload the card as a PDF — a PDF is read without any AI. You can also enter these fields on your profile.",
+          403,
+          { code: AI_IMAGE_CONSENT_REQUIRED },
+        );
+      }
+    }
+
     // Registry agencies, so a card naming one can be linked rather than guessed.
     const knownAgencies = await knex("agencies").select("id", "name").limit(2000);
 
-    const proposal = await importCompCard(
-      req.file.buffer,
-      { mimeType: req.file.mimetype, filename: req.file.originalname },
-      { knownAgencies },
-    );
+    let proposal;
+    try {
+      proposal = await importCompCard(
+        req.file.buffer,
+        { mimeType: req.file.mimetype, filename: req.file.originalname },
+        { knownAgencies },
+      );
+    } catch (err) {
+      // No card can fail extraction — see extract.js. The one throw is a
+      // runtime with no image processing at all, which is an outage on our
+      // side and must not be reported to the talent as a bad upload.
+      if (err?.code !== "SHARP_UNAVAILABLE") throw err;
+      return apiResponse.error(
+        res,
+        "Image processing is unavailable on this server right now. Try again shortly, or enter these fields on your profile.",
+        503,
+        { code: "IMAGE_PROCESSING_UNAVAILABLE" },
+      );
+    }
 
     const row = {
       id: uuidv4(),

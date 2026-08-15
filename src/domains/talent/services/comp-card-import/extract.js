@@ -48,6 +48,19 @@ function isSupportedMime(mimeType) {
 }
 
 /**
+ * Will reading this upload put a picture in front of a model?
+ *
+ * Only images reach the vision fallback. A PDF is read through its text layer,
+ * and a flattened PDF stops at `pdf_no_text_layer` because there is no
+ * rasteriser here — so no PDF path sends pixels anywhere. The consent gate in
+ * the route asks this question, which keeps the answer in the file that owns
+ * the branch instead of duplicating the mime rules at the boundary.
+ */
+function requiresVision(mimeType) {
+  return isSupportedMime(mimeType) && mimeType !== PDF_MIME;
+}
+
+/**
  * Normalise an uploaded image for OCR.
  *
  * Re-encoding through Sharp also strips EXIF, which is the point as much as the
@@ -186,4 +199,5 @@ module.exports = {
   isSupportedMime,
   messageForReason,
   normaliseForOcr,
+  requiresVision,
 };

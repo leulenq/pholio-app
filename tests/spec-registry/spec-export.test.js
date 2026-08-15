@@ -348,6 +348,30 @@ describe("spec-correct export — end to end", () => {
     expect(files.get("README.txt").toString("utf8")).toContain("Could not be read");
   });
 
+  test("ships the rest of the set when one original cannot be decoded", async () => {
+    // Readable bytes that are not an image. `fetchImageBuffer` hands these over
+    // happily — the unreadable-source check above only catches an empty read —
+    // so the failure surfaces inside Sharp, mid-archive. One undecodable file
+    // must cost the talent that file, not the entire download.
+    const corrupt = path.join(workingDirectory, "corrupt.jpg");
+    fs.writeFileSync(corrupt, Buffer.from("this is not a JPEG, it is prose", "utf8"));
+    await db("images").where({ id: CLOSE_UP_ID }).update({ absolute_path: corrupt });
+
+    const result = await buildSpecExport(
+      db,
+      { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+      { referenceDate: REFERENCE_DATE },
+    );
+
+    const files = unzip(result.buffer);
+    expect(files.has("elite-model-management-close-up.jpg")).toBe(false);
+    expect(files.has("elite-model-management-full-length.jpg")).toBe(true);
+    // Same shape as an unreadable source — the manifest names what is missing
+    // rather than the set silently arriving one shot short.
+    expect(result.manifest.unavailable.map((entry) => entry.slotLabel)).toEqual(["close-up"]);
+    expect(files.get("README.txt").toString("utf8")).toContain("Could not be read");
+  });
+
   test("the export and the requirements check agree, because one path computes both", async () => {
     // The surface hands both calls the same explicit selection, so the test does.
     const imageIds = [FULL_LENGTH_ID, CLOSE_UP_ID, PROFILE_SHOT_ID];

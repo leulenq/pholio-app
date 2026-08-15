@@ -13,7 +13,12 @@
  * layout only, no face templates, no embeddings, no cross-image identity linking.
  */
 
-const { extractCardText, isSupportedMime, messageForReason } = require("./extract");
+const {
+  extractCardText,
+  isSupportedMime,
+  messageForReason,
+  requiresVision,
+} = require("./extract");
 const { parseCard } = require("./parse-card");
 const { buildProposal, buildProfileUpdate, FIELD_SPECS, MEASUREMENT_SOURCE_IMPORT } = require("./proposal");
 
@@ -59,4 +64,5 @@ module.exports = {
   isSupportedMime,
   messageForReason,
   parseCard,
+  requiresVision,
 };

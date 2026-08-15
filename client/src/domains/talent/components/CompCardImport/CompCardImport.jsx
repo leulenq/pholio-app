@@ -26,6 +26,18 @@ import styles from './CompCardImport.module.css';
 
 const ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 
+/**
+ * The server refuses to send a card *image* to its vision provider without
+ * image-processing consent. That refusal is not a failed read — the talent has
+ * an action to take — so it gets its own screen rather than the generic
+ * "couldn't read it" review.
+ */
+const AI_IMAGE_CONSENT_REQUIRED = 'ai_image_consent_required';
+
+function isConsentRequiredError(error) {
+  return error?.status === 403 && error?.data?.details?.code === AI_IMAGE_CONSENT_REQUIRED;
+}
+
 /** The house spring. Stillness is the resting state, not the whole experience. */
 const SPRING = { type: 'spring', stiffness: 55, damping: 16 };
 
@@ -43,7 +55,8 @@ export default function CompCardImport({ onApplied, onDone }) {
   const reduceMotion = useReducedMotion();
   const inputRef = useRef(null);
 
-  const [stage, setStage] = useState('idle'); // idle | reading | review | done
+  const [stage, setStage] = useState('idle'); // idle | reading | review | consent | done
+  const [consentMessage, setConsentMessage] = useState('');
   const [proposal, setProposal] = useState(null);
   const [selection, setSelection] = useState({});
   const [applying, setApplying] = useState(false);
@@ -67,6 +80,7 @@ export default function CompCardImport({ onApplied, onDone }) {
     setProposal(null);
     setSelection({});
     setAppliedCount(0);
+    setConsentMessage('');
     if (inputRef.current) inputRef.current.value = '';
   }, []);
 
@@ -92,7 +106,17 @@ export default function CompCardImport({ onApplied, onDone }) {
       setSelection(initial);
       setStage('review');
     } catch (error) {
-      // Even a hard failure lands on the review screen, empty, so the talent can
+      // Missing consent is the one refusal with something to do about it, and
+      // the card was never sent anywhere. Say so plainly instead of reporting a
+      // permission the talent controls as a card that could not be read.
+      if (isConsentRequiredError(error)) {
+        setConsentMessage(error.message || '');
+        setStage('consent');
+        if (inputRef.current) inputRef.current.value = '';
+        return;
+      }
+
+      // Every other failure lands on the review screen, empty, so the talent can
       // keep going by hand. This flow does not have a dead end.
       toast.error(error?.message || 'That card could not be read.');
       setProposal({
@@ -225,6 +249,44 @@ export default function CompCardImport({ onApplied, onDone }) {
                 reduceMotion ? { duration: 0 } : { repeat: Infinity, duration: 1.1, ease: 'easeInOut' }
               }
             />
+          </div>
+        </motion.section>
+      )}
+
+      {stage === 'consent' && (
+        <motion.section
+          key="consent"
+          className={styles.panel}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={transition}
+        >
+          <header className={styles.head}>
+            <h2 className={styles.title}>
+              Reading an image needs your <em>permission</em>
+            </h2>
+            <span className={styles.headMeta}>Nothing was sent</span>
+          </header>
+          <div className={styles.sweep} aria-hidden="true" />
+
+          <p className={styles.notice}>
+            {consentMessage ||
+              'Reading a comp card image sends it to Pholio’s image-analysis provider, which needs your permission first.'}
+          </p>
+
+          <p className={styles.standfirst}>
+            Your card was not uploaded or read. You have three ways forward: turn on image
+            processing in your privacy settings, upload the same card as a PDF — a PDF is read
+            from its own text with no AI involved — or enter the fields on your profile.
+          </p>
+
+          <div className={styles.actions}>
+            <PholioButton variant="primary" to="/dashboard/talent/settings">
+              Open privacy settings
+            </PholioButton>
+            <PholioButton variant="secondary" type="button" onClick={reset}>
+              Try a different file
+            </PholioButton>
           </div>
         </motion.section>
       )}

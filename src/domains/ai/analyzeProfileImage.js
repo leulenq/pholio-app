@@ -82,13 +82,30 @@ Return exactly this structure, no other text:
 
 const TEXT_MODEL = "llama-3.3-70b-versatile";
 
-function imageAiProcessingAllowed(profile, env = process.env) {
+/**
+ * Has this talent granted image-processing consent, and can they?
+ *
+ * Consent state only — no feature flag. A minor cannot grant it and a profile
+ * with no recorded date of birth cannot be shown to be an adult, so both fail
+ * closed regardless of what the column says.
+ *
+ * `imageAiProcessingAllowed` is this plus the portfolio-classification launch
+ * flag. Any caller that is not the portfolio classifier wants this one, and
+ * every caller shares this single definition of "consented" so the two cannot
+ * drift into disagreeing about what a talent agreed to.
+ */
+function imageAiConsentGranted(profile) {
   return (
-    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" &&
     (profile?.ai_processing_consent === true ||
       profile?.ai_processing_consent === 1) &&
     hasRecordedDateOfBirth(profile) &&
     !isMinorProfile(profile)
+  );
+}
+
+function imageAiProcessingAllowed(profile, env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" && imageAiConsentGranted(profile)
   );
 }
 
@@ -108,6 +125,13 @@ async function loadImageAiProfile(knex, profileId, { forUpdate = false } = {}) {
 async function currentImageAiProcessingAllowed(knex, profileId) {
   const profile = await loadImageAiProfile(knex, profileId);
   return imageAiProcessingAllowed(profile);
+}
+
+/** Current image-processing consent state for a profile, read fresh. */
+async function currentImageAiConsentGranted(knex, profileId) {
+  if (!profileId) return false;
+  const profile = await loadImageAiProfile(knex, profileId);
+  return imageAiConsentGranted(profile);
 }
 
 async function persistProfileImageAiUpdate(knex, profileId, updates) {
@@ -358,7 +382,9 @@ async function clearAnalysis(knex, profileId) {
 
 module.exports = {
   masterVisionAnalysis,
+  imageAiConsentGranted,
   imageAiProcessingAllowed,
+  currentImageAiConsentGranted,
   currentImageAiProcessingAllowed,
   stripSensitiveVisionFields,
   SENSITIVE_VISION_KEYS,
