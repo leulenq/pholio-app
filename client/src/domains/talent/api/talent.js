@@ -266,7 +266,7 @@ export const talentApi = {
   setDefaultCompCardPreset: (slug, presetId) =>
     apiClient.post(`/presets/${encodeURIComponent(slug)}/${encodeURIComponent(presetId)}/apply`, {}, { baseURL: '/api/pdf' }),
 
-  // Message Polish (Studio+)
+  // Message Polish — free to every talent, rate-limited server-side
   polishApplicationMessage: (body) =>
     apiClient.post('/message-polish/polish', body),
 

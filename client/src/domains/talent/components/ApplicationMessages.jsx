@@ -82,13 +82,9 @@ export default function ApplicationMessages({
       setPrePolishDraft(draft);
       setDraft(polished);
     },
-    onError: (err) => {
-      if (err?.status === 403) {
-        toast.error('Message Polish requires a Studio+ subscription');
-      } else {
-        toast.error(err?.message || 'Could not polish your message');
-      }
-    },
+    // Message Polish is free to every talent — no subscription branch here.
+    // Over-use answers with the shared AI rate limiter's message.
+    onError: (err) => toast.error(err?.message || 'Could not polish your message'),
   });
 
   const submit = (e) => {

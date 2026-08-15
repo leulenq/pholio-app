@@ -3307,11 +3307,9 @@ function MessagePage({
         mode === 'draft' ? 'Note drafted' : mode === 'sharpen' ? 'Note sharpened' : 'Note shortened',
       );
     } catch (err) {
-      if (err?.data?.details?.code === 'STUDIO_PLUS_REQUIRED') {
-        toast.error('Studio+ is required to use the note assistant.');
-      } else {
-        toast.error(err?.message || 'Could not update the note. Please try again.');
-      }
+      // The note assistant is free to every talent — no subscription branch
+      // here. Over-use answers with the shared AI rate limiter's message.
+      toast.error(err?.message || 'Could not update the note. Please try again.');
     } finally {
       setAssistBusy(false);
     }

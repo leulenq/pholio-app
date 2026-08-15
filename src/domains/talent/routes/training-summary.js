@@ -4,7 +4,9 @@ const router = express.Router();
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const apiResponse = require("../../../shared/lib/api-response");
-const { requireStudioPlus } = require("../services/writer-shared/studio-plus");
+const {
+  requireTalentProfile,
+} = require("../services/writer-shared/writer-profile");
 const { groqUnavailable } = require("../services/writer-shared/groq-client");
 const {
   buildTrainingSummaryContext,
@@ -37,7 +39,7 @@ router.post(
   "/format",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const text = parseBodyText(req.body?.text);
@@ -67,7 +69,7 @@ router.post(
   "/summarize",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const text = parseBodyText(req.body?.text);
@@ -97,7 +99,7 @@ router.post(
   "/expand",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const text = parseBodyText(req.body?.text);
