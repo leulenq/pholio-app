@@ -29,15 +29,36 @@ export const AGE_VERIFICATION_STATES = Object.freeze({
   VERIFIED: 'verified',
 });
 
+/**
+ * How loudly a state is allowed to speak. The panel differentiates states with
+ * a tinted surface and a weighted title — never a status badge, pill or dot.
+ *
+ *   neutral   — nothing has happened yet, or it stopped harmlessly.
+ *   progress  — Stripe is thinking; patient, uncoloured.
+ *   settled   — verified. Warm gold calm, not a green success banner.
+ *   attention — the check ended without a usable result. Warm red, always
+ *               paired with words that say what to do next.
+ */
+export const AGE_VERIFICATION_TONES = Object.freeze({
+  NEUTRAL: 'neutral',
+  PROGRESS: 'progress',
+  SETTLED: 'settled',
+  ATTENTION: 'attention',
+});
+
 /** Repeated verbatim in every state — it mirrors what the backend actually does. */
 export const PRIVACY_BOUNDARY =
   'Private to you. Shared only if you attach it to a specific submission.';
 
-/** The three-line data story shown before any handoff to Stripe. */
+/**
+ * The three-line data story shown before any handoff to Stripe. It is rendered
+ * as a numbered sequence, so the lines are written to read in order and none of
+ * them ends in a full stop.
+ */
 export const DATA_STORY = Object.freeze([
   'Stripe checks a government ID and a selfie — Pholio never sees them',
   'We store only the result: verified 18+, and whether the birthdate matches your profile',
-  'Stripe deletes the documents after evaluation — we ask for redaction automatically.',
+  'Stripe deletes the documents after evaluation — we ask for redaction automatically',
 ]);
 
 export const CONSENT_NOTE =
@@ -140,6 +161,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
   if (age != null && age < 18) {
     return {
       id: AGE_VERIFICATION_STATES.MINOR,
+      tone: null,
+      panelTitle: null,
       summaryLine: null,
       statusLine: null,
       entryLabel: null,
@@ -155,6 +178,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
   if (age == null) {
     return {
       id: AGE_VERIFICATION_STATES.DOB_MISSING,
+      tone: AGE_VERIFICATION_TONES.NEUTRAL,
+      panelTitle: 'Add your date of birth first',
       summaryLine: 'Optional. Add your date of birth in Identity to use this.',
       statusLine:
         'This needs your date of birth first — Stripe compares the ID against it.',
@@ -178,6 +203,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
   if (verifiedAdult === true) {
     return {
       id: AGE_VERIFICATION_STATES.VERIFIED,
+      tone: AGE_VERIFICATION_TONES.SETTLED,
+      panelTitle: 'Verified 18 or older',
       summaryLine: verifiedProvenanceLine(verifiedAt),
       statusLine: verifiedProvenanceLine(verifiedAt),
       entryLabel: 'Open',
@@ -196,6 +223,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
     return {
       ...HANDOFF_DEFAULTS,
       id: AGE_VERIFICATION_STATES.INVALIDATED,
+      tone: AGE_VERIFICATION_TONES.ATTENTION,
+      panelTitle: 'Verification ended',
       summaryLine: 'Your date of birth changed, so the earlier check no longer applies.',
       statusLine:
         'Not verified — your date of birth changed after the last check, which ended it.',
@@ -211,6 +240,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
   if (status === 'processing') {
     return {
       id: AGE_VERIFICATION_STATES.PROCESSING,
+      tone: AGE_VERIFICATION_TONES.PROGRESS,
+      panelTitle: 'Stripe is reviewing',
       summaryLine: 'Stripe is reviewing your check.',
       statusLine:
         'Stripe is reviewing — usually under a minute; this page updates itself',
@@ -228,6 +259,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
     return {
       ...HANDOFF_DEFAULTS,
       id: AGE_VERIFICATION_STATES.REQUIRES_INPUT,
+      tone: AGE_VERIFICATION_TONES.ATTENTION,
+      panelTitle: 'One more step at Stripe',
       summaryLine: 'Your check needs one more step.',
       statusLine: describeFailure(failureCode),
       showForm: false,
@@ -240,6 +273,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
     return {
       ...HANDOFF_DEFAULTS,
       id: AGE_VERIFICATION_STATES.CANCELED,
+      tone: AGE_VERIFICATION_TONES.NEUTRAL,
+      panelTitle: 'Check canceled',
       summaryLine: 'The last check was canceled.',
       statusLine: 'The check was canceled before it finished. Nothing was stored.',
       showForm: false,
@@ -252,6 +287,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
     return {
       ...HANDOFF_DEFAULTS,
       id: AGE_VERIFICATION_STATES.DOB_MISMATCH,
+      tone: AGE_VERIFICATION_TONES.ATTENTION,
+      panelTitle: 'Birthdate mismatch',
       summaryLine: 'The ID’s birthdate doesn’t match your profile.',
       statusLine: 'The ID’s birthdate doesn’t match your profile',
       showForm: false,
@@ -264,6 +301,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
     return {
       ...HANDOFF_DEFAULTS,
       id: AGE_VERIFICATION_STATES.FAILED,
+      tone: AGE_VERIFICATION_TONES.ATTENTION,
+      panelTitle: 'The check didn’t pass',
       summaryLine: 'The last check did not pass.',
       statusLine: describeFailure(failureCode),
       showForm: false,
@@ -275,6 +314,8 @@ export function resolveAgeVerificationState({ verification, age } = {}) {
   return {
     ...HANDOFF_DEFAULTS,
     id: AGE_VERIFICATION_STATES.LOCKED,
+    tone: AGE_VERIFICATION_TONES.NEUTRAL,
+    panelTitle: 'Verify that you’re 18 or older',
     summaryLine: 'Optional. Never shown to agencies or in discovery.',
     statusLine: 'Not verified.',
     entryLabel: 'Set up',

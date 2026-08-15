@@ -1,7 +1,12 @@
 /* ============================================================
    PRIVATE CONTEXT — age verification + adult context
    Pholio's design language for the surface; Stripe's for the
-   handoff. No Stripe chrome here, no badges, no status dots.
+   handoff. We show Stripe's own wordmark as attribution and
+   never draw a facsimile of Stripe's UI.
+
+   States are differentiated the way the Settings danger zone
+   differentiates itself — a tinted surface, a weighted title
+   and a tone-coloured rule — never a badge, pill or status dot.
    Inherits the --pf-* tokens from .pageContainer.
    ============================================================ */
 
@@ -27,6 +32,12 @@
   line-height: 1.6;
   color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
   max-width: 52ch;
+}
+
+/* Verified reads as a settled fact, not as another muted hint. */
+.entryCopySettled {
+  font-weight: 400;
+  color: var(--pf-text, #1a1a1a);
 }
 
 .entryLink,
@@ -64,54 +75,214 @@
 
 /* ─── Opened panel: the card the section earns once you ask for it ─── */
 .panel {
+  /* Per-tone knobs. Each tone below re-points these four and nothing else. */
+  --vas-accent: var(--pf-gold, #c9a55a);
+  --vas-title: var(--pf-text, #1a1a1a);
+  --vas-rule: var(--pf-hair, rgba(26, 26, 26, 0.08));
+  --vas-mark-bg: rgba(201, 165, 90, 0.08);
+
   display: grid;
-  gap: 18px;
-  padding: 24px;
+  gap: 20px;
+  padding: 26px;
   border: 1px solid var(--pf-hair, rgba(26, 26, 26, 0.08));
   border-radius: 16px;
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+/* Nothing has happened yet, or it stopped harmlessly. */
+.toneNeutral {
+  border-color: var(--pf-hair-gold, rgba(201, 165, 90, 0.22));
+  background:
+    linear-gradient(
+      180deg,
+      rgba(201, 165, 90, 0.045) 0%,
+      rgba(201, 165, 90, 0.012) 180px,
+      rgba(201, 165, 90, 0) 100%
+    ),
+    #ffffff;
+}
+
+/* Stripe is thinking. Patient, uncoloured — the only animated tone. */
+.toneProgress {
+  --vas-accent: var(--pf-text-faint, rgba(26, 26, 26, 0.42));
+  --vas-mark-bg: rgba(26, 26, 26, 0.04);
+
+  border-color: var(--pf-hair-strong, rgba(26, 26, 26, 0.16));
+  background:
+    linear-gradient(180deg, rgba(26, 26, 26, 0.022) 0%, rgba(26, 26, 26, 0) 160px),
+    #ffffff;
+}
+
+/* Verified: warm gold calm. Deliberately not a green success banner. */
+.toneSettled {
+  --vas-accent: #8a6a28;
+  --vas-title: #7d5f24;
+  --vas-rule: rgba(201, 165, 90, 0.28);
+  --vas-mark-bg: rgba(201, 165, 90, 0.12);
+
+  border-color: rgba(201, 165, 90, 0.42);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(201, 165, 90, 0.085) 0%,
+      rgba(201, 165, 90, 0.03) 220px,
+      rgba(201, 165, 90, 0) 100%
+    ),
+    #ffffff;
+  box-shadow:
+    0 1px 2px rgba(201, 165, 90, 0.08),
+    0 16px 34px -26px rgba(160, 122, 45, 0.55);
+}
+
+/* The check ended without a usable result. Warm red, always paired with words. */
+.toneAttention {
+  --vas-accent: #b4433a;
+  --vas-title: #b4433a;
+  --vas-rule: rgba(180, 67, 58, 0.18);
+  --vas-mark-bg: rgba(180, 67, 58, 0.07);
+
+  border-color: rgba(180, 67, 58, 0.32);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(180, 67, 58, 0.055) 0%,
+      rgba(180, 67, 58, 0.015) 220px,
+      rgba(180, 67, 58, 0) 100%
+    ),
+    #ffffff;
+  box-shadow:
+    0 1px 2px rgba(180, 67, 58, 0.05),
+    0 14px 32px -24px rgba(180, 67, 58, 0.35);
+}
+
+/* ─── Head: the icon, the weighted title, the one-line state ─── */
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.headMark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 1px;
+  border: 1px solid var(--vas-rule);
+  border-radius: 9px;
+  background: var(--vas-mark-bg);
+  color: var(--vas-accent);
+}
+
+.headText {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+  color: var(--vas-title);
+}
+
 .statusLine {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
-  line-height: 1.6;
-  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  line-height: 1.55;
+  color: var(--pf-text, #1a1a1a);
   max-width: 58ch;
 }
 
-/* ─── The three-line data story ─── */
+/* Stripe is reviewing: an indeterminate rule, not a blinking indicator. */
+.progressRule {
+  position: relative;
+  display: block;
+  height: 1px;
+  margin: -6px 0 -4px;
+  overflow: hidden;
+  background: var(--pf-hair, rgba(26, 26, 26, 0.08));
+}
+
+.progressRule::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 32%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(26, 26, 26, 0) 0%,
+    rgba(26, 26, 26, 0.34) 50%,
+    rgba(26, 26, 26, 0) 100%
+  );
+  animation: vasSweep 2.6s var(--pf-ease-std, cubic-bezier(0.4, 0, 0.2, 1)) infinite;
+}
+
+@keyframes vasSweep {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(420%);
+  }
+}
+
+/* ─── The data story: what Stripe sees, what we keep, what happens after ─── */
 .story {
+  counter-reset: vas-step;
   margin: 0;
   padding: 0;
   list-style: none;
-  display: grid;
+  border-top: 1px solid var(--vas-rule);
 }
 
 .storyItem {
-  padding: 12px 0;
-  border-top: 1px solid var(--pf-hair, rgba(26, 26, 26, 0.08));
+  counter-increment: vas-step;
+  position: relative;
+  padding: 11px 0 11px 26px;
+  border-bottom: 1px solid var(--vas-rule);
   font-family: 'Inter', sans-serif;
-  font-size: 14.4px;
+  font-size: 12.5px;
   font-weight: 300;
   line-height: 1.55;
-  color: var(--pf-text, #1a1a1a);
-  max-width: 60ch;
+  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  max-width: 62ch;
 }
 
-.storyItem:first-child {
-  border-top: none;
-  padding-top: 0;
+/* A serif numeral in the accent — the sequence is the point, so it is numbered
+   rather than marked with the danger zone's em rule. */
+.storyItem::before {
+  content: counter(vas-step);
+  position: absolute;
+  top: 10px;
+  left: 0;
+  width: 14px;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 12px;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.55;
+  text-align: center;
+  color: var(--vas-accent);
 }
 
-.storyItem:last-child {
-  padding-bottom: 0;
+/* ─── Actions + the handoff's own fine print ─── */
+.handoff {
+  display: grid;
+  gap: 10px;
 }
 
-/* ─── Actions ─── */
 .actions {
   display: flex;
   align-items: center;
@@ -119,51 +290,95 @@
   flex-wrap: wrap;
 }
 
-/* Stripe's approved plain-text attribution. No logo, no lockup, no chrome. */
-.poweredBy {
+.handoff .actions {
+  margin-bottom: 2px;
+}
+
+/* The consent sentence gates the handoff, so it carries more weight than the
+   note beneath it. */
+.consent {
+  margin: 0;
   font-family: 'Inter', sans-serif;
   font-size: 12.5px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  max-width: 62ch;
 }
 
 .fineprint {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 300;
-  line-height: 1.6;
-  color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  line-height: 1.55;
+  color: var(--pf-text-faint, rgba(26, 26, 26, 0.42));
   max-width: 62ch;
 }
 
 .fix {
   margin: 0;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 300;
   line-height: 1.6;
   color: var(--pf-text, #1a1a1a);
   max-width: 60ch;
 }
 
+/* ─── Footer: the boundary sentence, and who ran the check ─── */
+.footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 24px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--vas-rule);
+}
+
 /* The one sentence every state repeats. */
 .boundary {
   margin: 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--pf-hair, rgba(26, 26, 26, 0.08));
   font-family: 'Inter', sans-serif;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
+  max-width: 46ch;
+}
+
+/* Stripe's wordmark, unmodified, subordinate to Pholio's own type. */
+.stripeLockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.stripeLockupPrefix {
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--pf-text-faint, rgba(26, 26, 26, 0.42));
+}
+
+.stripeWordmark {
+  display: block;
+  width: auto;
+  height: 17px;
+  /* Never recolour, stretch or filter the mark. */
+  opacity: 0.92;
+  user-select: none;
 }
 
 /* ─── Verified: the adult-context form ─── */
 .form {
   display: grid;
   gap: 18px;
+  padding-top: 2px;
 }
 
 .formActions {
@@ -173,13 +388,23 @@
   flex-wrap: wrap;
 }
 
+.form textarea {
+  resize: none;
+}
+
 @media (max-width: 560px) {
   .panel {
     padding: 20px;
+    gap: 18px;
   }
 
   .entryRow {
     align-items: flex-start;
+  }
+
+  .footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
@@ -187,5 +412,10 @@
   .entryLink,
   .inlineLink {
     transition: none;
+  }
+
+  .progressRule::after {
+    animation: none;
+    left: 34%;
   }
 }

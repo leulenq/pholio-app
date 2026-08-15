@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AlertTriangle, CalendarDays, Clock, Shield, ShieldCheck } from 'lucide-react';
 import { talentApi } from '../../api/talent';
 import { Section } from '../../components/profile-index';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
@@ -11,6 +12,7 @@ import { pholioToast } from '../../../../shared/lib/pholio-toast';
 import { computeAge } from '../../../../shared/utils/talentAge';
 import {
   AGE_VERIFICATION_STATES,
+  AGE_VERIFICATION_TONES,
   CONSENT_NOTE,
   DATA_STORY,
   DOB_INVALIDATION_NOTE,
@@ -20,6 +22,7 @@ import {
   resolveAgeVerificationState,
 } from './ageVerificationState';
 import { startIdentityHandoff } from './stripeIdentity';
+import stripeWordmark from '../../../../assets/stripe-wordmark-slate.svg';
 import styles from './VerifiedAdultSection.module.css';
 
 const CONTENT_BOUNDARY_OPTIONS = [
@@ -32,6 +35,62 @@ const CONTENT_BOUNDARY_OPTIONS = [
 ];
 
 const PANEL_ID = 'private-context-panel';
+
+const TONE_CLASS = {
+  [AGE_VERIFICATION_TONES.NEUTRAL]: 'toneNeutral',
+  [AGE_VERIFICATION_TONES.PROGRESS]: 'toneProgress',
+  [AGE_VERIFICATION_TONES.SETTLED]: 'toneSettled',
+  [AGE_VERIFICATION_TONES.ATTENTION]: 'toneAttention',
+};
+
+const MARK_SIZE = 16;
+const MARK_STROKE = 1.5;
+
+/**
+ * The panel's one glyph. It follows the tone, except for the single state whose
+ * subject is the profile rather than the check.
+ */
+function StateMark({ state }) {
+  if (state.id === AGE_VERIFICATION_STATES.DOB_MISSING) {
+    return <CalendarDays size={MARK_SIZE} strokeWidth={MARK_STROKE} />;
+  }
+  if (state.tone === AGE_VERIFICATION_TONES.PROGRESS) {
+    return <Clock size={MARK_SIZE} strokeWidth={MARK_STROKE} />;
+  }
+  if (state.tone === AGE_VERIFICATION_TONES.SETTLED) {
+    return <ShieldCheck size={MARK_SIZE} strokeWidth={MARK_STROKE} />;
+  }
+  if (state.tone === AGE_VERIFICATION_TONES.ATTENTION) {
+    return <AlertTriangle size={MARK_SIZE} strokeWidth={MARK_STROKE} />;
+  }
+  return <Shield size={MARK_SIZE} strokeWidth={MARK_STROKE} />;
+}
+
+/**
+ * Stripe's own wordmark, unmodified, set against Pholio's "Powered by".
+ *
+ * The mark is the attribution for the handoff — it is deliberately NOT a
+ * facsimile of Stripe's UI, and the artwork is never recoloured or redrawn
+ * (see client/src/assets/stripe-wordmark-slate.svg for provenance). The whole
+ * lockup exposes one accessible name so screen readers hear the sentence
+ * rather than "Powered by, image".
+ */
+function StripeLockup() {
+  return (
+    <span className={styles.stripeLockup} role="img" aria-label="Powered by Stripe">
+      <span className={styles.stripeLockupPrefix}>Powered by</span>
+      <img
+        className={styles.stripeWordmark}
+        src={stripeWordmark}
+        alt=""
+        aria-hidden="true"
+        width="41"
+        height="17"
+        draggable="false"
+      />
+    </span>
+  );
+}
 
 /**
  * Private context — voluntary, contextual, never scored.
@@ -174,17 +233,27 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
       };
 
   const startPending = startVerification.isPending;
+  const toneClass = styles[TONE_CLASS[state.tone] || 'toneNeutral'];
+  // Everything except "we still need your date of birth" is a Stripe story.
+  const showStripeLockup = state.id !== AGE_VERIFICATION_STATES.DOB_MISSING;
 
   return (
     <Section
       id="verified-adult"
       title="Private context"
       titleEmphasis="context"
+      description="A private, Stripe-verified statement that you are 18 or older — plus the boundaries and links you only share on purpose."
       showDivider={false}
     >
       <div className={styles.wrap}>
         <div className={styles.entryRow}>
-          <span className={styles.entryCopy}>{state.summaryLine}</span>
+          <span
+            className={`${styles.entryCopy} ${
+              state.tone === AGE_VERIFICATION_TONES.SETTLED ? styles.entryCopySettled : ''
+            }`}
+          >
+            {state.summaryLine}
+          </span>
           {state.entryLabel ? (
             <button
               type="button"
@@ -203,12 +272,26 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
             <motion.div
               key={state.id}
               id={PANEL_ID}
-              className={styles.panel}
+              className={`${styles.panel} ${toneClass}`}
               {...panelMotion}
             >
-              <p className={styles.statusLine} role="status" aria-live="polite">
-                {state.statusLine}
-              </p>
+              <div className={styles.head}>
+                <span className={styles.headMark} aria-hidden="true">
+                  <StateMark state={state} />
+                </span>
+                <div className={styles.headText}>
+                  {state.panelTitle ? (
+                    <h3 className={styles.panelTitle}>{state.panelTitle}</h3>
+                  ) : null}
+                  <p className={styles.statusLine} role="status" aria-live="polite">
+                    {state.statusLine}
+                  </p>
+                </div>
+              </div>
+
+              {state.id === AGE_VERIFICATION_STATES.PROCESSING ? (
+                <span className={styles.progressRule} aria-hidden="true" />
+              ) : null}
 
               {state.id === AGE_VERIFICATION_STATES.DOB_MISSING ? (
                 <p className={styles.fix}>
@@ -224,13 +307,13 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
               ) : null}
 
               {state.showExplainer ? (
-                <ul className={styles.story}>
+                <ol className={styles.story}>
                   {DATA_STORY.map((line) => (
                     <li key={line} className={styles.storyItem}>
                       {line}
                     </li>
                   ))}
-                </ul>
+                </ol>
               ) : null}
 
               {state.showDobFix && state.id === AGE_VERIFICATION_STATES.DOB_MISMATCH ? (
@@ -258,12 +341,11 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
                   >
                     Check now
                   </button>
-                  <span className={styles.poweredBy}>Powered by Stripe</span>
                 </div>
               ) : null}
 
               {state.actionLabel ? (
-                <>
+                <div className={styles.handoff}>
                   <div className={styles.actions}>
                     <PholioButton
                       type="button"
@@ -274,12 +356,10 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
                     >
                       {state.actionLabel}
                     </PholioButton>
-                    <span className={styles.poweredBy}>Powered by Stripe</span>
                   </div>
-                  <p className={styles.fineprint}>
-                    {CONSENT_NOTE} {DOB_INVALIDATION_NOTE}
-                  </p>
-                </>
+                  <p className={styles.consent}>{CONSENT_NOTE}</p>
+                  <p className={styles.fineprint}>{DOB_INVALIDATION_NOTE}</p>
+                </div>
               ) : null}
 
               {state.showForm ? (
@@ -314,7 +394,10 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
                 </div>
               ) : null}
 
-              <p className={styles.boundary}>{PRIVACY_BOUNDARY}</p>
+              <footer className={styles.footer}>
+                <p className={styles.boundary}>{PRIVACY_BOUNDARY}</p>
+                {showStripeLockup ? <StripeLockup /> : null}
+              </footer>
             </motion.div>
           ) : null}
         </AnimatePresence>

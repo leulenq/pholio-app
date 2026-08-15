@@ -9,6 +9,7 @@ import { VerifiedAdultSection } from '../VerifiedAdultSection';
 import { talentApi } from '../../../api/talent';
 import {
   AGE_VERIFICATION_STATES,
+  AGE_VERIFICATION_TONES,
   describeFailure,
   formatVerifiedDate,
   isPollingStatus,
@@ -101,6 +102,14 @@ function renderSection({ dateOfBirth = ADULT_DOB, onEditDateOfBirth, route = '/'
 async function openPanel(user, label) {
   const link = await screen.findByRole('button', { name: label });
   await user.click(link);
+}
+
+/**
+ * "Powered by Stripe" is a lockup now — Pholio's type plus Stripe's own
+ * wordmark — so it is queried by its accessible name, not by a text node.
+ */
+function queryStripeLockup() {
+  return screen.queryByRole('img', { name: 'Powered by Stripe' });
 }
 
 describe('resolveAgeVerificationState', () => {
@@ -215,6 +224,32 @@ describe('resolveAgeVerificationState', () => {
     expect(state.actionLabel).toBe('Verify with Stripe');
   });
 
+  test('tones separate the settled state from the ones that need attention', () => {
+    const tone = (input) => resolveAgeVerificationState(input).tone;
+
+    expect(tone({ age: 30, verification: verificationFixture({ verifiedAdult: true }) })).toBe(
+      AGE_VERIFICATION_TONES.SETTLED,
+    );
+    expect(tone({ age: 30, verification: verificationFixture({ status: 'processing' }) })).toBe(
+      AGE_VERIFICATION_TONES.PROGRESS,
+    );
+    [
+      verificationFixture({ status: 'failed' }),
+      verificationFixture({ status: 'failed', failureCode: 'dob_mismatch' }),
+      verificationFixture({ status: 'requires_input' }),
+      verificationFixture({ status: 'verified' }),
+    ].forEach((verification) => {
+      expect(tone({ age: 30, verification })).toBe(AGE_VERIFICATION_TONES.ATTENTION);
+    });
+    [
+      verificationFixture(),
+      verificationFixture({ status: 'canceled' }),
+    ].forEach((verification) => {
+      expect(tone({ age: 30, verification })).toBe(AGE_VERIFICATION_TONES.NEUTRAL);
+    });
+    expect(tone({ age: null })).toBe(AGE_VERIFICATION_TONES.NEUTRAL);
+  });
+
   test('every non-minor state has a plain-text status line', () => {
     const cases = [
       { age: null },
@@ -234,6 +269,10 @@ describe('resolveAgeVerificationState', () => {
       const state = resolveAgeVerificationState(input);
       expect(typeof state.statusLine).toBe('string');
       expect(state.statusLine.length).toBeGreaterThan(0);
+      // …and a title, so no state opens on an unheaded paragraph.
+      expect(typeof state.panelTitle).toBe('string');
+      expect(state.panelTitle.length).toBeGreaterThan(0);
+      expect(Object.values(AGE_VERIFICATION_TONES)).toContain(state.tone);
     });
   });
 });
@@ -294,34 +333,47 @@ describe('VerifiedAdultSection', () => {
     expect(entry).toHaveAttribute('aria-expanded', 'false');
 
     // Nothing from the opened panel leaks into the collapsed row.
-    expect(screen.queryByText(/Powered by Stripe/)).not.toBeInTheDocument();
+    expect(queryStripeLockup()).not.toBeInTheDocument();
+    expect(screen.queryByText('Powered by')).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /verify with stripe/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Private context');
   });
 
-  test('locked: opening reveals the explainer, the three data-story lines and the plain-text Stripe line', async () => {
+  test('locked: opening reveals the titled panel, the numbered data story and the Stripe lockup', async () => {
     const user = userEvent.setup();
-    renderSection();
+    const { container } = renderSection();
     await openPanel(user, 'Set up');
 
+    // The panel names the state instead of opening on an unheaded paragraph.
     expect(
-      screen.getByText('Stripe checks a government ID and a selfie — Pholio never sees them'),
+      screen.getByRole('heading', { level: 3, name: 'Verify that you’re 18 or older' }),
+    ).toBeInTheDocument();
+
+    const story = container.querySelector('ol');
+    expect(story).not.toBeNull();
+    expect(
+      within(story).getByText(
+        'Stripe checks a government ID and a selfie — Pholio never sees them',
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
+      within(story).getByText(
         'We store only the result: verified 18+, and whether the birthdate matches your profile',
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(
-        'Stripe deletes the documents after evaluation — we ask for redaction automatically.',
+      within(story).getByText(
+        'Stripe deletes the documents after evaluation — we ask for redaction automatically',
       ),
     ).toBeInTheDocument();
+    expect(story.querySelectorAll('li')).toHaveLength(3);
 
     expect(screen.getByRole('button', { name: /verify with stripe/i })).toBeInTheDocument();
-    expect(screen.getByText('Powered by Stripe')).toBeInTheDocument();
+    expect(
+      screen.getByText('Continuing shares your ID and selfie with Stripe for this check.'),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Editing your date of birth afterwards ends the verification/i))
       .toBeInTheDocument();
     expect(
@@ -333,6 +385,62 @@ describe('VerifiedAdultSection', () => {
     // The Stripe handoff is Stripe's own UI — we render no facsimile of it.
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByText(/Stripe Identity/)).not.toBeInTheDocument();
+  });
+
+  test('the Stripe attribution is a lockup around Stripe’s own wordmark asset', async () => {
+    const user = userEvent.setup();
+    const { container } = renderSection();
+    await openPanel(user, 'Set up');
+
+    const lockup = queryStripeLockup();
+    expect(lockup).toBeInTheDocument();
+    expect(lockup).toHaveTextContent('Powered by');
+
+    // Official artwork, shipped in the repo — never a redrawn approximation.
+    // Vite inlines the file, so the provenance comment and Stripe's own slate
+    // fill travel with it and can be asserted on directly.
+    const wordmark = lockup.querySelector('img');
+    expect(wordmark).not.toBeNull();
+    const source = decodeURIComponent(wordmark.getAttribute('src') || '');
+    expect(source).toMatch(/stripe-wordmark|assets\.stripeassets\.com/);
+    expect(source).toContain('#061B31');
+    // The mark is decorative inside the labelled lockup, so it is not
+    // announced twice.
+    expect(wordmark).toHaveAttribute('aria-hidden', 'true');
+    expect(wordmark).toHaveAttribute('alt', '');
+
+    // No fake Stripe chrome rides along with the mark.
+    expect(container.querySelectorAll('iframe')).toHaveLength(0);
+    expect(container.textContent).not.toMatch(/Stripe Identity|stripe\.com/i);
+  });
+
+  test('states are differentiated by tone, not by a badge', async () => {
+    const user = userEvent.setup();
+    const { container, unmount } = renderSection();
+    await openPanel(user, 'Set up');
+    expect(container.querySelector('[class*="toneNeutral"]')).not.toBeNull();
+    unmount();
+
+    talentApi.getAgeVerification.mockResolvedValue(
+      verificationFixture({ status: 'failed', failureCode: 'selfie_manipulated' }),
+    );
+    const failed = renderSection();
+    await openPanel(user, 'Resume');
+    expect(failed.container.querySelector('[class*="toneAttention"]')).not.toBeNull();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'The check didn’t pass' }),
+    ).toBeInTheDocument();
+    failed.unmount();
+
+    talentApi.getAgeVerification.mockResolvedValue(
+      verificationFixture({ verifiedAdult: true, verifiedAt: '2026-03-12' }),
+    );
+    const verified = renderSection();
+    await openPanel(user, 'Open');
+    expect(verified.container.querySelector('[class*="toneSettled"]')).not.toBeNull();
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Verified 18 or older' }),
+    ).toBeInTheDocument();
   });
 
   test('locked: the verify action creates a session and hands off', async () => {
@@ -376,8 +484,12 @@ describe('VerifiedAdultSection', () => {
       'Stripe is reviewing — usually under a minute; this page updates itself',
     );
     expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Stripe is reviewing' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Check now' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
+    expect(queryStripeLockup()).toBeInTheDocument();
     expect(
       screen.getByText(
         'Private to you. Shared only if you attach it to a specific submission.',
@@ -523,11 +635,16 @@ describe('VerifiedAdultSection', () => {
     expect(talentApi.getAgeVerification).not.toHaveBeenCalled();
 
     await openPanel(user, 'Set up');
+    expect(
+      screen.getByRole('heading', { level: 3, name: 'Add your date of birth first' }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add your date of birth' }));
     expect(onEditDateOfBirth).toHaveBeenCalledTimes(1);
     expect(
       screen.queryByRole('button', { name: /verify with stripe/i }),
     ).not.toBeInTheDocument();
+    // Stripe has nothing to do with this state yet, so it is not credited here.
+    expect(queryStripeLockup()).not.toBeInTheDocument();
   });
 
   test('returning from Stripe reopens the panel and clears the return param', async () => {
@@ -554,10 +671,10 @@ describe('VerifiedAdultSection', () => {
     const user = userEvent.setup();
     renderSection();
     await openPanel(user, 'Set up');
-    expect(screen.getByText('Powered by Stripe')).toBeInTheDocument();
+    expect(queryStripeLockup()).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.queryByText('Powered by Stripe')).not.toBeInTheDocument();
+    expect(queryStripeLockup()).not.toBeInTheDocument();
   });
 
   test('carries no banned status chrome: no badge, pill, or dot markup', async () => {
