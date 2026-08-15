@@ -39,7 +39,19 @@
 
 ## Phase status
 - [x] Phase 0a: branch inventory (above)
-- [ ] Phase 0b: review gfl2y0 (backend correctness + tests; frontend inventory) — IN PROGRESS
+- [ ] Phase 0b: review gfl2y0 — FE inventory DONE; backend review still running.
+      FE rebuild targets (design only — KEEP wire contracts + specRegistry.js lib):
+      client/src/domains/talent/pages/RequirementsPage/{index.jsx,SpecMatrix.jsx,AgencyPlate.jsx}
+      (+module.css), client/src/domains/talent/components/RegistryPreflight.jsx (+css),
+      client/src/domains/talent/components/ProfileReadinessSidebar.jsx (+css, restore a
+      numeric readout — main's animated % + Core/Strong ticks deleted w/ getStrengthUI in
+      shared/utils/profileScoring.js; backend profile-strength.js untouched), and
+      OverviewPage readiness card (ov-readiness-pct removed → text). KEEP: CompCardImport
+      (+Overlay), DigitalsFreshness, SpecBuilderPanel (agency), ApplyExperience wiring
+      (specRegistryRevisionId threading). Design refs: Section + <em> emphasis headline
+      idiom, PholioButton (ink fill, 3px radius), forms/ primitives, tokens (#FAF9F7
+      canvas, #C9A55A gold, wells #F8F8F7), serif for names/titles only, motion w/
+      reduced-motion fallback, no badges/chips/stripes/gradient text.
 - [x] Phase 0c: review small branches — VERDICTS: backend-audit-u4ar6t SKIP (patch-identical
       commits already on main; stale branch, deletable); cursor/fix-settings-identity SKIP
       (styling conflicts w/ main's newer .set-danger refactor which deliberately rejected
@@ -67,7 +79,28 @@
       tracker, writers)
 - [ ] Phase 8: tests green, lint, final review pass
 
+## Branch cleanup (deletion blocked from remote session — git proxy 403s non-designated
+## pushes; GitHub MCP has no delete-branch tool. Run locally:)
+```
+git push origin --delete \
+  claude/agency-onboarding-redesign-ka60u6 claude/division-status-pills-mar43t \
+  claude/expanded-talent-view-redesign-eckj92 claude/pholio-logo-spinner-7krz2p \
+  claude/season-analytics-redesign-th5k8o claude/submissions-review-redesign-b6b03o \
+  claude/talent-settings-audit-0h7bi0 codex/fix-onboarding-dob \
+  codex/publish-all-changes cursor/mobile-legal-consent-gate-22ca \
+  claude/pholio-backend-audit-u4ar6t cursor/fix-settings-identity-name-da01 \
+  claude/pholio-product-plan-2026-e6sees claude/repo-contents-check-ifwjo8
+```
+Rationale: first 10 are ahead:0 (fully merged); backend-audit-u4ar6t is patch-identical to
+main commits; cursor/fix-settings is superseded by main's .set-danger refactor (its test
+fix would regress the isolated-db pattern); e6sees is a strict ancestor of gfl2y0;
+ifwjo8's unique docs were extracted to this branch (da3aeae) and its plan-doc copy is
+older than gfl2y0's. KEEP: main, claude/pholio-strategic-analysis-dyducf,
+claude/pholio-product-plan-2026-gfl2y0 (delete gfl2y0 only after it merges here).
+
 ## Decisions log
+- 2026-08-15: Discover stays; talent discoverability = free explicit opt-in for all tiers
+  (user-confirmed; remove is_pro from pool gate, keep is_discoverable opt-in).
 - 2026-08-15: Base implementation on gfl2y0 after review (contains most Phase-3 work
   already) rather than re-implementing from main.
 
