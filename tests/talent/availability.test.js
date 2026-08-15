@@ -102,6 +102,13 @@ function isoDaysFromNow(days) {
   return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 }
 
+// The isolated per-run test database only exists once migrations run; without
+// this the file only passes when another suite happens to migrate first (the
+// same latent ordering dependence media-bulk and tracker already guard against).
+beforeAll(async () => {
+  await knex.migrate.latest();
+});
+
 afterAll(async () => {
   if (SESSION_IDS.length > 0) {
     await knex("sessions").whereIn("sid", SESSION_IDS).delete();
