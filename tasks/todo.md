@@ -140,9 +140,21 @@
   few-shots, thin-context honesty, table-driven tests; (b) Stripe Identity modal
   enablement — client_secret in session response + VITE_STRIPE_PUBLISHABLE_KEY docs +
   additive invalidatedAt exposure if recorded.
-- NEXT after integration: Phase 4 export completion (explicit HEIC test, email-draft for
-  email-only agencies), then Phase 5 FWB event mode (the big one), Phase 6 tracker/
-  verification rail/open-call calendar, Phase 7 Studio+ restructure, Phase 8 full green.
+- DONE since resume: Stripe modal enablement (56ff1a2 — client_secret additive, never
+  logged/stored; invalidatedAt correctly ruled out-of-scope, needs migration if wanted);
+  bio-writer improvement (db777c5 — grounding.js single source of truth, one fabrication
+  = hard fail, ~45-term slop lexicon, industry vocab few-shots on fictional names,
+  richness caps, injectable Groq call; 29→135 bio tests, 235 across all writers;
+  RATIFIED: 3 failed attempts → honest 500 instead of degraded bio).
+- IN FLIGHT (parallel, disjoint, no worker commits): (a) Phase 4 export completion —
+  explicit HEIC transcode + capability-aware tests, STATS.txt in every export, EMAIL.txt
+  for email-channel routes (Muse), README update, plate copy if clean; (b) Groq model
+  migration — deprecated llama-3.3-70b-versatile hardcoded in writer-shared groq-client
+  DEFAULT_MODEL + bio-writer + analyzeProfileImage while config lists it as
+  scheduled-for-shutdown; centralize on config.groq.textModel w/ reasoning-model budgets
+  per art-director.js precedent (max_completion_tokens 1600, reasoning spend dominates).
+- THEN: Phase 5 FWB event mode (the big one), Phase 6 tracker/verification rail/open-call
+  calendar, Phase 7 Studio+ restructure, Phase 8 full green.
 
 ## Branch cleanup (deletion blocked from remote session — git proxy 403s non-designated
 ## pushes; GitHub MCP has no delete-branch tool. Run locally:)
