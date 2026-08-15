@@ -1,16 +1,15 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
-import { AGENCY_NAV_GROUPS, AGENCY_NAV_COLLAPSE_AFTER } from '../../constants/agencyNav';
+import { selectAgencyNavGroups, AGENCY_NAV_COLLAPSE_AFTER } from '../../constants/agencyNav';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
+import { useEventsEnabled } from '../../pages/events/useEventCalls';
 
 export default function RailNav({ collapsed, onToggleCollapse }) {
   const { can } = useAgencyPermissions();
+  const showEvents = useEventsEnabled();
 
-  const groups = AGENCY_NAV_GROUPS.map((group) => {
-    const items = group.items.filter((item) => !item.permission || can(item.permission));
-    return items.length ? { ...group, items } : null;
-  }).filter(Boolean);
+  const groups = selectAgencyNavGroups({ can, showEvents });
 
   const collapseAfterIndex = Math.max(
     0,
