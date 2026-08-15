@@ -6,6 +6,7 @@ const {
   buildDivisionGuidance,
   normalizeBioOptions,
   DIVISION_TONE,
+  EXAMPLES,
 } = require("../src/domains/talent/services/bio-writer/prompt-builder");
 const {
   scoreBio,
@@ -22,10 +23,11 @@ const {
 
 const baseContext = {
   name: "Jane Doe",
+  richness: "moderate",
   signals: [
     { key: "market", label: "Market", fact: "New York, USA" },
     { key: "lanes", label: "Lanes", fact: "Editorial, Commercial" },
-    { key: "credits", label: "Credits", fact: "Vogue Italia · Editorial · 2024" },
+    { key: "credits", label: "Credits", fact: "Sable Journal · Editorial · 2024" },
   ],
 };
 
@@ -139,7 +141,7 @@ describe("buildRetryNudge modes", () => {
 
 describe("scoreBio person/length awareness", () => {
   const firstPersonBio =
-    "I'm a New York-based editorial and commercial model with recent work for Vogue Italia, and I love bringing range to every shoot I step onto.";
+    "I'm a New York-based editorial and commercial model. I shot editorial for Sable Journal in 2024 and I am open to agency representation.";
 
   it("flags first person under default third-person scoring", () => {
     const result = scoreBio(firstPersonBio);
@@ -154,7 +156,7 @@ describe("scoreBio person/length awareness", () => {
 
   it("passes a tight bio within the 25-45 word window", () => {
     const tightBio =
-      "Jane Doe is a New York editorial and commercial model with recent Vogue Italia work and Ford Models training, open to agency representation.";
+      "Jane Doe is a New York editorial and commercial model with a 2024 Sable Journal editorial to her name, open to agency representation.";
     const result = scoreBio(tightBio, { length: "tight" });
     expect(result.issues).not.toContain("too_short");
     expect(result.issues).not.toContain("too_long");
@@ -165,7 +167,7 @@ describe("scoreBio person/length awareness", () => {
 describe("validateBioOutput mode passthrough", () => {
   it("accepts a first-person bio when person=first", () => {
     const bio =
-      "I'm a New York editorial and commercial model with Vogue Italia credits and Ford Models training, and I'm open to agency representation.";
+      "I'm a New York editorial and commercial model with a 2024 Sable Journal editorial credit, and I'm open to agency representation.";
     const { valid, rubric } = validateBioOutput(bio, baseContext, {
       person: "first",
     });
@@ -178,6 +180,74 @@ describe("validateBioOutput mode passthrough", () => {
       "I am a passionate model based in New York. I love fashion and I bring dynamic energy to every shoot I do.";
     const { valid } = validateBioOutput(bio, baseContext, { person: "third" });
     expect(valid).toBe(false);
+  });
+});
+
+describe("mode-specific prompt content", () => {
+  const MODES = [
+    ["tight", "third"],
+    ["tight", "first"],
+    ["standard", "third"],
+    ["standard", "first"],
+  ];
+
+  it.each(MODES)("system prompt for %s/%s carries the house rules", (length, person) => {
+    const prompt = buildSystemPrompt({ length, person });
+
+    expect(prompt).toMatch(/TRUTH \(non-negotiable\)/);
+    expect(prompt).toMatch(/BANNED LANGUAGE/);
+    expect(prompt).toMatch(/INDUSTRY LANGUAGE/);
+    expect(prompt).toMatch(/passionate/);
+    expect(prompt).toMatch(/aspiring model/);
+    expect(prompt).toMatch(/boards and divisions/);
+    expect(prompt).toMatch(/based in X/);
+    // Trade nouns and per-market representation — the industry tells.
+    expect(prompt).toMatch(/tearsheet/);
+    expect(prompt).toMatch(/represented by X in Toronto/);
+    expect(prompt).toMatch(/models walk runway/);
+  });
+
+  it.each(MODES)("system prompt for %s/%s ships examples in that voice", (length, person) => {
+    const prompt = buildSystemPrompt({ length, person });
+    const examples = EXAMPLES[`${length}:${person}`];
+
+    expect(prompt).toContain(examples.rich);
+    expect(prompt).toContain(examples.thin);
+    expect(prompt).toMatch(/REJECTED \(never write like this\)/);
+    // Examples are invented on purpose so a copied name is caught downstream.
+    expect(prompt).toMatch(/Ravensport/);
+    expect(prompt).toMatch(/Marlowe Magazine/);
+  });
+
+  it("keeps the thin-context instruction out of prompts for full profiles", () => {
+    const thin = buildGeneratePrompt({ ...baseContext, richness: "thin" }, {});
+    const rich = buildGeneratePrompt({ ...baseContext, richness: "rich" }, {});
+
+    expect(thin).toMatch(/This profile is thin/);
+    expect(rich).not.toMatch(/This profile is thin/);
+  });
+});
+
+describe("buildRetryNudge details", () => {
+  it("names invented facts, banned language, and dropped facts", () => {
+    const nudge = buildRetryNudge(
+      ["fabricated_facts", "generic_filler", "dropped_user_fact"],
+      { length: "tight", person: "third" },
+      {
+        fabrications: [{ phrase: "Ford Models", kind: "entity" }],
+        banned: { words: ["passionate"], phrases: ["unique blend"] },
+        droppedUserFacts: ["Alder"],
+      },
+    );
+
+    expect(nudge).toMatch(/Ford Models/);
+    expect(nudge).toMatch(/passionate/);
+    expect(nudge).toMatch(/unique blend/);
+    expect(nudge).toMatch(/Alder/);
+  });
+
+  it("stays a single line when there is nothing specific to report", () => {
+    expect(buildRetryNudge(["short"]).split("\n")).toHaveLength(1);
   });
 });
 

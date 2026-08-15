@@ -104,6 +104,22 @@ function shouldIncludeLanguages(languages) {
 }
 
 /**
+ * How much verified material the writer actually has. The bio writer uses this
+ * as a word ceiling so a nearly-empty profile yields two honest sentences
+ * instead of a padded paragraph.
+ * @returns {'thin'|'moderate'|'rich'}
+ */
+function resolveRichness(signals = []) {
+  const factChars = signals.reduce(
+    (total, signal) => total + String(signal.fact || "").length,
+    0,
+  );
+  if (signals.length <= 1 || factChars < 40) return "thin";
+  if (signals.length >= 4 && factChars >= 90) return "rich";
+  return "moderate";
+}
+
+/**
  * @param {Object} profile
  * @param {{ existingBio?: string }} [options]
  */
@@ -198,6 +214,7 @@ function buildBioContext(profile = {}, options = {}) {
     name: name || "Talent",
     signals: prioritized,
     signalCount: prioritized.length,
+    richness: resolveRichness(prioritized),
     hasMinimumForGenerate,
     division,
     divisionLabel: divisionConfig.label,
@@ -214,7 +231,7 @@ function buildBioContext(profile = {}, options = {}) {
  */
 function formatContextForPrompt(context) {
   if (!context.signals?.length) {
-    return "(Limited verified context — write a very short third-person bio using only the talent name if needed.)";
+    return "(No verified facts beyond the talent name — write one or two honest sentences and stop. Do not pad.)";
   }
   return context.signals.map((s) => `${s.label}: ${s.fact}`).join("\n");
 }
@@ -222,6 +239,7 @@ function formatContextForPrompt(context) {
 module.exports = {
   buildBioContext,
   formatContextForPrompt,
+  resolveRichness,
   parseJsonArray,
   lanesFromProfile,
   summarizeCredits,
