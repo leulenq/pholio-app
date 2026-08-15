@@ -45,6 +45,7 @@ const {
   notifyTalentAgencyProfileView,
 } = require("../../../shared/services/notifications");
 const {
+  CONFIRMED_APPLICATION_STATUS,
   REPRESENTED_APPLICATION_STATUSES,
   WRITABLE_APPLICATION_STATUSES,
   isRepresentedApplicationStatus,
@@ -818,6 +819,36 @@ router.post(
 // loading thousands of rows (plus resolving all their images) per request.
 const SUBMISSIONS_HARD_CAP = 2000;
 
+/**
+ * Deploy-before-migrate guard for the event-casting columns, checked once per
+ * process (same idiom as `hasBriefSchema` in `routes/open-call.js`). Both the
+ * submissions filter and the CSV export ask before they scope by call, so an
+ * environment that has not run the event migrations keeps serving the ordinary
+ * inbox instead of failing on a missing column.
+ */
+let applicationEventColumnsPromise = null;
+function hasApplicationEventColumns(db = knex) {
+  if (!applicationEventColumnsPromise) {
+    applicationEventColumnsPromise = db.schema
+      .hasColumn("applications", "open_call_link_id")
+      .catch(() => {
+        applicationEventColumnsPromise = null;
+        return false;
+      });
+  }
+  return applicationEventColumnsPromise;
+}
+
+/** Accepts either casing so the SPA and hand-built query strings both work. */
+function readEventScopeParams(query = {}) {
+  return {
+    openCallLinkId: String(
+      query.openCallLinkId || query.open_call_link_id || "",
+    ).trim(),
+    pickListId: String(query.pickListId || query.pick_list_id || "").trim(),
+  };
+}
+
 // GET /api/agency/applications - Get filtered applications as JSON
 router.get(
   "/api/agency/applications",
@@ -870,6 +901,20 @@ router.get(
         alias: "applications",
         allowMinor: req.allowMinorSubmissions,
       });
+
+      /* Scope the desk to one event call (design §e O3). Ruling R10 forbids a
+         second inbox for organizers, so the event pool IS this endpoint with a
+         link filter — the same rows, the same DTO, the same triage verbs.
+
+         RULING R7 CONFLICT, reported to the lead: this route has no
+         pagination. `SUBMISSIONS_HARD_CAP` is a truncating ceiling and R7
+         sizes a call at exactly 2,000 applications, so a call at the design
+         ceiling is cut at the cap boundary (`capped: true`). The paginated
+         read is `GET /api/agency/events/:linkId/pool`. */
+      const { openCallLinkId } = readEventScopeParams(req.query);
+      if (openCallLinkId && (await hasApplicationEventColumns())) {
+        query = query.where("applications.open_call_link_id", openCallLinkId);
+      }
 
       // Apply filters (same logic as main route)
       if (city) {
@@ -2429,6 +2474,118 @@ router.delete(
   },
 );
 
+/**
+ * The six event columns (design §f). Availability and the walk-video URL are
+ * frozen into the submission package at submit time rather than stored on
+ * `applications`, so they are read back off the package payload — the same
+ * frozen snapshot the designer page renders, never a live profile.
+ */
+function parseExportPackagePayload(value) {
+  if (!value) return {};
+  if (typeof value === "object") return value;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/** "2026-09-04 to 2026-09-07" — a call sheet reads dates, not JSON. */
+function formatExportAvailability(availability) {
+  if (!availability || typeof availability !== "object") return "";
+  const from = availability.from ? String(availability.from).slice(0, 10) : "";
+  const to = availability.to ? String(availability.to).slice(0, 10) : "";
+  const note = typeof availability.note === "string" ? availability.note.trim() : "";
+  const range = from && to ? `${from} to ${to}` : from || to;
+  return [range, note].filter(Boolean).join(" — ");
+}
+
+function formatExportCompensation(link) {
+  if (!link?.compensation_type) return "";
+  const type = String(link.compensation_type).toUpperCase();
+  const details = link.compensation_details
+    ? String(link.compensation_details).trim()
+    : "";
+  return details ? `${type} — ${details}` : type;
+}
+
+/**
+ * Who holds this applicant and what they said about them.
+ *
+ * Designer and Mark are two columns built from ONE ordered pass so they line
+ * up positionally: the nth name in Designer marked the nth value in Mark. An
+ * applicant on a list nobody has answered yet gets "—" rather than a blank,
+ * so a silent designer is visibly distinct from a designer who passed.
+ */
+async function loadEventExportAnnotations(db, { agencyId, openCallLinkId, applicationIds }) {
+  const annotations = new Map();
+  if (applicationIds.length === 0) return annotations;
+
+  const rows = await db("event_pick_list_items as i")
+    .join("event_pick_lists as l", "l.id", "i.pick_list_id")
+    .leftJoin("event_pick_selections as s", (join) => {
+      join
+        .on("s.pick_list_id", "=", "i.pick_list_id")
+        .andOn("s.application_id", "=", "i.application_id");
+    })
+    .where("l.agency_id", agencyId)
+    .where("l.open_call_link_id", openCallLinkId)
+    .whereIn("i.application_id", applicationIds)
+    .select("i.application_id", "l.designer_name", "s.mark")
+    .orderBy([
+      { column: "i.application_id", order: "asc" },
+      { column: "l.created_at", order: "asc" },
+      { column: "l.id", order: "asc" },
+    ]);
+
+  for (const row of rows) {
+    const entry = annotations.get(row.application_id) || {
+      designers: [],
+      marks: [],
+    };
+    entry.designers.push(row.designer_name);
+    entry.marks.push(row.mark || "—");
+    annotations.set(row.application_id, entry);
+  }
+  return annotations;
+}
+
+/** Availability + walk video, read off the frozen package for each applicant. */
+async function loadEventExportPackageExtras(db, applicationIds) {
+  const extras = new Map();
+  if (applicationIds.length === 0) return extras;
+  if (!(await db.schema.hasTable("talent_submission_packages"))) return extras;
+
+  const rows = await db("talent_submission_packages")
+    .whereIn("application_id", applicationIds)
+    .orderBy("created_at", "desc")
+    .select("application_id", "payload", "revoked_at", "redacted_at");
+
+  for (const row of rows) {
+    // Newest package per application wins; a withdrawn or expired one exports
+    // nothing rather than the values it was redacted for holding.
+    if (extras.has(row.application_id)) continue;
+    if (row.revoked_at || row.redacted_at) {
+      extras.set(row.application_id, { availability: null, walkVideoUrl: null });
+      continue;
+    }
+    const payload = parseExportPackagePayload(row.payload);
+    const eventContext =
+      payload.eventContext && typeof payload.eventContext === "object"
+        ? payload.eventContext
+        : {};
+    const availability = payload.availability || eventContext.availability;
+    const walkVideoUrl = payload.walkVideoUrl || eventContext.walkVideoUrl;
+    extras.set(row.application_id, {
+      availability:
+        availability && typeof availability === "object" ? availability : null,
+      walkVideoUrl: typeof walkVideoUrl === "string" ? walkVideoUrl : null,
+    });
+  }
+  return extras;
+}
+
 // GET /api/agency/export - Export applications as CSV or JSON
 router.get(
   "/api/agency/export",
@@ -2439,6 +2596,41 @@ router.get(
       const agencyId = getSessionAgencyId(req);
       const { format = "csv", status = "", city = "", search = "" } = req.query;
       const includeNotes = shouldIncludeExportNotes(req.query);
+
+      /* EVENT SCOPE (design §f). An organizer exports one call — or one
+         designer's slice of it — as the call sheet they actually work from, so
+         the export gains two filters and, when it is event-scoped, the six
+         columns a run-of-show needs. Everything below is inert for a
+         representation export: same query, same columns, same audit event. */
+      const eventScope = readEventScopeParams(req.query);
+      let pickListId = eventScope.pickListId;
+      let openCallLinkId = eventScope.openCallLinkId;
+      const eventSchemaReady =
+        (openCallLinkId || pickListId) && (await hasApplicationEventColumns());
+
+      /* A pick-list export is an event export by definition, so resolving the
+         list's own call is what makes `?pickListId=` alone carry the event
+         columns too. Scoped to this agency: an id from another organizer
+         resolves to nothing and the export comes back empty. */
+      let eventLink = null;
+      if (eventSchemaReady && pickListId) {
+        const pickList = await knex("event_pick_lists")
+          .where({ id: pickListId, agency_id: agencyId })
+          .first("id", "open_call_link_id");
+        if (!pickList) {
+          return res.status(404).json({ error: "Pick list not found" });
+        }
+        if (!openCallLinkId) openCallLinkId = pickList.open_call_link_id;
+      }
+      if (eventSchemaReady && openCallLinkId) {
+        eventLink = await knex("agency_open_call_links")
+          .where({ id: openCallLinkId, agency_id: agencyId })
+          .first();
+        if (!eventLink) {
+          return res.status(404).json({ error: "Event call not found" });
+        }
+      }
+      const eventScoped = Boolean(eventLink);
 
       // Build query similar to main dashboard route
       let query = knex("profiles")
@@ -2468,6 +2660,27 @@ router.get(
         })
         .whereNotNull("profiles.bio_curated")
         .whereNot("applications.status", "withdrawn");
+
+      if (eventScoped) {
+        // `status_changed_at` is when the applicant answered; there is no
+        // separate confirmed_at column and adding one would duplicate it.
+        query = query
+          .select(
+            "profiles.id as profile_id",
+            "applications.status_changed_at",
+          )
+          .where("applications.open_call_link_id", openCallLinkId);
+      }
+      if (eventScoped && pickListId) {
+        query = query.whereIn("applications.id", function subquery() {
+          this.select("i.application_id")
+            .from("event_pick_list_items as i")
+            .join("event_pick_lists as pl", "pl.id", "i.pick_list_id")
+            .where("i.pick_list_id", pickListId)
+            // Tenancy lives in the subquery too, not only in the outer scope.
+            .where("pl.agency_id", agencyId);
+        });
+      }
 
       // Apply filters
       if (status && status !== "all") {
@@ -2534,6 +2747,22 @@ router.get(
         tagsByApplication = groupApplicationExportValues(tags, "tag", ", ");
       }
 
+      let eventAnnotations = new Map();
+      let eventExtras = new Map();
+      if (eventScoped) {
+        [eventAnnotations, eventExtras] = await Promise.all([
+          loadEventExportAnnotations(knex, {
+            agencyId,
+            openCallLinkId,
+            applicationIds,
+          }),
+          loadEventExportPackageExtras(knex, applicationIds),
+        ]);
+      }
+      const compensationCell = eventScoped
+        ? formatExportCompensation(eventLink)
+        : "";
+
       // Format data for export
       const exportData = applications.map((app) => {
         // Format measurements from individual fields
@@ -2575,6 +2804,25 @@ router.get(
             notesByApplication.get(app.application_id) || "";
         }
 
+        if (eventScoped) {
+          const annotation = eventAnnotations.get(app.application_id);
+          const extra = eventExtras.get(app.application_id);
+          exportedApplication.designer = annotation
+            ? annotation.designers.join(", ")
+            : "";
+          exportedApplication.mark = annotation ? annotation.marks.join(", ") : "";
+          exportedApplication.availability = formatExportAvailability(
+            extra?.availability,
+          );
+          exportedApplication.walk_video_url = extra?.walkVideoUrl || "";
+          exportedApplication.compensation = compensationCell;
+          exportedApplication.confirmed_date =
+            app.application_status === CONFIRMED_APPLICATION_STATUS &&
+            app.status_changed_at
+              ? new Date(app.status_changed_at).toISOString()
+              : "";
+        }
+
         return exportedApplication;
       });
 
@@ -2591,6 +2839,10 @@ router.get(
           format,
           application_count: exportData.length,
           include_notes: includeNotes,
+          // Only present on an event-scoped export: a representation export's
+          // audit record must keep the exact shape it has always had.
+          ...(eventScoped ? { open_call_link_id: openCallLinkId } : {}),
+          ...(eventScoped && pickListId ? { pick_list_id: pickListId } : {}),
         },
         req,
       });
@@ -2617,6 +2869,17 @@ router.get(
           { header: "Applied Date", key: "applied_date" },
           { header: "Accepted Date", key: "accepted_date" },
           { header: "Declined Date", key: "declined_date" },
+          // Design §f, in the order a run-of-show is read.
+          ...(eventScoped
+            ? [
+                { header: "Designer", key: "designer" },
+                { header: "Mark", key: "mark" },
+                { header: "Availability", key: "availability" },
+                { header: "Walk Video URL", key: "walk_video_url" },
+                { header: "Compensation", key: "compensation" },
+                { header: "Confirmed Date", key: "confirmed_date" },
+              ]
+            : []),
         ];
 
         const csvRows = exportData.map((app) =>

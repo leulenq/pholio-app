@@ -687,12 +687,110 @@ export async function getOpenCallLinks() {
   return apiClient.get('/open-call/links');
 }
 
-export async function createOpenCallLink(label, brief) {
-  return apiClient.post('/open-call/links', { label, brief });
+/**
+ * @param {string} label
+ * @param {object} brief
+ * @param {object} [call] Event-cast fields (`callKind`, `event`, `compensation`,
+ *   intake toggles) as shaped by `settings/openCallBrief.callPayload`. Spread
+ *   rather than nested: the create endpoint takes them as siblings of `label`.
+ *   Defaults to `{}` so representation callers are unchanged.
+ */
+export async function createOpenCallLink(label, brief, call = {}) {
+  return apiClient.post('/open-call/links', { label, brief, ...call });
 }
 
 export async function updateOpenCallLink(linkId, payload) {
   return apiClient.patch(`/open-call/links/${linkId}`, payload);
+}
+
+/*
+ * Event casting — the organizer's side of an event call.
+ *
+ * An event call is an open call link with a `call_kind`, so these sit next to
+ * the link helpers above rather than in a client of their own. Nothing here
+ * writes an application status except `offerEventSlots`.
+ */
+
+/** Event calls plus this workspace's `org_kind` — also the nav's R10 signal. */
+export async function getEventCalls() {
+  return apiClient.get('/events');
+}
+
+export async function getEventCall(linkId) {
+  return apiClient.get(`/events/${linkId}`);
+}
+
+/** Paginated: a call is sized at 2,000 applications (ruling R7). */
+export async function getEventPool(linkId, params = {}) {
+  const clean = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue;
+    clean[key] = value;
+  }
+  const query = new URLSearchParams(clean).toString();
+  return apiClient.get(`/events/${linkId}/pool${query ? `?${query}` : ''}`);
+}
+
+export async function getEventPickLists(linkId) {
+  return apiClient.get(`/events/${linkId}/pick-lists`);
+}
+
+/**
+ * Create a designer's list. The response carries `url` — the raw share link,
+ * returned exactly once. Show it, let the organizer copy it, and never expect
+ * to read it back: only its hash is stored.
+ */
+export async function createEventPickList(linkId, payload) {
+  return apiClient.post(`/events/${linkId}/pick-lists`, payload);
+}
+
+export async function updateEventPickList(pickListId, payload) {
+  return apiClient.patch(`/events/pick-lists/${pickListId}`, payload);
+}
+
+/** Rotates the token: the previously shared URL stops working immediately. */
+export async function reissueEventPickList(pickListId) {
+  return apiClient.post(`/events/pick-lists/${pickListId}/reissue`, {});
+}
+
+export async function revokeEventPickList(pickListId) {
+  return apiClient.post(`/events/pick-lists/${pickListId}/revoke`, {});
+}
+
+export async function addEventPickListItems(pickListId, applicationIds) {
+  return apiClient.post(`/events/pick-lists/${pickListId}/items`, { applicationIds });
+}
+
+export async function removeEventPickListItems(pickListId, applicationIds) {
+  return request(`/events/pick-lists/${pickListId}/items`, {
+    method: 'DELETE',
+    body: JSON.stringify({ applicationIds }),
+  });
+}
+
+export async function getEventPickListSelections(pickListId) {
+  return apiClient.get(`/events/pick-lists/${pickListId}/selections`);
+}
+
+export async function getEventLineup(linkId) {
+  return apiClient.get(`/events/${linkId}/lineup`);
+}
+
+/** The organizer's decision. A designer's pick never reaches this. */
+export async function offerEventSlots(linkId, { applicationIds, pickListId = null }) {
+  return apiClient.post(`/events/${linkId}/offers`, { applicationIds, pickListId });
+}
+
+/**
+ * The call sheet. Returns a URL the caller navigates to rather than a blob:
+ * the export is a plain GET behind the session, and letting the browser fetch
+ * it keeps the Content-Disposition filename the server chose.
+ */
+export function eventExportUrl(linkId, { pickListId = null, status = null } = {}) {
+  const params = new URLSearchParams({ format: 'csv', openCallLinkId: linkId });
+  if (pickListId) params.set('pickListId', pickListId);
+  if (status) params.set('status', status);
+  return `${BASE_URL}/export?${params.toString()}`;
 }
 
 /*
@@ -767,6 +865,20 @@ export default {
   getOpenCallLinks,
   createOpenCallLink,
   updateOpenCallLink,
+  getEventCalls,
+  getEventCall,
+  getEventPool,
+  getEventPickLists,
+  createEventPickList,
+  updateEventPickList,
+  reissueEventPickList,
+  revokeEventPickList,
+  addEventPickListItems,
+  removeEventPickListItems,
+  getEventPickListSelections,
+  getEventLineup,
+  offerEventSlots,
+  eventExportUrl,
   getSpecBuilder,
   saveSpecDraft,
   publishSpecDraft,

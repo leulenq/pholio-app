@@ -21,9 +21,18 @@ import ShortcutHelp from '../components/ShortcutHelp';
 import { formatLocation } from '../../../shared/utils/locationFormat';
 import { Moment } from '../components/meta';
 import {
-  isOfferedApplicationStatus,
+  isConfirmedApplicationStatus,
   isRepresentedApplicationStatus,
 } from '../../../shared/constants/applicationStatus';
+import {
+  DEFAULT_ACTION_LABELS,
+  LIFECYCLE_TABS,
+  STATUS_FOR,
+  isActiveStatus as isActive,
+  isDecidedStatus as isDecided,
+  isInFlightState,
+  isNewStatus as isNew,
+} from '../constants/applicantLifecycle';
 import './ApplicantsPage.css';
 
 const PAGE_SIZE = 60;
@@ -36,40 +45,8 @@ const initials = (name) => (name || '')
   .join('')
   .toUpperCase();
 
-const isNew = (s) => s === 'submitted' || s === 'pending' || s === 'new' || !s;
-// A submission is "decided" once it has left the review ladder in either direction.
-const isDecided = (s) =>
-  isOfferedApplicationStatus(s)
-  || isRepresentedApplicationStatus(s)
-  || s === 'declined'
-  || s === 'passed';
-// The in-flight / awaiting-talent band: advancing states that sit between "New"
-// and a decision (digitals requested, meeting set, mid-review).
-const IN_FLIGHT_STATES = ['requested_more', 'meeting_requested', 'under_review'];
-const isInFlightState = (s) => IN_FLIGHT_STATES.includes(s);
-// Active = still on the desk awaiting a decision. Excludes decided outcomes,
-// kept-on-file, and development (a New Face outcome, not a pending review).
-const isActive = (s) => !isDecided(s) && s !== 'kept_on_file' && s !== 'development';
-
-// The status each triage verb writes — used for optimistic cache updates and to
-// predict whether an actioned row stays in the current view. Mirrors the backend.
-const STATUS_FOR = {
-  shortlist: 'shortlisted',
-  accept: 'accepted',
-  decline: 'declined',
-  keepOnFile: 'kept_on_file',
-  requestMore: 'requested_more',
-};
-
-// Primary decision lifecycle tabs — representing the review decision ladder only.
-const LIFECYCLE_TABS = [
-  { key: 'to_review', label: 'To Review', match: isNew },
-  { key: 'shortlisted', label: 'Shortlisted', match: (s) => s === 'shortlisted' },
-  { key: 'offered', label: 'Offered', match: isOfferedApplicationStatus },
-  { key: 'represented', label: 'Represented', match: isRepresentedApplicationStatus },
-  { key: 'passed', label: 'Passed', match: (s) => s === 'declined' || s === 'passed' },
-  { key: 'all', label: 'All', match: () => true },
-];
+/** `%s` in a label is the talent's name — accessible names read as sentences. */
+const withName = (template, name) => String(template).replace('%s', name);
 
 const INITIAL_FILTERS = {
   status: [],
@@ -131,7 +108,10 @@ function PickButton({ name, picked, variant, onToggle }) {
 }
 
 /** The three triage verbs, icon-only with a shared tooltip treatment. */
-function TriageActions({ a, busy, onShortlist, onAccept, onDecline, light = false }) {
+function TriageActions({
+  a, busy, onShortlist, onAccept, onDecline, light = false,
+  labels = DEFAULT_ACTION_LABELS,
+}) {
   const shortlisted = a.status === 'shortlisted';
   const cls = `ap-icon${light ? ' ap-icon--light' : ''}`;
   return (
@@ -140,8 +120,8 @@ function TriageActions({ a, busy, onShortlist, onAccept, onDecline, light = fals
         <button
           type="button"
           className={cls}
-          aria-label={`Shortlist ${a.name}`}
-          data-tip="Shortlist · S"
+          aria-label={withName(labels.shortlist.aria, a.name)}
+          data-tip={labels.shortlist.tip}
           disabled={busy}
           onClick={() => onShortlist(a.applicationId)}
         >
@@ -151,8 +131,8 @@ function TriageActions({ a, busy, onShortlist, onAccept, onDecline, light = fals
       <button
         type="button"
         className={`${cls} ap-icon--sign`}
-        aria-label={`Offer representation to ${a.name}`}
-        data-tip="Offer · A"
+        aria-label={withName(labels.accept.aria, a.name)}
+        data-tip={labels.accept.tip}
         disabled={busy}
         onClick={() => onAccept(a.applicationId)}
       >
@@ -161,8 +141,8 @@ function TriageActions({ a, busy, onShortlist, onAccept, onDecline, light = fals
       <button
         type="button"
         className={`${cls} ap-icon--pass`}
-        aria-label={`Pass on ${a.name}`}
-        data-tip="Pass · X"
+        aria-label={withName(labels.decline.aria, a.name)}
+        data-tip={labels.decline.tip}
         disabled={busy}
         onClick={() => onDecline(a.applicationId)}
       >
@@ -173,7 +153,7 @@ function TriageActions({ a, busy, onShortlist, onAccept, onDecline, light = fals
 }
 
 /** Book view — one sheet on the light table. Photo-led; actions rise on hover. */
-function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onShortlist, onAccept, onDecline, busy, cardRef, onFocus }) {
+function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onShortlist, onAccept, onDecline, busy, cardRef, onFocus, actionLabels }) {
   const decided = isDecided(a.status);
   const quietStatus = isNew(a.status);
   return (
@@ -208,7 +188,7 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
         )}
         {!decided && (
           <span className="ap-card-acts" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-            <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} light />
+            <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} labels={actionLabels} light />
           </span>
         )}
       </span>
@@ -228,7 +208,7 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
 }
 
 /** Ledger view — the dense scanning row. */
-function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortlist, onAccept, onDecline, busy, rowRef, onFocus }) {
+function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortlist, onAccept, onDecline, busy, rowRef, onFocus, actionLabels }) {
   const decided = isDecided(a.status);
   return (
     <div
@@ -280,7 +260,7 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
         {decided ? (
           <span className="ap-decided" aria-hidden="true">Decided</span>
         ) : (
-          <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} />
+          <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} labels={actionLabels} />
         )}
       </div>
     </div>
@@ -334,9 +314,27 @@ function BoardBand({ board }) {
   );
 }
 
-function ApplicationsPage() {
+/**
+ * The submissions desk.
+ *
+ * Configurable rather than cloneable (ruling R10): passing `openCallLinkId`
+ * scopes it to one event call and `lifecycleTabs` relabels the ladder, which
+ * is how the organizer's pool triage is this page and not a second inbox.
+ */
+function ApplicationsPage({
+  openCallLinkId = null,
+  lifecycleTabs = LIFECYCLE_TABS,
+  actionLabels = DEFAULT_ACTION_LABELS,
+  title = 'Submissions',
+}) {
   const qc = useQueryClient();
-  const [tab, setTab] = useState('to_review');
+  // Board scoping is a representation concept: a board is an agency division.
+  // Scoped to one event call, the desk is already the only pool that matters.
+  const scopedToCall = Boolean(openCallLinkId);
+  // Composed inside the event call page, the desk is a section of that page and
+  // its masthead must not be a second <h1>.
+  const Title = scopedToCall ? 'h2' : 'h1';
+  const [tab, setTab] = useState(lifecycleTabs[0]?.key || 'to_review');
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef(null);
@@ -380,12 +378,15 @@ function ApplicationsPage() {
     queryKey: ['agency-boards'],
     queryFn: getBoards,
     staleTime: 60000,
+    enabled: !scopedToCall,
   });
   const { data: boards = [] } = boardsQuery;
 
+  // The call id is part of the key: two calls are two working sets, and one
+  // must never serve the other's rows out of cache.
   const allQuery = useQuery({
-    queryKey: ['applicants'],
-    queryFn: () => getApplicants({}),
+    queryKey: ['applicants', openCallLinkId],
+    queryFn: () => getApplicants(scopedToCall ? { openCallLinkId } : {}),
     staleTime: 30000,
     enabled: boardId == null,
   });
@@ -418,8 +419,8 @@ function ApplicationsPage() {
 
   // Which cached query backs the current view, and its raw record shape.
   const activeKey = useCallback(
-    () => (boardId == null ? ['applicants'] : ['board-candidates', boardId]),
-    [boardId],
+    () => (boardId == null ? ['applicants', openCallLinkId] : ['board-candidates', boardId]),
+    [boardId, openCallLinkId],
   );
 
   // Write a status into the RAW cache shape for the active query so an actioned
@@ -464,8 +465,8 @@ function ApplicationsPage() {
     onSettled: () => { refresh(); },
   });
 
-  const shortlist = useMutation(triageOptions('shortlist', shortlistApplication, 'Shortlisted'));
-  const accept = useMutation(triageOptions('accept', acceptApplication, 'Representation offered'));
+  const shortlist = useMutation(triageOptions('shortlist', shortlistApplication, actionLabels.shortlist.toast));
+  const accept = useMutation(triageOptions('accept', acceptApplication, actionLabels.accept.toast));
   // Decline supports an optional structured reason/note. The backend currently
   // accepts the body; when reason storage lands it will already be sent.
   const decline = useMutation({
@@ -476,7 +477,7 @@ function ApplicationsPage() {
       return applyOptimistic(id, STATUS_FOR.decline);
     },
     onError: (_err, _vars, ctx) => { rollback(ctx); toast.error('Action failed'); },
-    onSuccess: () => { toast.success('Passed'); },
+    onSuccess: () => { toast.success(actionLabels.decline.toast); },
     onSettled: () => { refresh(); },
   });
   const keepOnFile = useMutation(triageOptions('keepOnFile', keepOnFileApplication, 'Kept on file'));
@@ -489,13 +490,14 @@ function ApplicationsPage() {
 
   const counts = useMemo(() => {
     const c = {};
-    LIFECYCLE_TABS.forEach((t) => { c[t.key] = applicants.filter((a) => t.match(a.status)).length; });
+    lifecycleTabs.forEach((t) => { c[t.key] = applicants.filter((a) => t.match(a.status)).length; });
     c.in_progress = applicants.filter((a) => isInFlightState(a.status)).length;
     c.kept_on_file = applicants.filter((a) => a.status === 'kept_on_file').length;
     c.represented = applicants.filter((a) => isRepresentedApplicationStatus(a.status)).length;
+    c.confirmed = applicants.filter((a) => isConfirmedApplicationStatus(a.status)).length;
     c.declined = applicants.filter((a) => a.status === 'declined' || a.status === 'passed').length;
     return c;
-  }, [applicants]);
+  }, [applicants, lifecycleTabs]);
 
   const toggleFilter = (category, value) => {
     setFilters((prev) => {
@@ -533,7 +535,7 @@ function ApplicationsPage() {
   }, [applicants]);
 
   const filtered = useMemo(() => {
-    const tabConfig = LIFECYCLE_TABS.find((t) => t.key === tab) || LIFECYCLE_TABS[0];
+    const tabConfig = lifecycleTabs.find((t) => t.key === tab) || lifecycleTabs[0];
     let list = applicants.filter((a) => tabConfig.match(a.status));
 
     // Status filter
@@ -577,7 +579,7 @@ function ApplicationsPage() {
       list = list.filter((a) => a.name.toLowerCase().includes(s) || (a.city || '').toLowerCase().includes(s));
     }
     return [...list].sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
-  }, [applicants, tab, filters, q]);
+  }, [applicants, tab, filters, q, lifecycleTabs]);
 
   const total = applicants.length;
   // The lead hero figure = what's actually on the desk: submissions still
@@ -599,10 +601,11 @@ function ApplicationsPage() {
   const reviewIndex = reviewId == null ? -1 : filtered.findIndex((a) => a.applicationId === reviewId);
   const reviewRow = reviewIndex >= 0 ? filtered[reviewIndex] : null;
 
-  // Pass rate = how selectively the agency has decided so far.
-  const representedCount = counts.represented || 0;
+  // Pass rate = how selectively the agency has decided so far. A confirmed
+  // event slot is the same kind of outcome as a representation agreement.
+  const keptCount = (counts.represented || 0) + (counts.confirmed || 0);
   const passedCount = counts.declined || 0;
-  const decidedCount = representedCount + passedCount;
+  const decidedCount = keptCount + passedCount;
   const passRate = decidedCount ? Math.round((passedCount / decidedCount) * 100) : null;
 
   // Reset triage focus + windowing whenever the working set changes. Done in the
@@ -705,6 +708,14 @@ function ApplicationsPage() {
     lastPickIndex.current = null;
   }, []);
 
+  // The bulk bar speaks the same vocabulary as the row actions: "Offer
+  // representation" on a standing call, "Offer slot" on an event cast.
+  const bulkVerbs = {
+    shortlist: actionLabels.shortlist.bulk,
+    accept: actionLabels.accept.bulk,
+    decline: actionLabels.decline.bulk,
+  };
+
   const runBulk = useCallback(async (kind) => {
     const list = triageRef.current.filtered;
     const ids = [...triageRef.current.selectedIds].filter((id) => {
@@ -723,13 +734,13 @@ function ApplicationsPage() {
     setBulkBusy(false);
     const ok = results.filter((r) => r.status === 'fulfilled').length;
     const failed = results.length - ok;
-    const verb = kind === 'shortlist' ? 'Shortlisted' : kind === 'accept' ? 'Offered' : 'Passed';
+    const verb = actionLabels[kind]?.toast || 'Done';
     if (ok === 0) { rollback(snapshot); toast.error(`${verb} 0 · ${failed} failed`); }
     else if (failed) toast(`${verb} ${ok} · ${failed} failed`);
     else toast.success(`${verb} ${ok}`);
     clearSelection();
     refresh();
-  }, [clearSelection, refresh, qc, activeKey, applyOptimistic, rollback]);
+  }, [clearSelection, refresh, qc, activeKey, applyOptimistic, rollback, actionLabels]);
 
   // List-mode keyboard triage. Mirrors the review room's advance: act, then if
   // the row leaves the current filtered view, move focus (index + real DOM) to
@@ -752,13 +763,13 @@ function ApplicationsPage() {
     if (idx < 0) return;
     // Search filters on name/city (unaffected by status), so staying in view
     // hinges purely on whether the new status still matches the active tab.
-    const matcher = (LIFECYCLE_TABS.find((t) => t.key === tab) || LIFECYCLE_TABS[0]).match;
+    const matcher = (lifecycleTabs.find((t) => t.key === tab) || lifecycleTabs[0]).match;
     if (matcher(STATUS_FOR[kind])) return; // row remains; leave focus put
     const nextLen = list.length - 1;
     const target = nextLen <= 0 ? -1 : Math.min(idx, nextLen - 1);
     setFocusedIndex(target);
     if (target >= 0) requestAnimationFrame(() => focusRow(target));
-  }, [shortlist, accept, decline, tab, focusRow]);
+  }, [shortlist, accept, decline, tab, focusRow, lifecycleTabs]);
 
   // Keep the latest triage state fresh so the keyboard handler can bind once.
   // The effective reviewId is nulled when its row is not in view, so the
@@ -897,7 +908,7 @@ function ApplicationsPage() {
   if (isLoading) {
     return (
       <div className="ap ap-loading" role="status" aria-live="polite" aria-busy="true">
-        <header className="ap-hero"><h1 className="ap-title">Submissions</h1></header>
+        <header className="ap-hero"><Title className="ap-title">{title}</Title></header>
         <SkeletonStrip count={2} />
         <div className="ap-book"><SkeletonCard count={10} /></div>
       </div>
@@ -907,7 +918,7 @@ function ApplicationsPage() {
   if (isError) {
     return (
       <div className="ap">
-        <header className="ap-hero"><h1 className="ap-title">Submissions</h1></header>
+        <header className="ap-hero"><Title className="ap-title">{title}</Title></header>
         <EmptyErrorState
           title="Submissions unavailable"
           body="We could not load the current intake. Try again to resume review."
@@ -928,6 +939,7 @@ function ApplicationsPage() {
     busy: inFlight === a.applicationId,
     onFocus: () => setFocusedIndex(i),
     onOpen: openReview,
+    actionLabels,
     onShortlist: () => shortlist.mutate(a.applicationId),
     onAccept: () => accept.mutate(a.applicationId),
     onDecline: () => decline.mutate(a.applicationId),
@@ -940,16 +952,18 @@ function ApplicationsPage() {
           vocabulary the Overview hero speaks. */}
       <header className="ap-hero">
         <div className="ap-hero-top">
-          <h1 className="ap-title">Submissions</h1>
+          <Title className="ap-title">{title}</Title>
 
           {/* One command bar — every control shares the same vocabulary. */}
           <div className="ap-bar" role="toolbar" aria-label="Submission controls">
-          <BoardSelect
-            boards={boards}
-            value={boardId}
-            onChange={(idOrNull) => changeBoard(idOrNull)}
-            totalAll={allSubmissionsCount}
-          />
+          {!scopedToCall && (
+            <BoardSelect
+              boards={boards}
+              value={boardId}
+              onChange={(idOrNull) => changeBoard(idOrNull)}
+              totalAll={allSubmissionsCount}
+            />
+          )}
           <div className="ap-search">
             <Search size={14} aria-hidden="true" />
             <input
@@ -1017,7 +1031,7 @@ function ApplicationsPage() {
           and FILTERS dropdown (what kind of submissions do I want to see?). */}
       <div className="ap-rail" role="tablist" aria-label="Submission decision lifecycle">
         <div className="ap-rail-tabs" role="presentation">
-          {LIFECYCLE_TABS.map((t) => (
+          {lifecycleTabs.map((t) => (
             <button
               key={t.key}
               type="button"
@@ -1166,10 +1180,14 @@ function ApplicationsPage() {
       <div className="ap-results" id="ap-results" role="tabpanel" aria-label="Submissions">
       {isGenuineEmpty && (
         <AgencyEmptyState
-          title={activeBoard ? 'No submissions on this board' : 'No submissions yet'}
-          description={activeBoard
-            ? 'Assign talent to this board from the signing room to start reviewing here.'
-            : 'Inbound digitals from open calls and direct invitations will appear here for review.'}
+          title={scopedToCall
+            ? 'Nobody has applied to this call yet'
+            : activeBoard ? 'No submissions on this board' : 'No submissions yet'}
+          description={scopedToCall
+            ? 'Share the call link. Applicants arrive here the moment they submit.'
+            : activeBoard
+              ? 'Assign talent to this board from the signing room to start reviewing here.'
+              : 'Inbound digitals from open calls and direct invitations will appear here for review.'}
         />
       )}
 
@@ -1250,13 +1268,13 @@ function ApplicationsPage() {
             <span className="ap-bulk-count">{selectedIds.size} selected</span>
             <span className="ap-bulk-div" aria-hidden="true" />
             <button type="button" className="ap-bulk-act" disabled={bulkBusy} onClick={() => runBulk('shortlist')}>
-              <Star size={15} aria-hidden="true" /> Shortlist
+              <Star size={15} aria-hidden="true" /> {bulkVerbs.shortlist}
             </button>
             <button type="button" className="ap-bulk-act ap-bulk-act--sign" disabled={bulkBusy} onClick={() => runBulk('accept')}>
-              <Check size={15} aria-hidden="true" /> Offer representation
+              <Check size={15} aria-hidden="true" /> {bulkVerbs.accept}
             </button>
             <button type="button" className="ap-bulk-act ap-bulk-act--pass" disabled={bulkBusy} onClick={() => runBulk('decline')}>
-              <X size={15} aria-hidden="true" /> Pass
+              <X size={15} aria-hidden="true" /> {bulkVerbs.decline}
             </button>
             <button type="button" className="ap-bulk-clear" disabled={bulkBusy} onClick={clearSelection}>Clear</button>
           </motion.div>
@@ -1285,10 +1303,10 @@ function ApplicationsPage() {
   );
 }
 
-export default function ApplicationsPageWrapper() {
+export default function ApplicationsPageWrapper(props) {
   return (
     <ErrorBoundary>
-      <ApplicationsPage />
+      <ApplicationsPage {...props} />
     </ErrorBoundary>
   );
 }

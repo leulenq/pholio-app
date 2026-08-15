@@ -338,6 +338,58 @@ const ROUTE_PERMISSION_RULES = [
     permission: "open_call.manage",
   },
 
+  // Event casting (design §f). An event call IS an open call link, so the
+  // permissions are the same pair — ruling R10 forbids a parallel RBAC model
+  // for organizers. Literal `pick-lists` patterns sit above the `:linkId`
+  // patterns because rules are first-match and `[^/]+` would swallow them.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+\/selections$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+\/(reissue|revoke|items)$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+\/items$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events\/[^/]+\/(pool|pick-lists|lineup)$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/events\/[^/]+\/pick-lists$/,
+    permission: "open_call.manage",
+  },
+  {
+    // Handing an applicant a slot writes their application status. It is the
+    // organizer's decision, so it needs the manage grant, not the read one.
+    method: "POST",
+    pattern: /^\/api\/agency\/events\/[^/]+\/offers$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events\/[^/]+$/,
+    permission: "open_call.view",
+  },
+
   // Spec Builder — the requirements published against those links.
   {
     method: "GET",
