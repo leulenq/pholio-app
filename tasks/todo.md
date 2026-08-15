@@ -172,8 +172,23 @@
   CONFIRM; statuses confirmed/declined_by_talent accepted; link cap by org_kind 20/60;
   GET FWB FORM COUNTS from Alex; 18+ loud on arrival; Lane D fixes /picks+/reply+/opencall
   netlify redirects). Lane plan: 0 → (A ∥ C ∥ D) → B → E; ownership in design §h.
-- IN FLIGHT: Lane 0 (schema M1-M5 + constants + schema tests, single writer, commits
-  locally, lead pushes). NEXT: launch A ∥ C ∥ D on Lane 0 integration; then B; then E.
+- Lane 0 LANDED + PUSHED (60cf598..1b29abd): M1-M5 w/ SQLite CHECK introspection (also
+  repaired live closed_no_response divergence), uniqueness swap, pick-list + funnel
+  tables, constants both sides, 34-test schema suite. CAUGHT+FIXED: SQLite ignores FK
+  pragma inside transactions → M4 rollback emptied applications; M2-M4 now
+  transaction:false w/ regression test. FOLLOW-UP TICKET: 20260701111000 forces FK
+  pragma ON unconditionally — hazard for future SQLite parent-table column drops.
+  NOTE for merge time: env git identity is Claude <noreply@anthropic.com> on ALL branch
+  commits; CLAUDE.md wants owner-only attribution → squash-merge or rebase w/ corrected
+  author at merge (user's call).
+- IN FLIGHT: Lanes A ∥ C ∥ D (parallel, disjoint per design §h, NO worker commits —
+  lead integrates per-lane pathspec): A = call definition + consent fork (fingerprint fn
+  EXCLUDED — Lane B extends it w/ its browser mirror) + arrival + settings UI;
+  C = organizer routes/services + inbox export/filter extension + Events pages +
+  ApplicantsPage config (stubs Lane D's mint if absent); D = tokens + /picks public page
+  + EVENT_DESIGNER audience + netlify redirects (R9: also fix /reply, /opencall).
+  THEN: Lane B (intake/submit/confirmations/talent surfaces — long pole), then Lane E
+  (instrumentation).
 - (superseded design-phase note: Phase 5 FWB event mode DESIGN (read-only Plan agent) — event open-call link
   type + event consent fork, intake spec w/ walk video, organizer pool (reuse inbox) →
   per-designer pick-list share links (no designer account, magic-link precedent),
