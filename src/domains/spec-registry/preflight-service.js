@@ -9,6 +9,10 @@ const {
   saveApplicationSnapshot,
 } = require("./store");
 const { sha256Canonical } = require("./store/canonical-json");
+const {
+  registryTaxonomyLabels,
+  registryTaxonomyLabelsVersion,
+} = require("./taxonomy-labels");
 
 const EVALUATION_ENGINE_VERSION = "1.0.0";
 const ATTENTION_MODALITIES = new Set(["required", "requested", "prohibited"]);
@@ -284,10 +288,28 @@ function findingSeverity(item) {
     : 'informational';
 }
 
-function findingDto(categoryKey, item, sourceUrl) {
+/**
+ * The row identity a surface can key on, for every finding.
+ *
+ * Series-scoped rather than global: two agencies can both publish a slot called
+ * `full-length`, and they are not the same requirement unless their taxonomy
+ * terms say so (that is `matchKey`'s job). Derived only from the immutable
+ * series id and the authored assertion id, so it survives a redeploy, a
+ * reordering, and a dataset republish unchanged.
+ */
+function slotKeyFor(categoryKey, assertionId, seriesId) {
+  const local = `${categoryKey}:${assertionId}`;
+  return seriesId ? `${seriesId}#${local}` : local;
+}
+
+function findingDto(categoryKey, item, sourceUrl, seriesId = null) {
   const severity = findingSeverity(item);
   return {
     id: `${categoryKey}:${item.id}`,
+    // Never null, for simple and compound slots alike. A compound slot has no
+    // single `matchValue`, so anything keying rows by that field dropped it and
+    // the surface silently under-reported an agency's published shot list.
+    slotKey: slotKeyFor(categoryKey, item.id, seriesId),
     assertionId: item.id,
     categoryKey,
     category: {
@@ -309,6 +331,12 @@ function findingDto(categoryKey, item, sourceUrl) {
     // publish the same shot under different words; the taxonomy value is what
     // makes them comparable.
     matchValue: item.matchValue ?? null,
+    // The compound form of the same comparison: every taxonomy term the slot
+    // requires, in published order, plus the order-independent key two agencies
+    // publishing the same requirement will share. Null `matchKey` means the
+    // slot is not comparable across agencies and stands as its own row.
+    matchValues: Array.isArray(item.matchValues) ? item.matchValues : [],
+    matchKey: item.matchKey ?? null,
     sourceLabel: item.sourceLabel || titleCaseToken(item.field || item.id),
     guidance: guidanceForOutcome(item),
     target:
@@ -340,8 +368,10 @@ function sourceUnknownFindings(spec, input, referenceDate) {
         (field) => talentFact(input, field, new Date(`${referenceDate}T00:00:00.000Z`)),
       );
       if (applicable.state === "false") return [];
+      const assertionId = `${unknown.fact}:${index + 1}`;
       return [{
-        id: `sourceUnknown:${unknown.fact}:${index + 1}`,
+        id: `sourceUnknown:${assertionId}`,
+        slotKey: slotKeyFor("sourceUnknown", assertionId, spec.seriesId ?? null),
         assertionId: null,
         categoryKey: "sourceUnknown",
         category: "Not published",
@@ -350,6 +380,9 @@ function sourceUnknownFindings(spec, input, referenceDate) {
         basis: null,
         matchability: "manual_confirmation",
         field: unknown.fact,
+        matchValue: null,
+        matchValues: [],
+        matchKey: null,
         sourceLabel: titleCaseToken(unknown.fact),
         guidance:
           unknown.note ||
@@ -417,7 +450,9 @@ function evaluationDto(revision, input, referenceDate, trust = null) {
   const evaluation = evaluateSpecRevision({ spec, input, referenceDate });
   const evaluatedFindings = Object.entries(evaluation.outcomes).flatMap(
     ([categoryKey, items]) =>
-      items.map((item) => findingDto(categoryKey, item, spec.scope.channel.url)),
+      items.map((item) =>
+        findingDto(categoryKey, item, spec.scope.channel.url, spec.seriesId ?? null),
+      ),
   );
   const findings = [
     ...evaluatedFindings,
@@ -546,6 +581,11 @@ async function listRegistryRoutes(db, options = {}) {
     available: resolved.available,
     datasetVersion: resolved.datasetVersion,
     resolution: resolved.resolution,
+    // The vocabulary every finding is written in, in the product's own words.
+    // Sent once per response rather than per finding: the same field and value
+    // recur across every route, and the client resolves them by lookup.
+    labels: registryTaxonomyLabels(),
+    labelsVersion: registryTaxonomyLabelsVersion(),
     routes: routes.map((route) => {
       const match = deliverable.get(route.seriesId) || null;
       return {
@@ -579,6 +619,8 @@ async function preflightRegistry(
       available: false,
       datasetVersion: resolved.datasetVersion,
       resolution: resolved.resolution,
+      labels: registryTaxonomyLabels(),
+      labelsVersion: registryTaxonomyLabelsVersion(),
       results: [],
       submission: { canProceed: true, advisoryOnly: true, blockingEligible: false },
     };
@@ -623,6 +665,8 @@ async function preflightRegistry(
     available: true,
     datasetVersion: resolved.datasetVersion,
     resolution: resolved.resolution,
+    labels: registryTaxonomyLabels(),
+    labelsVersion: registryTaxonomyLabelsVersion(),
     selectedImageIds: input.selection.selectedImageIds,
     results: resolved.revisions.map((revision) =>
       evaluationDto(revision, input, referenceDate, trust),

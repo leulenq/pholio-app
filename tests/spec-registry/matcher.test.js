@@ -1,6 +1,10 @@
 "use strict";
 
-const { OUTCOMES, evaluateSpecRevision } = require("../../src/domains/spec-registry/matcher");
+const {
+  OUTCOMES,
+  evaluateSpecRevision,
+  matchIdentity,
+} = require("../../src/domains/spec-registry/matcher");
 
 const constraint = (field, operator, value, unit = null) => ({ field, operator, value, unit });
 const confirmed = (id, shotType, extra = {}) => ({
@@ -200,6 +204,101 @@ describe("Spec Registry matcher", () => {
     const result = evaluate(rules, { talent: { nationality: "Canadian", pronouns: "she/her", hairColor: "Brown", eyeColor: "Hazel", workAuthorization: "Yes", gender: "Female", heightCm: 160 } });
     expect(result.outcomes.applicationFields.map((entry) => entry.outcome)).toEqual([OUTCOMES.SATISFIED, OUTCOMES.SATISFIED, OUTCOMES.SATISFIED, OUTCOMES.SATISFIED]);
     expect(result.outcomes.eligibility.map((entry) => entry.outcome)).toEqual([OUTCOMES.SATISFIED, OUTCOMES.SATISFIED, OUTCOMES.UNKNOWN]);
+  });
+
+  /**
+   * A compound slot ("close-up AND profile AND hair pulled back") has no single
+   * `match.value`, so `matchValue` was null for it and any consumer keying rows
+   * by that field dropped the slot without saying so. The identity fields are
+   * additive: `matchValue` keeps its old meaning exactly.
+   */
+  test("gives a compound shot slot the identity a single matchValue cannot carry", () => {
+    const rules = {
+      shots: {
+        allowImageReuseAcrossSlots: false,
+        slots: [
+          {
+            id: "full-length",
+            quantity: { minimum: 1 },
+            modality: "requested",
+            sourceLabel: "Full length",
+            evidenceIds: [],
+            appliesWhen: null,
+            match: constraint("shot.frame", "equals", "full_length"),
+          },
+          {
+            id: "close-up-profile",
+            quantity: { minimum: 1 },
+            modality: "requested",
+            sourceLabel: "Close up profile (hair pulled back)",
+            evidenceIds: [],
+            appliesWhen: null,
+            match: {
+              all: [
+                constraint("shot.frame", "equals", "close_up"),
+                constraint("shot.view", "equals", "profile"),
+                constraint("appearance.hair_state", "equals", "pulled_back"),
+              ],
+            },
+          },
+        ],
+      },
+    };
+    const [compound, simple] = evaluate(rules, { images: [] }).outcomes.shots;
+
+    expect(simple).toMatchObject({
+      id: "full-length",
+      matchValue: "full_length",
+      matchKey: "shot.frame:equals:full_length",
+      matchValues: [{ field: "shot.frame", operator: "equals", value: "full_length" }],
+    });
+    expect(compound).toMatchObject({
+      id: "close-up-profile",
+      // Unchanged: a conjunction has no single value, and inventing one here
+      // would make two different requirements look like the same one.
+      matchValue: null,
+      matchKey:
+        "appearance.hair_state:equals:pulled_back&shot.frame:equals:close_up&shot.view:equals:profile",
+    });
+    // Published order, which is the order the words read in.
+    expect(compound.matchValues.map((entry) => entry.value)).toEqual([
+      "close_up",
+      "profile",
+      "pulled_back",
+    ]);
+  });
+
+  test("makes the compound key order-independent and refuses one for any/not slots", () => {
+    const published = matchIdentity({
+      all: [
+        constraint("shot.frame", "equals", "close_up"),
+        constraint("shot.view", "equals", "profile"),
+      ],
+    });
+    const reordered = matchIdentity({
+      all: [
+        constraint("shot.view", "equals", "profile"),
+        constraint("shot.frame", "equals", "close_up"),
+      ],
+    });
+    // Two agencies publishing the same requirement in a different order are
+    // asking for the same photograph.
+    expect(published.matchKey).toBe(reordered.matchKey);
+    expect(published.matchValues).not.toEqual(reordered.matchValues);
+
+    // A disjunction is not one requirement, so it gets no cross-agency key and
+    // falls back to its own slot identity in the DTO.
+    expect(matchIdentity({ any: [constraint("shot.frame", "equals", "close_up")] })).toEqual({
+      matchValues: [],
+      matchKey: null,
+    });
+    expect(matchIdentity({ not: constraint("shot.frame", "equals", "close_up") })).toEqual({
+      matchValues: [],
+      matchKey: null,
+    });
+    expect(matchIdentity(null)).toEqual({ matchValues: [], matchKey: null });
+    expect(matchIdentity(constraint("file.mime_type", "in", ["image/png", "image/jpeg"])).matchKey)
+      .toBe("file.mime_type:in:image/jpeg,image/png");
   });
 
   test("reflects a declared spec mode but never returns a blocking decision", () => {

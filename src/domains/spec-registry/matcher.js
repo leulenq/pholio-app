@@ -352,7 +352,64 @@ function applyModalityToSet(states, modality) {
   return OUTCOMES.MISSING;
 }
 
+/**
+ * The taxonomy constraints a slot matches on, in the order the source published
+ * them — or null when the slot's match expression is not a plain conjunction.
+ *
+ * A slot may say "close-up AND profile AND hair pulled back". That conjunction
+ * is the requirement; no single one of its terms names it. `any`/`not` slots
+ * have no single set of terms that must all hold, so they are deliberately not
+ * reduced to one — those keep the slot id as their only identity.
+ */
+function matchConstraints(expression) {
+  if (!isObject(expression)) return null;
+  if (Array.isArray(expression.all)) {
+    const collected = [];
+    for (const child of expression.all) {
+      const leaves = matchConstraints(child);
+      if (!leaves) return null;
+      collected.push(...leaves);
+    }
+    return collected;
+  }
+  if (Array.isArray(expression.any) || expression.not) return null;
+  if (!nonEmptyString(expression.field)) return null;
+  return [{
+    field: expression.field,
+    operator: expression.operator ?? null,
+    value: expression.value ?? null,
+  }];
+}
+
+function constraintToken({ field, operator, value }) {
+  const token = Array.isArray(value)
+    ? [...value].map((entry) => String(entry)).sort().join(",")
+    : value === null || value === undefined
+      ? ""
+      : String(value);
+  return `${field}:${operator ?? "equals"}:${token}`;
+}
+
+/**
+ * A slot's cross-agency identity.
+ *
+ * `matchValue` alone cannot carry it: a compound slot has no single value, so
+ * the field was null for every compound slot and any consumer keying rows by it
+ * dropped them silently. `matchKey` is order-independent (sorted terms) so two
+ * agencies that publish the same conjunction in a different order still line
+ * up, while `matchValues` keeps the published order for rendering.
+ */
+function matchIdentity(expression) {
+  const constraints = matchConstraints(expression);
+  if (!constraints || !constraints.length) return { matchValues: [], matchKey: null };
+  return {
+    matchValues: constraints,
+    matchKey: constraints.map(constraintToken).sort().join("&"),
+  };
+}
+
 function makeResult(rule, outcome, extra = {}) {
+  const identity = matchIdentity(rule.match);
   return {
     id: rule.id,
     modality: rule.modality ?? rule.presence ?? null,
@@ -367,6 +424,11 @@ function makeResult(rule, outcome, extra = {}) {
     // to line one agency's requirements up against another's. This can, and
     // that comparison is the whole point of carrying fifty agencies.
     matchValue: rule.match?.value ?? null,
+    // The same comparison for slots whose requirement is a conjunction, which
+    // `matchValue` cannot express. `matchValues` is the published order (for
+    // wording); `matchKey` is the sorted, deploy-independent identity.
+    matchValues: identity.matchValues,
+    matchKey: identity.matchKey,
     outcome,
     evidenceIds: Array.isArray(rule.evidenceIds) ? rule.evidenceIds : [],
     ...extra,
@@ -617,5 +679,6 @@ module.exports = {
   evaluateExpression,
   evaluateSpecRevision,
   imageFact,
+  matchIdentity,
   talentFact,
 };
