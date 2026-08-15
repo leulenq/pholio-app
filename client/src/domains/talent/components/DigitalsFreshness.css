@@ -61,6 +61,9 @@
   align-self: flex-start;
   padding: 0;
   border: none;
+  /* The global button reset injects border-radius: 999px, which curls this
+     underline-only treatment into arcs — the "malformed border" defect. */
+  border-radius: 0;
   border-bottom: 1px solid var(--mw-hair-gold, rgba(201, 165, 90, 0.4));
   background: none;
   font-family: var(--mw-mono, 'JetBrains Mono', monospace);
