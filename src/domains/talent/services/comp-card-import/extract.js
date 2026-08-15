@@ -13,16 +13,21 @@
  *                             fallback, and it degrades to "nothing found" rather
  *                             than to a guess.
  *
- * **This function cannot fail.** Every branch returns a usable result — a corrupt
- * file, an unreadable card, a missing API key and a model outage all return
+ * **No card can fail this function.** Every branch returns a usable result — a
+ * corrupt file, an unreadable card, a missing API key and a model outage all return
  * `{ lines: [] }` with a reason attached, which becomes an empty proposal, which
  * is a review screen the talent fills in by hand. There is no state in which
  * import blocks a talent from entering their own measurements, and there is no
  * human review queue anywhere in this path (`tasks/lessons.md` 2026-07-29: a gate
  * whose only escape hatch is a human queue must never block a linear flow).
+ *
+ * The single exception is infrastructural rather than about the card: if the
+ * runtime has no Sharp binary, `SHARP_UNAVAILABLE` is thrown so the route can
+ * answer 503 "try again shortly" instead of reporting a server outage as a
+ * defective upload.
  */
 
-const sharp = require("sharp");
+const { getSharp } = require("../../../../shared/lib/lazy-sharp");
 const { extractPdfText } = require("../../../../shared/lib/pdf-text");
 const { transcribeCompCard } = require("../../../ai/comp-card-vision");
 
@@ -49,8 +54,22 @@ function isSupportedMime(mimeType) {
  * resize: an uploaded card's metadata can carry GPS and device identifiers that
  * have nothing to do with reading text off it, and none of it should reach a
  * third-party model.
+ *
+ * Sharp is loaded lazily. It is a native module, and a `require` at file scope
+ * runs at boot through the routes chain — a runtime missing the binary would
+ * take down the whole app rather than this one feature. `getSharp()` returns
+ * null instead, which this surfaces as an unavailable-service error.
  */
 async function normaliseForOcr(buffer) {
+  const sharp = getSharp();
+  if (!sharp) {
+    const err = new Error(
+      "Image processing is unavailable on this server. Try again shortly.",
+    );
+    err.code = "SHARP_UNAVAILABLE";
+    err.status = 503;
+    throw err;
+  }
   return sharp(buffer, { failOn: "none" })
     .rotate() // honour EXIF orientation before that data is dropped
     .resize({ width: OCR_MAX_EDGE, height: OCR_MAX_EDGE, fit: "inside", withoutEnlargement: true })
@@ -110,6 +129,11 @@ async function extractCardText(buffer, { mimeType, filename } = {}) {
   try {
     normalised = await normaliseForOcr(buffer);
   } catch (err) {
+    // A runtime with no image processing at all is a server fault, not an
+    // unreadable card. Saying "that image could not be read" would blame the
+    // talent's file for an outage and lose the operational signal, so this one
+    // error travels out to become a 503.
+    if (err?.code === "SHARP_UNAVAILABLE") throw err;
     console.error("[comp-card-import] image normalise failed:", err?.message || err);
     return empty("none", "image_unreadable");
   }

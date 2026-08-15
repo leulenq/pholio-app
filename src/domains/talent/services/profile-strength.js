@@ -546,7 +546,7 @@ const calculateProfileStrength = (data) => {
     photo_back: digitals.hasBack,
     photo_editorial: digitals.hasEditorial,
     photo_lifestyle: digitals.hasLifestyle,
-    digitals_recency: !pkg.recency.isStale,
+    digitals_recency: hasCurrentDigitals,
     bio: hasBio,
     look: hasLook,
     shoe: hasShoe,

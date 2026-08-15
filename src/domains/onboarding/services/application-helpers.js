@@ -34,6 +34,10 @@ async function upsertApplication(profileId, agencyId) {
         status: "pending",
         declined_at: null,
         accepted_at: null,
+        // The status moved, so the agency's review window restarts from here.
+        // Auto-close anchors on this column; leaving it stale would age a
+        // freshly-revived application against the previous cycle's clock.
+        status_changed_at: knex.fn.now(),
         updated_at: knex.fn.now(),
       });
 
@@ -54,6 +58,9 @@ async function upsertApplication(profileId, agencyId) {
     status: "pending",
     invited_by_agency_id: null,
     created_at: knex.fn.now(),
+    // Anchor the review window at the send rather than letting auto-close fall
+    // back to `updated_at`, which talent-side writes bump.
+    status_changed_at: knex.fn.now(),
     updated_at: knex.fn.now(),
   });
 

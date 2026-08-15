@@ -179,17 +179,35 @@ router.post(
     const profile = await knex("profiles").where({ user_id: req.session.userId }).first("id");
     if (!profile) return apiResponse.notFound(res, "Profile not found");
 
+    // The `row.confirmed_at` check above was a read; two confirms racing both
+    // pass it and both write the profile. The claim is what decides, so it goes
+    // first and is conditional on the proposal still being unclaimed — the
+    // loser's update matches zero rows and it rolls back without touching the
+    // profile. Same shape as the withdrawn→pending revival in `applications.js`.
+    let claimed = true;
     await knex.transaction(async (trx) => {
-      await trx("profiles")
-        .where({ user_id: req.session.userId })
-        .update({ ...update, updated_at: new Date().toISOString() });
-      await trx("comp_card_imports")
+      const rows = await trx("comp_card_imports")
         .where({ id: row.id })
+        .whereNull("confirmed_at")
+        .whereNull("discarded_at")
         .update({
           accepted_json: JSON.stringify(applied),
           confirmed_at: new Date().toISOString(),
         });
+      if (rows !== 1) {
+        claimed = false;
+        return;
+      }
+      await trx("profiles")
+        .where({ user_id: req.session.userId })
+        .update({ ...update, updated_at: new Date().toISOString() });
     });
+
+    if (!claimed) {
+      return apiResponse.error(res, "That import was already applied.", 409, {
+        code: "ALREADY_CONFIRMED",
+      });
+    }
 
     return apiResponse.success(res, {
       id: row.id,

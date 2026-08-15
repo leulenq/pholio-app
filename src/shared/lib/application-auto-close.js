@@ -76,85 +76,124 @@ function isExpired(row, now) {
 }
 
 /**
+ * How many candidates are pulled into memory at a time.
+ *
+ * Every open application across every agency is one candidate, so an unbounded
+ * `select` grows with the product and eventually loads the whole open set — and
+ * their agency rows — into one array. Paging keeps the footprint flat no matter
+ * how large that set gets.
+ */
+const AUTO_CLOSE_BATCH_SIZE = 500;
+
+/**
  * Closes every application whose agency review window has lapsed.
  *
  * Candidate selection filters on status in SQL and evaluates the window in JS.
  * The window is per-agency, so a single portable SQL predicate would need
- * dialect-specific interval maths against a joined column — and this runs
- * daily over open applications only, which is a small set.
+ * dialect-specific interval maths against a joined column.
+ *
+ * Paging note: a closed row leaves the candidate set, so the next page cannot
+ * simply be `offset += batch`. `examined` counts only the rows this run looked
+ * at and *left in place*, which is exactly the number to skip past — closed
+ * rows have already vacated the offsets behind it. Each pass therefore either
+ * advances `examined` or shrinks the set, so the loop always terminates.
  *
  * @param {import("knex").Knex} db
- * @param {{ now?: Date }} [options]
+ * @param {{ now?: Date, batchSize?: number }} [options]
  * @returns {Promise<{ scanned: number, closed: number, notified: number }>}
  */
-async function runApplicationAutoClose(db, { now = new Date() } = {}) {
-  const candidates = await db("applications as a")
-    .leftJoin("agencies as ag", "ag.id", "a.agency_id")
-    .whereIn("a.status", AWAITING_AGENCY_APPLICATION_STATUSES)
-    .select(
-      "a.id",
-      "a.profile_id",
-      "a.agency_id",
-      "a.status",
-      "a.status_changed_at",
-      "a.updated_at",
-      "a.created_at",
-      "ag.application_review_window_days",
-    );
+async function runApplicationAutoClose(
+  db,
+  { now = new Date(), batchSize = AUTO_CLOSE_BATCH_SIZE } = {},
+) {
+  const limit = Number(batchSize) > 0 ? Number(batchSize) : AUTO_CLOSE_BATCH_SIZE;
 
-  const expired = candidates.filter((row) => isExpired(row, now));
+  let scanned = 0;
+  let closed = 0;
   let notified = 0;
+  // Rows seen and deliberately left open — the offset the next page starts at.
+  let examined = 0;
 
-  for (const row of expired) {
-    const closedAt = now;
-    await db("applications").where({ id: row.id }).update({
-      status: AUTO_CLOSED_APPLICATION_STATUS,
-      auto_closed_at: closedAt,
-      status_changed_at: closedAt,
-      updated_at: closedAt,
-    });
+  for (;;) {
+    const candidates = await db("applications as a")
+      .leftJoin("agencies as ag", "ag.id", "a.agency_id")
+      .whereIn("a.status", AWAITING_AGENCY_APPLICATION_STATUSES)
+      .select(
+        "a.id",
+        "a.profile_id",
+        "a.agency_id",
+        "a.status",
+        "a.status_changed_at",
+        "a.updated_at",
+        "a.created_at",
+        "ag.application_review_window_days",
+      )
+      // A stable order is what makes the offset mean the same thing twice.
+      .orderBy("a.id", "asc")
+      .offset(examined)
+      .limit(limit);
 
-    // `user_id` stays null: no person did this, and attributing it to a
-    // booker would be the same lie as recording it as a pass.
-    try {
-      await db("application_activities").insert({
-        id: uuidv4(),
-        application_id: row.id,
-        agency_id: row.agency_id,
-        user_id: null,
-        activity_type: "auto_closed",
-        description: "Closed automatically — the review window lapsed with no decision.",
-        metadata: JSON.stringify({
-          reviewWindowDays: resolveWindowDays(row.application_review_window_days),
+    if (!candidates.length) break;
+    scanned += candidates.length;
+
+    const expired = candidates.filter((row) => isExpired(row, now));
+    examined += candidates.length - expired.length;
+    closed += expired.length;
+
+    for (const row of expired) {
+      const closedAt = now;
+      await db("applications").where({ id: row.id }).update({
+        status: AUTO_CLOSED_APPLICATION_STATUS,
+        auto_closed_at: closedAt,
+        status_changed_at: closedAt,
+        updated_at: closedAt,
+      });
+
+      // `user_id` stays null: no person did this, and attributing it to a
+      // booker would be the same lie as recording it as a pass.
+      try {
+        await db("application_activities").insert({
+          id: uuidv4(),
+          application_id: row.id,
+          agency_id: row.agency_id,
+          user_id: null,
+          activity_type: "auto_closed",
+          description: "Closed automatically — the review window lapsed with no decision.",
+          metadata: JSON.stringify({
+            reviewWindowDays: resolveWindowDays(row.application_review_window_days),
+            previousStatus: row.status,
+            autoClosedAt: closedAt.toISOString(),
+          }),
+          created_at: closedAt,
+        });
+      } catch (error) {
+        // An activity row is a record of the close, not the close itself.
+        console.error("[AutoClose] Activity log failed:", error);
+      }
+
+      try {
+        await notifyTalentForApplicationStatus({
+          application: { id: row.id, profile_id: row.profile_id },
+          agencyId: row.agency_id,
+          newStatus: AUTO_CLOSED_APPLICATION_STATUS,
           previousStatus: row.status,
-          autoClosedAt: closedAt.toISOString(),
-        }),
-        created_at: closedAt,
-      });
-    } catch (error) {
-      // An activity row is a record of the close, not the close itself.
-      console.error("[AutoClose] Activity log failed:", error);
+        });
+        notified += 1;
+      } catch (error) {
+        // The close is the product promise; the notification is best-effort and
+        // must not roll back or halt the batch.
+        console.error("[AutoClose] Notify failed:", error);
+      }
     }
 
-    try {
-      await notifyTalentForApplicationStatus({
-        application: { id: row.id, profile_id: row.profile_id },
-        agencyId: row.agency_id,
-        newStatus: AUTO_CLOSED_APPLICATION_STATUS,
-        previousStatus: row.status,
-      });
-      notified += 1;
-    } catch (error) {
-      // The close is the product promise; the notification is best-effort and
-      // must not roll back or halt the batch.
-      console.error("[AutoClose] Notify failed:", error);
-    }
+    if (candidates.length < limit) break;
   }
 
-  return { scanned: candidates.length, closed: expired.length, notified };
+  return { scanned, closed, notified };
 }
 
 module.exports = {
+  AUTO_CLOSE_BATCH_SIZE,
   DEFAULT_REVIEW_WINDOW_DAYS,
   runApplicationAutoClose,
   resolveWindowDays,

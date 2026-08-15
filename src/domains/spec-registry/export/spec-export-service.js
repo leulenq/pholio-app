@@ -172,10 +172,25 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
       continue;
     }
 
-    const encoded = await encodeImage(sharp, source, {
-      mimeType: plan.mimeType,
-      budgetBytes: plan.perFileBudgetBytes,
-    });
+    let encoded;
+    try {
+      encoded = await encodeImage(sharp, source, {
+        mimeType: plan.mimeType,
+        budgetBytes: plan.perFileBudgetBytes,
+      });
+    } catch (err) {
+      // A source Sharp cannot decode — truncated upload, mislabelled format —
+      // is the same problem as one we could not fetch, and gets the same
+      // answer: the archive ships without it and the manifest names it. One
+      // bad file must never cost the talent the whole download.
+      console.error("[spec-export] image encode failed:", {
+        imageId: entry.imageId,
+        message: err?.message || String(err),
+      });
+      unavailable.push(entry);
+      continue;
+    }
+
     files.push({ name: entry.name, data: encoded.data });
     manifestEntries.push({
       name: entry.name,

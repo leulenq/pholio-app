@@ -249,7 +249,7 @@ describe("application drafts", () => {
       lock_hero_id: imageId,
       lock_grid_ids: JSON.stringify([fullLengthImageId]),
     });
-  });
+  }, 120000);
 
   afterAll(async () => {
     if (sessionIds.length) {

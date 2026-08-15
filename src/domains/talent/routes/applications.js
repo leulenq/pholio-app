@@ -1068,6 +1068,11 @@ router.post(
               guardian_consent_expires_at: guardianConsentExpiresAt,
               minor_access_revoked_at: null,
               minor_access_revocation_reason: null,
+              // The status genuinely moved (withdrawn → pending), so the review
+              // clock restarts here. Auto-close reads this column, and leaving
+              // it on the original send would hand the agency a window that had
+              // already half-lapsed before they saw the resubmission.
+              status_changed_at: trx.fn.now(),
               updated_at: trx.fn.now(),
             });
           if (revived !== 1) {
@@ -1095,6 +1100,10 @@ router.post(
             minor_at_submission: minorSubmission,
             guardian_consent_grant_id: guardianConsentGrantId,
             guardian_consent_expires_at: guardianConsentExpiresAt,
+            // Anchor the agency's review window at the send. Without it the row
+            // falls back to `updated_at`, which any later talent-side write
+            // bumps — silently restarting a clock the agency never touched.
+            status_changed_at: trx.fn.now(),
           });
         }
 
