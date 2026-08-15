@@ -40,7 +40,12 @@
 ## Phase status
 - [x] Phase 0a: branch inventory (above)
 - [ ] Phase 0b: review gfl2y0 (backend correctness + tests; frontend inventory) — IN PROGRESS
-- [ ] Phase 0c: review small branches
+- [x] Phase 0c: review small branches — VERDICTS: backend-audit-u4ar6t SKIP (patch-identical
+      commits already on main; stale branch, deletable); cursor/fix-settings-identity SKIP
+      (styling conflicts w/ main's newer .set-danger refactor which deliberately rejected
+      the loud treatment; its test fix uses shared knex = regression vs isolated-db
+      pattern); repo-contents-check-ifwjo8 TAKE DOCS ONLY (after gfl2y0 merge, checkout its
+      two docs/audits/2026-08-0{7,8}-*.md files — its plan-doc copy is older than gfl2y0's)
 - [ ] Phase 1: merge gfl2y0 (+ cherry-picks) into this branch; fix review findings
 - [ ] Phase 2: corrections wave — Discover free opt-in; bio writer free+improved (all
       writers un-gated); Profile Readiness redesign; Spec Registry UI rebuild (Market +
