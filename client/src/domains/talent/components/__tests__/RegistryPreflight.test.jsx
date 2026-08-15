@@ -196,7 +196,9 @@ describe('RegistryPreflight', () => {
     await screen.findByRole('list', { name: 'Published shots' });
     expect(markState('Headshot — in your set')).toBe('in_set');
     expect(markState('Profile shot — still needed')).toBe('needed');
-    expect(markState('Close-up, hair pulled back — not asked for')).toBe('not_asked');
+    // A published slot Pholio can't verify is still asked for — it reads as
+    // "still needed", never "not asked for" (live-verification correction).
+    expect(markState('Close-up, hair pulled back — still needed')).toBe('needed');
     // A requirement that does not apply is noise, not a slot.
     expect(screen.queryByTitle(/Not applicable/)).not.toBeInTheDocument();
   });

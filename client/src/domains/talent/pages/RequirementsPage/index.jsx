@@ -388,8 +388,15 @@ export default function RequirementsPage() {
         <Recommendation recommendation={market.recommendation} />
         {routes.length > 0 ? (
           <p className={styles.provenance}>
-            Registry verified continuously · {routes.length}{' '}
-            {routes.length === 1 ? 'agency' : 'agencies'}
+            {/* Count organizations, not routes — Elite alone publishes three
+                routes, and "10 agencies" above a summary that says 8 reads as
+                a mistake. */}
+            Registry verified continuously ·{' '}
+            {new Set(routes.map((route) => route.organization?.id || route.agencyName)).size}{' '}
+            {new Set(routes.map((route) => route.organization?.id || route.agencyName)).size === 1
+              ? 'agency'
+              : 'agencies'}{' '}
+            · {routes.length} published {routes.length === 1 ? 'route' : 'routes'}
           </p>
         ) : null}
       </motion.header>

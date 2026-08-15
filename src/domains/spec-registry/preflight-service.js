@@ -43,11 +43,29 @@ function titleCaseToken(value) {
     .trim();
 }
 
+function regionName(code) {
+  if (!/^[a-zA-Z]{2}$/.test(String(code || ""))) return null;
+  try {
+    const name = new Intl.DisplayNames(["en"], { type: "region" }).of(
+      String(code).toUpperCase(),
+    );
+    // Intl echoes unknown codes back; an echo is not a name.
+    return name && name.toUpperCase() !== String(code).toUpperCase() ? name : null;
+  } catch {
+    return null;
+  }
+}
+
 function marketLabel(market = {}) {
   if (market.city) return market.city;
   if (market.kind === "global") return "Global";
-  if (market.kind === "selected_market") return "Selected market";
-  return titleCaseToken(market.code || market.kind) || "Market not specified";
+  // "Selected market" is registry vocabulary, not a place a talent recognizes —
+  // and a bare ISO code ("Gb") is worse. Prefer the real region name; otherwise
+  // say nothing and let the client omit the line.
+  const region = regionName(market.code);
+  if (region) return region;
+  if (market.kind === "selected_market") return null;
+  return titleCaseToken(market.code) || null;
 }
 
 function sourceFreshness(spec, referenceDate) {

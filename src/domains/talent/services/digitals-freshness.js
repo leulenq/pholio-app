@@ -190,12 +190,28 @@ function sortSets(sets) {
   });
 }
 
+/** "2026-10-30" → "October 2026" — a reshoot target is a month, not a day. */
+function proseMonth(dateOnly) {
+  const match = /^(\d{4})-(\d{2})/.exec(String(dateOnly || ""));
+  if (!match) return null;
+  const monthIndex = Number(match[2]) - 1;
+  const date = new Date(Date.UTC(Number(match[1]), monthIndex, 1));
+  if (Number.isNaN(date.getTime()) || monthIndex < 0 || monthIndex > 11) return null;
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function guidanceFor(state, freshness) {
   switch (state) {
-    case STATES.CURRENT:
-      return freshness.staleOn
-        ? `These stand as current digitals. Plan a reshoot around ${freshness.agingOn}.`
+    case STATES.CURRENT: {
+      const reshootMonth = proseMonth(freshness.agingOn);
+      return freshness.staleOn && reshootMonth
+        ? `These stand as current digitals. Plan a reshoot around ${reshootMonth}.`
         : "These stand as current digitals.";
+    }
     case STATES.AGING:
       return `Shot ${freshness.ageDays} days ago. Still usable, but agencies expect a set from the last ${CURRENT_MAX_DAYS} days.`;
     case STATES.STALE:

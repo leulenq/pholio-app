@@ -543,7 +543,9 @@ describe('RequirementsPage', () => {
         ),
       ).toBeInTheDocument();
       expect(
-        await screen.findByText('Registry verified continuously · 3 agencies'),
+        await screen.findByText(
+          'Registry verified continuously · 3 agencies · 3 published routes',
+        ),
       ).toBeInTheDocument();
     });
 

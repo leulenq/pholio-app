@@ -93,9 +93,12 @@ export const SLOT_STATE_WORD = Object.freeze({
  */
 export function slotStateForOutcome(outcome) {
   if (outcome === OUTCOME.SATISFIED) return SLOT_STATE.IN_SET;
-  if (outcome === OUTCOME.UNKNOWN || outcome === OUTCOME.NOT_APPLICABLE) {
-    return SLOT_STATE.NOT_ASKED;
-  }
+  // An unverifiable slot is still a PUBLISHED slot — the agency asked for it.
+  // Live verification caught the earlier unknown→not-asked mapping rendering
+  // "Not asked for" under "0 of 3 in your current set", a factual error. The
+  // conservative truth is "Still needed": the shot is asked for and Pholio has
+  // no confirmed match; per-slot guidance carries the "confirm yourself" nuance.
+  if (outcome === OUTCOME.NOT_APPLICABLE) return SLOT_STATE.NOT_ASKED;
   return SLOT_STATE.NEEDED;
 }
 
