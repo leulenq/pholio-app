@@ -11,9 +11,15 @@
  * could drift apart while both looked defensive and safe.
  *
  * Server source of truth: `src/domains/spec-registry/preflight-service.js`
- * (`routeDto`, `findingDto`, `countSummary`, `shotCoverage`, `evaluationDto`).
+ * (`routeDto`, `findingDto`, `countSummary`, `shotCoverage`, `evaluationDto`,
+ * `verificationDto`, `callWindowDto`).
  * If a field moves there, it moves here, and both surfaces move with it.
  */
+import {
+  DEFAULT_CALL_WINDOW_TIMEZONE,
+  DEFAULT_VERIFICATION_REGISTRY_STATUS,
+  isIsoWeekday,
+} from '../../../shared/constants/submissionTracker';
 
 /** `findingDto.outcome` */
 export const OUTCOME = {
@@ -34,22 +40,150 @@ export const FRESHNESS = {
 
 /**
  * `lifecycle.reviewedOn` / `observedOn` / `nextReviewOn` are calendar dates
- * (`YYYY-MM-DD`), not timestamps — so format them without a timezone shift.
+ * (`YYYY-MM-DD`), not timestamps — so read them without a timezone shift.
  * Parsing "2026-08-09" with `new Date()` yields UTC midnight, which renders as
  * the previous day west of Greenwich.
  */
-export function formatRegistryDate(value) {
+function calendarDate(value) {
   if (!value) return null;
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value).trim());
-  if (!match) return String(value);
+  if (!match) return null;
   const [, year, month, day] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
-  if (Number.isNaN(date.getTime())) return String(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatRegistryDate(value) {
+  if (!value) return null;
+  const date = calendarDate(value);
+  if (!date) return String(value);
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
+}
+
+/**
+ * "July 2028" — the same UTC-safe parse at month precision.
+ *
+ * A registration's expiry is read as a season, not as a deadline: the day a
+ * certificate lapses is the registry's business, and printing it invites the
+ * talent to diarise a date that is not theirs to act on.
+ */
+export function formatRegistryMonth(value) {
+  if (!value) return null;
+  const date = calendarDate(value);
+  if (!date) return String(value);
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
+}
+
+/**
+ * `scope.channel.type` — the spec pack's channel vocabulary.
+ *
+ * `TRACKER_CHANNELS` in `shared/constants/submissionTracker.js` mirrors this
+ * list (minus `pholio_open_call`, plus `other`); the plate branches on a name
+ * from here rather than on a bare string, and
+ * `__tests__/specRegistry.test.js` asserts every member is still a member of
+ * that shared vocabulary, so the two cannot drift silently.
+ */
+export const CHANNEL_TYPE = Object.freeze({
+  OFFICIAL_WEB_FORM: 'official_web_form',
+  OFFICIAL_EMAIL: 'official_email',
+  OFFICIAL_WALK_IN: 'official_walk_in',
+  AGENCY_BRANDED_THIRD_PARTY_FORM: 'agency_branded_third_party_form',
+});
+
+/**
+ * How each registry is named to a talent. Keyed by
+ * `agency_verifications.registry`; the same drift test asserts every registry
+ * in the shared vocabulary has a label, because an unlabelled registry renders
+ * as no claim at all.
+ */
+export const REGISTRY_LABEL = Object.freeze({
+  ny_dol: 'NYSDOL-registered',
+});
+
+/**
+ * The registration a claim has to be in to be worth stating. `active` is also
+ * the column default — a lapsed or revoked row is data, but it is not a
+ * positive claim, and ruling R3 only ever displays positive claims.
+ */
+const LIVE_REGISTRY_STATUS = DEFAULT_VERIFICATION_REGISTRY_STATUS;
+
+/** A registry match, as `verificationDto` sends it. Null when Pholio holds none. */
+export function readVerification(verification) {
+  if (!verification?.certificateNumber) return null;
+  return {
+    registry: verification.registry ?? null,
+    certificateNumber: verification.certificateNumber,
+    expiresOn: verification.expiresOn ?? null,
+    registryStatus: verification.registryStatus ?? LIVE_REGISTRY_STATUS,
+    verifiedOn: verification.verifiedOn ?? null,
+  };
+}
+
+/**
+ * The registry claim as one line:
+ * "NYSDOL-registered · Cert 26-69YIX-LSFW · expires July 2028".
+ *
+ * Positive-only (ruling R3). Null means Pholio holds no live registry match for
+ * this agency and the surface renders *nothing* — never "unverified", which
+ * would turn a young registry's gaps into an accusation.
+ */
+export function readVerificationNotice(verification) {
+  const record = readVerification(verification);
+  if (!record) return null;
+  if (record.registryStatus !== LIVE_REGISTRY_STATUS) return null;
+  const registry = REGISTRY_LABEL[record.registry];
+  if (!registry) return null;
+  const parts = [registry, `Cert ${record.certificateNumber}`];
+  const expires = formatRegistryMonth(record.expiresOn);
+  if (expires) parts.push(`expires ${expires}`);
+  return parts.join(' · ');
+}
+
+/**
+ * One recurring open-call window, as `callWindowDto` (inside a route) and
+ * `GET /api/talent/call-windows` (standalone) send it. The standalone payload
+ * carries `organizationId`/`agencyId`/`verifiedOn` too; a route's copy does
+ * not, so those read as null rather than being demanded.
+ *
+ * Times stay as wall-clock minutes in the window's own zone — formatting is
+ * `utils/callWindows.js`'s job, not this module's.
+ */
+export function readCallWindow(window) {
+  if (!window?.id) return null;
+  const weekday = Number(window.weekday);
+  // A window that cannot be placed in a week cannot be read out as one.
+  if (!isIsoWeekday(weekday)) return null;
+  return {
+    id: window.id,
+    organizationId: window.organizationId ?? null,
+    agencyId: window.agencyId ?? null,
+    displayName: window.displayName || null,
+    label: window.label || null,
+    weekday,
+    startMinute: window.startMinute ?? null,
+    endMinute: window.endMinute ?? null,
+    timezone: window.timezone || DEFAULT_CALL_WINDOW_TIMEZONE,
+    location: window.location ?? null,
+    instructions: window.instructions ?? null,
+    sourceUrl: window.sourceUrl ?? null,
+    verifiedOn: window.verifiedOn ?? null,
+  };
+}
+
+/** `GET /api/talent/call-windows`, whether the envelope was unwrapped or not. */
+export function readCallWindows(payload) {
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.callWindows)
+        ? payload.callWindows
+        : [];
+  return list.map(readCallWindow).filter(Boolean);
 }
 
 /** A published route, as `routeDto` sends it. */
@@ -61,6 +195,10 @@ export function readRoute(route) {
     agencyName: route.agencyName || route.organization?.name || 'Agency route',
     marketLabel: route.marketLabel || null,
     sourceUrl: route.sourceUrl ?? null,
+    // How this agency takes applications (`scope.channel.type`). The plate has
+    // to say "by email" or "on their site" *before* the talent builds a set,
+    // and the two are not the same errand.
+    channelType: route.channelType ?? route.channel?.type ?? null,
     sourceStatus: route.sourceStatus ?? null,
     sourceCheckedOn: route.sourceCheckedOn ?? null,
     sourceFreshness: route.sourceFreshness ?? null,
@@ -71,6 +209,10 @@ export function readRoute(route) {
     // must never build a package against a destination Pholio cannot send to
     // and only find out at the end.
     acceptsPholioSubmissions: route.acceptsPholioSubmissions === true,
+    // Trust overlay. Both are positive-only: no registry match is null, and no
+    // published open call is an empty list — neither states an absence.
+    verification: readVerification(route.verification),
+    callWindows: readCallWindows(route.callWindows),
   };
 }
 

@@ -57,6 +57,7 @@ import { DIGITALS_ADVISORY_ITEMS, normalizeShotSlug, labelForStyle } from '../..
 import { BOOK_MIN_FRAME_COUNT } from '../../../../shared/constants/packageIntelligence';
 import { cmToFeetInches, cmToInches } from '../../../../shared/utils/measurementConversions';
 import { talentApi } from '../../api/talent';
+import { readVerificationNotice } from '../../lib/specRegistry';
 import { PAYOFF_ACTIONS } from '../../../../shared/constants/eventCasting';
 import { MARKETING_SITE_URL } from '../../../../shared/lib/logout';
 import '../../components/ApplicationsView.css';
@@ -2515,6 +2516,14 @@ function AgencyEditorialRail({ agency, site }) {
 /* The house being applied to — used in the chooser preview. */
 function AgencyDossier({ agency, site }) {
   const openBoards = Array.isArray(agency.open_boards) ? agency.open_boards.filter(Boolean) : [];
+  /*
+    The registration, from `GET /api/talent/agencies`. Positive-only (ruling
+    R3): an agency Pholio holds no registry match for gets no line at all, and
+    never a "not verified" — the young register's gaps are not an accusation.
+    Plain text beside the market, not a badge: this is a public-record fact, not
+    a Pholio tier.
+  */
+  const registryLine = readVerificationNotice(agency.verification);
 
   return (
     <aside className="apply-dossier" aria-label="Agency detail">
@@ -2542,6 +2551,7 @@ function AgencyDossier({ agency, site }) {
               <MapPin size={18} aria-hidden />
               {agency.agency_location || 'Global'}
             </p>
+            {registryLine ? <p className="apply-note-lbl">{registryLine}</p> : null}
           </div>
         </div>
       </header>

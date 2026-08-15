@@ -90,6 +90,93 @@
   line-height: 1.5;
 }
 
+/* ── the week's open calls ────────────────────────────────── */
+
+/* Same card material as the ledger. The one surface on this page with a
+   deadline sits above the one without. */
+.week {
+  box-sizing: border-box;
+  max-width: 100%;
+  margin: 0 0 24px;
+  padding: 24px;
+  border: 1px solid var(--rq-border);
+  border-radius: var(--rq-radius);
+  background: var(--rq-surface);
+}
+
+.weekTitle {
+  margin: 0 0 8px;
+  color: var(--rq-ink);
+  font-family: var(--rq-serif);
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.weekTitle em {
+  color: var(--rq-gold-deep);
+  font-style: italic;
+}
+
+.weekList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One call per line, read left to right: who, what, when — and, last, the
+   date Pholio last checked it. No marks, no dots. */
+.weekRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rq-border);
+}
+
+.weekRow:last-child {
+  border-bottom: 0;
+}
+
+.weekName {
+  color: var(--rq-ink);
+  font-family: var(--rq-serif);
+  font-size: 1rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.weekLabel {
+  color: var(--rq-text-2);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.weekWhen {
+  color: var(--rq-ink);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.weekVerified {
+  margin-left: auto;
+  color: var(--rq-text-2);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.weekNote {
+  margin: 14px 0 0;
+  max-width: 76ch;
+  color: var(--rq-text-2);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
 /* ── the ledger card ──────────────────────────────────────── */
 
 .ledger {
@@ -165,6 +252,9 @@
   width: 100%;
   padding: 4px 12px 10px;
   border: 0;
+  /* The global button reset injects border-radius: 999px — without this reset
+     the selected column's gold underline curls into half-circle arcs. */
+  border-radius: 0;
   /* The selected column is marked by an underline under the header text, not
      by a filled block — a filled header would read as a chip. */
   border-bottom: 2px solid transparent;
@@ -347,6 +437,31 @@
   line-height: 1.5;
 }
 
+/* The registry claim. A sentence in the same quiet ink as the channel line —
+   a registration is a fact from a public register, not a tier, so it must not
+   read as a badge or carry a colour of its own. */
+.plateRegistry {
+  margin: 6px 0 0;
+  max-width: 52ch;
+  color: var(--rq-text-2);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.plateWindows {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plateWindow {
+  max-width: 52ch;
+  color: var(--rq-ink);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
 .plateVerified {
   margin: 0;
   color: var(--rq-text-2);
@@ -486,6 +601,92 @@
   border-bottom-color: var(--rq-ink);
 }
 
+/* Sits with the outbound link it qualifies. */
+.plateOutNote {
+  margin: 0;
+  color: var(--rq-text-2);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* ── after an export: the submission Pholio cannot see ────── */
+
+.plateLog {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: baseline;
+  margin-top: 10px;
+}
+
+.plateLogLine {
+  margin: 0;
+  color: var(--rq-text-2);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+/* A text action, not a second button: the export was the act, this is only
+   the bookkeeping. */
+.plateLogAction {
+  padding: 0;
+  border: 0;
+  /* The global button reset injects border-radius: 999px, which curls a
+     border-bottom-only treatment into arcs at each end. */
+  border-radius: 0;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.45);
+  background: transparent;
+  color: var(--rq-gold-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  cursor: pointer;
+  transition: color 0.2s var(--rq-ease), border-color 0.2s var(--rq-ease);
+}
+
+.plateLogAction:hover,
+.plateLogAction:focus-visible {
+  color: var(--rq-ink);
+  border-bottom-color: var(--rq-ink);
+}
+
+.plateLogAction:disabled {
+  color: var(--rq-text-2);
+  border-bottom-color: transparent;
+  cursor: default;
+}
+
+.plateLogDismiss {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--rq-text-2);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  cursor: pointer;
+  transition: color 0.2s var(--rq-ease);
+}
+
+.plateLogDismiss:hover,
+.plateLogDismiss:focus-visible {
+  color: var(--rq-ink);
+}
+
+.plateLogAction:focus-visible,
+.plateLogDismiss:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+}
+
+.plateLogProblem {
+  flex-basis: 100%;
+  margin: 0;
+  color: #8a3f2c;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
 .plateProblem,
 .plateDone {
   margin: 14px 0 0;
@@ -545,12 +746,18 @@
 @media (max-width: 720px) {
   .ledger,
   .plate,
-  .state {
+  .state,
+  .week {
     padding: 18px;
   }
 
   .plateVerified {
     text-align: left;
+  }
+
+  /* Stacked, the auto margin would strand the date on its own line. */
+  .weekVerified {
+    margin-left: 0;
   }
 
   .findingGuidance {
@@ -565,7 +772,9 @@
   .rowHead,
   .cell,
   .groupChevron,
-  .plateOut {
+  .plateOut,
+  .plateLogAction,
+  .plateLogDismiss {
     transition: none;
   }
 }

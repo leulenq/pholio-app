@@ -4,7 +4,14 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
-import { buildSpecMatrix, readEvaluationFor, readRoutes } from '../../lib/specRegistry';
+import {
+  buildSpecMatrix,
+  formatRegistryDate,
+  readCallWindows,
+  readEvaluationFor,
+  readRoutes,
+} from '../../lib/specRegistry';
+import { formatWindowCompact, sortByNextOccurrence } from '../../utils/callWindows';
 import SpecLedger from './SpecLedger';
 import AgencyPlate from './AgencyPlate';
 import styles from './RequirementsPage.module.css';
@@ -58,6 +65,59 @@ function saveBlob(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * The week's open calls, above the ledger.
+ *
+ * Everything else on this page is asynchronous — a set is built, exported, sent
+ * whenever. A walk-in open call is the one thing here that expires: Thursday
+ * 3pm is Thursday 3pm, and a talent who reads it on Friday has missed it. So it
+ * sits at the top, ordered by what happens next, and it is deliberately not a
+ * card grid — four plain columns per row, the way a call sheet reads.
+ *
+ * Curated windows carry no organisation of their own when the agency is not in
+ * the spec pack (Que, MSA); they are listed all the same, because the talent's
+ * week does not care which dataset a house belongs to.
+ */
+function CallWindowStrip({ windows }) {
+  const reduceMotion = useReducedMotion();
+  const ordered = useMemo(() => sortByNextOccurrence(windows), [windows]);
+  if (!ordered.length) return null;
+
+  return (
+    <motion.section
+      className={styles.week}
+      aria-labelledby="call-windows-title"
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={
+        reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 55, damping: 16 }
+      }
+    >
+      <h2 id="call-windows-title" className={styles.weekTitle}>
+        Open calls <em>this week</em>
+      </h2>
+      <ul className={styles.weekList}>
+        {ordered.map((window) => (
+          <li key={window.id} className={styles.weekRow}>
+            <span className={styles.weekName}>{window.displayName}</span>
+            {window.label ? <span className={styles.weekLabel}>{window.label}</span> : null}
+            <span className={styles.weekWhen}>{formatWindowCompact(window)}</span>
+            {window.verifiedOn ? (
+              <span className={styles.weekVerified}>
+                Verified on {formatRegistryDate(window.verifiedOn)}
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <p className={styles.weekNote}>
+        Open-call hours as published by each agency. Confirm on their site before you
+        travel.
+      </p>
+    </motion.section>
+  );
+}
+
 export default function RequirementsPage() {
   const { images, profile } = useAuth();
   const reduceMotion = useReducedMotion();
@@ -73,6 +133,22 @@ export default function RequirementsPage() {
   });
   const routes = useMemo(() => readRoutes(routesQuery.data), [routesQuery.data]);
   const seriesIds = useMemo(() => routes.map((route) => route.seriesId), [routes]);
+
+  /*
+    Its own query, not a field of the routes payload: the windows are a handful
+    of curated rows shared by every talent, and several of them belong to
+    agencies that publish no spec at all — Que and MSA have no route to hang off.
+  */
+  const callWindowsQuery = useQuery({
+    queryKey: ['call-windows'],
+    queryFn: () => talentApi.listCallWindows(),
+    staleTime: 1000 * 60 * 10,
+    retry: 1,
+  });
+  const callWindows = useMemo(
+    () => readCallWindows(callWindowsQuery.data),
+    [callWindowsQuery.data],
+  );
 
   const preflightQuery = useQuery({
     queryKey: ['spec-registry-preflight', seriesIds, imageIds],
@@ -195,6 +271,8 @@ export default function RequirementsPage() {
           </p>
         </div>
       ) : null}
+
+      <CallWindowStrip windows={callWindows} />
 
       <SpecLedger
         matrix={matrix}

@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowUpRight, ChevronDown } from 'lucide-react';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
+import { talentApi } from '../../api/talent';
 import {
+  CHANNEL_TYPE,
   formatRegistryDate,
   groupFindings,
   readFreshnessNotice,
+  readVerificationNotice,
   sourceNeedsReview,
 } from '../../lib/specRegistry';
+import { formatWindowProse } from '../../utils/callWindows';
+import {
+  DEFAULT_TRACKER_CHANNEL,
+  isTrackerChannel,
+} from '../../../../shared/constants/submissionTracker';
 import styles from './RequirementsPage.module.css';
 
 /**
@@ -30,6 +39,116 @@ function externalLinkProps(href) {
 }
 
 const EASE = [0.4, 0, 0.2, 1];
+const SPRING = { type: 'spring', stiffness: 55, damping: 16 };
+
+/**
+ * The talent's own calendar day, not UTC's. A set exported at 8pm in Los
+ * Angeles was submitted that evening, and a tracker row dated tomorrow would
+ * be wrong on the one field the talent can check.
+ */
+function todayIso() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * How this agency takes applications, said before the set is built.
+ *
+ * A reference agency is one Pholio cannot deliver to, and the errand differs by
+ * channel: an emailed application is a message the talent sends, not a form
+ * they fill in, and the sentence has to arrive early enough to be useful.
+ */
+function channelSentence(route) {
+  if (route.acceptsPholioSubmissions) return null;
+  if (route.channelType === CHANNEL_TYPE.OFFICIAL_EMAIL) {
+    return 'Applies by email — we prepare the message and attachments.';
+  }
+  return 'Applies via their own site — we prepare a conforming set.';
+}
+
+/** "Walk-in open call: Thursdays 3–4 PM ET · 35 W 36th St · bring digitals" */
+function callWindowSentence(window) {
+  const when = formatWindowProse(window);
+  const head = window.label ? `${window.label}: ${when}` : when;
+  return [head, window.location, window.instructions].filter(Boolean).join(' · ');
+}
+
+/**
+ * The one thing Pholio cannot see: whether the talent actually sent it.
+ *
+ * An exported set is evidence of intent, never of a submission — the sending
+ * happens on the agency's own site, off Pholio entirely. So the prompt asks
+ * rather than assumes, and it stays a line of text with a text action: a
+ * talent who did not send it should be able to ignore this without deciding
+ * anything.
+ */
+function TrackerPrompt({ route, exportState }) {
+  const reduceMotion = useReducedMotion();
+  const queryClient = useQueryClient();
+  const [dismissed, setDismissed] = useState(false);
+
+  const logSubmission = useMutation({
+    mutationFn: () =>
+      talentApi.logTrackedSubmission({
+        agencyName: route.agencyName,
+        seriesId: route.seriesId,
+        channel: isTrackerChannel(route.channelType)
+          ? route.channelType
+          : DEFAULT_TRACKER_CHANNEL,
+        submittedOn: todayIso(),
+        // Ruling R2: what was sent, as far as Pholio honestly knows it.
+        sentSummary: {
+          revisionId: route.revisionId ?? null,
+          fileCount: exportState?.fileCount ?? null,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tracker'] });
+    },
+  });
+
+  if (dismissed) return null;
+
+  return (
+    <motion.div
+      className={styles.plateLog}
+      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={reduceMotion ? { duration: 0 } : SPRING}
+    >
+      {logSubmission.isSuccess ? (
+        <p className={styles.plateLogLine} role="status">
+          Logged — see your submission history.
+        </p>
+      ) : (
+        <>
+          <p className={styles.plateLogLine}>Submitted it? Log it in your tracker.</p>
+          <button
+            type="button"
+            className={styles.plateLogAction}
+            disabled={logSubmission.isPending}
+            onClick={() => logSubmission.mutate()}
+          >
+            {logSubmission.isPending ? 'Logging…' : 'Log it'}
+          </button>
+          <button
+            type="button"
+            className={styles.plateLogDismiss}
+            onClick={() => setDismissed(true)}
+          >
+            Not yet
+          </button>
+        </>
+      )}
+      {logSubmission.isError ? (
+        <p className={styles.plateLogProblem} role="alert">
+          That couldn’t be logged. Your export is unaffected.
+        </p>
+      ) : null}
+    </motion.div>
+  );
+}
 
 function FindingRows({ findings }) {
   return (
@@ -119,6 +238,10 @@ export default function AgencyPlate({
   const checkedOn = formatRegistryDate(route.sourceCheckedOn);
   const freshness = readFreshnessNotice(route);
   const exporting = exportState?.status === 'pending';
+  const channelLine = channelSentence(route);
+  // Ruling R3: a null claim renders nothing at all. There is no "unverified".
+  const registryLine = readVerificationNotice(route.verification);
+  const callWindows = Array.isArray(route.callWindows) ? route.callWindows : [];
 
   return (
     <motion.section
@@ -143,10 +266,22 @@ export default function AgencyPlate({
             been misled by the interface, so the sentence has to arrive before
             they build the package, not after.
           */}
-          {!route.acceptsPholioSubmissions ? (
-            <p className={styles.plateChannel}>
-              Applies via their own site — we prepare a conforming set.
-            </p>
+          {channelLine ? <p className={styles.plateChannel}>{channelLine}</p> : null}
+          {/*
+            The registration, stated as plainly as the channel above it. It is
+            a fact from a public register, not a Pholio endorsement and not a
+            tier — so it is a sentence, never a badge, and an agency Pholio
+            holds no match for simply has no line here.
+          */}
+          {registryLine ? <p className={styles.plateRegistry}>{registryLine}</p> : null}
+          {callWindows.length ? (
+            <ul className={styles.plateWindows}>
+              {callWindows.map((window) => (
+                <li key={window.id} className={styles.plateWindow}>
+                  {callWindowSentence(window)}
+                </li>
+              ))}
+            </ul>
           ) : null}
         </div>
         {checkedOn ? (
@@ -205,6 +340,14 @@ export default function AgencyPlate({
             <ArrowUpRight size={13} aria-hidden="true" />
           </a>
         ) : null}
+        {/*
+          What the registration is actually *for*, on the surface where it
+          matters: the link below goes to the agency the register names, so a
+          lookalike site collecting applications is not this one.
+        */}
+        {route.sourceUrl && registryLine ? (
+          <p className={styles.plateOutNote}>Registry-verified official channel.</p>
+        ) : null}
       </div>
 
       {exportState?.status === 'error' ? (
@@ -218,6 +361,17 @@ export default function AgencyPlate({
           {exportState.filename}.
         </p>
       ) : null}
+      {/* Keyed on the export, so a second one is a second chance to log it —
+          while a prompt the talent put down stays down for that export. */}
+      <AnimatePresence initial={false}>
+        {exportState?.status === 'done' ? (
+          <TrackerPrompt
+            key={exportState.filename || 'export'}
+            route={route}
+            exportState={exportState}
+          />
+        ) : null}
+      </AnimatePresence>
 
       {/*
         Provenance, never behind a disclosure. This is the difference between

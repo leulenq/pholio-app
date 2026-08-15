@@ -15,6 +15,8 @@ vi.mock('../../api/talent', () => ({
     preflightSpecRegistry: vi.fn(),
     exportSpecRegistrySet: vi.fn(),
     recordSpecRegistryOutboundClick: vi.fn(),
+    listCallWindows: vi.fn(),
+    logTrackedSubmission: vi.fn(),
   },
 }));
 
@@ -25,11 +27,14 @@ function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <RequirementsPage />
-    </QueryClientProvider>,
-  );
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <RequirementsPage />
+      </QueryClientProvider>,
+    ),
+  };
 }
 
 /**
@@ -79,6 +84,30 @@ const routes = [
     sourceCheckedOn: '2026-08-09',
     sourceFreshness: { state: 'checked', nextReviewOn: '2026-11-09' },
     acceptsPholioSubmissions: false,
+    channel: { type: 'official_web_form', url: 'https://example.com/elite' },
+    // `verificationDto` — a real-shaped NYSDOL row, positive-only (ruling R3).
+    verification: {
+      registry: 'ny_dol',
+      certificateNumber: '26-69YIX-LSFW',
+      expiresOn: '2028-07-31',
+      registryStatus: 'active',
+      verifiedOn: '2026-08-15',
+    },
+    // `callWindowDto` — the route's copy carries no verification date.
+    callWindows: [
+      {
+        id: 'elite-thu',
+        displayName: 'Elite Models',
+        label: 'Walk-in open call',
+        weekday: 4,
+        startMinute: 900,
+        endMinute: 960,
+        timezone: 'America/New_York',
+        location: '245 Fifth Avenue',
+        instructions: null,
+        sourceUrl: null,
+      },
+    ],
   },
   {
     seriesId: 'models1-uk:online',
@@ -90,6 +119,62 @@ const routes = [
     sourceCheckedOn: null,
     sourceFreshness: { state: 'unknown', nextReviewOn: null },
     acceptsPholioSubmissions: true,
+    channel: { type: 'official_web_form', url: null },
+    // Pholio holds no registry match for this one — a UK agency is not in a New
+    // York register, and that is not a mark against it.
+    verification: null,
+    callWindows: [],
+  },
+];
+
+/**
+ * `GET /api/talent/call-windows`. Que and MSA belong to no spec-pack
+ * organisation — they are curated windows with no route to hang off, and the
+ * strip lists them all the same.
+ */
+const callWindows = [
+  {
+    id: 'muse-thu',
+    organizationId: 'muse-management',
+    displayName: 'Muse Management',
+    label: 'Walk-in open call',
+    weekday: 4,
+    startMinute: 900,
+    endMinute: 960,
+    timezone: 'America/New_York',
+    location: null,
+    instructions: null,
+    sourceUrl: null,
+    verifiedOn: '2026-08-15',
+  },
+  {
+    id: 'que-thu',
+    organizationId: null,
+    displayName: 'Que Management',
+    label: 'Walk-in open call',
+    weekday: 4,
+    startMinute: 600,
+    endMinute: 660,
+    timezone: 'America/New_York',
+    location: null,
+    instructions: null,
+    sourceUrl: null,
+    verifiedOn: '2026-08-15',
+  },
+  // Day published, time not.
+  {
+    id: 'msa-tue',
+    organizationId: null,
+    displayName: 'MSA Models',
+    label: 'Open call',
+    weekday: 2,
+    startMinute: null,
+    endMinute: null,
+    timezone: 'America/New_York',
+    location: null,
+    instructions: null,
+    sourceUrl: null,
+    verifiedOn: '2026-08-15',
   },
 ];
 
@@ -216,6 +301,8 @@ describe('RequirementsPage', () => {
     talentApi.preflightSpecRegistry.mockResolvedValue({
       results: [eliteEvaluation, models1Evaluation],
     });
+    talentApi.listCallWindows.mockResolvedValue(callWindows);
+    talentApi.logTrackedSubmission.mockResolvedValue({ id: 'tracked-1' });
   });
 
   test('checks the talent’s current agency-visible digitals, once, for every route', async () => {
@@ -243,6 +330,72 @@ describe('RequirementsPage', () => {
     expect(
       await screen.findByText('Registry verified continuously · 2 agencies'),
     ).toBeInTheDocument();
+  });
+
+  describe('open calls this week', () => {
+    async function findStrip() {
+      renderPage();
+      const heading = await screen.findByRole('heading', {
+        name: 'Open calls this week',
+        level: 2,
+      });
+      return heading.closest('section');
+    }
+
+    test('reads the week as a call sheet — who, what, when, last checked', async () => {
+      const strip = await findStrip();
+      const row = within(strip)
+        .getAllByRole('listitem')
+        .find((item) => /Muse Management/.test(item.textContent));
+
+      expect(within(row).getByText('Walk-in open call')).toBeInTheDocument();
+      // The window's own zone, not the reader's: "Thursdays at 3pm their time"
+      // is the fact, and it does not move when the reader does.
+      expect(within(row).getByText('Thu · 3–4 PM ET')).toBeInTheDocument();
+      expect(within(row).getByText('Verified on August 15, 2026')).toBeInTheDocument();
+    });
+
+    test('lists windows that belong to no spec-pack agency at all', async () => {
+      const strip = await findStrip();
+
+      // Que and MSA have no route, so they appear nowhere else on this page.
+      expect(within(strip).getByText('Que Management')).toBeInTheDocument();
+      expect(within(strip).getByText('MSA Models')).toBeInTheDocument();
+    });
+
+    test('orders by what happens next, and says the day when the time is unpublished', async () => {
+      const strip = await findStrip();
+      const names = within(strip)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent);
+
+      // Both fall on Thursday, so the earlier hour leads regardless of today.
+      expect(names.findIndex((text) => /Que Management/.test(text))).toBeLessThan(
+        names.findIndex((text) => /Muse Management/.test(text)),
+      );
+      // Day published, time not — the day is still worth stating.
+      expect(within(strip).getByText('Tue')).toBeInTheDocument();
+    });
+
+    test('never invents a schedule when there is none to publish', async () => {
+      talentApi.listCallWindows.mockResolvedValue([]);
+      renderPage();
+
+      await screen.findByRole('table');
+      expect(
+        screen.queryByRole('heading', { name: 'Open calls this week' }),
+      ).not.toBeInTheDocument();
+    });
+
+    test('a failed calendar never takes the requirements page down with it', async () => {
+      talentApi.listCallWindows.mockRejectedValue(new Error('offline'));
+      renderPage();
+
+      expect(await screen.findByRole('table')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: 'Open calls this week' }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   describe('the ledger', () => {
@@ -352,6 +505,51 @@ describe('RequirementsPage', () => {
       expect(await within(plate).findByText('full-length')).toBeInTheDocument();
     });
 
+    test('states the registration as a sentence, and only when Pholio holds one', async () => {
+      const user = userEvent.setup();
+      await renderWithPlate();
+
+      expect(
+        screen.getByText('NYSDOL-registered · Cert 26-69YIX-LSFW · expires July 2028'),
+      ).toBeInTheDocument();
+      // What the registration is for: the link below it goes to the house the
+      // register names.
+      expect(screen.getByText('Registry-verified official channel.')).toBeInTheDocument();
+
+      // Models 1 has no registry match. Absence says nothing (ruling R3).
+      await user.click(screen.getByRole('button', { name: /^Models 1/ }));
+      await screen.findByRole('heading', { name: 'Models 1', level: 2 });
+      expect(screen.queryByText(/NYSDOL/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/unverified/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/not verified/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('Registry-verified official channel.')).not.toBeInTheDocument();
+    });
+
+    test('reads out a published open call in the agency’s own hours', async () => {
+      await renderWithPlate();
+
+      expect(
+        screen.getByText('Walk-in open call: Thursdays 3–4 PM ET · 245 Fifth Avenue'),
+      ).toBeInTheDocument();
+    });
+
+    test('names the errand an emailed application actually is', async () => {
+      talentApi.getSpecRegistryRoutes.mockResolvedValue({
+        routes: [
+          { ...routes[0], channel: { type: 'official_email', url: 'mailto:new@example.com' } },
+          routes[1],
+        ],
+      });
+      await renderWithPlate();
+
+      expect(
+        screen.getByText('Applies by email — we prepare the message and attachments.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText('Applies via their own site — we prepare a conforming set.'),
+      ).not.toBeInTheDocument();
+    });
+
     test('says plainly when an agency cannot be applied to through Pholio', async () => {
       await renderWithPlate();
 
@@ -408,6 +606,93 @@ describe('RequirementsPage', () => {
       expect(
         await screen.findByText('4 files downloaded as elite-models-digitals.zip.'),
       ).toBeInTheDocument();
+    });
+
+    /**
+     * The one fact Pholio cannot observe: whether the set was actually sent.
+     * Exporting is intent; the sending happens on the agency's own site.
+     */
+    describe('after an export', () => {
+      function stubDownload() {
+        talentApi.exportSpecRegistrySet.mockResolvedValue({
+          blob: new Blob(['zip'], { type: 'application/zip' }),
+          filename: 'elite-models-digitals.zip',
+          fileCount: 4,
+        });
+        URL.createObjectURL = vi.fn(() => 'blob:fake');
+        URL.revokeObjectURL = vi.fn();
+      }
+
+      async function exportTheSet(user) {
+        await user.click(
+          screen.getByRole('button', { name: 'Export the Elite Models conforming set' }),
+        );
+        await screen.findByText('4 files downloaded as elite-models-digitals.zip.');
+      }
+
+      test('asks whether it was sent, and logs it against the export it came from', async () => {
+        stubDownload();
+        const user = userEvent.setup();
+        const { queryClient } = await renderWithPlate();
+        const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+        expect(screen.queryByText('Submitted it? Log it in your tracker.')).not.toBeInTheDocument();
+        await exportTheSet(user);
+        expect(
+          await screen.findByText('Submitted it? Log it in your tracker.'),
+        ).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Log it' }));
+
+        const now = new Date();
+        const pad = (value) => String(value).padStart(2, '0');
+        await waitFor(() => {
+          expect(talentApi.logTrackedSubmission).toHaveBeenCalledWith({
+            agencyName: 'Elite Models',
+            seriesId: 'elite-models-na:online-general',
+            channel: 'official_web_form',
+            submittedOn: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+            sentSummary: {
+              revisionId: 'elite-models-na:online-general@3',
+              fileCount: 4,
+            },
+          });
+        });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ['tracker'] });
+        expect(
+          await screen.findByText('Logged — see your submission history.'),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Log it' })).not.toBeInTheDocument();
+      });
+
+      test('a talent who has not sent it yet can put the question down', async () => {
+        stubDownload();
+        const user = userEvent.setup();
+        await renderWithPlate();
+        await exportTheSet(user);
+
+        await user.click(screen.getByRole('button', { name: 'Not yet' }));
+        expect(
+          screen.queryByText('Submitted it? Log it in your tracker.'),
+        ).not.toBeInTheDocument();
+        expect(talentApi.logTrackedSubmission).not.toHaveBeenCalled();
+      });
+
+      test('a tracker that will not write never costs the talent their export', async () => {
+        stubDownload();
+        talentApi.logTrackedSubmission.mockRejectedValue(new Error('offline'));
+        const user = userEvent.setup();
+        await renderWithPlate();
+        await exportTheSet(user);
+
+        await user.click(screen.getByRole('button', { name: 'Log it' }));
+        expect(
+          await screen.findByText('That couldn’t be logged. Your export is unaffected.'),
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText('4 files downloaded as elite-models-digitals.zip.'),
+        ).toBeInTheDocument();
+      });
     });
 
     test('reports an export that could not be built instead of failing silently', async () => {
