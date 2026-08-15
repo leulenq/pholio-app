@@ -181,7 +181,22 @@
   NOTE for merge time: env git identity is Claude <noreply@anthropic.com> on ALL branch
   commits; CLAUDE.md wants owner-only attribution → squash-merge or rebase w/ corrected
   author at merge (user's call).
-- IN FLIGHT: Lanes A ∥ C ∥ D (parallel, disjoint per design §h, NO worker commits —
+- LANES A, C, D LANDED + PUSHED: D=509b6f1 (tokens/designer page/EVENT_DESIGNER audience;
+  FOUND: /reply + /opencall NEVER worked in prod — no netlify catch-all; fixed all 3
+  redirects; 80 tests), A=e129dc3 (call definition, consent fork w/ byte-identical
+  representation branch, arrival page 18+ loud; 61 tests), C=e253a87+bc72b25 (organizer
+  pool/pick-lists/lineup/offers/export + Events pages + nav gate + routes; 92 tests
+  incl. D's suite re-verified). Cross-lane wiring done by lead (App.jsx routes, RailNav
+  selectAgencyNavGroups gate); vite build green.
+- NEW FOLLOW-UPS from lane C: (1) PROD BUG: inbox.js accept/decline reads nonexistent
+  applications.talent_id → agency status emails NEVER sent; fix after Lane B lands
+  (B owns notification paths now). (2) /api/agency/applications unpaginated w/
+  SUBMISSIONS_HARD_CAP=2000 truncating silently — needs server-side counts+pagination.
+  (3) name-display column for pick lists (D defaults full name). (4) align client
+  eventCasting.js exports w/ Lane 0 vocabulary (C resolved server-side booleans).
+- IN FLIGHT: Lane B (intake/submit/confirmations/fingerprint-parity — long pole).
+  THEN Lane E (instrumentation), then the talent_id email fix.
+- (history) Lanes A ∥ C ∥ D were (parallel, disjoint per design §h, NO worker commits —
   lead integrates per-lane pathspec): A = call definition + consent fork (fingerprint fn
   EXCLUDED — Lane B extends it w/ its browser mirror) + arrival + settings UI;
   C = organizer routes/services + inbox export/filter extension + Events pages +
