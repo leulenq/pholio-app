@@ -1,5 +1,16 @@
-/* Factual submission checklist; intentionally contains no score or progress meter. */
+/* Submission readiness: serif numeral of record over the factual checklist. */
 .sidebar {
+  --pr-surface: #FFFFFF;
+  --pr-well: #F8F8F7;
+  --pr-ink: #1A1815;
+  --pr-text-2: #6B6560;
+  --pr-text-3: #9C958E;
+  --pr-border: #E2E8F0;
+  --pr-hairline: rgba(26, 24, 21, 0.08);
+  --pr-gold: #B08D45;
+  --pr-gold-bright: #D4AF37;
+  --pr-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
   grid-column: 3;
   grid-row: var(--pf-workspace-row, 2);
   position: sticky;
@@ -38,16 +49,12 @@
   }
 
   /* On mobile this is a flush panel in the page flow, not a floating card
-     in a rail: drop the lifted shadow and the gold halo so it reads as
-     structure rather than a second competing hero. */
+     in a rail: drop the lifted shadow so it reads as structure rather than a
+     second competing hero. */
   .card {
     border-radius: 10px;
     box-shadow: none;
     padding: 22px 20px;
-  }
-
-  .card::before {
-    display: none;
   }
 
   /* The Save button still breaks out to a fixed bar pinned above the
@@ -66,21 +73,20 @@
     z-index: 60;
     margin-top: 0;
     padding: 12px 20px;
-    border-top: 1px solid rgba(26, 24, 21, 0.08);
-    background: #FFFFFF;
+    border-top: 1px solid var(--pr-hairline);
+    background: var(--pr-surface);
     box-shadow: 0 -8px 24px rgba(26, 24, 21, 0.08);
   }
 }
 
 .card {
-  background: #FFFFFF;
-  border: 1px solid rgba(201, 165, 90, 0.14);
-  border-radius: 12px;
-  padding: 26px 24px;
+  background: var(--pr-surface);
+  border: 1px solid var(--pr-border);
+  border-radius: 16px;
+  padding: 24px;
   box-shadow:
     0 10px 30px -10px rgba(26, 24, 21, 0.06),
-    0 1px 3px rgba(26, 24, 21, 0.02),
-    0 0 25px rgba(201, 165, 90, 0.03);
+    0 1px 3px rgba(26, 24, 21, 0.02);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -89,56 +95,94 @@
   isolation: isolate;
 }
 
-.card::before {
-  content: '';
-  position: absolute;
-  top: -40px;
-  right: -40px;
-  width: 150px;
-  height: 150px;
-  background: radial-gradient(circle, rgba(201, 165, 90, 0.09) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.header {
-  position: relative;
-  z-index: 1;
-  margin-bottom: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  flex-shrink: 0;
-}
-
+/* 1 — Title row (module title, not a page masthead: Inter, no serif). */
 .title {
   margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--pr-ink);
+  line-height: 1.3;
+}
+
+/* 2 — The readout: serif numeral of record, threshold label on the baseline. */
+.readout {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  margin-top: 14px;
+}
+
+.numeral {
+  display: inline-block;
+  transform-origin: left bottom;
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.65rem;
-  font-weight: 300;
-  letter-spacing: -0.015em;
-  color: #2D2A26;
-  line-height: 1.15;
+  font-size: 2.75rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--pr-ink);
+  transition: color 0.3s var(--pr-ease);
 }
 
-.unsavedHint {
-  margin: 6px 0 0;
+/* Tone marks the band on the numeral only — never a fill, pill, or badge. */
+.numeral[data-tone='gold'] {
+  color: var(--pr-gold);
+}
+
+.numeral[data-tone='celebration'] {
+  color: var(--pr-gold-bright);
+}
+
+.percent {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--pr-text-2);
+  margin-left: -6px;
+}
+
+.thresholdLabel {
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  font-weight: 300;
-  color: #9C958E;
-  font-style: italic;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--pr-text-2);
 }
 
-.statusMessage {
-  margin: 10px 0 0;
-  font-size: 13px;
-  font-weight: 300;
-  color: #6B6560;
-  font-family: 'Inter', sans-serif;
-  line-height: 1.55;
+/* 3 — Progress rail: quiet hairline track, gold fill, ticks at 60 and 85. */
+.rail {
+  position: relative;
+  height: 2px;
+  margin: 16px 0 20px;
+  background: var(--pr-well);
+  border-radius: 1px;
+  overflow: hidden;
 }
 
+.railFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  height: 100%;
+  background: var(--pr-gold);
+  border-radius: 1px;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--pr-border);
+  z-index: 1;
+}
+
+/* 4 — Checklist. */
 .gapsBlock {
   margin-bottom: 18px;
   flex-shrink: 0;
@@ -146,21 +190,27 @@
 }
 
 .gapsLabel {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: #9C958E;
-  margin: 0 0 10px;
+  letter-spacing: 0.02em;
+  color: var(--pr-text-3);
+  margin: 0 0 8px;
 }
 
 .gapList {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   position: relative;
   z-index: 2;
+}
+
+.listRow {
+  min-width: 0;
 }
 
 .gapItem:global(.pholio-btn) {
@@ -177,40 +227,24 @@
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  padding: 10px 12px;
+  padding: 9px 10px;
   border: none;
   border-radius: 8px;
   background: transparent;
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
+  font-size: 0.85rem;
   font-weight: 400;
-  color: #6B6560;
+  color: var(--pr-ink);
   text-align: left;
   cursor: pointer;
   transition:
-    color 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    background 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.gapItem::before {
-  content: '';
-  position: absolute;
-  left: 2px;
-  top: 15%;
-  bottom: 15%;
-  width: 2px;
-  background: #C9A55A;
-  border-radius: 2px;
-  opacity: 0;
-  transform: scaleY(0.4);
-  transition:
-    opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    color 0.2s var(--pr-ease),
+    background 0.2s var(--pr-ease);
 }
 
 .gapRow {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
@@ -221,52 +255,74 @@
   border-radius: 6px;
 }
 
-.gapTier {
+.gapLabel {
+  line-height: 1.35;
+  color: var(--pr-ink);
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  transition: color 0.2s var(--pr-ease);
+}
+
+/* Quiet inline link-action, not a second button inside the row. */
+.gapAction {
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #2D2A26;
-  padding-top: 1px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--pr-text-2);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 3px;
+  transition:
+    color 0.2s var(--pr-ease),
+    text-decoration-color 0.2s var(--pr-ease);
 }
 
 .gapItem:hover:not(:disabled),
 .gapItem:focus-visible:not(:disabled) {
-  color: #1A1815;
   background: rgba(201, 165, 90, 0.06);
   z-index: 2;
 }
 
-.gapItem:hover:not(:disabled)::before,
-.gapItem:focus-visible:not(:disabled)::before {
-  opacity: 1;
-  transform: scaleY(1);
-}
-
-.gapItem:hover:not(:disabled) .gapLabel,
-.gapItem:focus-visible:not(:disabled) .gapLabel {
-  color: #1A1815;
-}
-
-.gapItemAudit:hover:not(:disabled),
-.gapItemAudit:focus-visible:not(:disabled) {
-  background: rgba(201, 165, 90, 0.06);
+.gapItem:hover:not(:disabled) .gapAction,
+.gapItem:focus-visible:not(:disabled) .gapAction {
+  color: var(--pr-gold);
+  text-decoration-color: currentColor;
 }
 
 .gapItem:disabled {
   cursor: default;
 }
 
-.gapLabel {
+.gapItem:disabled .gapLabel {
+  color: var(--pr-text-2);
+}
+
+/* Satisfied row: text-2 with a small gold check. No dots, no strikethrough. */
+.doneItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 400;
   line-height: 1.35;
-  color: #6B6560;
-  flex: 1;
+  color: var(--pr-text-2);
+}
+
+.doneIcon {
+  flex-shrink: 0;
+  color: var(--pr-gold);
+  transform: translateY(2px);
+}
+
+.doneLabel {
   min-width: 0;
   overflow-wrap: anywhere;
-  word-break: break-word;
-  transition: color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .gapTooltipFixed {
@@ -275,6 +331,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid rgba(26, 24, 21, 0.12);
+  /* Portaled to document.body, so the card's custom properties do not reach it. */
   background: #1A1815;
   color: #FAF8F5;
   font-family: 'Inter', sans-serif;
@@ -294,33 +351,6 @@
   transform: translateY(0);
 }
 
-.completeBrief {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 18px;
-  padding: 12px;
-  background: rgba(45, 138, 86, 0.1);
-  border: 1px solid rgba(45, 138, 86, 0.15);
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-
-.completeBrief p {
-  margin: 0;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  font-weight: 400;
-  color: #2D8A56;
-  line-height: 1.5;
-}
-
-.checkIcon {
-  color: #2D8A56;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
 .auditToggle {
   width: 100%;
   display: inline-flex;
@@ -333,22 +363,18 @@
   border-radius: 0;
   background: transparent;
   font-family: 'Inter', sans-serif;
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 500;
-  letter-spacing: 0.04em;
-  color: #6B6560;
+  letter-spacing: 0.01em;
+  color: var(--pr-text-2);
   cursor: pointer;
-  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.2s var(--pr-ease);
   flex-shrink: 0;
 }
 
-.auditToggle:hover {
-  color: #1A1815;
-  background: transparent;
-}
-
+.auditToggle:hover,
 .auditToggleActive {
-  color: #1A1815;
+  color: var(--pr-ink);
   background: transparent;
 }
 
@@ -359,9 +385,9 @@
 
 .auditPanel {
   margin-top: 12px;
-  border-top: 1px solid rgba(26, 24, 21, 0.08);
+  border-top: 1px solid var(--pr-hairline);
   padding-top: 14px;
-  background: #FFFFFF;
+  background: var(--pr-surface);
 }
 
 .auditPanelScroll {
@@ -373,7 +399,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
-  background: #FFFFFF;
+  background: var(--pr-surface);
 }
 
 .auditPanelScroll::-webkit-scrollbar {
@@ -388,24 +414,55 @@
 }
 
 .auditSectionLabel {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #9C958E;
+  letter-spacing: 0.02em;
+  color: var(--pr-text-3);
   margin: 0 0 6px;
 }
 
+/* 5 — Status line. */
+.statusMessage {
+  margin: 14px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--pr-text-2);
+}
+
+.unsavedHint {
+  margin: 6px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--pr-text-3);
+  font-style: italic;
+}
+
 .saveContainer {
-  margin-top: 8px;
+  margin-top: 18px;
   padding-top: 20px;
-  border-top: 1px solid rgba(26, 24, 21, 0.08);
+  border-top: 1px solid var(--pr-hairline);
   flex-shrink: 0;
 }
 
 .saveButton {
   min-height: 42px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .spinner {
@@ -428,13 +485,11 @@
     animation: none;
   }
 
-  .gapItem::before {
+  .numeral,
+  .gapItem,
+  .gapLabel,
+  .gapAction,
+  .auditToggle {
     transition: none;
-  }
-
-  .gapItem:hover:not(:disabled)::before,
-  .gapItem:focus-visible:not(:disabled)::before {
-    opacity: 1;
-    transform: scaleY(1);
   }
 }

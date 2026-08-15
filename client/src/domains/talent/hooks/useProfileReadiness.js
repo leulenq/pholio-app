@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { useAuth } from '../../auth/hooks/useAuth';
-import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
+import { calculateProfileStrength, getReadinessThreshold } from '../../../shared/utils/profileScoring';
 import { buildReadinessLists } from '../components/profileReadinessItems';
 
 /**
- * Derives factual submission requirements and optional profile context.
- * No percentage or qualitative strength label is exposed.
+ * Derives the factual submission checklist plus the 0–100 readiness score that
+ * anchors the sidebar and the overview card. `threshold` carries the band label
+ * ("In progress" / "Core complete" / "Submission-ready") and the numeral tone;
+ * neither is ever rendered as a badge or pill.
  */
 export function useProfileReadiness() {
   const { profile, images, isLoading } = useAuth();
@@ -17,7 +19,10 @@ export function useProfileReadiness() {
       profile,
       images ?? [],
     );
+    const threshold = getReadinessThreshold(strength.score);
     return {
+      score: threshold.value,
+      threshold,
       fieldCompletion: strength.fieldCompletion,
       isRequiredComplete: strength.isRequiredComplete,
       topGaps,
@@ -28,6 +33,9 @@ export function useProfileReadiness() {
 
   return {
     isLoading,
+    score: auditData.score,
+    threshold: auditData.threshold,
+    thresholdLabel: auditData.threshold.label,
     fieldCompletion: auditData.fieldCompletion,
     topGaps: auditData.topGaps,
     totalGaps: auditData.totalGaps,

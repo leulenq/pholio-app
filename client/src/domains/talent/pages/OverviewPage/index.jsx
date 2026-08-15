@@ -222,6 +222,8 @@ export default function OverviewPage() {
     : [];
   const websiteGradientId = `ov-website-gradient-${React.useId().replace(/:/g, '')}`;
   const {
+    score: readinessScore,
+    threshold: readinessThreshold,
     topGaps,
     totalGaps,
     missingRequiredCount,
@@ -421,11 +423,26 @@ export default function OverviewPage() {
                     Submission <em>Readiness</em>
                   </h2>
                 </div>
-                <p className="ov-readiness-state">
-                  {isRequiredComplete
-                    ? 'Required materials complete'
-                    : `${missingRequiredCount} required ${missingRequiredCount === 1 ? 'item' : 'items'} missing`}
-                </p>
+                <div className="ov-readiness-readout">
+                  {auditLoading ? (
+                    <span className="ov-skel" style={{ width: 64, height: '2rem' }} aria-hidden />
+                  ) : (
+                    <p className="ov-readiness-pct" data-tone={readinessThreshold.tone}>
+                      <span className="ov-sr-only">
+                        {`Submission readiness: ${readinessScore}% — ${readinessThreshold.label}`}
+                      </span>
+                      <span aria-hidden>
+                        {readinessScore}
+                        <span className="ov-readiness-pct-sign">%</span>
+                      </span>
+                    </p>
+                  )}
+                  <p className="ov-readiness-state">
+                    {isRequiredComplete
+                      ? 'Required materials complete'
+                      : `${missingRequiredCount} required ${missingRequiredCount === 1 ? 'item' : 'items'} missing`}
+                  </p>
+                </div>
               </div>
 
               <div className="ov-checklist" role="list">

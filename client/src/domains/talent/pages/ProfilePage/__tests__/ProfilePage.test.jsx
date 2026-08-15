@@ -188,7 +188,7 @@ describe('ProfilePage Component', () => {
     expect(screen.getByRole('textbox', { name: /first name/i })).toHaveValue('Nova');
     expect(screen.getByRole('textbox', { name: /last name/i })).toHaveValue('Lane');
     expect(screen.getByPlaceholderText(/tell us about yourself/i)).toHaveValue('Professional model.');
-    expect(screen.getByRole('complementary', { name: /submission checklist/i })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: /submission readiness/i })).toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.queryByText(/profile strength|strong package|agency grade/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save profile/i })).toBeDisabled();
