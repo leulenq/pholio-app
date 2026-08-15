@@ -29,6 +29,9 @@ const Groq = require("groq-sdk");
 const config = require("../../config");
 const { scoreFromImageAnalysis, buildDescriptorPrompt } = require("./scoring");
 const {
+  buildTextCompletionParams,
+} = require("../../shared/lib/groq-text-model");
+const {
   hasRecordedDateOfBirth,
   isMinorProfile,
 } = require("../../shared/lib/talent-age");
@@ -80,7 +83,12 @@ Return exactly this structure, no other text:
   }
 }`;
 
-const TEXT_MODEL = "llama-3.3-70b-versatile";
+// The look descriptor is a TEXT call, not a vision call: it reads the parsed
+// casting analysis, never the image. It resolves from config.groq.textModel
+// (never hardcoded — see the visionModel note above for why), and the
+// completion budget is sized by shared/lib/groq-text-model.js because the
+// configured text model is reasoning-class.
+const DESCRIPTOR_ANSWER_TOKENS = 100;
 
 /**
  * Has this talent granted image-processing consent, and can they?
@@ -314,12 +322,13 @@ async function generateLookDescriptor(castingAnalysis, profileId, knex) {
 
     if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
 
-    const descCompletion = await groq.chat.completions.create({
-      model: TEXT_MODEL,
-      messages: [{ role: "user", content: descriptorPrompt }],
-      temperature: 0.4,
-      max_completion_tokens: 100,
-    });
+    const descCompletion = await groq.chat.completions.create(
+      buildTextCompletionParams({
+        messages: [{ role: "user", content: descriptorPrompt }],
+        temperature: 0.4,
+        maxTokens: DESCRIPTOR_ANSWER_TOKENS,
+      }),
+    );
 
     if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
 

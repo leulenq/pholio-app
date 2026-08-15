@@ -151,9 +151,21 @@ module.exports = {
   // Groq AI configuration
   groq: {
     apiKey: process.env.GROQ_API_KEY,
-    // Text/JSON: natural-language brief parsing. GROQ_TEXT_MODEL is the
-    // rollback lever (deprecated defaults trigger a startup warning below).
+    // Text/JSON: every non-vision Groq call (brief parsing, art direction, the
+    // four talent writers, the look descriptor) resolves its model from here —
+    // do not hardcode a model id at a call site, or GROQ_TEXT_MODEL stops being
+    // a working rollback lever. Resolution and the reasoning-model completion
+    // budget live in shared/lib/groq-text-model.js.
     textModel: groqTextModel,
+    // Exported so a test can assert no source file hardcodes a shut-down id.
+    deprecatedTextModels: DEPRECATED_GROQ_TEXT_MODELS,
+    // gpt-oss is a REASONING model: it spends completion tokens thinking before
+    // it writes the body. The writers produce short factual prose (a bio is
+    // <= 80 words) where the reasoning pass, not the answer, dominates the
+    // spend, so they run at "low". Applies to reasoning-class text models only
+    // — a non-reasoning rollback target ignores it. Mirrors the vision lever
+    // below; set to "none"/"medium"/"high" to retune without a code change.
+    textReasoningEffort: process.env.GROQ_TEXT_REASONING_EFFORT || "low",
     // Vision: every image-analysis path (Scout, portfolio classification,
     // photo analysis, comp-card front jury) resolves its model from here — do
     // not hardcode a model id at a call site, or GROQ_VISION_MODEL stops being

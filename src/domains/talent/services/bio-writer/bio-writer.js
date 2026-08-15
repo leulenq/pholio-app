@@ -1,7 +1,6 @@
 "use strict";
 
-const Groq = require("groq-sdk");
-const config = require("../../../../config");
+const { createChatCompletion } = require("../writer-shared/groq-client");
 const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
@@ -13,26 +12,14 @@ const {
 const { validateBioOutput } = require("./output-validator");
 const { HARD_FAILURE_ISSUES } = require("./quality-rubric");
 
-// NOTE: config.groq.textModel (default openai/gpt-oss-120b) is the repo-wide
-// text model lever and flags this id as deprecated. Moving the bio writer over
-// is not a one-line swap — gpt-oss is a reasoning model that spends completion
-// tokens before the answer, so max_completion_tokens below has to grow with it.
-const BIO_MODEL = "llama-3.3-70b-versatile";
+// The model comes from config.groq.textModel via writer-shared/groq-client —
+// never hardcoded here. BIO_ANSWER_TOKENS is the expected ANSWER length (a bio
+// is <= 80 words); the shared client adds the reasoning allowance on top when
+// the configured model is a reasoning model, so this stays a plain answer
+// budget rather than a number that has to be re-tuned per model.
+const BIO_ANSWER_TOKENS = 200;
 const MAX_ATTEMPTS = 3;
 const MIN_BEST_EFFORT_WORDS = 12;
-
-let _groq = null;
-
-function getGroq() {
-  if (!_groq) {
-    const apiKey = process.env.GROQ_API_KEY || config.groq?.apiKey;
-    if (!apiKey) {
-      throw new Error("GROQ_API_KEY not configured");
-    }
-    _groq = new Groq({ apiKey });
-  }
-  return _groq;
-}
 
 /**
  * Strip the wrapper a chat model puts around a one-paragraph answer: a
@@ -92,18 +79,14 @@ function hasHardFailure(issues = []) {
 }
 
 async function callModel(systemPrompt, userPrompt, { temperature = 0.45 } = {}) {
-  const completion = await getGroq().chat.completions.create({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    model: BIO_MODEL,
+  const raw = await createChatCompletion({
+    system: systemPrompt,
+    user: userPrompt,
     temperature,
-    max_completion_tokens: 200,
-    top_p: 0.85,
+    maxTokens: BIO_ANSWER_TOKENS,
   });
 
-  return stripBioResponse(completion.choices[0]?.message?.content);
+  return stripBioResponse(raw);
 }
 
 function buildResult(bio, { mode, options, validation, attempts, qualityWarning }) {
@@ -242,7 +225,7 @@ async function generateBio({ context, options = {}, generate }) {
 module.exports = {
   refineBio,
   generateBio,
-  BIO_MODEL,
+  BIO_ANSWER_TOKENS,
   MAX_ATTEMPTS,
   SYSTEM_PROMPT,
   stripBioResponse,
