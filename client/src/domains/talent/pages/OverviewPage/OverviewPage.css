@@ -803,6 +803,27 @@
   color: var(--ov-gold-warm);
 }
 
+/* Quiet market pathway under the readiness CTA — same register as
+   .ov-calls-all, block-level so it reads as the card's last line. */
+.ov-readiness-market-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(201, 165, 90, 0.75);
+  text-decoration: none;
+  transition: color 0.25s var(--ov-ease);
+}
+
+.ov-readiness-market-link:hover {
+  color: var(--ov-gold-warm);
+}
+
 .ov-calls-list {
   list-style: none;
   margin: 0;

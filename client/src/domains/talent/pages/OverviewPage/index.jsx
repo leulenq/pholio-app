@@ -475,6 +475,13 @@ export default function OverviewPage() {
               <PholioButton to={auditCtaTo} variant="primary" tone="dark">
                 {auditCtaLabel}
               </PholioButton>
+
+              {/* The pre-gate path into the requirements surface (ruling R-A):
+                  the talent deciding what to shoot reaches it from here even
+                  before the Market nav unlocks. */}
+              <Link to="/dashboard/talent/applications/requirements" className="ov-readiness-market-link">
+                What agencies ask for <ArrowUpRight size={12} aria-hidden />
+              </Link>
             </div>
           </div>
         </div>
