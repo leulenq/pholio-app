@@ -153,8 +153,26 @@
   DEFAULT_MODEL + bio-writer + analyzeProfileImage while config lists it as
   scheduled-for-shutdown; centralize on config.groq.textModel w/ reasoning-model budgets
   per art-director.js precedent (max_completion_tokens 1600, reasoning spend dominates).
-- THEN: Phase 5 FWB event mode (the big one), Phase 6 tracker/verification rail/open-call
-  calendar, Phase 7 Studio+ restructure, Phase 8 full green.
+- DONE: Groq migration (c25bf37 — gpt-oss-120b via config, reasoning_effort low,
+  budgets = max(1600, answer+1400), no-deprecated-ids CI guard, 235 baseline + 18 new;
+  also fixed stale GROQ_VISION_MODEL suggestion in .env.example). Phase 4 export
+  completion (01c4368 — mime sniffing from headers incl. Safari-lies-about-HEIC +
+  compatible-brands, transcode decision-as-data in manifest, STATS.txt via canonical
+  stats-formatter, EMAIL.txt for email routes, channel-aware README; 84/84; env has NO
+  HEVC decode — tests are capability-aware; fixture = Nokia conformance HEIC, provenance
+  in tests/fixtures/heic/README.md, NO explicit upstream license — flagged to user).
+- SMALL FOLLOW-UPS QUEUED: (a) client readRoute drops `channel` — add channelType to
+  client/src/domains/talent/lib/specRegistry.js + branch plate copy for email routes;
+  (b) X-Pholio-Export-Files header counts images only (archive now +1-2 text files) —
+  UI polish, entries semantics kept for engagement recording; (c) inline AI-consent
+  grant in comp-card import overlay; (d) tests/notifications.test.js ordering fix.
+- IN FLIGHT: Phase 5 FWB event mode DESIGN (read-only Plan agent) — event open-call link
+  type + event consent fork, intake spec w/ walk video, organizer pool (reuse inbox) →
+  per-designer pick-list share links (no designer account, magic-link precedent),
+  confirmations on existing status machine, CSV lineup export, export-back-to-model
+  moment, kill-criteria instrumentation. Design → lead review → 3-5 disjoint impl lanes.
+- THEN: Phase 6 tracker/verification rail/open-call calendar, Phase 7 Studio+
+  restructure, Phase 8 full green.
 
 ## Branch cleanup (deletion blocked from remote session — git proxy 403s non-designated
 ## pushes; GitHub MCP has no delete-branch tool. Run locally:)
