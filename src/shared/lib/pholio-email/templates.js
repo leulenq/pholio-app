@@ -208,6 +208,38 @@ function buildTeamInviteEmailHtml({ inviteeName, agencyName, inviterName, roleLa
   });
 }
 
+/**
+ * Pre-charge notice for a Studio+ trial that is about to convert.
+ *
+ * This is a compliance email, not marketing. ROSCA (15 U.S.C. §8403) and the
+ * FTC's negative-option rule expect a clear statement, before the first charge,
+ * of WHEN the charge lands, HOW MUCH it is, and HOW to stop it. So the three
+ * facts lead, they are stated plainly, and the cancel path is named — never
+ * softened, never buried under an upsell. No "don't miss out", no countdown
+ * urgency, no benefit re-sell.
+ */
+function buildTrialEndingEmailHtml({ firstName, trialEndLabel, priceLabel, manageUrl } = {}) {
+  const amount = priceLabel || "$9.99/month";
+  const when = trialEndLabel || "shortly";
+  return renderEmail({
+    previewText: `Your Studio+ trial ends ${when}, then ${amount}.`,
+    blocks: [
+      heading("Your Studio+ trial ends soon."),
+      goldRule(),
+      paragraph(`${greet(firstName)} this is the notice before the first charge. Your free trial of Studio+ ends on ${strong(when)}, and unless you cancel first, your card is charged ${strong(amount)} on that date. It renews at that price each period until you cancel.`),
+      detailList([
+        { label: "Trial ends", value: when },
+        { label: "Then", value: amount },
+        { label: "Cancel", value: "Settings → Membership → Manage billing" },
+      ]),
+      paragraph("Cancelling is available at any time before that date, and takes two clicks in Settings. If you cancel, you keep Studio+ until the trial ends and are not charged."),
+      button("Open billing settings", manageUrl || `${appUrl()}/dashboard/talent/settings/subscription`),
+      note("You receive this notice because a paid trial on your account is about to convert. It is a billing notice, so it is sent regardless of your notification preferences."),
+      signoff(),
+    ],
+  });
+}
+
 function buildGuardianConsentEmailHtml({ guardianName, talentName, talentPhotoUrl, talentCity, agencyName, consentUrl, expiresDays = 7 } = {}) {
   const talent = talentName || "a minor in your care";
   return renderEmail({
@@ -226,4 +258,4 @@ function buildGuardianConsentEmailHtml({ guardianName, talentName, talentPhotoUr
   });
 }
 
-module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildAgencyActivationEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildSignInMethodNoticeEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml };
+module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildAgencyActivationEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildSignInMethodNoticeEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml, buildTrialEndingEmailHtml };

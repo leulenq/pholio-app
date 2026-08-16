@@ -9,6 +9,7 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { talentApi } from '../../talent/api/talent';
 import { useCastingComplete, useCastingStatus } from '../hooks/useCasting';
 import { SubscriptionCheckoutModal } from '../../../shared/components/SubscriptionCheckoutDisclosure';
@@ -289,6 +290,13 @@ function CastingCallPage() {
         finishToDashboard();
       }
     } catch (checkoutError) {
+      // Studio+ isn't sold in every jurisdiction yet (403 region_unavailable —
+      // see src/shared/lib/checkout-jurisdiction.js). Say why before moving on,
+      // rather than dropping someone into the dashboard with no explanation.
+      // The free account they just finished creating is unaffected either way.
+      if (checkoutError?.status === 403 && checkoutError?.data?.code === 'region_unavailable') {
+        toast(checkoutError.message, { duration: 10000 });
+      }
       console.error('[CastingCallPage] Stripe checkout failed, falling back to the dashboard:', checkoutError);
       finishToDashboard();
     } finally {

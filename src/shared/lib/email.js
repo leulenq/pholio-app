@@ -19,6 +19,7 @@ const {
   buildMagicSignInEmailHtml,
   buildTeamInviteEmailHtml,
   buildGuardianConsentEmailHtml,
+  buildTrialEndingEmailHtml,
   components: emailComponents,
   getEmailAppBaseUrl,
 } = require("./pholio-email");
@@ -349,6 +350,32 @@ async function sendGuardianConsentEmail({
 }
 
 /**
+ * Studio+ pre-charge notice (trial about to convert).
+ *
+ * Deliberately NOT gated by notification preferences: the two opt-out-able
+ * categories in `shared/services/notifications.js` are profile views and
+ * application updates. A notice that money is about to leave someone's card is
+ * not a product update — suppressing it would be the exact dark pattern ROSCA
+ * exists to prevent — so it is sent like the security emails above.
+ */
+async function sendTrialEndingEmail({
+  to,
+  firstName,
+  trialEndLabel,
+  priceLabel,
+  manageUrl,
+}) {
+  const subject = `Your Studio+ trial ends ${trialEndLabel || "soon"} — then ${priceLabel || "$9.99/month"}`;
+  const html = buildTrialEndingEmailHtml({
+    firstName,
+    trialEndLabel,
+    priceLabel,
+    manageUrl,
+  });
+  return sendEmail({ to, subject, html });
+}
+
+/**
  * The two event-casting notices. Both go to the organizer, because both are
  * answers to something the organizer did — and a declined slot in particular
  * is time-critical operational news: somebody has to be walked in that look.
@@ -457,4 +484,5 @@ module.exports = {
   sendMagicSignInEmail,
   sendTeamInviteEmail,
   sendGuardianConsentEmail,
+  sendTrialEndingEmail,
 };

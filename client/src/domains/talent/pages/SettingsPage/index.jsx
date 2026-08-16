@@ -41,6 +41,7 @@ import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCus
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
 import { formatPhoneDisplay } from '../../../../shared/lib/phone-format';
 import { identityFormFromProfile } from './identityForm';
+import { STUDIO_LEDE, portalReturnStatus } from './studioCopy';
 import './SettingsPage.css';
 
 /* ------------------------------------------------------------------ *
@@ -857,12 +858,23 @@ function NotificationsMovement({ settings, isLoading }) {
 
 /* --- V · Studio+ --------------------------------------------------- */
 
-function StudioMovement({ settings, isLoading }) {
+export function StudioMovement({ settings, isLoading }) {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [returnState, setReturnState] = useState(() => searchParams.get('checkout'));
+  // Stripe's billing portal returns to `?billing=portal-return` (set in
+  // src/shared/lib/stripe.js). The portal is where cancelling actually happens,
+  // and until now this page ignored the parameter entirely — you cancelled,
+  // came back, and the page still showed the pre-cancel state from cache.
+  const [portalReturn] = useState(
+    () => searchParams.get('billing') === 'portal-return',
+  );
   const [opening, setOpening] = useState(false);
+  // A refused checkout that the talent must be able to read and act on — the
+  // jurisdiction gate (403 region_unavailable) is a standing fact about where
+  // we sell, not a transient failure, so it outlives a toast.
+  const [checkoutBlocked, setCheckoutBlocked] = useState(null);
   // useBrandedStripeCheckout takes the session-creating FUNCTION and owns the
   // handoff state itself. It was being handed an options object, so the hook
   // called that object and threw "createSession is not a function" — surfacing
@@ -882,6 +894,16 @@ function StudioMovement({ settings, isLoading }) {
     setSearchParams({}, { replace: true });
   }, [queryClient, returnState, setSearchParams]);
 
+  // Coming back from the portal, the cached subscription is stale by
+  // definition. Refetch, then state what is now true (see portalReturnStatus)
+  // and strip the parameter so a refresh doesn't re-announce it.
+  useEffect(() => {
+    if (!portalReturn) return;
+    queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+    queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+    setSearchParams({}, { replace: true });
+  }, [portalReturn, queryClient, setSearchParams]);
+
   const openBilling = async () => {
     if (subscription?.stripeCustomerId && subscription.status && !['free', 'canceled'].includes(subscription.status)) {
       window.location.href = '/stripe/customer-portal';
@@ -892,14 +914,26 @@ function StudioMovement({ settings, isLoading }) {
   const confirmCheckout = async (payload) => {
     setCheckoutOpen(false);
     setOpening(true);
-    try { await redirectToCheckout(payload); } catch (error) { toast.error(error?.message || 'Unable to open billing'); setOpening(false); }
+    setCheckoutBlocked(null);
+    try {
+      await redirectToCheckout(payload);
+    } catch (error) {
+      // 403 region_unavailable: Studio+ isn't sold in this state yet. That is a
+      // fact the talent needs on the page, not a red toast that vanishes.
+      if (error?.status === 403 && error?.data?.code === 'region_unavailable') {
+        setCheckoutBlocked(error.message);
+      } else {
+        toast.error(error?.message || 'Unable to open billing');
+      }
+      setOpening(false);
+    }
   };
 
   return (
     <Movement
       id="studio"
       title="Membership"
-      lede="The membership behind expanded insight, submission volume, and premium presentation."
+      lede={STUDIO_LEDE}
     >
       <CheckoutHandoff open={handoffOpen} planLabel="Studio+" />
       <SubscriptionReturnBanner state={returnState} onDismiss={() => setReturnState(null)} />
@@ -930,6 +964,16 @@ function StudioMovement({ settings, isLoading }) {
                     </>
                   )}
             </p>
+            {portalReturn && (
+              <p className="set-plan__status" role="status" data-testid="portal-return-status">
+                {portalReturnStatus(subscription)}
+              </p>
+            )}
+            {checkoutBlocked && (
+              <p className="set-plan__status set-plan__status--blocked" role="status" data-testid="checkout-blocked">
+                {checkoutBlocked}
+              </p>
+            )}
             <p className="set-plan__fine">Submissions an agency invites through their open call never count toward the monthly limit, on any plan.</p>
             <p className="set-plan__method">
               <CreditCard size={14} aria-hidden="true" />
