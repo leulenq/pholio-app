@@ -419,6 +419,11 @@ DESIGN RULES (talent-side frontend)
   docs/requirements-redesign-spec-2026-08.md §flag-to-owner (button reset radius+
   padding = the border-family root cause; canonical-input 8px radius latent; generic
   focus ring) — root-cause fix needs an owner decision on scoping the reset.
+- PHASE 7 IN FLIGHT (P2 gates/copy/dead-code ∥ P3 billing ROSCA+geofence; workers never
+  commit; lead integrates). OWNER RULING (2026-08-15): SKIP the public-portfolio
+  unification (audit §C.1) — lane P1 stopped before any edits, no changes landed. The
+  audit finding itself stands on the record (agency-visible is_pro fork incl. the
+  Studio+ badge, flagged as the top §C item); do NOT work it unless the owner asks.
 - Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
   portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
   agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
