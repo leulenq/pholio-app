@@ -419,8 +419,24 @@ DESIGN RULES (talent-side frontend)
   docs/requirements-redesign-spec-2026-08.md §flag-to-owner (button reset radius+
   padding = the border-family root cause; canonical-input 8px radius latent; generic
   focus ring) — root-cause fix needs an owner decision on scoping the reset.
-- PHASE 7 IN FLIGHT (P2 gates/copy/dead-code ∥ P3 billing ROSCA+geofence; workers never
-  commit; lead integrates). OWNER RULING (2026-08-15): SKIP the public-portfolio
+- ★ PHASE 7 COMPLIANCE CORE COMPLETE + PUSHED (P2 5827915, P3 6fcc9b1): guidance stack
+  free, ?debug=pro gone, QR/logo renders tier-blind (legacy-path QR was gated AND dead
+  — now real; renderPdfView made async), pro-preview.js deleted, /pro/upgrade →
+  settings redirect, Your Website card free w/ analytics-only gate; craft-only Stripe
+  product description + Settings lede (studioCopy.js), trial_will_end pre-charge email
+  w/ unique-index idempotency (marker doubles as bell notice), portal-return honest
+  status line, CA geofence (checkout-jurisdiction.js — fail-open, US-region-code match,
+  STUDIO_BLOCKED_REGIONS default "CA", counsel sign-off = set empty to lift). 46/46
+  stripe tests; full suite on pre-existing baseline; client lint 0 errors.
+  DEPLOY RUNBOOK ADDS: (1) BLOCKING — re-provision live Stripe product description
+  (prod_UlvSm7FpMYpAfE; command in docs/stripe-live-setup.md §5; sandbox too);
+  (2) confirm production SMTP before deploy (trial notice silently no-ops on mock
+  transporter); (3) STUDIO_BLOCKED_REGIONS only needed to change/disable the fence.
+  DEFERRED WITHIN PHASE 7 (net-new revenue surface, post-validation): market packs,
+  card version history, preset freeze, custom domain, tiered storage, digitals archive
+  (audit §G). NEW SMALL NOTE: agency logo renders only on the legacy compcard.ejs
+  path — the standard template never received logo support (pre-existing capability
+  gap, not a tier issue). OWNER RULING (2026-08-15): SKIP the public-portfolio
   unification (audit §C.1) — lane P1 stopped before any edits, no changes landed. The
   audit finding itself stands on the record (agency-visible is_pro fork incl. the
   Studio+ badge, flagged as the top §C item); do NOT work it unless the owner asks.
