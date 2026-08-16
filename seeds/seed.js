@@ -363,6 +363,8 @@ exports.seed = async function seed(knex) {
     id: agencyId,
     email: "agency@example.com",
     password_hash: passwordHash,
+    // Demo accounts must be usable in a browser — the dashboard gates on this.
+    email_verified: true,
     terms_accepted_at: new Date(),
     terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
@@ -392,6 +394,8 @@ exports.seed = async function seed(knex) {
     id: talentId,
     email: "talent@example.com",
     password_hash: passwordHash,
+    // Demo accounts must be usable in a browser — the dashboard gates on this.
+    email_verified: true,
     terms_accepted_at: new Date(),
     terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
@@ -512,6 +516,8 @@ exports.seed = async function seed(knex) {
     id: elaraUserId,
     email: "elara@example.com",
     password_hash: passwordHash,
+    // Demo accounts must be usable in a browser — the dashboard gates on this.
+    email_verified: true,
     terms_accepted_at: new Date(),
     terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
