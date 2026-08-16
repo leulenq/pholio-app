@@ -440,6 +440,20 @@ DESIGN RULES (talent-side frontend)
   unification (audit §C.1) — lane P1 stopped before any edits, no changes landed. The
   audit finding itself stands on the record (agency-visible is_pro fork incl. the
   Studio+ badge, flagged as the top §C item); do NOT work it unless the owner asks.
+- PHASE 8 WAVE 1: H LANDED (71c6534 — demo seed scripts fictional-only [mia-voss bio
+  prose ruled legitimate career narrative; share-token labels in seed-mia-intel:80
+  same category, left]; X-Pholio-Export-Files = all zipped files + NEW
+  X-Pholio-Export-Images = submission content, tracker sentSummary uses images per
+  R2; eventCasting client constants verified already aligned [PickCard's literal copy
+  is deliberate — standalone-bundle isolation]; HEIC README license note). N LANDED
+  (2acdd10 — ★ REAL PROD BUG: bc48e68 merge duplicated the password-changed email
+  block → every reset sent TWO emails; first copy deleted, suite green. BASELINE
+  MYTH BUSTED: app/intel/overview-backend 403s were seeds omitting
+  users.email_verified — isolated-db seed now sets it; notifications suite
+  self-migrates + owns fixtures; ProfilePage vitest timeout 20s). N's two monitored
+  full-suite tallies pending; G (global.css scoping + visual verify) in flight.
+  SKIPPED with ruling: undated-retention copy (consent-versioned, needs its own
+  change).
 - Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
   portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
   agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
