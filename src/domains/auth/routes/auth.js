@@ -960,25 +960,6 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
           firstName: user.first_name,
           supportUrl: "mailto:support@pholio.studio",
         });
-      } catch {
-        console.warn("[Login] Password-changed confirmation email failed");
-      }
-    }
-
-    // The session above is now fully established — this really was a
-    // successful re-authentication, not just a completed Firebase action —
-    // so this is the right place to confirm the change, not ResetPasswordPage
-    // itself (which only knows Firebase accepted a new password, not that
-    // Pholio verified the caller and logged them in on it). Never blocks the
-    // response: a stalled SMTP send must not turn a real, successful login
-    // into a failure.
-    if (passwordJustReset) {
-      try {
-        await sendPasswordChangedEmail({
-          to: user.email,
-          firstName: user.first_name,
-          supportUrl: "mailto:support@pholio.studio",
-        });
       } catch (notifyError) {
         console.warn(
           "[Login] Password-changed confirmation email failed:",

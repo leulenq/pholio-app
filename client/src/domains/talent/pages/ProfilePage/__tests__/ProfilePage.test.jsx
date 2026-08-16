@@ -133,6 +133,10 @@ const mockProfile = {
   experience_level: null,
 };
 
+// These render the whole page and drive it through userEvent; each takes ~3s of
+// the 5s default, so they time out spuriously under parallel CI load.
+vi.setConfig({ testTimeout: 20000 });
+
 describe('ProfilePage Component', () => {
   let queryClient;
 
