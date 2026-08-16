@@ -507,6 +507,9 @@
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 400;
+  /* Was inherited from the global bare-<button> reset, which no longer applies
+     inside the SPA. */
+  letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   transition: color 0.2s cubic-bezier(0.22, 1, 0.36, 1);

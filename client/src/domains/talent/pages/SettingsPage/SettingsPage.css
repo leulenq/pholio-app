@@ -205,6 +205,10 @@
   background: none;
   text-align: left;
   cursor: pointer;
+  /* The rail's label/summary pair inherits its tracking from this box. Stated
+     here now that global.css no longer resets bare <button> inside the SPA. */
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
   color: var(--set-text-soft);
   transition: color 0.25s var(--set-ease);
 }

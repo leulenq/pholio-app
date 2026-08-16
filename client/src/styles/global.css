@@ -2,8 +2,9 @@
    global.css — App-level base styles for the Pholio React SPA
 
    Scope: rules that must be in scope for every page (resets, document base,
-   focus rings, Lucide icon fixes, canonical form inputs, and the is-agency
-   body-class guard that keeps agency pages out of the global button/form resets).
+   focus rings, Lucide icon fixes, canonical form inputs, and the body-class
+   guards — `.is-spa` on every SPA document, `.is-agency` on agency shells —
+   that keep bare-element resets off app surfaces that style themselves).
 
    NOT here:
    - Design tokens → tokens.css + agency-tokens.css
@@ -145,14 +146,27 @@ a > .lucide:only-child {
   margin: 0 auto;
 }
 
-/* ─── 10. Global Button Reset ────────────────────────────────────────────────
-   Talent/auth pages use bare <button> and <input type="submit"> elements styled
-   with .button-* classes. Agency pages opt out via .is-agency on <body>
-   (set by AgencyLayout.jsx) so this never conflicts with ag-* button styles.
+/* ─── 10. Button Reset ───────────────────────────────────────────────────────
+   The `.button` CLASS is the opt-in pill primitive and still applies anywhere
+   markup asks for it.
+
+   The bare-element half of this rule no longer reaches the React SPA. Every
+   SPA document carries `.is-spa` on <body> (set in main.jsx, before first
+   paint) and agency shells additionally carry `.is-agency` (AgencyLayout.jsx),
+   so the element selectors below only fire on a document that is neither —
+   i.e. never inside this app. Reaching every <button> was the bug: the 999px
+   radius + 1.75rem padding landed on icon buttons, tabs, nav rows and
+   underline text buttons that never asked for a pill, curling them into
+   half-circles and forcing scattered `border-radius: 0` patches. SPA buttons
+   are styled by their own component stylesheets instead.
+
+   Kept (rather than deleted) as the reset for any non-SPA document that ever
+   links this stylesheet; server-rendered EJS pages load the separate
+   public/styles/global.css and are unaffected either way.
    ─────────────────────────────────────────────────────────────────────────── */
 .button,
-:where(body:not(.is-agency)) button,
-:where(body:not(.is-agency)) input[type="submit"] {
+:where(body:not(.is-agency):not(.is-spa)) button,
+:where(body:not(.is-agency):not(.is-spa)) input[type="submit"] {
   font-family: var(--font-sans);
   border: none;
   border-radius: 999px;

@@ -16,6 +16,17 @@ import {
 
 initErrorMonitoring();
 
+// Mark the document as the React SPA shell before the first paint.
+// `styles/global.css` uses this class (alongside the pre-existing `.is-agency`
+// set by AgencyLayout) to keep its bare-element `<button>` reset off every
+// SPA-rendered surface — components own their own button styling, and the
+// global 999px pill radius was curling underline/text buttons into
+// half-circles. Set here, in the single entry point, because the SPA's
+// standalone routes (onboarding, /reply, /picks, /opencall, /internal, the
+// full-screen apply studio, auth) share no layout component to hang it on,
+// and because a layout effect would apply it one paint too late.
+document.body.classList.add('is-spa');
+
 const queryClient = new QueryClient();
 
 // AuthEntryTransitionProvider sits outside <App /> deliberately. It renders the

@@ -606,6 +606,9 @@
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 400;
+  /* Marker and label inherit this tracking; it used to come from the global
+     bare-<button> reset, which no longer applies inside the SPA. */
+  letter-spacing: 0.02em;
   line-height: 1.35;
   color: var(--pf-text-soft);
   text-decoration: none;
@@ -2079,6 +2082,10 @@
   background: #fff;
   text-align: left;
   cursor: pointer;
+  /* Lane label and description inherit their tracking from this box. Declared
+     here because global.css no longer resets bare <button> inside the SPA. */
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
   transition:
     border-color 0.2s var(--pf-ease-std),
     background 0.2s var(--pf-ease-std),

@@ -1231,6 +1231,10 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  /* Agency name and meta line inherit their tracking from the card. Declared
+     here since global.css no longer resets bare <button> inside the SPA. */
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
   transition:
     background 0.3s var(--app-ease),
     color 0.3s var(--app-ease);

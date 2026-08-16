@@ -48,6 +48,9 @@
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 500;
+  /* Was inherited from the global bare-<button> reset, which no longer
+     applies inside the SPA. */
+  letter-spacing: 0.02em;
   line-height: 1.5;
   color: var(--pf-gold, #c9a55a);
   text-decoration: underline;
