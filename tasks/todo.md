@@ -454,6 +454,30 @@ DESIGN RULES (talent-side frontend)
   full-suite tallies pending; G (global.css scoping + visual verify) in flight.
   SKIPPED with ruling: undated-retention copy (consent-versioned, needs its own
   change).
+- ★ PHASE 8 COMPLETE (2026-08-16). N final tallies: baseline 5 suites/39 tests failed →
+  **FULL GREEN 0 failed / 2859 passed** on two matching runs of the final tree. The
+  "canonical pre-existing failures" are dead: app/intel/overview = seeds omitting
+  users.email_verified (test helper + seeds both fixed, e6a8422 — demo accounts now
+  work in a browser); notifications = self-migrating + own fixtures; password-changed
+  = REAL prod bug (bc48e68 merge duplicated the confirmation-email block → two emails
+  per reset; fixed 2acdd10). G landed (6e2d234): body.is-spa set pre-paint in main.jsx
+  (root mount — /onboarding, token pages, apply studio, agency/setup share no layout;
+  named is-spa not is-talent since it's on agency documents too); global button reset
+  scoped to non-SPA; 10 rider buttons given explicit metrics (settings rail + auth
+  submit were live regressions, fixed); form-input rule + focus ring LEAVE with
+  recorded inventory (.pholio-premium-tag-input relies on input rule). Client 447
+  tests, lint 0 errors, build green, 12-surface screenshot pass.
+- REMAINING BACKLOG (priority order for successor): inbox pagination +
+  SUBMISSIONS_HARD_CAP counts; spec-registry constraintValue/constraintUnit (gives
+  Files/Eligibility numerals; client fallback ships); pick-list name-display column;
+  drafts keyed per-link (editions collide); comp-card import inline consent grant;
+  undated-retention copy (consent-versioned — needs its own ruled change);
+  20260701111000 FK-pragma hazard; PID-scope fixed-name test sqlite files (concurrent
+  jest runs collide); agency-logo support on the standard compcard template; Open
+  Calls card day/time x-alignment; native date widget in shoot-date form. OWNER
+  DECISIONS PARKED: green readiness bar vs gold; profile-hero STUDIO+ pill; portfolio
+  unification (skipped by ruling). DEFERRED: craft-tier substance (audit §G),
+  Phase 7 §9.5 paid features post-validation.
 - Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
   portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
   agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
