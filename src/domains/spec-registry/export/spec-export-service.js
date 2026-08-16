@@ -316,6 +316,11 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
       // package, which is what makes "did my set actually change?" answerable.
       modifiedAt: new Date(`${referenceDate}T00:00:00.000Z`),
     }),
+    // Every entry actually zipped: images plus README.txt and whichever of
+    // STATS.txt / EMAIL.txt shipped. `manifest.entries` stays image-only —
+    // that's what the engagement record counts — so callers that want "what's
+    // in the archive" (e.g. the export response header) need this instead.
+    fileCount: files.length,
     manifest,
     plan,
     evaluation,

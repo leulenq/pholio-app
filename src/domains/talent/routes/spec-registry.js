@@ -235,7 +235,7 @@ router.post(
       const profile = await ownProfile(req);
       if (!profile) return apiResponse.error(res, "Profile not found", 404);
 
-      const { archiveName, buffer, manifest } = await buildSpecExport(knex, {
+      const { archiveName, buffer, manifest, fileCount } = await buildSpecExport(knex, {
         profileId: profile.id,
         seriesId,
         imageIds,
@@ -247,15 +247,23 @@ router.post(
         eventType: EVENT_TYPES.EXPORT,
         agencyId: await pholioAgencyIdForSeries(seriesId),
         revisionId: manifest.revisionId,
+        // Images only — matches what the matcher/eligibility count elsewhere
+        // means by "files". The archive's README/STATS/EMAIL text files are
+        // packaging, not submission content, so they don't belong in this count.
         fileCount: manifest.entries.length,
       });
 
       res.set("Content-Type", "application/zip");
       res.set("Content-Disposition", `attachment; filename="${archiveName}"`);
       res.set("Content-Length", String(buffer.length));
-      // The manifest is inside the archive; this header lets the surface report
-      // what shipped without unzipping the response it just triggered.
-      res.set("X-Pholio-Export-Files", String(manifest.entries.length));
+      // The manifest is inside the archive; these headers let the surface
+      // report what shipped without unzipping the response it just triggered.
+      // Files = everything actually zipped (images + README.txt + any
+      // STATS/EMAIL.txt). Images = submission content only — the count the
+      // tracker's sentSummary records (ruling R2: packaging is not something
+      // an agency received as materials).
+      res.set("X-Pholio-Export-Files", String(fileCount));
+      res.set("X-Pholio-Export-Images", String(manifest.entries.length));
       return res.send(buffer);
     } catch (error) {
       return sendRegistryError(res, error);

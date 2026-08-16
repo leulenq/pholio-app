@@ -223,7 +223,11 @@ export const talentApi = {
     return {
       blob: await response.blob(),
       filename: named?.[1] || 'digitals.zip',
+      // Everything in the archive (incl. README/STATS/EMAIL text files) — the
+      // honest "N files downloaded" number.
       fileCount: Number(response.headers.get('X-Pholio-Export-Files')) || null,
+      // Submission content only — what the tracker records as sent (ruling R2).
+      imageCount: Number(response.headers.get('X-Pholio-Export-Images')) || null,
     };
   },
 

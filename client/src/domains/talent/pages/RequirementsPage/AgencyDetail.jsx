@@ -127,10 +127,12 @@ function TrackerPrompt({ route, exportState }) {
           ? route.channelType
           : DEFAULT_TRACKER_CHANNEL,
         submittedOn: todayIso(),
-        // Ruling R2: what was sent, as far as Pholio honestly knows it.
+        // Ruling R2: what was sent, as far as Pholio honestly knows it. Images
+        // only — the archive's README/STATS/EMAIL packaging is not submission
+        // content an agency received.
         sentSummary: {
           revisionId: route.revisionId ?? null,
-          fileCount: exportState?.fileCount ?? null,
+          fileCount: exportState?.imageCount ?? exportState?.fileCount ?? null,
         },
       }),
     onSuccess: () => {

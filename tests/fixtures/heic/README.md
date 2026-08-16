@@ -37,3 +37,14 @@ Note that `sharp(...).metadata()` reports `format: "heif", compression: "hevc"`
 even on a runtime that cannot decode it — the container parses without the
 codec. Capability probes must attempt a real pixel decode, which is what the
 test's `heicDecodeAvailable()` does.
+
+## License
+
+`nokiatech/heif_conformance` is publicly published by Nokia as a conformance
+corpus, but the repository carries no explicit license file or redistribution
+grant that this fixture's provenance note could point to. This file is used
+here only as a test input — never served, shipped, or distributed to Pholio
+users or agencies — but its redistribution status under Nokia's terms is
+unverified. If that changes (the corpus gains an explicit license, or Pholio
+needs this fixture outside test-only use), re-check before relying on it
+further.
