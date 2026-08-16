@@ -75,7 +75,6 @@ router.get(
       }
       payload.book = null;
       payload.momentum = null;
-      payload.decisions = payload.decisions.slice(0, 1);
     }
 
     return apiResponse.success(res, payload);

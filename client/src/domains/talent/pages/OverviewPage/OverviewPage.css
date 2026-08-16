@@ -1238,6 +1238,23 @@
   font-size: 12px;
 }
 
+.ov-website-locked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 32px;
+}
+
+.ov-website-locked-line {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--ov-text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 /* ═══════════════════════════════════════════════
    SKELETONS & ERRORS
 ═══════════════════════════════════════════════ */

@@ -231,7 +231,10 @@ export default function OverviewPage() {
   const minor = isMinorProfile(profile);
   const sensitiveUnlocked = minorSensitiveFieldsUnlocked(profile);
   const minorGated = minor && !sensitiveUnlocked;
-  const showPublicWebsite = isPro && !minorGated;
+  // The public portfolio exists for every talent, so the card — its URL and
+  // share affordances — is free. Only the traffic analytics inside it are
+  // Studio+ (see the panel below).
+  const showPublicWebsite = !minorGated;
 
   // Digitals recency: fieldCompletion.digitals_recency is false when existing digital
   // images are older than DIGITALS_STALE_DAYS (client-side signal, no new date math).
@@ -641,7 +644,16 @@ export default function OverviewPage() {
             </div>
 
             <div className="ov-website-panel">
-              {isAnalyticsLoading ? (
+              {!isPro ? (
+                <div className="ov-website-locked">
+                  <p className="ov-website-locked-line">
+                    Studio+ keeps 90 days of your own visit history here, alongside the premium comp-card themes.
+                  </p>
+                  <PholioButton to="/dashboard/talent/settings/studio" variant="tertiary" tone="dark">
+                    See Studio+
+                  </PholioButton>
+                </div>
+              ) : isAnalyticsLoading ? (
                 <div className="ov-website-metrics ov-website-metrics--loading">
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="ov-website-stat">

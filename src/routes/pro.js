@@ -1,37 +1,17 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
-const knex = require('../shared/db/knex');
 const { requireRole } = require('../domains/auth/middleware/require-auth');
-const config = require('../config');
-const { addMessage } = require('../shared/middleware/context');
-const { getSubscriptionStatus, getTrialDaysRemaining, isInTrial, isCanceling } = require('../shared/lib/subscriptions');
 
 const router = express.Router();
 
-router.get('/pro/upgrade', requireRole('TALENT'), async (req, res, next) => {
-  try {
-    const profile = await knex('profiles').where({ user_id: req.session.userId }).first();
-    // Allow upgrade access even without profile - user can upgrade and complete profile later
+/**
+ * Legacy entry point. The upgrade surface is the React settings membership
+ * panel; the EJS view this route used to render no longer exists (it 500'd).
+ * Redirect instead of rendering, so old links keep working.
+ */
+const SUBSCRIPTION_SETTINGS_PATH = '/dashboard/talent/settings/subscription';
 
-    // Get subscription status (already loaded in res.locals by middleware, but fetch again to ensure latest)
-    const subscription = await getSubscriptionStatus(req.session.userId);
-    const trialDaysRemaining = subscription ? getTrialDaysRemaining(subscription) : null;
-    const isInTrialPeriod = subscription ? isInTrial(subscription) : false;
-    const isCancelingSubscription = subscription ? isCanceling(subscription) : false;
-
-    return res.render('pro/upgrade', {
-      title: 'Upgrade to Studio+',
-      profile: profile || null,
-      subscription: subscription || null,
-      trialDaysRemaining,
-      isInTrial: isInTrialPeriod,
-      isCanceling: isCancelingSubscription,
-      layout: 'layout',
-      currentPage: 'pro-upgrade'
-    });
-  } catch (error) {
-    return next(error);
-  }
+router.get('/pro/upgrade', requireRole('TALENT'), (req, res) => {
+  return res.redirect(302, SUBSCRIPTION_SETTINGS_PATH);
 });
 
 module.exports = router;

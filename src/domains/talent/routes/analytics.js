@@ -878,9 +878,7 @@ router.get(
 
     if (!profile) return res.status(404).json({ error: "Profile not found" });
 
-    // Allow debug mode to bypass subscription check
-    const isDebugPro = req.query.debug === "pro";
-    if (!profile.is_pro && !isDebugPro)
+    if (!profile.is_pro)
       return res.status(403).json({ error: "Studio+ subscription required" });
 
     const days = 90;
