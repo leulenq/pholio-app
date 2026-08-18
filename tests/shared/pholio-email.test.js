@@ -91,3 +91,84 @@ describe("guardian consent email", () => {
     expect(html).not.toContain("another agency requires");
   });
 });
+
+describe("talent email system", () => {
+  const {
+    buildWelcomeTalentEmailHtml,
+    buildPasswordResetEmailHtml,
+    buildCardDeclinedEmailHtml,
+    buildApplicationStatusEmailHtml,
+    buildNewMessageEmailHtml,
+    text,
+  } = require("../../src/shared/lib/pholio-email");
+
+  const ALL = [
+    buildWelcomeTalentEmailHtml({ firstName: "Maya", signInMethod: "Google", email: "maya@example.com" }),
+    buildPasswordResetEmailHtml({ firstName: "Maya", resetUrl: "https://app.pholio.studio/reset" }),
+    buildCardDeclinedEmailHtml({ attempted: { date: "16 AUG" }, nextAttempt: { date: "21 AUG", day: "Thursday" }, pausesOn: { date: "24 August", day: "Sunday" }, amount: "£9.99" }),
+    buildApplicationStatusEmailHtml({ agencyName: "Storm", status: "kept_on_file", board: "Women" }),
+    buildNewMessageEmailHtml({ senderName: "Sofia Rendall", agencyName: "Storm", messagePreview: "Hello" }),
+  ];
+
+  test("plain-text parts carry no CSS — the <style> block used to leak into them", () => {
+    const parts = [
+      text.welcomeTalent({ firstName: "Maya" }),
+      text.passwordReset({ firstName: "Maya", resetUrl: "https://x" }),
+      text.applicationStatus({ agencyName: "Storm", status: "kept_on_file" }),
+      text.cardDeclined({ attempted: {}, nextAttempt: {}, pausesOn: { date: "24 August" } }),
+    ];
+    for (const body of parts) {
+      expect(body).not.toMatch(/font-family|<style|line-height|border-collapse/);
+      expect(body.trim().length).toBeGreaterThan(80);
+    }
+  });
+
+  test("gold #C9A55A is never used as reading text — only the wordmark", () => {
+    for (const html of ALL) {
+      const goldText = [...html.matchAll(/color:#C9A55A/gi)];
+      // The wordmark is a logotype and is exempt; nothing else may use it.
+      expect(goldText.length).toBeLessThanOrEqual(1);
+      // The faint dashboard grey flattens to 2.38:1 on cream — never as text.
+      expect(html).not.toMatch(/color:#A5A29E/i);
+    }
+  });
+
+  test("no invented postal address — Pholio is remote", () => {
+    for (const html of ALL) {
+      expect(html).not.toMatch(/Shelton Street|WC2H|London [A-Z]{1,2}\d/);
+    }
+  });
+
+  test("renders at 600px, not the 720px Outlook crops", () => {
+    for (const html of ALL) {
+      expect(html).toContain('width="600"');
+      expect(html).not.toContain('width="720"');
+    }
+  });
+
+  test("an opaque decline never guesses a reason", () => {
+    const html = buildCardDeclinedEmailHtml({ attempted: { date: "16 AUG" }, nextAttempt: { date: "21 AUG" } });
+    expect(html).toMatch(/They didn.{1,6}t tell us why/);
+    expect(html).not.toMatch(/expired|insufficient funds|billing address/i);
+  });
+
+  test("a stated decline names it instead", () => {
+    const html = buildCardDeclinedEmailHtml({
+      reason: { kind: "stated", sentence: "The card ending 4242 expired in July." },
+      attempted: { date: "16 AUG" },
+    });
+    expect(html).toContain("The card ending 4242 expired in July.");
+    expect(html).not.toMatch(/They didn.{1,6}t tell us why/);
+  });
+
+  test("kept on file is never presented as a rejection", () => {
+    const html = buildApplicationStatusEmailHtml({ agencyName: "Storm", status: "kept_on_file", board: "Women" });
+    expect(html).toMatch(/That.{1,6}s not a no\./);
+    expect(html).not.toMatch(/unsuccessful|rejected|unfortunately/i);
+  });
+
+  test("a decline carries no apology — Pholio did not make the decision", () => {
+    const html = buildApplicationStatusEmailHtml({ agencyName: "Storm", status: "declined" });
+    expect(html).not.toMatch(/sorry|apologi[sz]e|unfortunately/i);
+  });
+});

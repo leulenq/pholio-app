@@ -17,7 +17,9 @@ const {
   buildEmailVerificationHtml,
   buildPasswordResetEmailHtml,
   buildPasswordChangedEmailHtml,
-  buildMagicSignInEmailHtml,
+  buildNewDeviceSignInHtml,
+  buildCardDeclinedEmailHtml,
+  buildMaterialsRequestedEmailHtml,
   buildTeamInviteEmailHtml,
   buildGuardianConsentEmailHtml,
 } = require("../src/shared/lib/pholio-email");
@@ -25,6 +27,61 @@ const {
 const APP = "https://app.pholio.studio";
 
 const templates = [
+  {
+    id: "new-device",
+    category: "Auth & onboarding",
+    subject: "New sign-in on Chrome on macOS",
+    description:
+      "A sign-in from an unrecognised device. Deliberately has no button: the standard security-alert pattern tells the recipient to navigate manually rather than training them to click links in alarming mail.",
+    html: buildNewDeviceSignInHtml({
+      firstName: "Nova",
+      device: "Chrome on macOS",
+      location: "near London, United Kingdom",
+      when: "Saturday 16 August, 09:14",
+    }),
+  },
+  {
+    id: "card-declined",
+    category: "Billing",
+    subject: "Your card was declined",
+    description:
+      "The opaque case (generic_decline / do_not_honor), which is also what the fraud codes render as. Built as an account statement; no gold anywhere.",
+    html: buildCardDeclinedEmailHtml({
+      attempted: { date: "16 AUG" },
+      nextAttempt: { date: "21 AUG", day: "Thursday" },
+      pausesOn: { date: "24 August", day: "Sunday" },
+      amount: "\u00a39.99",
+    }),
+  },
+  {
+    id: "materials-requested",
+    category: "Submissions",
+    subject: "Storm Management asked for more",
+    description:
+      "The one submission state where the ball is in the talent's court. The request sits in a full-bleed tinted band — the page changes hands to the agency.",
+    html: buildMaterialsRequestedEmailHtml({
+      agencyName: "Storm Management",
+      items: [
+        "Three full-length digitals, no makeup",
+        "Natural light, plain background",
+        "This week if you can",
+      ],
+    }),
+  },
+  {
+    id: "kept-on-file",
+    category: "Submissions",
+    subject: "Storm Management kept your book on file",
+    description:
+      "A soft yes. Never presented as a rejection; the stale-digitals note sits below a hairline so it cannot read as the reason.",
+    html: buildApplicationStatusEmailHtml({
+      agencyName: "Storm Management",
+      status: "kept_on_file",
+      board: "Women",
+      staleDigitals: 112,
+      submittedOn: "2 July",
+    }),
+  },
   {
     id: "welcome-talent",
     category: "Auth & onboarding",
@@ -48,11 +105,10 @@ const templates = [
     category: "Auth & onboarding",
     subject: "Verify your email address",
     description:
-      "Email verification with button + optional 6-digit code fallback.",
+      "Email verification. Firebase owns the action link — there is no code, and adding one would mean replacing Firebase verification entirely.",
     html: buildEmailVerificationHtml({
       firstName: "Nova",
       verifyUrl: `${APP}/verify-email?token=sample-verify-token`,
-      verificationCode: "482913",
       expiresMinutes: 30,
     }),
   },
@@ -76,17 +132,6 @@ const templates = [
     html: buildPasswordChangedEmailHtml({
       firstName: "Nova",
       changedAt: "June 7, 2026 at 2:34 PM",
-    }),
-  },
-  {
-    id: "magic-sign-in",
-    category: "Auth & security",
-    subject: "Your Pholio sign-in link",
-    description: "Passwordless one-tap sign-in link.",
-    html: buildMagicSignInEmailHtml({
-      firstName: "Nova",
-      signInUrl: `${APP}/auth/magic?token=sample-signin-token`,
-      expiresMinutes: 15,
     }),
   },
   {

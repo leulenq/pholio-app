@@ -6,6 +6,7 @@
 const nodemailer = require("nodemailer");
 const config = require("../../config");
 const {
+  text: emailText,
   buildNewMessageEmailHtml,
   buildApplicationStatusEmailHtml,
   buildAgencyInviteEmailHtml,
@@ -16,8 +17,10 @@ const {
   buildPasswordResetEmailHtml,
   buildSignInMethodNoticeEmailHtml,
   buildPasswordChangedEmailHtml,
-  buildMagicSignInEmailHtml,
   buildTeamInviteEmailHtml,
+  buildNewDeviceSignInHtml,
+  buildCardDeclinedEmailHtml,
+  buildMaterialsRequestedEmailHtml,
   buildGuardianConsentEmailHtml,
 } = require("./pholio-email");
 
@@ -108,16 +111,46 @@ if (smtpConfigured) {
 }
 
 /**
+ * Last-resort plain-text derivation, for templates that do not yet ship a
+ * hand-written one (currently the agency family).
+ *
+ * The previous implementation was `html.replace(/<[^>]*>/g,"")`, which strips
+ * tags but NOT the contents of <style> — so every text/plain part began with a
+ * wall of CSS. That is a spam signal and it is what screen readers and watch
+ * previews fall back to. Drop script/style wholesale before touching tags.
+ */
+function stripToText(html) {
+  return String(html || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<\/(p|div|tr|h1|h2|h3|table)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&middot;/g, "\u00b7")
+    .replace(/&mdash;/g, "\u2014")
+    .replace(/&#39;|&rsquo;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
  * Send email
  */
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   try {
     const mailOptions = {
       from: config.smtp?.from || "Pholio <noreply@pholio.studio>",
+      // A monitored inbox, not noreply@. Replies are an engagement signal, and
+      // a talent answering a booker notification should reach a human.
+      replyTo: replyTo || config.smtp?.replyTo || "support@pholio.studio",
       to,
       subject,
       html,
-      text: text || html.replace(/<[^>]*>/g, ""),
+      text: text || stripToText(html),
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -166,7 +199,12 @@ async function sendApplicationStatusEmail({
     status,
   });
 
-  return sendEmail({ to, subject, html });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.applicationStatus({ agencyName, status }),
+  });
 }
 
 /**
@@ -186,7 +224,12 @@ async function sendNewMessageEmail({
     messagePreview,
     replyUrl,
   });
-  return sendEmail({ to, subject, html });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.newMessage({ senderName, agencyName: senderName, messagePreview, replyUrl }),
+  });
 }
 
 /**
@@ -195,13 +238,23 @@ async function sendNewMessageEmail({
 async function sendAgencyInviteEmail({ talentEmail, talentName, agencyName }) {
   const subject = `${agencyName} has invited you to apply on Pholio`;
   const html = buildAgencyInviteEmailHtml({ talentName, agencyName });
-  return sendEmail({ to: talentEmail, subject, html });
+  return sendEmail({
+    to: talentEmail,
+    subject,
+    html,
+    text: emailText.agencyInvite({ talentName, agencyName }),
+  });
 }
 
 async function sendWelcomeTalentEmail({ to, firstName }) {
   const subject = "Welcome to Pholio";
   const html = buildWelcomeTalentEmailHtml({ firstName });
-  return sendEmail({ to, subject, html });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.welcomeTalent({ firstName }),
+  });
 }
 
 async function sendWelcomeAgencyEmail({ to, contactName, agencyName }) {
@@ -241,7 +294,12 @@ async function sendEmailVerificationEmail({
     verificationCode,
     expiresMinutes,
   });
-  return sendEmail({ to, subject, html });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.emailVerification({ firstName, verifyUrl, expiresMinutes }),
+  });
 }
 
 async function sendPasswordResetEmail({
@@ -256,13 +314,23 @@ async function sendPasswordResetEmail({
     resetUrl,
     expiresMinutes,
   });
-  return sendEmail({ to, subject, html });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.passwordReset({ firstName, resetUrl, expiresMinutes }),
+  });
 }
 
 async function sendSignInMethodNoticeEmail({ to, firstName, providerLabel }) {
   const subject = "How to sign in to Pholio";
   const html = buildSignInMethodNoticeEmailHtml({ firstName, providerLabel });
-  return sendEmail({ to, subject, html });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.signInMethodNotice({ firstName, providerLabel }),
+  });
 }
 
 async function sendPasswordChangedEmail({
@@ -277,22 +345,12 @@ async function sendPasswordChangedEmail({
     changedAt,
     supportUrl,
   });
-  return sendEmail({ to, subject, html });
-}
-
-async function sendMagicSignInEmail({
-  to,
-  firstName,
-  signInUrl,
-  expiresMinutes,
-}) {
-  const subject = "Your Pholio sign-in link";
-  const html = buildMagicSignInEmailHtml({
-    firstName,
-    signInUrl,
-    expiresMinutes,
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.passwordChanged({ firstName, changedAt }),
   });
-  return sendEmail({ to, subject, html });
 }
 
 async function sendTeamInviteEmail({
@@ -340,7 +398,59 @@ async function sendGuardianConsentEmail({
     consentUrl,
     expiresDays,
   });
-  return sendEmail({ to, subject, html });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.guardianConsent({ guardianName, talentName, agencyName, consentUrl, expiresDays }),
+  });
+}
+
+
+/**
+ * A sign-in from a device Pholio has not seen. `session-registry.js` already
+ * records the fingerprint, user agent and IP — nothing was ever sent.
+ */
+async function sendNewDeviceSignInEmail({ to, firstName, device, location, when }) {
+  const html = buildNewDeviceSignInHtml({ firstName, device, location, when });
+  return sendEmail({
+    to,
+    subject: `New sign-in on ${device || "a new device"}`,
+    html,
+    text: emailText.newDeviceSignIn({ firstName, device, location, when }),
+  });
+}
+
+/**
+ * A failed subscription payment.
+ *
+ * `reason` must be derived from Stripe's decline_code by the caller, not
+ * guessed here:
+ *   { kind: "stated", sentence }  — safe to name (expired_card,
+ *                                   insufficient_funds, incorrect_cvc)
+ *   { kind: "opaque" } or absent  — generic_decline / do_not_honor, AND the
+ *                                   fraud codes, which must never be shown to
+ *                                   the cardholder.
+ */
+async function sendCardDeclinedEmail({ to, reason, attempted, nextAttempt, pausesOn, amount }) {
+  const html = buildCardDeclinedEmailHtml({ reason, attempted, nextAttempt, pausesOn, amount });
+  return sendEmail({
+    to,
+    subject: "Your card was declined",
+    html,
+    text: emailText.cardDeclined({ reason, attempted, nextAttempt, pausesOn, amount }),
+  });
+}
+
+/** An agency asked for more before deciding — the one talent-court state. */
+async function sendMaterialsRequestedEmail({ to, agencyName, items }) {
+  const html = buildMaterialsRequestedEmailHtml({ agencyName, items });
+  return sendEmail({
+    to,
+    subject: `${agencyName || "An agency"} asked for more`,
+    html,
+    text: emailText.materialsRequested({ agencyName, items }),
+  });
 }
 
 module.exports = {
@@ -355,7 +465,9 @@ module.exports = {
   sendPasswordResetEmail,
   sendSignInMethodNoticeEmail,
   sendPasswordChangedEmail,
-  sendMagicSignInEmail,
   sendTeamInviteEmail,
   sendGuardianConsentEmail,
+  sendNewDeviceSignInEmail,
+  sendCardDeclinedEmail,
+  sendMaterialsRequestedEmail,
 };
