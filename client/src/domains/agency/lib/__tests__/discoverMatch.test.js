@@ -1,24 +1,11 @@
 import { describe, test, expect } from 'vitest';
 import {
-  tierBandToScore,
   chipValueText,
   chipEditKind,
   constraintAnnotations,
   amendBriefValue,
   amendBriefRemove,
 } from '../discoverMatch';
-
-describe('discoverMatch — tier bands', () => {
-  test('maps coarse bands to representative ring numerals', () => {
-    expect(tierBandToScore('high')).toBe(92);
-    expect(tierBandToScore('mid')).toBe(80);
-    expect(tierBandToScore('low')).toBe(66);
-  });
-  test('absent band → null (ring omitted)', () => {
-    expect(tierBandToScore(undefined)).toBeNull();
-    expect(tierBandToScore('nope')).toBeNull();
-  });
-});
 
 describe('discoverMatch — chip value display', () => {
   test('height min renders imperial with ≥ operator', () => {

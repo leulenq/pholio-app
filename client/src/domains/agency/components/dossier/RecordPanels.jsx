@@ -2,13 +2,10 @@ import React from 'react';
 import { Fact, Ledger, Quiet } from './DossierPrimitives';
 import {
   fmtDate,
-  marketLabel,
-  positionRead,
   representationLineText,
   representationRead,
   titleCase,
 } from './dossierModel';
-import { MatchFigure } from '../meta';
 import './dossier.css';
 
 /**
@@ -131,59 +128,5 @@ export function ProfessionalRecord({ talent }) {
         <Fact key={f.label} label={f.label} value={f.value} />
       ))}
     </Ledger>
-  );
-}
-
-/**
- * Position — where this talent sits inside this agency's own book. Deliberately
- * relative to the roster the booker actually runs, not an invented global rank.
- */
-export function PositionRecord({ position, talent, board, matchScore }) {
-  const read = positionRead(position, talent);
-  if (!read && !board) {
-    return <Quiet>Build out your roster and this talent will be measured against it.</Quiet>;
-  }
-
-  return (
-    <div className="dx-position">
-      {read && (
-        <ul className="dx-position__list">
-          {read.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      )}
-      <Ledger columns={2}>
-        <Fact label="Filed to" value={board?.name} />
-        <Fact
-          label="Board size"
-          value={position?.board_size != null ? `${position.board_size} active` : null}
-          mono
-        />
-        <Fact
-          label="Match"
-          value={
-            matchScore != null ? (
-              <MatchFigure score={matchScore} size="sm" showTier />
-            ) : null
-          }
-        />
-        <Fact
-          label="Height rank"
-          value={
-            position?.height_rank && position?.track_peers
-              ? `${position.height_rank} of ${position.track_peers}`
-              : null
-          }
-          mono
-        />
-        <Fact label="Market" value={marketLabel(talent?.market)} />
-        <Fact
-          label="In that market"
-          value={position?.market_peers ? `${position.market_peers} signed` : null}
-          mono
-        />
-      </Ledger>
-    </div>
   );
 }

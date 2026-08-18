@@ -2,14 +2,15 @@
 
 const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
-const { utcMonthWindow } = require("./application-quota");
 
 // How long a claim stays redeemable after the talent (re)arrives.
 const CLAIM_TTL_DAYS = 14;
-// Ceiling on quota-exempt submissions per profile per UTC month. Bounds the
-// "harvest every agency's public link" strategy; genuine arrivals from one or
-// two agencies are untouched.
-const OPEN_CALL_EXEMPT_MONTHLY_CAP = 3;
+// There is no monthly ceiling on open-call submissions. The open-call path is
+// free and unlimited, always — it is the product's core distribution promise,
+// and an agency that puts a Pholio link on its own channels must be reachable
+// through it. Abuse is already bounded structurally: a claim requires an
+// arrival on that agency's own live link, and one claim per (agency, profile)
+// can ever be consumed.
 
 const CLAIM_STATUSES = {
   ACTIVE: "active",
@@ -40,6 +41,32 @@ function hasOpenCallSchema(db) {
       });
   }
   return openCallSchemaPromise;
+}
+
+// The brief shipped after the links did. Selecting its columns unconditionally
+// would break the arrival page on a database that has the open-call schema but
+// not yet the brief migration, so the projection adapts. Checked once per
+// process, like `hasOpenCallSchema` above.
+const BRIEF_COLUMNS = [
+  "l.brief_who",
+  "l.brief_what",
+  "l.brief_eligibility",
+  "l.brief_next_steps",
+  "l.brief_deadline",
+  "l.brief_ongoing",
+  "l.brief_completed_at",
+];
+let briefColumnsPromise = null;
+function hasBriefColumns(db) {
+  if (!briefColumnsPromise) {
+    briefColumnsPromise = db.schema
+      .hasColumn("agency_open_call_links", "brief_completed_at")
+      .catch(() => {
+        briefColumnsPromise = null;
+        return false;
+      });
+  }
+  return briefColumnsPromise;
 }
 
 function claimExpiryTimestamp(from = new Date()) {
@@ -85,6 +112,7 @@ async function findActiveLinkByCode(db, code) {
       "a.logo_path as agency_logo",
       "a.website as agency_website",
       "a.open_boards as agency_open_boards",
+      ...((await hasBriefColumns(db)) ? BRIEF_COLUMNS : []),
     )
     .first();
   return link || null;
@@ -295,34 +323,11 @@ async function consumeClaim(trx, claimId, applicationId) {
   }
 }
 
-/** Quota-exempt submissions completed in the current UTC month. */
-async function countExemptThisMonth(db, profileId, referenceDate = new Date()) {
-  const { periodStart, periodEnd } = utcMonthWindow(referenceDate);
-  let query = db("application_submission_requests")
-    .where({ profile_id: profileId, status: "completed", quota_exempt: true })
-    .whereNotNull("completed_at");
-  if (db.client.config.client === "sqlite3") {
-    query = query
-      .whereRaw("datetime(completed_at) >= datetime(?)", [
-        periodStart.toISOString(),
-      ])
-      .whereRaw("datetime(completed_at) < datetime(?)", [
-        periodEnd.toISOString(),
-      ]);
-  } else {
-    query = query
-      .where("completed_at", ">=", periodStart)
-      .where("completed_at", "<", periodEnd);
-  }
-  const row = await query.count({ count: "*" }).first();
-  return Number(row?.count || 0);
-}
-
 module.exports = {
   CLAIM_TTL_DAYS,
-  OPEN_CALL_EXEMPT_MONTHLY_CAP,
   CLAIM_STATUSES,
   LINK_STATUSES,
+  hasBriefColumns,
   hasOpenCallSchema,
   claimExpiryTimestamp,
   generateOpenCallCode,
@@ -335,5 +340,4 @@ module.exports = {
   listActiveClaims,
   resolveActiveClaim,
   consumeClaim,
-  countExemptThisMonth,
 };

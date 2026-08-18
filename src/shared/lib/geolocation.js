@@ -44,6 +44,14 @@ async function getIPGeolocation(ipAddress) {
       ip_address: ipAddress,
       country: data.country_code || null, // ISO 3166-1 alpha-2 (e.g., 'US', 'GB')
       region: data.region || data.region_code || null, // State/Province
+      // ipapi.co returns BOTH `region` (full name, e.g. 'California') and
+      // `region_code` (short code, e.g. 'CA'). `region` above prefers the full
+      // name, which is ambiguous for code-based matching — and 'CA' as a
+      // country_code means CANADA, not California. Callers that need to match a
+      // specific US state must use `region_code` together with `country`.
+      // Additive field: existing callers (signup intel, market-resolve) are
+      // unaffected.
+      region_code: data.region_code || null,
       city: data.city || null,
       timezone: data.timezone || null, // e.g., 'America/Los_Angeles'
       latitude: data.latitude || null,

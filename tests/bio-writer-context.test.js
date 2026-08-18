@@ -1,6 +1,7 @@
 const {
   buildBioContext,
   formatContextForPrompt,
+  resolveRichness,
 } = require("../src/domains/talent/services/bio-writer/context-builder");
 
 describe("bio-writer context-builder", () => {
@@ -75,5 +76,71 @@ describe("bio-writer context-builder", () => {
     const keys = ctx.signals.map((s) => s.key);
     expect(keys).toContain("credits");
     expect(keys).not.toContain("experience");
+  });
+});
+
+describe("bio-writer context richness", () => {
+  it("grades a full profile as rich", () => {
+    const ctx = buildBioContext({
+      first_name: "Maya",
+      last_name: "Chen",
+      city: "Toronto, Canada",
+      modeling_categories: JSON.stringify(["Editorial", "Runway"]),
+      experience_details: JSON.stringify([
+        { title: "Sable Journal", role: "Editorial", year: "2024" },
+      ]),
+      training: "Two seasons of runway coaching at a Toronto studio",
+      languages: JSON.stringify(["English", "French"]),
+      seeking_representation: true,
+    });
+    expect(ctx.richness).toBe("rich");
+  });
+
+  it("grades a name-plus-one-lane profile as thin", () => {
+    const ctx = buildBioContext({
+      first_name: "Tomas",
+      last_name: "Ilic",
+      modeling_categories: JSON.stringify(["Commercial"]),
+    });
+    expect(ctx.richness).toBe("thin");
+  });
+
+  it("grades a short market-plus-lane profile as thin, not moderate", () => {
+    const ctx = buildBioContext({
+      first_name: "Tomas",
+      last_name: "Ilic",
+      city: "Halifax",
+      modeling_categories: JSON.stringify(["Commercial"]),
+    });
+    expect(ctx.signalCount).toBe(2);
+    expect(ctx.richness).toBe("thin");
+  });
+
+  it("grades a mid-detail profile as moderate", () => {
+    const ctx = buildBioContext({
+      first_name: "Maya",
+      last_name: "Chen",
+      city: "Toronto, Canada",
+      modeling_categories: JSON.stringify(["Editorial", "Runway"]),
+      training: "Two seasons of runway coaching at a Toronto studio",
+    });
+    expect(ctx.richness).toBe("moderate");
+  });
+
+  it("uses richness directly from resolveRichness", () => {
+    expect(resolveRichness([])).toBe("thin");
+    expect(
+      resolveRichness([
+        { fact: "Toronto, Canada" },
+        { fact: "Editorial, Runway, Commercial" },
+        { fact: "Two seasons of runway coaching at a Toronto studio" },
+      ]),
+    ).toBe("moderate");
+  });
+
+  it("keeps the empty-context prompt line honest about length", () => {
+    const blob = formatContextForPrompt({ signals: [] });
+    expect(blob).toMatch(/one or two honest sentences/i);
+    expect(blob).toMatch(/do not pad/i);
   });
 });

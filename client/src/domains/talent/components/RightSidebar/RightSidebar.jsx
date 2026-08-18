@@ -1,8 +1,7 @@
 import React from 'react';
-import { Edit2, Layout, ExternalLink, ArrowRight, FileDown, Sparkles, Check } from 'lucide-react';
+import { Edit2, Layout, ArrowRight, FileDown, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { MomentumChart } from './MomentumChart';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import './RightSidebar.css';
@@ -71,15 +70,7 @@ export const RightSidebar = ({ nextPriority }) => {
         </ul>
       </div>
 
-      {/* Zone 3: Momentum - No Extra Card Styling */}
-      <div className="mt-6">
-         <h3 className="text-sm font-medium text-slate-900 mb-4 px-1">Momentum</h3>
-         <div className="-ml-2">
-            <MomentumChart />
-         </div>
-      </div>
-
-      {/* Zone 4: Studio+ Upsell */}
+      {/* Zone 3: Studio+ Upsell */}
       {!subscription?.isPro && (
         <div className="mt-8 bg-white p-7 rounded-2xl shadow-card border-l-4 border-[#C9A55A] relative overflow-hidden transition-all hover:shadow-elevation-2">
           {/* Subtle Background Watermark */}
@@ -97,10 +88,11 @@ export const RightSidebar = ({ nextPriority }) => {
             </p>
 
             <ul className="space-y-3 mb-8">
+              {/* Studio+ sells only what the talent keeps for themselves.
+                  Never reach, ranking, review speed, or submission volume. */}
               {[
                 'Premium PDF themes',
-                'Advanced insights',
-                'Unlimited discovery submissions',
+                '90-day portfolio analytics',
               ].map((benefit) => (
                 <li key={benefit} className="relative pl-3.5 text-xs text-slate-600">
                   <span

@@ -3,9 +3,8 @@
  * Backfill `profiles.market` from `profiles.city` (WS3.5).
  *
  * Market derivation reuses the canonical city → industry-market map in
- * src/domains/talent/services/intel/market-resolve.js (the same vocabulary
- * already persisted in profile_events.market: 'new-york', 'los-angeles',
- * 'paris', ...). shared/lib/geolocation.js is IP-based only and cannot map a
+ * src/domains/talent/services/market-resolve.js. shared/lib/geolocation.js is
+ * IP-based only and cannot map a
  * free-text city, so the explicit alias map is the derivation source.
  * Unmatched cities are left NULL.
  *
@@ -21,7 +20,7 @@ require("dotenv").config();
 const knex = require("../src/shared/db/knex");
 const {
   marketFromGeo,
-} = require("../src/domains/talent/services/intel/market-resolve");
+} = require("../src/domains/talent/services/market-resolve");
 
 function parseArgs(argv) {
   const opts = { execute: false, force: false };

@@ -81,14 +81,6 @@ const { asyncHandler } = require("../../../shared/middleware/error-handler");
 
 const { calculateProfileCompleteness } = require("../services/completeness");
 
-// Helper: Get Strength Status UI (matching frontend logic if needed by templates, though here we send raw data)
-const getStrengthLabel = (percentage) => {
-  if (percentage < 70) return "Beginner";
-  if (percentage < 90) return "Intermediate";
-  if (percentage < 100) return "Advanced";
-  return "Expert";
-};
-
 /**
  * GET /api/talent/overview
  * Powers the main dashboard overview
@@ -105,7 +97,6 @@ router.get(
     // Guard: If no profile yet
     if (!profile) {
       return res.json({
-        profileStrength: { label: "Beginner", score: 0 },
         nextPriority: {
           title: "Welcome",
           action: "Create Profile",
@@ -119,12 +110,8 @@ router.get(
       .where({ profile_id: profile.id })
       .orderBy("sort", "asc");
 
-    // 2. Calculate Strength & Priority
+    // 2. Name the next concrete submission requirement. Do not score the person.
     const completeness = calculateProfileCompleteness(profile, images);
-    const profileStrength = {
-      score: completeness.percentage,
-      label: getStrengthLabel(completeness.percentage),
-    };
 
     // Use the unified Next Steps from the completeness calculator
     // Get the top priority item, or default if none
@@ -155,45 +142,9 @@ router.get(
       console.warn("Failed to fetch activity stream", error);
     }
 
-    // 4. Recommended Agencies (Mock data from legacy EJS)
-    const recommendedAgencies = [
-      {
-        id: 1,
-        name: "Elite Models",
-        logo: "E",
-        match: 95,
-        tags: ["Fashion", "Runway"],
-        location: "LA-based",
-        lookingFor: "Female, 5'9\"+",
-        type: "high",
-      },
-      {
-        id: 2,
-        name: "IMG Models",
-        logo: "I",
-        match: 87,
-        tags: ["Commercial", "Print"],
-        location: "Nationwide",
-        lookingFor: "All heights",
-        type: "standard",
-      },
-      {
-        id: 3,
-        name: "Next Management",
-        logo: "N",
-        match: 82,
-        tags: ["Editorial", "Diversity"],
-        location: "NYC-based",
-        lookingFor: "NYC-based talent",
-        type: "standard",
-      },
-    ];
-
     return res.json({
-      profileStrength,
       nextPriority,
       activityStream,
-      recommendedAgencies,
     });
   }),
 );

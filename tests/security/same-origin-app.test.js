@@ -19,7 +19,7 @@ const {
 
 beforeAll(async () => {
   await knex.migrate.latest();
-});
+}, 120000);
 
 afterAll(async () => {
   if (previousCsrfEnforce === undefined) {

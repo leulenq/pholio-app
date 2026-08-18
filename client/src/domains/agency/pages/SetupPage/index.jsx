@@ -3,14 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import {
   completeAgencySetup,
-  createImportJob,
   getAgencySetup,
   saveSetupBoards,
   saveSetupDefaults,
   saveSetupOpenCall,
   saveSetupPrivacy,
   saveSetupProfile,
-  saveSetupRoster,
   saveSetupTeam,
 } from '../../api/setup';
 import { addAgencyTeamMember } from '../../api/agency';
@@ -23,10 +21,8 @@ import {
   BOARD_PRESETS,
   CHAPTERS,
   CURRENCIES,
-  ROSTER_PATHS,
   TEAM_ROLES,
   UNIT_OPTIONS,
-  rosterPathFromMigrationInterest,
 } from './chapters';
 import './SetupPage.css';
 
@@ -96,11 +92,9 @@ function SetupExperience({ data }) {
     const stepMap = new Map((data.steps || []).map((step) => [step.key, step]));
     const stepData = (key) => stepMap.get(key)?.data || {};
     const boardStep = stepData('boards');
-    const rosterStep = stepData('roster');
     const openCallStep = stepData('open_call');
     const defaultsStep = stepData('defaults');
     const teamStep = stepData('team');
-    const latestImport = data.importJobs?.[0];
 
     const firstIncomplete = CHAPTERS.findIndex((chapter) =>
       chapter.steps.some((key) => stepMap.get(key)?.status !== 'complete'),
@@ -117,11 +111,6 @@ function SetupExperience({ data }) {
       firstIncomplete: firstIncomplete === -1 ? CHAPTERS.length - 1 : firstIncomplete,
       hasStarted: (data.steps || []).some((step) => step.status === 'complete'),
       boards: savedBoards.length ? savedBoards : declaredBoards,
-      rosterPath:
-        rosterStep.path
-        || (latestImport ? 'import' : null)
-        || rosterPathFromMigrationInterest(onFile?.migrationInterest)
-        || 'blank',
       teamSkipped: teamStep.skipped,
       openCallEnabled: typeof openCallStep.enabled === 'boolean' ? openCallStep.enabled : true,
       timezone: defaultsStep.timezone || onFile?.timezone || BROWSER_TIMEZONE,
@@ -129,9 +118,7 @@ function SetupExperience({ data }) {
       units: defaultsStep.units || 'imperial_metric',
       holdsMinors: Boolean(
         boardStep.acceptsMinors
-          || rosterStep.includesMinors
           || openCallStep.acceptsMinors
-          || latestImport?.includesMinors
           || agency.minorDataAcknowledgedAt,
       ),
     };
@@ -151,7 +138,6 @@ function SetupExperience({ data }) {
   const [units, setUnits] = useState(persisted.units);
   const [fieldErrors, setFieldErrors] = useState({});
   const [boards, setBoards] = useState(persisted.boards);
-  const [rosterPath, setRosterPath] = useState(persisted.rosterPath);
   const [invites, setInvites] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('AGENT');
@@ -172,8 +158,6 @@ function SetupExperience({ data }) {
   const profileMutation = useMutation({ mutationFn: saveSetupProfile });
   const defaultsMutation = useMutation({ mutationFn: saveSetupDefaults });
   const boardsMutation = useMutation({ mutationFn: saveSetupBoards });
-  const rosterMutation = useMutation({ mutationFn: saveSetupRoster });
-  const importMutation = useMutation({ mutationFn: createImportJob });
   const teamMutation = useMutation({ mutationFn: saveSetupTeam });
   const inviteMutation = useMutation({ mutationFn: addAgencyTeamMember });
   const openCallMutation = useMutation({ mutationFn: saveSetupOpenCall });
@@ -281,18 +265,6 @@ function SetupExperience({ data }) {
         });
       }
 
-      if (chapter.id === 'roster') {
-        if (rosterPath === 'import') {
-          await importMutation.mutateAsync({
-            sourceType: 'concierge',
-            includesMinors: holdsMinorRecords,
-          });
-        }
-        // Always record the chosen path so the step lands `complete`. An import
-        // job that needs review stays flagged on the job itself, not on setup.
-        latest = await rosterMutation.mutateAsync({ path: rosterPath });
-      }
-
       if (chapter.id === 'team') {
         latest = await teamMutation.mutateAsync({ skipped: invites.length === 0 });
       }
@@ -349,8 +321,8 @@ function SetupExperience({ data }) {
         <section className="stg-centered" role="status" aria-live="polite">
           <h1>The workspace is open.</h1>
           <p>
-            {record.agencyName || 'Your agency'} is commissioned. Your boards are standing
-            and the inbox is live.
+            {record.agencyName || 'Your agency'} is commissioned. Your intake boards and
+            inbox are live.
           </p>
           <button
             type="button"
@@ -456,7 +428,7 @@ function SetupExperience({ data }) {
 
       {chapter.id === 'boards' && (
         <fieldset className="stg-set">
-          <legend>Standing boards</legend>
+          <legend>Intake boards</legend>
           <div className="stg-rows stg-rows--split">
             {BOARD_PRESETS.map((board) => (
               <OptionRow
@@ -465,25 +437,6 @@ function SetupExperience({ data }) {
                 hint={board.hint}
                 checked={boards.includes(board.name)}
                 onChange={(next) => toggleBoard(board.name, next)}
-              />
-            ))}
-          </div>
-        </fieldset>
-      )}
-
-      {chapter.id === 'roster' && (
-        <fieldset className="stg-set">
-          <legend>Roster path</legend>
-          <div className="stg-rows">
-            {ROSTER_PATHS.map((path) => (
-              <OptionRow
-                key={path.value}
-                type="radio"
-                name="roster-path"
-                label={path.label}
-                hint={path.hint}
-                checked={rosterPath === path.value}
-                onChange={() => { setRosterPath(path.value); setDockError(''); }}
               />
             ))}
           </div>

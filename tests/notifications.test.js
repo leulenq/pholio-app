@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const knex = require("../src/shared/db/knex");
+const { acceptedLegal } = require("./setup/legal-fixture");
 const {
   upsertUserNotification,
   listUserNotifications,
@@ -14,29 +15,39 @@ describe("notifications service", () => {
   let userId;
   const groupKey = `test_group:${Date.now()}`;
 
-  beforeAll(async () => {
-    const hasTable = await knex.schema.hasTable("notifications");
-    if (!hasTable) {
-      throw new Error("notifications table missing — run migrations first");
-    }
+  /* This suite used to throw "notifications table missing — run migrations
+     first" and "No TALENT user in database — run seed first" out of beforeAll,
+     which made it unpassable on its own: scripts/run-jest.js hands every run a
+     fresh, empty SQLite file, so the table and the seed it demanded only ever
+     existed when some earlier suite happened to migrate first. It now migrates
+     itself (the media-bulk / tracker / availability idiom) and owns its
+     fixture user.
 
-    const talent = await knex("users").where({ role: "TALENT" }).first();
-    if (!talent) {
-      throw new Error("No TALENT user in database — run seed first");
-    }
-    userId = talent.id;
-  });
+     Owning the user also matters for correctness, not just ordering: the tests
+     below run `delete from notifications where user_id = ?` to get a clean
+     slate. Pointed at the shared seeded talent — as `where({ role: "TALENT" })
+     .first()` did — that wipes notification rows belonging to whatever else is
+     exercising the same account. */
+  beforeAll(async () => {
+    await knex.migrate.latest();
+
+    userId = uuidv4();
+    await knex("users").insert({
+      id: userId,
+      email: `notifications-${userId}@example.com`,
+      password_hash: "x",
+      role: "TALENT",
+      email_verified: true,
+      ...acceptedLegal(),
+    });
+  }, 120000);
 
   afterAll(async () => {
     if (userId) {
-      await knex("notifications")
-        .where({ user_id: userId, group_key: groupKey })
-        .del();
-      await knex("notifications")
-        .where({ user_id: userId })
-        .where("group_key", "like", `${groupKey}%`)
-        .del();
+      await knex("notifications").where({ user_id: userId }).del();
+      await knex("users").where({ id: userId }).del();
     }
+    await knex.destroy();
   });
 
   it("groups repeat events by group_key and reopens unread", async () => {
@@ -47,7 +58,7 @@ describe("notifications service", () => {
       type: "agency_profile_view",
       title: "Agency viewed your profile",
       body: "First view",
-      routeTarget: "/dashboard/talent/analytics",
+      routeTarget: "/dashboard/talent",
       groupKey,
       reopenOnRepeat: true,
     });
@@ -57,7 +68,7 @@ describe("notifications service", () => {
       type: "agency_profile_view",
       title: "Agency viewed your profile",
       body: "Second view",
-      routeTarget: "/dashboard/talent/analytics",
+      routeTarget: "/dashboard/talent",
       groupKey,
       reopenOnRepeat: true,
     });

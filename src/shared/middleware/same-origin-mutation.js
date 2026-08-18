@@ -8,6 +8,11 @@ const PROTECTED_API_PREFIXES = [
   "/api/talent",
   "/api/reply",
   "/api/internal",
+  // Designer pick lists. Not cookie-authenticated — the credential is the raw
+  // token in the URL — but the same reasoning applies: a forwarded link opened
+  // in a browser must not let a third-party page drive writes against it, so a
+  // designer's marks have to come from the Pholio page they are looking at.
+  "/api/picks",
 ];
 
 // Session lifecycle endpoints. The marketing site (www.pholio.studio) calls

@@ -28,6 +28,7 @@ export const STATUS_MAP = {
   shortlisted: { label: 'Shortlisted', color: 'var(--ag-info)' },
   kept_on_file: { label: 'On file', color: 'var(--ag-text-2)' },
   development: { label: 'New Face — Development', color: 'var(--ag-success)' },
+  accepted: { label: 'Offer / Moving Forward', color: 'var(--ag-warning)' },
   represented: { label: 'Represented', color: 'var(--ag-success)' },
   passed: { label: 'Passed', color: 'var(--ag-text-2)' },
   requested_more: { label: 'More digitals requested', color: 'var(--ag-info)' },
@@ -37,9 +38,6 @@ export const STATUS_MAP = {
   // ── Common aliases from the backend enum ──
   on_hold: { label: 'On hold', color: 'var(--ag-warning)' },
   hold: { label: 'On hold', color: 'var(--ag-warning)' },
-  signed: { label: 'Represented', color: 'var(--ag-success)' },
-  accepted: { label: 'Represented', color: 'var(--ag-success)' },
-  booked: { label: 'Represented', color: 'var(--ag-success)' },
   declined: { label: 'Not moving forward', color: 'var(--ag-text-2)' },
 };
 

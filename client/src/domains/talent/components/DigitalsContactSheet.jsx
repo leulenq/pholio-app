@@ -7,6 +7,7 @@ import {
   analyzeDigitalsSet,
   frameForSlot,
 } from '../../../shared/utils/profileReadinessImages';
+import DigitalsFreshness from './DigitalsFreshness';
 import './DigitalsContactSheet.css';
 
 /**
@@ -79,7 +80,7 @@ function FrameActions({ frame, onOpenFrame, onCropFrame, onDeleteFrame }) {
 export default function DigitalsContactSheet({
   images = [],
   suppressBodyImagery = false,
-  recency = null,
+  onDated = null,
   onAddFrames,
   onOpenFrame,
   onCropFrame,
@@ -164,13 +165,15 @@ export default function DigitalsContactSheet({
       </ol>
 
       <div className="mw-sheet__notes">
-        {recency?.oldestDays != null ? (
-          <p className={`mw-sheet__note${recency.isStale ? ' mw-sheet__note--stale' : ''}`}>
-            {recency.isStale
-              ? `Oldest frame ${recency.oldestDays}d — reshoot to stay current`
-              : `Current — within the 3-month window (oldest ${recency.oldestDays}d)`}
-          </p>
-        ) : null}
+        {/*
+          The four-state reading, straight off the freshness engine. This used to
+          be a two-way `isStale ? … : "Current"` note, which rendered nothing at
+          all for a set with no dated frames and — worse — printed "Current" for
+          an undated set, since `isStale` is false there and `oldestDays` was
+          non-null. The engine refuses to call an undated set current; the UI
+          must not overrule it.
+        */}
+        <DigitalsFreshness onDated={onDated} />
 
         {suppressBodyImagery ? (
           <p className="mw-sheet__note">

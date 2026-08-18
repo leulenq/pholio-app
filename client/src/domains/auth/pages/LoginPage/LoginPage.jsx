@@ -7,7 +7,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
-import { Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, AlertCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { auth } from '../../../../shared/lib/firebase';
 import { notifyAuthChange } from '../../../../shared/lib/pholio-auth/broadcast';
 import {
@@ -86,6 +86,7 @@ export default function LoginPage() {
   const searchParams = new URLSearchParams(location.search);
   const forceLogin = searchParams.get('force') === '1';
   const inviteToken = searchParams.get('invite') || '';
+  const erasurePending = searchParams.get('erasure') === 'pending';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -386,6 +387,13 @@ export default function LoginPage() {
         <div className={`${styles.alert} ${styles.alertError}`} role="alert" aria-live="assertive" id="login-error">
           <AlertCircle size={18} />
           <span>{error}</span>
+        </div>
+      )}
+
+      {erasurePending && (
+        <div className={`${styles.alert} ${styles.alertWarning}`} role="status" aria-live="polite">
+          <AlertTriangle size={18} />
+          <span>Your Pholio account was removed. Deletion from one or more external providers is still pending and will be retried.</span>
         </div>
       )}
 

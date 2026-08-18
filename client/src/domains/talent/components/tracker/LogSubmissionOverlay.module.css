@@ -1,0 +1,141 @@
+/*
+ * The dialog shell for logging an off-platform submission.
+ *
+ * Ink scrim on warm paper, matching CompCardImportOverlay — the house treatment
+ * for a talent overlay. `backdrop-filter` here is the one permitted use: a
+ * full-screen scrim acting as a functional dimmer, not decoration on a card.
+ */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 22px;
+  overflow-y: auto;
+  background: rgba(5, 5, 5, 0.76);
+  backdrop-filter: blur(18px);
+}
+
+.panel {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  padding: 38px 40px 34px;
+  border: 1px solid rgba(26, 24, 21, 0.08);
+  border-radius: 16px;
+  background: #fffdfa;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.28);
+  outline: none;
+}
+
+.close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* A global button rule injects `padding: 12px 28px`; both box metrics are
+     pinned here so the control is really the size it says. */
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: rgba(26, 26, 26, 0.42);
+  cursor: pointer;
+  transition:
+    color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.close:hover {
+  color: #1a1a1a;
+  border-color: rgba(26, 26, 26, 0.16);
+}
+
+.close:focus-visible {
+  outline: 2px solid #c9a55a;
+  outline-offset: 2px;
+}
+
+.title {
+  margin: 0 0 10px;
+  padding-right: 36px;
+  color: #1a1815;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.title em {
+  font-style: italic;
+  color: #b08d45;
+}
+
+.standfirst {
+  margin: 0 0 26px;
+  max-width: 46ch;
+  color: rgba(26, 24, 21, 0.62);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.form {
+  display: grid;
+  gap: 4px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 18px;
+}
+
+.formError {
+  margin: 4px 0 0;
+  color: #b3261e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+@media (max-width: 640px) {
+  .scrim {
+    padding: 16px 12px 32px;
+  }
+
+  .panel {
+    padding: 30px 22px 26px;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .close {
+    top: 14px;
+    right: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .close {
+    transition: none;
+  }
+}

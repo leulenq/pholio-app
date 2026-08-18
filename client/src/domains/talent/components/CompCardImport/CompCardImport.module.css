@@ -1,0 +1,485 @@
+/*
+ * Comp card import — editorial ledger vocabulary.
+ *
+ * Speaks the same language as the Apply workspace and the Profile movements:
+ * cream ground, hairline rules in warm black, a gold top edge on the panel,
+ * Noto Serif Display at 300 for headings, JetBrains Mono for every label and
+ * piece of metadata, Inter 300 for the values themselves.
+ *
+ * Tokens are redeclared here rather than inherited: this panel is portalled to
+ * document.body inside the overlay, so it sits outside `.profilePage` and
+ * `.applications-view-container` and would otherwise resolve none of them. The
+ * values mirror `--pf-*` in ProfilePage.module.css and `--app-*` in
+ * ApplicationsView.css exactly.
+ */
+
+.wrap {
+  --cci-cream: #faf7f2;
+  --cci-cream-warm: #f5f0e8;
+  --cci-gold: #c9a55a;
+  --cci-gold-warm: #c8a96e;
+  --cci-text: #1a1a1a;
+  --cci-text-soft: rgba(26, 26, 26, 0.62);
+  --cci-text-faint: rgba(26, 26, 26, 0.42);
+  --cci-hair: rgba(26, 26, 26, 0.08);
+  --cci-hair-strong: rgba(26, 26, 26, 0.16);
+  --cci-hair-gold: rgba(201, 165, 90, 0.22);
+  --cci-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --cci-ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+  --cci-radius: 10px;
+  --cci-radius-sm: 2px;
+
+  width: 100%;
+  color: var(--cci-text);
+}
+
+@keyframes cciRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── the panel ─────────────────────────────────────────────── */
+
+.panel {
+  overflow: hidden;
+  background: var(--cci-cream);
+  border: 1px solid var(--cci-hair);
+  /* The gold top edge is the house marker for a working panel. */
+  border-top-color: var(--cci-hair-gold);
+  border-radius: var(--cci-radius);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 24px;
+  align-items: baseline;
+  /* Right padding clears the overlay's close button, which is positioned over
+     this row — without it the metadata runs underneath the ×. */
+  padding: 30px 74px 20px 32px;
+  border-bottom: 1px solid var(--cci-hair);
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+  font-weight: 300;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  color: var(--cci-text);
+}
+
+.title em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--cci-gold-warm);
+}
+
+/* Metadata sits beside the heading, never above it. */
+.headMeta {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cci-text-faint);
+  white-space: nowrap;
+}
+
+.sweep {
+  width: 120px;
+  height: 1px;
+  margin: 18px 32px 0;
+  background: linear-gradient(to right, var(--cci-gold-warm), transparent);
+}
+
+.standfirst {
+  margin: 16px 32px 0;
+  max-width: 52ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--cci-text-soft);
+}
+
+.body {
+  padding: 0 0 8px;
+}
+
+/* ── upload ────────────────────────────────────────────────── */
+
+.dropWell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin: 26px 32px 0;
+  padding: 40px 28px;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid var(--cci-hair);
+  border-radius: var(--cci-radius-sm);
+  transition: border-color 0.2s var(--cci-ease-std), background 0.2s var(--cci-ease-std);
+}
+
+.dropWell:hover {
+  border-color: var(--cci-hair-gold);
+  background: #fff;
+}
+
+.dropIcon {
+  width: 26px;
+  height: 26px;
+  color: var(--cci-gold);
+}
+
+.dropHint {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cci-text-faint);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.finePrint {
+  margin: 20px 32px 26px;
+  max-width: 56ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--cci-text-faint);
+}
+
+/* A real message about a real outcome — not a status chip. */
+.notice {
+  margin: 22px 32px 0;
+  padding: 16px 18px;
+  max-width: 56ch;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid var(--cci-hair);
+  border-left: 1px solid var(--cci-hair-gold);
+  border-radius: var(--cci-radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--cci-text);
+}
+
+/* ── reading ───────────────────────────────────────────────── */
+
+.readingBar {
+  position: relative;
+  height: 1px;
+  margin: 28px 32px 32px;
+  overflow: hidden;
+  background: var(--cci-hair);
+}
+
+.readingBarFill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--cci-gold), transparent);
+}
+
+/* ── groups and rows ───────────────────────────────────────── */
+
+.group {
+  border-top: 1px solid var(--cci-hair);
+}
+
+.group:first-of-type {
+  border-top: none;
+}
+
+.groupHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: baseline;
+  padding: 24px 32px 4px;
+}
+
+.groupTitle {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cci-gold);
+}
+
+.groupCount {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: var(--cci-text-faint);
+}
+
+.groupNote {
+  margin: 10px 32px 6px;
+  max-width: 56ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--cci-text-soft);
+}
+
+.rows {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 26px minmax(96px, 168px) minmax(0, 1fr);
+  gap: 4px 20px;
+  align-items: baseline;
+  padding: 16px 32px;
+  border-top: 1px solid var(--cci-hair);
+  transition: background 0.2s var(--cci-ease-std);
+  animation: cciRise 0.5s var(--cci-ease) both;
+  animation-delay: calc(var(--cci-row-index, 0) * 55ms);
+}
+
+.row:hover {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.rowIndex {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--cci-gold);
+}
+
+.rowLabel {
+  min-width: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cci-text-faint);
+}
+
+/* Talent global.css uppercases every bare <label>; this is already the
+   intended treatment, but the tracking is set explicitly so it cannot drift. */
+.checkLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  accent-color: var(--cci-gold);
+  cursor: pointer;
+}
+
+.rowValue {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Editorial field: 2px radius, hairline border, Inter 300 — matching the
+   Profile field geometry rather than the shared 8px well. */
+.valueInput {
+  width: 100%;
+  max-width: 320px;
+  min-height: 44px;
+  padding: 11px 15px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--cci-text);
+  background: #fff;
+  border: 1px solid var(--cci-hair);
+  border-radius: var(--cci-radius-sm);
+  box-shadow: none;
+  transition: border-color 0.2s var(--cci-ease-std), box-shadow 0.2s var(--cci-ease-std);
+}
+
+.valueInput:hover:not(:focus) {
+  border-color: var(--cci-hair-strong);
+}
+
+.valueInput:focus {
+  outline: none;
+  border-color: rgba(201, 165, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+}
+
+/* Provenance. The difference between a proposal and a number we appear to have
+   invented, so it is quiet but always present. */
+.rowEvidence {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  color: var(--cci-text-faint);
+}
+
+.rowNote {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--cci-text-soft);
+}
+
+.missingList {
+  margin: 10px 32px 22px;
+  max-width: 56ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--cci-text-soft);
+}
+
+.missingNames {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cci-text);
+}
+
+/* ── the unresolved-unit choice ────────────────────────────── */
+
+.choiceRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.choice {
+  padding: 9px 15px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--cci-text);
+  background: #fff;
+  border: 1px solid var(--cci-hair);
+  border-radius: var(--cci-radius-sm);
+  cursor: pointer;
+  transition: border-color 0.2s var(--cci-ease-std), color 0.2s var(--cci-ease-std),
+    background 0.2s var(--cci-ease-std);
+}
+
+.choice:hover {
+  border-color: var(--cci-hair-strong);
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--cci-gold);
+  outline-offset: 2px;
+}
+
+.choiceActive {
+  color: var(--cci-text);
+  border-color: rgba(201, 165, 90, 0.55);
+  background: rgba(201, 165, 90, 0.09);
+  font-weight: 400;
+}
+
+.choiceSkip {
+  color: var(--cci-text-faint);
+}
+
+/* ── footer ────────────────────────────────────────────────── */
+
+.provenance {
+  margin: 22px 32px 0;
+  padding-top: 18px;
+  max-width: 60ch;
+  border-top: 1px solid var(--cci-hair);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--cci-text-faint);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 32px 30px;
+}
+
+@media (max-width: 640px) {
+  .head,
+  .groupHead {
+    padding-inline: 20px;
+  }
+
+  .sweep,
+  .standfirst,
+  .dropWell,
+  .finePrint,
+  .notice,
+  .groupNote,
+  .missingList,
+  .provenance,
+  .actions,
+  .readingBar {
+    margin-inline: 20px;
+  }
+
+  .row {
+    grid-template-columns: 26px minmax(0, 1fr);
+    padding-inline: 20px;
+  }
+
+  .rowValue {
+    grid-column: 2;
+  }
+
+  .valueInput {
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+
+  .dropWell,
+  .choice,
+  .valueInput,
+  .row {
+    transition: none;
+  }
+}

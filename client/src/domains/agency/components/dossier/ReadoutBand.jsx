@@ -1,8 +1,7 @@
 import React from 'react';
 import { StageMark } from '../status/StageProgress';
 import { AvailabilityCell } from '../status/AvailabilityCell';
-import MatchMeasure from '../ui/MatchMeasure';
-import { calendarSpans, fmtAgo, fmtDayMonth, packageRead, positionRead } from './dossierModel';
+import { calendarSpans, fmtAgo, fmtDayMonth, packageRead } from './dossierModel';
 import './dossier.css';
 
 /**
@@ -11,7 +10,6 @@ import './dossier.css';
  * making me read".
  *
  *   Standing     where the submission sits on our ladder, and for how long
- *   Fit          the score against the board it was filed to, in our own book
  *   Availability what the talent declared, and the next thing blocking dates
  *   Package      whether they actually sent a usable set of digitals
  *
@@ -43,10 +41,9 @@ function Readout({ label, value, note, href, onJump }) {
 }
 
 export function ReadoutBand({ dossier, onJump }) {
-  const { application, standing, availability, position, talent } = dossier;
+  const { application, standing, availability } = dossier;
   const pkg = packageRead(dossier);
   const calendar = calendarSpans(availability);
-  const placement = positionRead(position, talent);
 
   const days = standing?.days_since_submitted;
   const standingNote = [
@@ -55,15 +52,6 @@ export function ReadoutBand({ dossier, onJump }) {
   ]
     .filter(Boolean)
     .join(' · ');
-
-  const boardName = standing?.board?.name;
-  const fitNote = application?.match_score != null
-    ? boardName
-      ? `against ${boardName}`
-      : 'no board filed'
-    : boardName
-      ? `${boardName} · rank the board to score`
-      : 'not filed to a board';
 
   const availNote = calendar.next
     ? `${calendar.next.kindLabel || 'Bookout'} ${fmtDayMonth(calendar.next.from)}${
@@ -84,19 +72,6 @@ export function ReadoutBand({ dossier, onJump }) {
         value={<StageMark status={application?.status} />}
         note={standingNote}
         href="#dx-standing"
-        onJump={onJump}
-      />
-      <Readout
-        label="Fit"
-        value={
-          application?.match_score != null ? (
-            <MatchMeasure score={application.match_score} size="lg" />
-          ) : (
-            <span className="dx-readout__none">Not scored</span>
-          )
-        }
-        note={placement ? placement[0] : fitNote}
-        href="#dx-position"
         onJump={onJump}
       />
       <Readout

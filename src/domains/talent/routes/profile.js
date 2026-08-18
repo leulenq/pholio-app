@@ -21,7 +21,7 @@ const {
   checkEssentialsComplete,
 } = require("../../onboarding/validation/essentials-check");
 const { computeProfileStatus } = require("../services/profile-status");
-const { marketFromGeo } = require("../services/intel/market-resolve");
+const { marketFromGeo } = require("../services/market-resolve");
 const {
   captureSubmissionReadiness,
   notifyIfSubmissionReadinessLost,
@@ -30,10 +30,6 @@ const { loadImageRightsMap } = require("../../../shared/lib/image-rights");
 const { imageRightsRowToApi } = require("../../../shared/lib/validation");
 const { injectSocialFields, saveProfileSocialFields } = require("../../../shared/lib/social-helpers");
 const {
-  upsertTextEmbedding,
-  buildProfileText,
-  reindexDiscoverProfile,
-  isProfileEmbeddingAllowed,
   purgeProfileEmbeddingDerivatives,
   purgeImageEmbeddingDerivatives,
 } = require("../../ai/embeddings");
@@ -70,6 +66,9 @@ const {
 } = require("../../../shared/lib/talent-age");
 const { getConsentStatus } = require("../services/guardian-consent");
 const { loadFieldVisibility } = require("../../../shared/lib/field-visibility");
+const {
+  invalidateAdultVerification,
+} = require("../services/age-verification");
 const {
   listRepresentations,
   syncStructuredRepresentationFromLegacy,
@@ -120,7 +119,6 @@ const TALENT_PROFILE_API_KEYS = [
   "bust_cm",
   "city",
   "city_secondary",
-  "comfort_levels",
   "created_at",
   "current_agency",
   "date_of_birth",
@@ -175,7 +173,6 @@ const TALENT_PROFILE_API_KEYS = [
   "onboarding_completed_at",
   "onboarding_stage",
   "onboarding_state_json",
-  "onlyfans_url",
   "partner_agency_id",
   "passport_ready",
   "pdf_customizations",
@@ -905,7 +902,6 @@ router.put(
       updateData.training = data.training_summary;
     if (data.training !== undefined) updateData.training = data.training;
     mapField("portfolio_url");
-    mapField("onlyfans_url");
     mapField("reference_name");
     mapField("reference_email");
     mapField("reference_phone");
@@ -969,27 +965,6 @@ router.put(
       });
     }
 
-    // Adult-content field: onlyfans_url must never be collected for a minor, and
-    // fails closed when no verifiable adult DOB is on file. Clearing the field
-    // (empty/null) is always permitted. Mirrors the MINOR_CONSENT_REQUIRED gate
-    // used for sensitive measurements above.
-    const onlyfansAttempted =
-      data.onlyfans_url !== undefined &&
-      data.onlyfans_url !== null &&
-      data.onlyfans_url !== "";
-    if (
-      onlyfansAttempted &&
-      (!hasRecordedDateOfBirth(mergedForPolicy) ||
-        isMinorProfile(mergedForPolicy))
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "This field is not available for accounts without a verified adult date of birth.",
-        code: "ADULT_DOB_REQUIRED",
-      });
-    }
-
     // Fail closed: force private whenever public exposure isn't cleared
     // (no verifiable adult DOB on file, or an unconsented minor). NOTE: for an
     // ordinary adult with a valid DOB this is a no-op, so a routine bio-only save
@@ -1031,10 +1006,6 @@ router.put(
     if (data.specialties !== undefined)
       updateData.specialties = data.specialties
         ? formatJson(data.specialties)
-        : null;
-    if (data.comfort_levels !== undefined)
-      updateData.comfort_levels = data.comfort_levels
-        ? formatJson(data.comfort_levels)
         : null;
     if (data.modeling_categories !== undefined)
       updateData.modeling_categories = data.modeling_categories
@@ -1155,8 +1126,7 @@ router.put(
     // Social Handle Parsing & URLs. Social accounts live in their own table and are
     // written independently of the profile row (the client also mutates them via the
     // OAuth endpoints), so this runs before the profile transaction.
-    const isPro = profile.is_pro || false;
-    await saveProfileSocialFields(profile.id, data, isPro);
+    await saveProfileSocialFields(profile.id, data);
 
     // Remove social fields from updateData since they no longer exist on profiles table
     delete updateData.instagram_handle;
@@ -1167,7 +1137,6 @@ router.put(
     delete updateData.twitter_url;
     delete updateData.youtube_handle;
     delete updateData.youtube_url;
-    delete updateData.onlyfans_url;
     delete updateData.portfolio_url;
 
     // NOTE: legacy `primary_photo_id` handling was removed from this route. Setting a
@@ -1322,6 +1291,13 @@ router.put(
         if (hasProfileFieldChanges) {
           await trx("profiles").where({ id: profile.id }).update(updateData);
 
+          if (
+            Object.hasOwn(updateData, "date_of_birth") &&
+            previousDob !== nextDob
+          ) {
+            await invalidateAdultVerification(trx, profile.id);
+          }
+
           if (Object.hasOwn(data, "current_agency")) {
             await syncStructuredRepresentationFromLegacy(
               trx,
@@ -1399,34 +1375,6 @@ router.put(
     if (updatedProfile) {
       updatedProfile = await injectSocialFields(updatedProfile);
     }
-
-    // P1 (26s-timeout risk): embedding + Discover reindex is derived, external, and
-    // best-effort. Move it OFF the request path (fire-and-forget after commit) so a
-    // slow index can never time out the function AFTER the DB already committed and
-    // make the client believe a persisted save failed.
-    setImmediate(() => {
-      (async () => {
-        try {
-          if (!isProfileEmbeddingAllowed(updatedProfile)) return;
-          const profileText = buildProfileText(updatedProfile);
-          if (profileText) {
-            await upsertTextEmbedding(
-              knex,
-              profile.id,
-              "full_profile",
-              profileText,
-              { profile: updatedProfile },
-            );
-          }
-          await reindexDiscoverProfile(knex, profile.id);
-        } catch (embErr) {
-          console.warn(
-            "[Profile API] Text embedding failed (non-blocking):",
-            embErr.message,
-          );
-        }
-      })();
-    });
 
     const profileForCompleteness = {
       ...updatedProfile,

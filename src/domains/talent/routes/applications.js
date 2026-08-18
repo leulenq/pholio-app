@@ -15,6 +15,7 @@ const {
 const {
   notifyAgencyNewApplication,
   notifyAgencyApplicationWithdrawn,
+  notifyAgencyEventSlotResponse,
   notifyAgencyNewMessage,
 } = require("../../../shared/services/agency-notifications");
 const {
@@ -48,11 +49,14 @@ const {
   expiryTimestamp,
   expireInactiveDrafts,
   isEligibleAgencyImage,
+  isMaterialRepairWarning,
   mapDraftRow,
+  normalizeAvailabilityRange,
   normalizeClientId,
   normalizeClientUpdatedAt,
   normalizeDraftPayloadWithRepairs,
   normalizeStepId,
+  normalizeWalkVideoUrl,
   parseDraftPayload,
   recordDraftEvent,
   recoveryTimestamp,
@@ -72,19 +76,64 @@ const {
 } = require("../../../shared/lib/submission-retention");
 const {
   loadApplicationQuota,
+  MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
 } = require("../services/application-quota");
 const {
-  OPEN_CALL_EXEMPT_MONTHLY_CAP,
   hasOpenCallSchema,
   ensureClaimFromSession,
   listActiveClaims,
   resolveActiveClaim,
   consumeClaim,
-  countExemptThisMonth,
 } = require("../services/open-call-claims");
 const {
   buildOpenCallDisclosure,
+  eventPackageRetentionDate,
 } = require("../../../shared/lib/submission-disclosure-content");
+const {
+  snapshotApplicationSpec,
+} = require("../../spec-registry/preflight-service");
+const {
+  CALL_PURPOSES,
+  DEFAULT_CALL_PURPOSE,
+  FUNNEL_EVENT_TYPES,
+} = require("../../../shared/constants/event-casting");
+const {
+  PAYOFF_ACTIONS,
+  PAYOFF_ACTION_VALUES,
+  hasPriorEventSubmission,
+  recordEventFunnelEvent,
+} = require("../../../shared/services/event-funnel");
+const {
+  CONFIRMED_APPLICATION_STATUS,
+  OFFERED_APPLICATION_STATUSES,
+  TALENT_DECLINED_APPLICATION_STATUS,
+  TALENT_WRITABLE_APPLICATION_STATUSES,
+} = require("../../../shared/constants/application-status");
+const {
+  eventCallDTO,
+  eventDisclosureContextFromLink,
+  isEventCall,
+} = require("../../agency/services/open-call-brief");
+
+async function recordAdvisorySpecSnapshot(
+  trx,
+  payload,
+  snapshot = snapshotApplicationSpec,
+) {
+  try {
+    // PostgreSQL marks the whole transaction failed after any SQL error. Keep
+    // advisory registry work inside a savepoint so rolling it back leaves the
+    // application transaction usable; SQLite uses the same nested-transaction
+    // contract.
+    return await trx.transaction((registryTrx) => snapshot(registryTrx, payload));
+  } catch (registryError) {
+    console.warn("[SpecRegistry] Submission snapshot unavailable", {
+      applicationId: payload.applicationId,
+      code: registryError.code || "SPEC_REGISTRY_SNAPSHOT_FAILED",
+    });
+    return null;
+  }
+}
 
 function serializeClaim(claim) {
   return {
@@ -93,6 +142,227 @@ function serializeClaim(claim) {
     agencyLocation: claim.agency_location,
     agencyLogo: claim.agency_logo,
     expiresAt: claim.expires_at,
+    ...(claim.link_id ? { openCallLinkId: claim.link_id } : {}),
+    ...(claim.call ? { call: claim.call } : {}),
+  };
+}
+
+/* ── Event calls ─────────────────────────────────────────────────────────────
+   An event submission is an ordinary submission that arrived through a link
+   whose `call_kind` is `event_casting`. The link is carried by the open-call
+   claim the arrival minted, so nothing client-supplied decides the purpose of
+   a submission — the same rule that already governs the quota exemption. */
+
+// Deploy-before-migrate guard: until `applications.call_purpose` exists every
+// submission is a representation submission and the event columns are not
+// written. Cached per process, like the note-flag probe above.
+let applicationEventColumnsPromise = null;
+function hasApplicationEventColumns(db) {
+  if (!applicationEventColumnsPromise) {
+    applicationEventColumnsPromise = db.schema
+      .hasColumn("applications", "call_purpose")
+      .catch(() => {
+        applicationEventColumnsPromise = null;
+        return false;
+      });
+  }
+  return applicationEventColumnsPromise;
+}
+
+const OPEN_CALL_LINK_COLUMNS = [
+  "l.id",
+  "l.agency_id",
+  "l.status",
+  "l.call_kind",
+  "l.compensation_type",
+  "l.compensation_details",
+  "l.event_name",
+  "l.event_starts_on",
+  "l.event_ends_on",
+  "l.event_location",
+  "l.requires_walk_video",
+  "l.requires_availability",
+  "l.requires_measurements",
+  "l.review_window_days",
+  "l.offer_response_window_hours",
+];
+
+/** The link row a claim points at, or null when the event schema is absent. */
+async function loadOpenCallLink(db, linkId) {
+  if (!linkId) return null;
+  try {
+    return (
+      (await db("agency_open_call_links as l")
+        .leftJoin("agencies as a", "a.id", "l.agency_id")
+        .where("l.id", linkId)
+        .first(...OPEN_CALL_LINK_COLUMNS, "a.name as agency_name")) || null
+    );
+  } catch {
+    // The event columns ship in a later migration than the links table.
+    return null;
+  }
+}
+
+/**
+ * Everything the submit path needs to know about the call behind a claim:
+ * whether it is an event cast, what the organizer requires at intake, and the
+ * context the event consent copy interpolates. Null for representation.
+ */
+function eventCallContext(link) {
+  if (!link || !isEventCall(link)) return null;
+  const dto = eventCallDTO(link);
+  return {
+    linkId: link.id,
+    link,
+    call: dto,
+    intake: {
+      requiresWalkVideo: Boolean(link.requires_walk_video),
+      requiresAvailability: Boolean(link.requires_availability),
+      requiresMeasurements: Boolean(link.requires_measurements),
+    },
+    disclosureContext: eventDisclosureContextFromLink(link, link.agency_name),
+  };
+}
+
+/**
+ * Decorate claims with the call they came from, so the apply flow knows before
+ * the first keystroke whether it is composing a representation submission or an
+ * event application (and, for an event, what the organizer requires).
+ *
+ * `listActiveClaims` deliberately projects only agency identity — this joins
+ * the link here rather than widening a query the whole open-call surface uses.
+ */
+async function attachCallContext(db, claims) {
+  if (!claims.length) return claims;
+  let rows = [];
+  try {
+    rows = await db("agency_open_call_claims as c")
+      .join("agency_open_call_links as l", "l.id", "c.link_id")
+      .leftJoin("agencies as a", "a.id", "l.agency_id")
+      .whereIn(
+        "c.id",
+        claims.map((claim) => claim.id),
+      )
+      .select("c.id as claim_id", ...OPEN_CALL_LINK_COLUMNS, "a.name as agency_name");
+  } catch {
+    // Pre-migration schema: claims stay exactly as they were.
+    return claims;
+  }
+  const byClaimId = new Map(rows.map((row) => [row.claim_id, row]));
+  return claims.map((claim) => {
+    const link = byClaimId.get(claim.id);
+    if (!link) return claim;
+    return { ...claim, link_id: link.id, call: eventCallDTO(link) };
+  });
+}
+
+/** The live claim for (profile, agency) outside a transaction, for preflight. */
+async function previewClaimForAgency(db, profileId, agencyId) {
+  try {
+    return (
+      (await db("agency_open_call_claims")
+        .where({ profile_id: profileId, agency_id: agencyId, status: "active" })
+        .first()) || null
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Funnel step 4 (design §g): why an event submission that was started never
+ * completed. `reason` is the stable blocker code the validate path emits
+ * (`event_walk_video_required` and friends) — codes and counts only, never the
+ * applicant-facing message, which is prose about a person.
+ */
+async function recordIntakeBlocked(eventCall, profileId, reason, blockerCount) {
+  if (!eventCall || !reason) return;
+  try {
+    await recordEventFunnelEvent({
+      openCallLinkId: eventCall.linkId,
+      agencyId: eventCall.link?.agency_id || null,
+      profileId,
+      eventType: FUNNEL_EVENT_TYPES.INTAKE_BLOCKED,
+      metadata: { reason, blockerCount },
+    });
+  } catch (error) {
+    console.debug("[EventFunnel] intake_blocked failed:", error?.message);
+  }
+}
+
+/**
+ * Funnel steps 3, 5 and 7 (design §g), written once the submission is durable.
+ *
+ * Deliberately after the transaction commits and outside it: a rolled-back
+ * submission is not a completion, and an analytics insert has no business
+ * holding a lock on the row the organizer is about to read. Everything here is
+ * swallowed — `recordEventFunnelEvent` never throws, and the try/catch covers
+ * the case where the writer itself has been stubbed out or torn down.
+ */
+async function recordSubmitFunnelEvents({
+  eventCall,
+  profileId,
+  strengthScore,
+  digitalSlotCount,
+  compCardPresent,
+}) {
+  if (!eventCall) return;
+  const base = {
+    openCallLinkId: eventCall.linkId,
+    agencyId: eventCall.link?.agency_id || null,
+    profileId,
+  };
+  try {
+    // Asked before the completion below is written, or every submission would
+    // find itself and every applicant would look like a returning one.
+    const isSecondRecipient = await hasPriorEventSubmission({
+      profileId,
+      excludeOpenCallLinkId: eventCall.linkId,
+    });
+
+    await recordEventFunnelEvent({
+      ...base,
+      eventType: FUNNEL_EVENT_TYPES.APPLICATION_COMPLETED,
+    });
+    await recordEventFunnelEvent({
+      ...base,
+      eventType: FUNNEL_EVENT_TYPES.PROFILE_COMPLETED_AT_SUBMIT,
+      metadata: {
+        // Already computed by the package validation a few lines up — this
+        // costs nothing beyond reading the number.
+        ...(Number.isFinite(strengthScore) ? { completeness: strengthScore } : {}),
+        digitalSlots: digitalSlotCount,
+        compCardPresent,
+      },
+    });
+    if (isSecondRecipient) {
+      await recordEventFunnelEvent({
+        ...base,
+        eventType: FUNNEL_EVENT_TYPES.SECOND_RECIPIENT_SUBMITTED,
+      });
+    }
+  } catch (error) {
+    console.debug("[EventFunnel] Submit instrumentation failed:", error?.message);
+  }
+}
+
+/** Ruling R4 as a timestamp: `event_ends_on + 90 days`, or null when undated. */
+function eventPackageRetentionExpiry(eventCall) {
+  const endsOn = eventCall?.disclosureContext?.eventEndsOn;
+  const retentionDate = eventPackageRetentionDate(endsOn);
+  return retentionDate ? new Date(`${retentionDate}T00:00:00.000Z`).toISOString() : null;
+}
+
+/**
+ * Availability and the walk video are the two fields an event call adds to the
+ * package. They are normalized here — never trusted as sent — because the
+ * consent fingerprint hashes them and the organizer's dossier renders them.
+ */
+function normalizeEventSubmissionFields(submissionPackage) {
+  return {
+    availability: normalizeAvailabilityRange(submissionPackage?.availability),
+    walkVideoUrl: normalizeWalkVideoUrl(submissionPackage?.walkVideoUrl) || null,
+    measurementsConfirmed: submissionPackage?.measurementsConfirmed === true,
   };
 }
 
@@ -316,6 +586,8 @@ router.get(
       noteQuery.where("note_msg.is_submission_note", true);
     }
 
+    const eventColumnsReady = await hasApplicationEventColumns(knex);
+
     // Fetch applications with organization-backed agency info
     const applications = await knex("applications")
       .leftJoin("agencies", "applications.agency_id", "agencies.id")
@@ -325,6 +597,17 @@ router.get(
           .andOn("am.status", "=", knex.raw("?", ["ACTIVE"]));
       })
       .leftJoin("users", "am.user_id", "users.id")
+      .modify((query) => {
+        // The call is what a talent-facing event row is actually about — the
+        // event name, its dates, and how long an offer stays open.
+        if (eventColumnsReady) {
+          query.leftJoin(
+            "agency_open_call_links as call_link",
+            "call_link.id",
+            "applications.open_call_link_id",
+          );
+        }
+      })
       .where({ profile_id: profile.id })
       .select(
         "applications.id",
@@ -338,6 +621,18 @@ router.get(
         "agencies.logo_path as agency_logo",
         "agencies.open_boards as agency_open_boards",
         noteQuery.as("note"),
+        ...(eventColumnsReady
+          ? [
+              "applications.call_purpose",
+              "applications.open_call_link_id",
+              "applications.status_changed_at",
+              "call_link.event_name",
+              "call_link.event_starts_on",
+              "call_link.event_ends_on",
+              "call_link.event_location",
+              "call_link.offer_response_window_hours",
+            ]
+          : []),
         ...(openCallReady
           ? [
               // Provenance: the latest completed quota event tells whether this
@@ -355,10 +650,32 @@ router.get(
       .orderBy("applications.created_at", "desc");
 
     const data = applications.map((application) => {
-      const { open_call_exempt: openCallExempt, ...rest } = application;
+      const {
+        open_call_exempt: openCallExempt,
+        event_name: eventName,
+        event_starts_on: eventStartsOn,
+        event_ends_on: eventEndsOn,
+        event_location: eventLocation,
+        offer_response_window_hours: offerResponseWindowHours,
+        ...rest
+      } = application;
+      const isEvent = rest.call_purpose === CALL_PURPOSES.EVENT_CASTING;
       return {
         ...rest,
         source: openCallExempt ? "open_call" : "discovery",
+        // Only event rows carry an event block, so a representation row is
+        // shaped exactly as it always was.
+        ...(isEvent
+          ? {
+              event: {
+                name: eventName || null,
+                startsOn: eventStartsOn || null,
+                endsOn: eventEndsOn || null,
+                location: eventLocation || null,
+                offerResponseWindowHours: offerResponseWindowHours ?? null,
+              },
+            }
+          : {}),
       };
     });
 
@@ -391,8 +708,9 @@ router.get(
       success: true,
       data: {
         ...quota,
-        exemptMonthlyCap: OPEN_CALL_EXEMPT_MONTHLY_CAP,
-        activeClaims: activeClaims.map(serializeClaim),
+        activeClaims: (await attachCallContext(knex, activeClaims)).map(
+          serializeClaim,
+        ),
       },
     });
   }),
@@ -671,15 +989,59 @@ router.post(
       });
     }
 
-    // 1. Check if already applied. A previously withdrawn application can be
+    // Convert any pending open-call arrival into a durable claim before
+    // anything reads one. The claim carries the link, and the link decides
+    // whether this is an event cast — so it has to exist by the time the
+    // purpose is resolved, not merely by the time the quota is checked.
+    const openCallReady = await hasOpenCallSchema(knex);
+    if (openCallReady) {
+      await ensureClaimFromSession(knex, req, profile.id);
+    }
+
+    // 1. Resolve the call this submission came through. The claim minted on
+    //    arrival carries the link; the link decides the purpose. A client
+    //    cannot declare its own submission an event cast.
+    const eventColumnsReady = await hasApplicationEventColumns(knex);
+    const previewClaim = eventColumnsReady
+      ? await previewClaimForAgency(knex, profile.id, agencyId)
+      : null;
+    const eventCall = eventColumnsReady
+      ? eventCallContext(await loadOpenCallLink(knex, previewClaim?.link_id))
+      : null;
+    const callPurpose = eventCall
+      ? CALL_PURPOSES.EVENT_CASTING
+      : DEFAULT_CALL_PURPOSE;
+    const eventFields = normalizeEventSubmissionFields(submissionPackage);
+
+    // 2. Check if already applied. A previously withdrawn application can be
     //    resubmitted (we revive that row below to preserve its history).
-    const existingparams = { profile_id: profile.id, agency_id: agencyId };
-    const existing = await knex("applications").where(existingparams).first();
+    //
+    //    Scope follows the uniqueness rule the schema enforces (design A3): one
+    //    live representation application per agency, but one event application
+    //    per *call*, so a model who walked the Brooklyn edition can still apply
+    //    to Queens under the same organizer.
+    let existingQuery = knex("applications").where({ profile_id: profile.id });
+    if (eventCall) {
+      existingQuery = existingQuery.where({
+        open_call_link_id: eventCall.linkId,
+        call_purpose: CALL_PURPOSES.EVENT_CASTING,
+      });
+    } else {
+      existingQuery = existingQuery.where({ agency_id: agencyId });
+      if (eventColumnsReady) {
+        existingQuery = existingQuery.where({
+          call_purpose: DEFAULT_CALL_PURPOSE,
+        });
+      }
+    }
+    const existing = await existingQuery.first();
     if (existing && existing.status !== "withdrawn") {
       return res.status(409).json({
         success: false,
         error: "application_already_submitted",
-        message: "You've already applied to this agency.",
+        message: eventCall
+          ? "You've already applied to this casting."
+          : "You've already applied to this agency.",
       });
     }
     const reapplying = !!existing;
@@ -701,8 +1063,16 @@ router.post(
     const packageValidation = validateSubmissionPackage(submissionProfile, packageImages, {
       rightsMap,
       agencyConsentGranted,
+      eventIntake: eventCall?.intake || null,
+      eventSubmission: eventFields,
     });
     if (!packageValidation.ok) {
+      await recordIntakeBlocked(
+        eventCall,
+        profile.id,
+        packageValidation.errors[0]?.code,
+        packageValidation.errors.length,
+      );
       return res.status(400).json({
         success: false,
         error: "submission_package_incomplete",
@@ -716,46 +1086,40 @@ router.post(
     // Fast preflight for UX. The authoritative quota + claim check is
     // repeated while holding the profile lock inside the final submission
     // transaction — nothing here grants anything.
-    const openCallReady = await hasOpenCallSchema(knex);
-    if (openCallReady) {
-      await ensureClaimFromSession(knex, req, profile.id);
-    }
-    if (!profile.is_pro) {
-      const quota = await loadApplicationQuota(knex, profile);
-      if (quota.remaining === 0) {
-        const preflightClaim = openCallReady
-          ? await knex("agency_open_call_claims")
-              .where({
-                profile_id: profile.id,
-                agency_id: agencyId,
-                status: "active",
-              })
-              .first()
-          : null;
-        const exemptCapReached =
-          openCallReady &&
-          (await countExemptThisMonth(knex, profile.id)) >=
-            OPEN_CALL_EXEMPT_MONTHLY_CAP;
-        if (!preflightClaim || exemptCapReached) {
-          const activeClaims = openCallReady
-            ? await listActiveClaims(knex, profile.id)
-            : [];
-          return res.status(403).json({
-            success: false,
-            error:
-              preflightClaim && exemptCapReached
-                ? "open_call_exemption_cap_reached"
-                : "Monthly application limit reached",
-            message:
-              preflightClaim && exemptCapReached
-                ? "You have used this month's invited submissions. Invited submissions now count toward your monthly limit."
-                : "Monthly application limit reached",
-            limit: quota.limit,
-            current: quota.used,
-            upgradeRequired: true,
-            activeClaims: activeClaims.map(serializeClaim),
-          });
-        }
+    //
+    // Event submissions need no separate exemption: they only exist when a
+    // claim exists, and a claim is exactly what lifts the discovery ceiling
+    // here and in the transaction below. There is no monthly allowance to
+    // spend on a casting, which is why the event consent copy never mentions
+    // one (`buildOpenCallDisclosure` branches on purpose).
+    //
+    // The discovery limit applies to every account identically — it is an
+    // anti-spam ceiling, not a commercial lever, so there is nothing to
+    // upgrade to and the response never says otherwise.
+    const preflightQuota = await loadApplicationQuota(knex, profile);
+    if (preflightQuota.remaining === 0) {
+      const preflightClaim = openCallReady
+        ? await knex("agency_open_call_claims")
+            .where({
+              profile_id: profile.id,
+              agency_id: agencyId,
+              status: "active",
+            })
+            .first()
+        : null;
+      if (!preflightClaim) {
+        const activeClaims = openCallReady
+          ? await listActiveClaims(knex, profile.id)
+          : [];
+        return res.status(403).json({
+          success: false,
+          error: "monthly_discovery_limit_reached",
+          message:
+            "You have used this month's discovery submissions. Submitting through an agency's own open call link is always unlimited.",
+          limit: preflightQuota.limit,
+          current: preflightQuota.used,
+          activeClaims: activeClaims.map(serializeClaim),
+        });
       }
     }
 
@@ -788,7 +1152,13 @@ router.post(
           mediaSetId: submissionPackage?.mediaSetId,
           digitalSlotPicks: submissionPackage?.digitalSlotPicks,
           compCardPresetId: submissionPackage?.compCardPresetId,
+          specRegistryRevisionId:
+            submissionPackage?.specRegistryRevisionId,
           note,
+          openCallLinkId: eventCall?.linkId || null,
+          availability: eventFields.availability,
+          walkVideoUrl: eventFields.walkVideoUrl,
+          measurementsConfirmed: eventFields.measurementsConfirmed,
         },
       });
     } catch (error) {
@@ -803,13 +1173,19 @@ router.post(
       throw error;
     }
     const normalizedSubmissionReferences = normalizedSubmissionResult.payload;
-    if (normalizedSubmissionResult.repairWarnings.length > 0) {
+    // A schema upgrade is not a changed selection — see isMaterialRepairWarning.
+    // Blocking on it would make a draft-schema bump invalidate every submission
+    // already in flight, which is precisely the failure the conditional
+    // fingerprint spread exists to avoid.
+    const materialRepairWarnings =
+      normalizedSubmissionResult.repairWarnings.filter(isMaterialRepairWarning);
+    if (materialRepairWarnings.length > 0) {
       return res.status(409).json({
         success: false,
         error: "submission_references_changed",
         message:
           "Some saved selections are no longer available. Review the repaired draft before submitting.",
-        repairWarnings: normalizedSubmissionResult.repairWarnings,
+        repairWarnings: materialRepairWarnings,
       });
     }
     if (normalizedSubmissionReferences.mediaSetId !== "current") {
@@ -837,9 +1213,22 @@ router.post(
       {
         rightsMap: canonicalRightsMap,
         agencyConsentGranted,
+        eventIntake: eventCall?.intake || null,
+        eventSubmission: {
+          availability: normalizedSubmissionReferences.availability,
+          walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
+          measurementsConfirmed:
+            normalizedSubmissionReferences.measurementsConfirmed,
+        },
       },
     );
     if (!canonicalPackageValidation.ok) {
+      await recordIntakeBlocked(
+        eventCall,
+        profile.id,
+        canonicalPackageValidation.errors[0]?.code,
+        canonicalPackageValidation.errors.length,
+      );
       return res.status(400).json({
         success: false,
         error: "submission_package_incomplete",
@@ -848,6 +1237,22 @@ router.post(
           "Your submission package is not ready to send.",
         errors: canonicalPackageValidation.errors,
       });
+    }
+    const registryImageIds = [
+      ...new Set(
+        Object.values(normalizedSubmissionReferences.digitalSlotPicks || {})
+          .filter((imageId) => packageImageIdSet.has(imageId)),
+      ),
+    ];
+    if (registryImageIds.length === 0) {
+      registryImageIds.push(
+        ...packageImages
+          .filter(
+            (image) =>
+              String(image.image_type || "").toLowerCase() === "digital",
+          )
+          .map((image) => image.id),
+      );
     }
 
     // 3. Create (or revive a withdrawn) application, snapshot the exact
@@ -868,6 +1273,11 @@ router.post(
         null,
       imageIds: packageImages.map((image) => image.id),
       note: applicationNote,
+      // Conditional by construction: null on a representation submission, so
+      // the hash is byte-identical to the pre-event-casting one.
+      openCallLinkId: eventCall?.linkId || null,
+      availability: normalizedSubmissionReferences.availability,
+      walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
     });
     if (
       !minorSubmission &&
@@ -876,6 +1286,7 @@ router.post(
         packageFingerprint,
       )
     ) {
+      await recordIntakeBlocked(eventCall, profile.id, "consent_package_changed", 1);
       return res.status(409).json({
         success: false,
         error: "consent_package_changed",
@@ -901,6 +1312,10 @@ router.post(
       adultAuthorityConfirmed:
         !minorSubmission &&
         submissionPackage?.adultAuthorityConfirmed === true,
+      // Defaults to representation, which keeps the existing snapshot
+      // byte-identical for every non-event submission.
+      purpose: callPurpose,
+      eventContext: eventCall?.disclosureContext || null,
     });
     const clientMeta = requestClientMeta(req);
     const hasSubmissionPackagesTable = await knex.schema.hasTable(
@@ -908,9 +1323,11 @@ router.post(
     );
     try {
       await knex.transaction(async (trx) => {
+        // Row-locked only to serialize concurrent submissions. The quota does
+        // not read the subscription tier — no tier lifts it.
         let quotaProfileQuery = trx("profiles")
           .where({ id: profile.id })
-          .select("id", "is_pro");
+          .select("id");
         if (trx.client.config.client === "pg") {
           quotaProfileQuery = quotaProfileQuery.forUpdate();
         }
@@ -921,21 +1338,28 @@ router.post(
         );
         // Authoritative open-call resolution: an active claim for this exact
         // agency exempts this submission from the monthly discovery quota,
-        // bounded by the monthly exemption cap. The claim is consumed below
-        // in this same transaction. Nothing client-supplied participates.
+        // with no ceiling on how many such claims a talent may redeem. The
+        // claim is consumed below in this same transaction. Nothing
+        // client-supplied participates.
         let openCallClaim = null;
         if (openCallReady) {
           openCallClaim = await resolveActiveClaim(trx, profile.id, agencyId);
-          if (
-            openCallClaim &&
-            (await countExemptThisMonth(trx, profile.id)) >=
-              OPEN_CALL_EXEMPT_MONTHLY_CAP
-          ) {
-            openCallClaim = null;
-          }
+        }
+        // The claim was re-attributed to a different link between preflight and
+        // now (the talent re-arrived through another of the organizer's calls).
+        // The consent the applicant gave names one event; it cannot be spent on
+        // another, so this fails like any other package change.
+        if (
+          eventCall &&
+          openCallClaim &&
+          openCallClaim.link_id !== eventCall.linkId
+        ) {
+          const error = new Error("Open call link changed during submission");
+          error.code = "OPEN_CALL_CLAIM_CONFLICT";
+          throw error;
         }
         const quotaExempt = Boolean(openCallClaim);
-        if (!quotaExempt && !quota.unlimited && quota.remaining === 0) {
+        if (!quotaExempt && quota.remaining === 0) {
           const error = new Error("Monthly application limit reached");
           error.code = "MONTHLY_APPLICATION_LIMIT";
           error.quota = quota;
@@ -1015,8 +1439,9 @@ router.post(
           }
         }
 
+        const submissionRequestId = uuidv4();
         await trx("application_submission_requests").insert({
-          id: uuidv4(),
+          id: submissionRequestId,
           profile_id: profile.id,
           agency_id: agencyId,
           idempotency_key: idempotencyKey,
@@ -1031,16 +1456,32 @@ router.post(
             : {}),
         });
 
+        // Written only once the columns exist; the purpose of an application is
+        // immutable, so a revived row restates the same values it was created
+        // with rather than inheriting a stale purpose from an older send.
+        const eventColumns = eventColumnsReady
+          ? {
+              open_call_link_id: eventCall?.linkId || null,
+              call_purpose: callPurpose,
+            }
+          : {};
+
         if (reapplying) {
           const revived = await trx("applications")
             .where({ id: existing.id, status: "withdrawn" })
             .update({
+              ...eventColumns,
               status: "pending",
               minor_at_submission: minorSubmission,
               guardian_consent_grant_id: guardianConsentGrantId,
               guardian_consent_expires_at: guardianConsentExpiresAt,
               minor_access_revoked_at: null,
               minor_access_revocation_reason: null,
+              // The status genuinely moved (withdrawn → pending), so the review
+              // clock restarts here. Auto-close reads this column, and leaving
+              // it on the original send would hand the agency a window that had
+              // already half-lapsed before they saw the resubmission.
+              status_changed_at: trx.fn.now(),
               updated_at: trx.fn.now(),
             });
           if (revived !== 1) {
@@ -1064,10 +1505,15 @@ router.post(
             id: applicationId,
             profile_id: profile.id,
             agency_id: agencyId,
+            ...eventColumns,
             status: "pending",
             minor_at_submission: minorSubmission,
             guardian_consent_grant_id: guardianConsentGrantId,
             guardian_consent_expires_at: guardianConsentExpiresAt,
+            // Anchor the agency's review window at the send. Without it the row
+            // falls back to `updated_at`, which any later talent-side write
+            // bumps — silently restarting a clock the agency never touched.
+            status_changed_at: trx.fn.now(),
           });
         }
 
@@ -1075,8 +1521,28 @@ router.post(
           // Spend the claim atomically with the submission it exempts, and
           // make the consent record state what the UI stated.
           await consumeClaim(trx, openCallClaim.id, applicationId);
-          disclosureSnapshot.openCall = buildOpenCallDisclosure(agency.name);
+          disclosureSnapshot.openCall = buildOpenCallDisclosure(agency.name, {
+            purpose: callPurpose,
+            eventName: eventCall?.disclosureContext?.eventName || null,
+          });
         }
+
+        await trx("application_submission_requests")
+          .where({ id: submissionRequestId })
+          .update({ application_id: applicationId });
+
+        // Registry evaluation is an immutable send-time audit, never a send
+        // gate. An unmapped agency or transient registry failure cannot stop
+        // the application transaction.
+        await recordAdvisorySpecSnapshot(trx, {
+          applicationId,
+          submissionRequestId,
+          profileId: profile.id,
+          agencyId,
+          imageIds: registryImageIds,
+          expectedRevisionId:
+            normalizedSubmissionReferences.specRegistryRevisionId,
+        });
 
         await recordSubmissionDisclosureConsent(trx, {
           applicationId,
@@ -1089,6 +1555,12 @@ router.post(
           guardianConsentGrantId,
           ipAddress: clientMeta.ipAddress,
           userAgent: clientMeta.userAgent,
+          purpose: callPurpose,
+          openCallLinkId: eventCall?.linkId || null,
+          // The compensation sentence the applicant actually read, frozen
+          // beside their consent. Restated verbatim, never paraphrased.
+          compensationDisclosure:
+            disclosureSnapshot.compensationDisclosure || null,
         });
 
         await trx("application_submission_boards")
@@ -1120,8 +1592,6 @@ router.post(
               id: uuidv4(),
               board_id: board.id,
               application_id: applicationId,
-              match_score: null,
-              match_details: null,
               created_at: trx.fn.now(),
               updated_at: trx.fn.now(),
             })),
@@ -1175,7 +1645,14 @@ router.post(
             profile_id: profile.id,
             label: `Application to ${agencyId}`,
             created_at: new Date(),
-            retention_expires_at: submissionRetentionExpiry().toISOString(),
+            // Ruling R4: an event package is deleted 90 days after the event
+            // ends, and the consent copy says so in those words. Holding it for
+            // 24 months like a representation package would make that sentence
+            // false. A call with no stated end date has nothing to count from,
+            // so it keeps the default window.
+            retention_expires_at:
+              eventPackageRetentionExpiry(eventCall) ||
+              submissionRetentionExpiry().toISOString(),
             guardian_consent_grant_id: guardianConsentGrantId,
             guardian_consent_expires_at: guardianConsentExpiresAt,
             payload: {
@@ -1183,6 +1660,20 @@ router.post(
               applicationId,
               agencyId,
               agencyName: agency.name || null,
+              // Top-level, not nested: the designer pick page reads
+              // `payload.availability` / `payload.walkVideoUrl` straight off
+              // the frozen snapshot, never off a live application row.
+              callPurpose,
+              openCallLinkId: eventCall?.linkId || null,
+              availability: normalizedSubmissionReferences.availability,
+              walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
+              eventContext: eventCall
+                ? {
+                    ...eventCall.disclosureContext,
+                    availability: normalizedSubmissionReferences.availability,
+                    walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
+                  }
+                : null,
               boards: normalizedSubmissionReferences.boards,
               boardLabels: normalizedSubmissionReferences.boards,
               mediaSetId: normalizedSubmissionReferences.mediaSetId,
@@ -1201,6 +1692,8 @@ router.post(
               compCard,
               digitalSlotPicks:
                 normalizedSubmissionReferences.digitalSlotPicks,
+              specRegistryRevisionId:
+                normalizedSubmissionReferences.specRegistryRevisionId,
               imageIds: packageImages.map((image) => image.id),
               images: packageImages.map(snapshotSubmissionImage),
               profile: buildSubmissionProfileSnapshot(submissionProfile, {
@@ -1310,11 +1803,11 @@ router.post(
           : [];
         return res.status(403).json({
           success: false,
-          error: "Monthly application limit reached",
-          message: "Monthly submission limit reached. Pholio maintains a monthly quota to ensure agency submission quality and prevent spam.",
-          limit: error.quota?.limit || 5,
-          current: error.quota?.used || 5,
-          upgradeRequired: true,
+          error: "monthly_discovery_limit_reached",
+          message:
+            "You have used this month's discovery submissions. Submitting through an agency's own open call link is always unlimited.",
+          limit: error.quota?.limit ?? MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
+          current: error.quota?.used ?? MONTHLY_DISCOVERY_SUBMISSION_LIMIT,
           activeClaims: activeClaims.map(serializeClaim),
         });
       }
@@ -1365,6 +1858,16 @@ router.post(
       }
       throw error;
     }
+
+    await recordSubmitFunnelEvents({
+      eventCall,
+      profileId: profile.id,
+      strengthScore: canonicalPackageValidation.strength?.score,
+      digitalSlotCount: Object.keys(
+        normalizedSubmissionReferences.digitalSlotPicks || {},
+      ).length,
+      compCardPresent: Boolean(normalizedSubmissionReferences.compCardPreset),
+    });
 
     try {
       await notifyTalentApplicationSubmitted({
@@ -1651,6 +2154,36 @@ router.get(
   }),
 );
 
+/**
+ * Funnel step 2 (design §g): the numerator's numerator.
+ *
+ * Fires on the *first* write that carries a given call, not on every autosave —
+ * an apply flow saves a draft every few keystrokes and counting those would
+ * turn "applications started" into "keystrokes". First means either a freshly
+ * created draft or an existing one that did not previously name this call
+ * (a talent who opened a representation draft and then arrived through an
+ * event link genuinely started an event application at that moment).
+ */
+async function recordApplicationStarted({
+  previousPayload,
+  nextPayload,
+  profileId,
+  agencyId,
+}) {
+  const linkId = nextPayload?.openCallLinkId;
+  if (!linkId || previousPayload?.openCallLinkId === linkId) return;
+  try {
+    await recordEventFunnelEvent({
+      openCallLinkId: linkId,
+      agencyId,
+      profileId,
+      eventType: FUNNEL_EVENT_TYPES.APPLICATION_STARTED,
+    });
+  } catch (error) {
+    console.debug("[EventFunnel] application_started failed:", error?.message);
+  }
+}
+
 // PUT /api/talent/applications/drafts/:agencyId — upsert the in-progress dossier.
 router.put(
   "/drafts/:agencyId",
@@ -1734,11 +2267,15 @@ router.put(
     let savedRow = null;
 
     let inactiveRow = null;
+    // What the draft named before this write, for the first-write-only funnel
+    // check below. Read inside the transaction; used after it commits.
+    let previousPayload = null;
     try {
       await knex.transaction(async (trx) => {
         const existing = await trx("application_drafts")
           .where({ profile_id: profile.id, agency_id: agencyId })
           .first();
+        previousPayload = existing ? parseDraftPayload(existing.payload) : null;
 
         if (!existing) {
           if (expectedVersion !== 0 || expectedGeneration !== 0) return;
@@ -1842,6 +2379,13 @@ router.put(
       });
       return sendDraftLifecycleConflict(res, latest);
     }
+
+    await recordApplicationStarted({
+      previousPayload,
+      nextPayload: normalizedPayload,
+      profileId: profile.id,
+      agencyId,
+    });
 
     return res.json({
       success: true,
@@ -2187,6 +2731,224 @@ router.post(
   }),
 );
 
+/* ── Answering a slot offer ──────────────────────────────────────────────────
+   The only two statuses a talent may write. An organizer offering a slot moves
+   an event application to `accepted`; whether that slot is taken is the
+   applicant's sentence to speak, and `TALENT_WRITABLE_APPLICATION_STATUSES` is
+   deliberately absent from the agency's writable list so nobody can record a
+   confirmation on their behalf. */
+
+const SLOT_RESPONSES = Object.freeze({
+  [CONFIRMED_APPLICATION_STATUS]: {
+    activityDescription: "Talent confirmed the slot",
+    successMessage: "Slot confirmed",
+  },
+  [TALENT_DECLINED_APPLICATION_STATUS]: {
+    activityDescription: "Talent declined the slot",
+    successMessage: "Slot declined",
+  },
+});
+
+// Fails at require time rather than at runtime: if a future edit moves either
+// status into the agency's writable list, these routes are no longer the only
+// way it can be written and the guarantee above is quietly gone.
+for (const status of Object.keys(SLOT_RESPONSES)) {
+  if (!TALENT_WRITABLE_APPLICATION_STATUSES.includes(status)) {
+    throw new Error(
+      `Slot response status "${status}" is not talent-writable — see application-status.js`,
+    );
+  }
+}
+
+/**
+ * Answer an offer. Legal only from `accepted` on an event application: there is
+ * no slot to confirm before one is offered, and re-answering after the fact
+ * would rewrite a decision the organizer has already staffed around.
+ */
+async function respondToSlotOffer(req, res, nextStatus) {
+  const { id } = req.params;
+  const response = SLOT_RESPONSES[nextStatus];
+  const profile = await getProfileBySessionUserId(req.session.userId);
+  if (!profile) {
+    return res.status(404).json({
+      success: false,
+      error: "Profile not found",
+      message: "Profile not found",
+    });
+  }
+
+  if (!(await hasApplicationEventColumns(knex))) {
+    return res.status(404).json({
+      success: false,
+      error: "event_casting_unavailable",
+      message: "Event casting is not available yet.",
+    });
+  }
+
+  const application = await knex("applications")
+    .where({ id, profile_id: profile.id })
+    .first();
+  if (!application) {
+    return res.status(404).json({
+      success: false,
+      error: "Application not found",
+      message: "Application not found",
+    });
+  }
+
+  if (application.call_purpose !== CALL_PURPOSES.EVENT_CASTING) {
+    return res.status(409).json({
+      success: false,
+      error: "not_an_event_application",
+      message: "Only an event casting can offer a slot.",
+    });
+  }
+
+  if (!OFFERED_APPLICATION_STATUSES.includes(application.status)) {
+    return res.status(409).json({
+      success: false,
+      error: "slot_offer_not_open",
+      message:
+        application.status === nextStatus
+          ? "You have already answered this offer."
+          : "There is no open slot offer on this application.",
+    });
+  }
+
+  // ISO strings, not Date objects: under a VM realm (jest) knex's
+  // `instanceof Date` check fails and it stores the literal "[object Object]",
+  // which reads back as an unparseable anchor and breaks the auto-close clock.
+  const respondedAt = new Date().toISOString();
+  const updated = await knex("applications")
+    // Conditional on the status we read: two taps, or a tap racing the
+    // auto-close job, must not both land.
+    .where({ id, profile_id: profile.id, status: application.status })
+    .update({
+      status: nextStatus,
+      status_changed_at: respondedAt,
+      updated_at: respondedAt,
+    });
+  if (updated !== 1) {
+    return res.status(409).json({
+      success: false,
+      error: "slot_offer_not_open",
+      message: "This offer was already answered or has expired.",
+    });
+  }
+
+  await logActivity(
+    req,
+    knex,
+    id,
+    application.agency_id,
+    "status_change",
+    response.activityDescription,
+    { old_status: application.status, new_status: nextStatus },
+  );
+
+  const talentName =
+    [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
+    profile.name ||
+    "A talent";
+  try {
+    const link = await loadOpenCallLink(knex, application.open_call_link_id);
+    await notifyAgencyEventSlotResponse({
+      agencyId: application.agency_id,
+      applicationId: id,
+      talentName,
+      eventName: link?.event_name || null,
+      confirmed: nextStatus === CONFIRMED_APPLICATION_STATUS,
+    });
+  } catch (notifyErr) {
+    // The organizer's inbox is the record; the ping is best-effort.
+    console.error("[Applications] Slot response notification failed:", notifyErr);
+  }
+
+  return res.json({
+    success: true,
+    data: {
+      id,
+      status: nextStatus,
+      statusChangedAt: respondedAt,
+    },
+    message: response.successMessage,
+  });
+}
+
+/** POST /api/talent/applications/:id/confirm */
+router.post(
+  "/:id/confirm",
+  requireRole("TALENT"),
+  requireActiveAccount(),
+  asyncHandler((req, res) =>
+    respondToSlotOffer(req, res, CONFIRMED_APPLICATION_STATUS),
+  ),
+);
+
+/** POST /api/talent/applications/:id/decline-slot */
+router.post(
+  "/:id/decline-slot",
+  requireRole("TALENT"),
+  requireActiveAccount(),
+  asyncHandler((req, res) =>
+    respondToSlotOffer(req, res, TALENT_DECLINED_APPLICATION_STATUS),
+  ),
+);
+
+/**
+ * POST /api/talent/applications/:id/payoff-viewed
+ *
+ * Funnel step 6 (design §g): did the "What you keep" block on ApplySuccess
+ * actually land? The mechanism is the cheapest correct one available.
+ *
+ *  - Not `navigator.sendBeacon`: this surface is behind the session cookie and
+ *    behind `sameOriginMutationGuard`, which requires a custom header that
+ *    sendBeacon cannot set. The success screen also stays mounted, so there is
+ *    no unload race for a beacon to win.
+ *  - Not the public `POST /portfolio/:slug/event` shape, where the *client*
+ *    names the subject: here the client sends only an action code, and the
+ *    server derives link, organizer and profile from an application row it has
+ *    already confirmed belongs to the caller. A client cannot inflate another
+ *    organizer's funnel.
+ *  - Not a new top-level analytics route: one verb on the application the
+ *    screen is confirming keeps the authorization question to "is this yours",
+ *    which the route already answers everywhere else.
+ *
+ * Always 204 — an analytics call has nothing to tell the browser, and a
+ * representation submission (no open call link) simply records nothing.
+ */
+router.post(
+  "/:id/payoff-viewed",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) return res.status(204).end();
+    // Deploy-before-migrate: without the event columns there is no link to
+    // attribute the view to, and selecting one would throw.
+    if (!(await hasApplicationEventColumns(knex))) return res.status(204).end();
+    const action = PAYOFF_ACTION_VALUES.includes(req.body?.action)
+      ? req.body.action
+      : PAYOFF_ACTIONS.VIEWED;
+    const application = await knex("applications")
+      .where({ id: req.params.id, profile_id: profile.id })
+      .first("id", "agency_id", "open_call_link_id");
+    if (application?.open_call_link_id) {
+      try {
+        await recordEventFunnelEvent({
+          openCallLinkId: application.open_call_link_id,
+          agencyId: application.agency_id,
+          profileId: profile.id,
+          eventType: FUNNEL_EVENT_TYPES.PAYOFF_VIEWED,
+          metadata: { action },
+        });
+      } catch (error) {
+        console.debug("[EventFunnel] payoff_viewed failed:", error?.message);
+      }
+    }
+    return res.status(204).end();
+  }),
+);
+
 /**
  * GET /api/talent/applications/:id/activity
  * Status-change history (the lifecycle timeline) for one of the talent's
@@ -2387,3 +3149,6 @@ router.post(
 );
 
 module.exports = router;
+module.exports._test = {
+  recordAdvisorySpecSnapshot,
+};

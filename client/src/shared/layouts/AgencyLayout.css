@@ -258,19 +258,6 @@
   background: radial-gradient(115% 75% at 88% -8%, rgba(201,165,90,.12), transparent 52%), var(--ag-canvas);
 }
 
-/* Roster: single internal scroll (cards), no outer browser scrollbar */
-.ag-main--roster {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-}
-.ag-main--roster .ro-page {
-  flex: 1;
-  min-height: 0;
-  height: auto;
-}
-
 /* ---------- MASTHEAD ---------- */
 .ag-masthead { display: flex; justify-content: space-between; align-items: center; padding: 22px var(--ag-pad-x) 16px; }
 .ag-masthead-status { font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--ag-text-2); }

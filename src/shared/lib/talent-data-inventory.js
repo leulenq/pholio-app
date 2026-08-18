@@ -172,6 +172,16 @@ const TALENT_DATA_INVENTORY = [
     exportMode: "full",
   },
   {
+    key: "application_spec_snapshots",
+    table: "application_spec_snapshots",
+    scope: "application",
+    column: "application_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes:
+      "Immutable, score-free record of the published agency revision and advisory findings used when the talent sent an application.",
+  },
+  {
     key: "application_submission_consent_events",
     table: "application_submission_consent_events",
     scope: "profile",
@@ -195,6 +205,16 @@ const TALENT_DATA_INVENTORY = [
     column: "profile_id",
     cascade: "fk",
     exportMode: "full",
+  },
+  {
+    key: "spec_registry_engagement_events",
+    table: "spec_registry_engagement_events",
+    scope: "profile",
+    column: "profile_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes:
+      "Which published agency routes this talent prepared a spec-correct set for, and whether they followed through to the agency's own site. A behavioural record about the subject — it belongs in their export.",
   },
 
   // ---- representation / social -----------------------------------------
@@ -272,6 +292,16 @@ const TALENT_DATA_INVENTORY = [
     exportMode: "full",
     notes:
       "Private/gated: migration 20260701100500 forbids adding this to any audience DTO. That rule is about public/agency/submission consumers, not the subject's own export — a talent has a right to see their own adult-context data, so it IS included here.",
+  },
+  {
+    key: "age_verifications",
+    table: "age_verifications",
+    scope: "profile",
+    column: "profile_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes:
+      "Verification audit state only. Pholio does not store document images or government ID numbers.",
   },
   {
     key: "profile_field_visibility",
@@ -412,6 +442,16 @@ const TALENT_DATA_INVENTORY = [
     exportMode: "full",
   },
   {
+    key: "comp_card_imports",
+    table: "comp_card_imports",
+    scope: "user",
+    column: "user_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes:
+      "Keyed by user_id, not profile_id. Holds the proposal read off an uploaded comp card and the fields the talent accepted from it — personal data the subject supplied, and the answer to 'where did this measurement come from'. The uploaded file itself is never stored (see docs/comp-card-import-architecture.md).",
+  },
+  {
     key: "notifications",
     table: "notifications",
     scope: "user",
@@ -426,6 +466,26 @@ const TALENT_DATA_INVENTORY = [
     column: "profile_id",
     cascade: "fk",
     exportMode: "full",
+  },
+  {
+    key: "profile_events",
+    table: "profile_events",
+    scope: "profile",
+    column: "profile_id",
+    cascade: "fk",
+    exportMode: "full",
+    notes: "Historical rows from the retired Intel capture feature.",
+  },
+  {
+    key: "share_tokens",
+    table: "share_tokens",
+    scope: "profile",
+    column: "profile_id",
+    cascade: "fk",
+    exportMode: "redact",
+    redactColumns: ["token"],
+    notes:
+      "Historical share-link records from the retired Intel feature; bearer tokens are never exported.",
   },
 ];
 

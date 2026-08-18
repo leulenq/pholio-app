@@ -61,15 +61,6 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
-    id: 'calendar',
-    label: 'Roster & Booking Desk',
-    permissions: [
-      { key: 'roster.manage_status', label: 'Manage roster status' },
-      { key: 'roster.add_talent', label: 'Add talent to roster' },
-      { key: 'calendar.manage', label: 'Manage options, holds, and bookings' },
-    ],
-  },
-  {
     id: 'comms',
     label: 'Notes, tags & messages',
     permissions: [
@@ -81,18 +72,6 @@ export const PERMISSION_GROUPS = [
       { key: 'tags.bulk_add', label: 'Bulk add tags' },
       { key: 'tags.bulk_remove', label: 'Bulk remove tags' },
       { key: 'messages.send', label: 'Send messages' },
-    ],
-  },
-  {
-    id: 'interviews',
-    label: 'Interviews & reminders',
-    permissions: [
-      { key: 'interviews.schedule', label: 'Schedule interviews' },
-      { key: 'interviews.update', label: 'Update interviews' },
-      { key: 'interviews.complete', label: 'Complete interviews' },
-      { key: 'interviews.cancel', label: 'Cancel interviews' },
-      { key: 'reminders.create', label: 'Create reminders' },
-      { key: 'reminders.delete', label: 'Delete reminders' },
     ],
   },
 ];

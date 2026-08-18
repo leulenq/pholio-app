@@ -3,7 +3,9 @@ const router = express.Router();
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const apiResponse = require("../../../shared/lib/api-response");
-const { requireStudioPlus } = require("../services/writer-shared/studio-plus");
+const {
+  requireTalentProfile,
+} = require("../services/writer-shared/writer-profile");
 const { validateInput } = require("../services/message-polish/output-validator");
 const { polishMessage } = require("../services/message-polish/polish-writer");
 
@@ -11,7 +13,7 @@ router.post(
   "/polish",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const { message, agencyName } = req.body;

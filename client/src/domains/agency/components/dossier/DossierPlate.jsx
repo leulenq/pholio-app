@@ -176,11 +176,7 @@ export function StatLine({ talent }) {
           );
         })}
       </div>
-      <p
-        className={`dx-statline__source${provenance.stale ? ' is-stale' : ''}${
-          provenance.verified ? ' is-verified' : ''
-        }`}
-      >
+      <p className={`dx-statline__source${provenance.stale ? ' is-stale' : ''}`}>
         {provenance.text}
         {provenance.stale && (
           <span className="dx-statline__flag">Re-confirm before submitting to a client</span>

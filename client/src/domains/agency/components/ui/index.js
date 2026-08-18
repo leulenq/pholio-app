@@ -14,7 +14,5 @@ export {
 } from './AgencySkeleton';
 export { AgencyRow } from './AgencyRow';
 export { StatusText, STATUS_MAP, getStatusMeta } from './StatusText';
-export { default as MatchMeasure } from './MatchMeasure';
-export { default as MatchScore } from './MatchScore';
 export { default as StatusCell } from './StatusCell';
 export { FilterChips } from './FilterChips';

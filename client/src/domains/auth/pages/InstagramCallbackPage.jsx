@@ -16,7 +16,7 @@ import { sameOriginMutationHeaders } from '../../../shared/lib/same-origin-reque
 // accounts — unknown identities are redirected to /onboarding instead.
 const LEGAL_ACCEPTANCE = { terms_accepted: true, privacy_accepted: true };
 
-async function completeCastingEntry(idToken) {
+async function completeCastingEntry(idToken, dateOfBirth) {
   const response = await fetch('/onboarding/entry', {
     method: 'POST',
     credentials: 'include',
@@ -24,7 +24,11 @@ async function completeCastingEntry(idToken) {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
-    body: JSON.stringify({ firebase_token: idToken, ...LEGAL_ACCEPTANCE }),
+    body: JSON.stringify({
+      firebase_token: idToken,
+      date_of_birth: dateOfBirth,
+      ...LEGAL_ACCEPTANCE,
+    }),
   });
 
   const data = await response.json().catch(() => ({}));
@@ -123,7 +127,7 @@ export default function InstagramCallbackPage() {
         const nextPath = completeData.next || params.get('next');
 
         if (flow === 'signup') {
-          await completeCastingEntry(idToken);
+          await completeCastingEntry(idToken, completeData.date_of_birth);
           if (!cancelled) {
             navigate('/onboarding', { replace: true });
           }

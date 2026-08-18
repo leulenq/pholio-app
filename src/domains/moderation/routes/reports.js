@@ -6,7 +6,11 @@ const asyncHandler = require('express-async-handler');
 const { v4: uuidv4 } = require('uuid');
 const knex = require('../../../shared/db/knex');
 const { requireAuth } = require('../../auth/middleware/require-auth');
-const { isModerator, VALID_REPORT_REASONS } = require('../../../shared/lib/moderation');
+const {
+  isModerator,
+  isSelfTargetReport,
+  VALID_REPORT_REASONS,
+} = require('../../../shared/lib/moderation');
 const {
   MODERATION_STATUS,
   MODERATION_QUEUE_STATUS,
@@ -76,6 +80,17 @@ router.post(
       return res.status(400).json({
         error: 'Validation error',
         message: 'target_id is required',
+      });
+    }
+
+    if (isSelfTargetReport({
+      reporterUserId: req.session.userId,
+      targetType: target_type,
+      targetId: target_id,
+    })) {
+      return res.status(422).json({
+        error: 'Validation error',
+        message: 'A safety report cannot target the reporting account itself.',
       });
     }
 

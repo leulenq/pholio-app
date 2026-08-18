@@ -2,8 +2,9 @@
 
 const Groq = require("groq-sdk");
 const config = require("../../../../config");
-
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const {
+  buildTextCompletionParams,
+} = require("../../../../shared/lib/groq-text-model");
 
 let _groq = null;
 
@@ -16,6 +17,11 @@ function getGroq() {
     _groq = new Groq({ apiKey });
   }
   return _groq;
+}
+
+/** Test seam: inject a mock Groq client (mirrors discover/parse.js). */
+function __setGroqClient(client) {
+  _groq = client;
 }
 
 function stripQuotedResponse(text) {
@@ -37,27 +43,47 @@ function countWords(text) {
 }
 
 /**
- * @param {{ system: string, user: string, model?: string, temperature?: number, maxTokens?: number }} opts
+ * Raw system+user completion for the writers.
+ *
+ * The model is never passed in by a writer: it resolves from
+ * `config.groq.textModel` at call time (GROQ_TEXT_MODEL stays the rollback
+ * lever). `maxTokens` is the expected ANSWER length — a reasoning-class model
+ * gets the reasoning allowance added on top, because it spends completion
+ * tokens thinking before it writes anything. See shared/lib/groq-text-model.js.
+ *
+ * @param {{ system: string, user: string, model?: string, temperature?: number,
+ *   maxTokens?: number }} opts
+ * @returns {Promise<string>} unmodified completion text — each writer owns its
+ *   own stripping/validation layer.
  */
-async function callGroqChat({
+async function createChatCompletion({
   system,
   user,
-  model = DEFAULT_MODEL,
+  model,
   temperature = 0.45,
   maxTokens = 280,
 }) {
-  const completion = await getGroq().chat.completions.create({
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    model,
-    temperature,
-    max_completion_tokens: maxTokens,
-    top_p: 0.85,
-  });
+  const completion = await getGroq().chat.completions.create(
+    buildTextCompletionParams({
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+      model,
+      temperature,
+      maxTokens,
+      topP: 0.85,
+    }),
+  );
 
-  return stripQuotedResponse(completion.choices[0]?.message?.content);
+  return completion.choices[0]?.message?.content;
+}
+
+/**
+ * @param {{ system: string, user: string, model?: string, temperature?: number, maxTokens?: number }} opts
+ */
+async function callGroqChat(opts) {
+  return stripQuotedResponse(await createChatCompletion(opts));
 }
 
 function groqUnavailable(err) {
@@ -66,10 +92,11 @@ function groqUnavailable(err) {
 }
 
 module.exports = {
-  DEFAULT_MODEL,
   getGroq,
+  __setGroqClient,
   stripQuotedResponse,
   countWords,
+  createChatCompletion,
   callGroqChat,
   groqUnavailable,
 };

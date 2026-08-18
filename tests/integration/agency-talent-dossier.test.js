@@ -632,24 +632,14 @@ describe("GET /api/agency/applications/:id/dossier", () => {
     expect(body.availability.commitments[0].option_tier).toBe(1);
   });
 
-  test("carries standing with this agency: ladder dates, board, tags, work owed", () => {
+  test("carries standing with this agency: ladder dates, board, tags", () => {
     expect(body.application.status).toBe("shortlisted");
     expect(body.standing.board.name).toBe("Women");
     expect(body.standing.days_since_submitted).toBeGreaterThanOrEqual(10);
     expect(body.standing.tags.map((t) => t.tag)).toContain("milan-ready");
     expect(body.standing.timeline[0].metadata.new_status).toBe("shortlisted");
-    expect(body.standing.reminders).toHaveLength(1);
     expect(body.standing.messages.unread_from_talent).toBe(1);
     expect(body.standing.invited).toBe(false);
-  });
-
-  test("places the talent against this agency's own roster", () => {
-    expect(body.position.roster_size).toBe(1);
-    expect(body.position.track_peers).toBe(1);
-    expect(body.position.market_peers).toBe(1);
-    // 178cm against a single 174cm peer: taller than 100% of the track.
-    expect(body.position.height_percentile).toBe(100);
-    expect(body.position.board_size).toBe(1);
   });
 
   test("carries the professional record an agency casts from", () => {

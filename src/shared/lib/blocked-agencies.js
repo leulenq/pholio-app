@@ -24,7 +24,8 @@ function normalizeBlockedTerms(blockedAgencies) {
 
 /**
  * Read talent_user_settings.privacy_preferences.blockedAgencies and resolve
- * each entry to agency IDs via the agencies table (name or slug, case-insensitive).
+ * each entry to agency IDs via the agencies table. Current settings should store
+ * the stable agency ID; name/slug matching remains for legacy preferences.
  */
 async function getBlockedAgencyIds(knex, talentUserId) {
   if (!talentUserId) return new Set();
@@ -43,6 +44,7 @@ async function getBlockedAgencyIds(knex, talentUserId) {
   const agencies = await knex("agencies")
     .where(function () {
       for (const term of terms) {
+        this.orWhereRaw("LOWER(id) = ?", [term]);
         this.orWhereRaw("LOWER(name) = ?", [term]);
         this.orWhereRaw("LOWER(slug) = ?", [term]);
       }
@@ -50,6 +52,41 @@ async function getBlockedAgencyIds(knex, talentUserId) {
     .select("id");
 
   return new Set(agencies.map((a) => a.id));
+}
+
+/**
+ * Resolve every talent user who has blocked this agency. Discover uses this as
+ * an exclusion set before pagination so blocked profiles never affect totals or
+ * appear briefly before a later contact check.
+ */
+async function getTalentUserIdsBlockingAgency(knex, agencyId) {
+  if (!agencyId) return new Set();
+
+  const agency = await knex("agencies")
+    .where({ id: agencyId })
+    .select("id", "name", "slug")
+    .first();
+  if (!agency) return new Set();
+
+  const identities = new Set(
+    [agency.id, agency.name, agency.slug]
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const rows = await knex("talent_user_settings")
+    .select("user_id", "privacy_preferences");
+
+  return new Set(
+    rows
+      .filter((row) => {
+        const privacy = parsePrivacyPreferences(row.privacy_preferences);
+        return normalizeBlockedTerms(privacy.blockedAgencies).some((term) =>
+          identities.has(term),
+        );
+      })
+      .map((row) => row.user_id)
+      .filter(Boolean),
+  );
 }
 
 async function isAgencyBlockedForTalent(knex, talentUserId, agencyId) {
@@ -78,6 +115,7 @@ module.exports = {
   parsePrivacyPreferences,
   normalizeBlockedTerms,
   getBlockedAgencyIds,
+  getTalentUserIdsBlockingAgency,
   isAgencyBlockedForTalent,
   validateHttpsAttachmentUrl,
 };

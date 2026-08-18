@@ -1,0 +1,246 @@
+/*
+ * Event intake scene.
+ *
+ * Wears the talent system the rest of the dossier wears — warm paper, serif
+ * headings, pressed-paper fields — because for the applicant this is one more
+ * page of the same submission, not a different product. Tokens come from
+ * ApplyExperience.css, which is always loaded by the time this scene mounts.
+ */
+
+.apply-event {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(28px, 3.4vw, 44px);
+  max-width: 720px;
+}
+
+/* ── The organizer's own words, restated ─────────────────────────────────── */
+
+.apply-event__brief {
+  padding: clamp(20px, 2.4vw, 28px) 0 clamp(22px, 2.6vw, 30px);
+  border-top: 1px solid var(--app-hair-strong);
+  border-bottom: 1px solid var(--app-hair);
+}
+
+.apply-event__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 20px 32px;
+  margin: 0;
+}
+
+.apply-event__facts dt {
+  margin: 0 0 6px;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+}
+
+.apply-event__facts dd {
+  margin: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.34;
+  color: var(--app-text);
+}
+
+.apply-event__compdetail {
+  display: block;
+  margin-top: 6px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--app-text-soft);
+}
+
+.apply-event__stated {
+  margin: 18px 0 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--app-text-soft);
+}
+
+/* ── One block per thing the call asks for ───────────────────────────────── */
+
+.apply-event__block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.apply-event__blockhead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-gold);
+}
+
+.apply-event__blockhead h2 {
+  margin: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(20px, 2.2vw, 25px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--app-text);
+}
+
+.apply-event__blocklede {
+  margin: -4px 0 0;
+  max-width: 60ch;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.72;
+  color: var(--app-text-soft);
+}
+
+.apply-event__dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
+
+.apply-event__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 190px;
+}
+
+.apply-event__field--wide {
+  width: 100%;
+}
+
+.apply-event__label {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+}
+
+.apply-event__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background-color: color-mix(in srgb, var(--app-cream-warm) 42%, #fff);
+  color: var(--app-text);
+  caret-color: var(--app-gold);
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.5;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.apply-event__input:focus {
+  outline: 0;
+  border-color: var(--app-hair-gold);
+}
+
+.apply-event__input::placeholder {
+  color: var(--app-text-faint);
+}
+
+.apply-event__hint {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--app-text-faint);
+}
+
+.apply-event__issue {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #9A3B2E;
+}
+
+/* ── Measurements confirmation ───────────────────────────────────────────── */
+
+.apply-event__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apply-event__stats li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.apply-event__statlabel {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--app-text-faint);
+}
+
+.apply-event__statvalue {
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 17px;
+  color: var(--app-text);
+}
+
+.apply-event__confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: 58ch;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.apply-event__confirm input {
+  margin-top: 3px;
+  accent-color: var(--app-gold);
+  flex-shrink: 0;
+}
+
+.apply-event__edit {
+  align-self: flex-start;
+}
+
+.apply-event__none {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  color: var(--app-text-soft);
+}
+
+@media (max-width: 700px) {
+  .apply-event__dates {
+    flex-direction: column;
+  }
+
+  .apply-event__field {
+    min-width: 0;
+    width: 100%;
+  }
+}

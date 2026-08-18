@@ -28,7 +28,9 @@ const path = require("path");
 const Groq = require("groq-sdk");
 const config = require("../../config");
 const { scoreFromImageAnalysis, buildDescriptorPrompt } = require("./scoring");
-const { reindexDiscoverProfile } = require("./embeddings");
+const {
+  buildTextCompletionParams,
+} = require("../../shared/lib/groq-text-model");
 const {
   hasRecordedDateOfBirth,
   isMinorProfile,
@@ -81,15 +83,37 @@ Return exactly this structure, no other text:
   }
 }`;
 
-const TEXT_MODEL = "llama-3.3-70b-versatile";
+// The look descriptor is a TEXT call, not a vision call: it reads the parsed
+// casting analysis, never the image. It resolves from config.groq.textModel
+// (never hardcoded — see the visionModel note above for why), and the
+// completion budget is sized by shared/lib/groq-text-model.js because the
+// configured text model is reasoning-class.
+const DESCRIPTOR_ANSWER_TOKENS = 100;
 
-function imageAiProcessingAllowed(profile, env = process.env) {
+/**
+ * Has this talent granted image-processing consent, and can they?
+ *
+ * Consent state only — no feature flag. A minor cannot grant it and a profile
+ * with no recorded date of birth cannot be shown to be an adult, so both fail
+ * closed regardless of what the column says.
+ *
+ * `imageAiProcessingAllowed` is this plus the portfolio-classification launch
+ * flag. Any caller that is not the portfolio classifier wants this one, and
+ * every caller shares this single definition of "consented" so the two cannot
+ * drift into disagreeing about what a talent agreed to.
+ */
+function imageAiConsentGranted(profile) {
   return (
-    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" &&
     (profile?.ai_processing_consent === true ||
       profile?.ai_processing_consent === 1) &&
     hasRecordedDateOfBirth(profile) &&
     !isMinorProfile(profile)
+  );
+}
+
+function imageAiProcessingAllowed(profile, env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" && imageAiConsentGranted(profile)
   );
 }
 
@@ -109,6 +133,13 @@ async function loadImageAiProfile(knex, profileId, { forUpdate = false } = {}) {
 async function currentImageAiProcessingAllowed(knex, profileId) {
   const profile = await loadImageAiProfile(knex, profileId);
   return imageAiProcessingAllowed(profile);
+}
+
+/** Current image-processing consent state for a profile, read fresh. */
+async function currentImageAiConsentGranted(knex, profileId) {
+  if (!profileId) return false;
+  const profile = await loadImageAiProfile(knex, profileId);
+  return imageAiConsentGranted(profile);
 }
 
 async function persistProfileImageAiUpdate(knex, profileId, updates) {
@@ -240,15 +271,6 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
       descriptor: descriptor ? "Generated" : "Failed",
     });
 
-    try {
-      await reindexDiscoverProfile(knex, profileId);
-    } catch (reindexErr) {
-      console.warn(
-        "[MasterVision] discover_index re-index failed (non-blocking):",
-        reindexErr.message,
-      );
-    }
-
     // Return the sanitized casting analysis (no consumer prefills
     // measurements from this pipeline — see WS2 compliance note above).
     return castingAnalysis;
@@ -300,12 +322,13 @@ async function generateLookDescriptor(castingAnalysis, profileId, knex) {
 
     if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
 
-    const descCompletion = await groq.chat.completions.create({
-      model: TEXT_MODEL,
-      messages: [{ role: "user", content: descriptorPrompt }],
-      temperature: 0.4,
-      max_completion_tokens: 100,
-    });
+    const descCompletion = await groq.chat.completions.create(
+      buildTextCompletionParams({
+        messages: [{ role: "user", content: descriptorPrompt }],
+        temperature: 0.4,
+        maxTokens: DESCRIPTOR_ANSWER_TOKENS,
+      }),
+    );
 
     if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
 
@@ -368,7 +391,9 @@ async function clearAnalysis(knex, profileId) {
 
 module.exports = {
   masterVisionAnalysis,
+  imageAiConsentGranted,
   imageAiProcessingAllowed,
+  currentImageAiConsentGranted,
   currentImageAiProcessingAllowed,
   stripSensitiveVisionFields,
   SENSITIVE_VISION_KEYS,

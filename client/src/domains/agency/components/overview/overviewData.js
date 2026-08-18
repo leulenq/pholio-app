@@ -1,10 +1,11 @@
 // Maps the real /api/agency/overview + /overview/recent-applicants payloads into
 // render-ready shapes, with safe fallbacks for empty/new agencies.
 //
-// Pipeline statuses arrive as display labels (Submitted, Shortlisted, Booked,
+// Pipeline statuses arrive as display labels (Submitted, Shortlisted, Offered,
 // Passed, Declined); we key colors off the lowercased label.
 const PIPELINE_COLORS = {
-  booked: '#050505',
+  represented: '#050505',
+  offered: '#8A7A55',
   shortlisted: '#C9A55A',
   submitted: '#2D2A26',
   passed: '#6B6560',
@@ -13,27 +14,16 @@ const PIPELINE_COLORS = {
 
 // The overview endpoint returns each KPI as a wrapper object, not a scalar:
 //   pendingReview { count, oldestDaysAgo }   activeCastings { count, closingToday }
-//   rosterSize { count, trend, changeThisMonth }   placementRate { current, lastSeason }
-//   utilization { active, total, pct }
 // We flatten to the scalar each surface renders, plus the useful sub-fields for deltas.
 export function selectKpis(data) {
   const k = data?.kpis || {};
   const pendingReview = k.pendingReview || {};
   const activeCastings = k.activeCastings || {};
-  const rosterSize = k.rosterSize || {};
-  const placementRate = k.placementRate || {};
-  const utilization = k.utilization || {};
   return {
     pendingReview: pendingReview.count ?? 0,
     pendingOldestDaysAgo: pendingReview.oldestDaysAgo ?? null,
     activeCastings: activeCastings.count ?? 0,
     castingsClosingToday: activeCastings.closingToday ?? 0,
-    rosterSize: rosterSize.count ?? 0,
-    rosterChangeThisMonth: rosterSize.changeThisMonth ?? 0,
-    placementRate: placementRate.current ?? 0,
-    placementLastSeason: placementRate.lastSeason ?? null,
-    utilization: utilization.active ?? 0,
-    utilizationPct: utilization.pct ?? 0,
   };
 }
 
@@ -56,21 +46,15 @@ export function selectPulse(data) {
   return {
     newToday: p.newToday ?? 0,
     closingWeek: p.closingWeek ?? 0,
-    idleTalent: p.idleTalent ?? 0,
-    avgMatchScore: p.avgMatchScore ?? null,
     discoverableCount: p.discoverableCount ?? 0,
     newTalentWeek: p.newTalentWeek ?? 0,
   };
 }
 
-export function selectTalentMix(data) {
-  return Array.isArray(data?.talentMix) ? data.talentMix : [];
-}
-
-// "Where to go next" — derive recommended actions from pulse + roster mix, by
+// "Where to go next" — derive recommended actions from intake pressure, by
 // urgency. Each move renders as an agenda row: a serif figure, a statement,
 // and the destination it opens. Tone colors the figure only.
-export function buildNextMoves(pulse, talentMix = []) {
+export function buildNextMoves(pulse) {
   const moves = [];
   if (pulse.closingWeek > 0) {
     moves.push({
@@ -79,16 +63,6 @@ export function buildNextMoves(pulse, talentMix = []) {
       text: `board${pulse.closingWeek === 1 ? '' : 's'} close this week — finalize submissions`,
       where: 'Signing room',
       to: '/dashboard/agency/signing',
-    });
-  }
-  const thin = [...talentMix].sort((a, b) => a.pct - b.pct)[0];
-  if (thin && talentMix.length > 1 && thin.pct <= 15) {
-    moves.push({
-      id: 'thin', tone: 'default',
-      figure: `${thin.pct}%`,
-      text: `of the roster is ${thin.name} — coverage is thin`,
-      where: 'Discover',
-      to: '/dashboard/agency/discover',
     });
   }
   if (pulse.newTalentWeek > 0) {
@@ -126,7 +100,7 @@ function closingBoards(boards) {
 }
 
 // Today's docket — the prioritized daily agenda above the fold. Each row is a
-// strong figure + a specific statement (real boards, real ages, real scores)
+// strong figure + a specific statement (real boards, real ages)
 // + one direct action. Rows appear only when actionable; urgent first.
 export function buildDocket(kpis, pulse, boards = [], incoming = []) {
   const rows = [];
@@ -139,7 +113,6 @@ export function buildDocket(kpis, pulse, boards = [], incoming = []) {
       figure: kpis.pendingReview,
       statement: `applicant${kpis.pendingReview === 1 ? '' : 's'} awaiting review`,
       sub: oldest ? `Oldest waiting ${oldest} day${oldest === 1 ? '' : 's'}` : null,
-      avgMatch: pulse.avgMatchScore,
       faces,
       to: '/dashboard/agency/submissions',
       cta: 'Review applications',
@@ -160,7 +133,6 @@ export function buildDocket(kpis, pulse, boards = [], incoming = []) {
       figure: pulse.closingWeek,
       statement: `board${pulse.closingWeek === 1 ? '' : 's'} close this week`,
       sub: named ? `${named}${more}` : null,
-      avgMatch: null,
       to: '/dashboard/agency/signing',
       cta: 'Open casting',
       tone: todayCount > 0 ? 'urgent' : 'default',
@@ -168,13 +140,11 @@ export function buildDocket(kpis, pulse, boards = [], incoming = []) {
   }
 
   if (pulse.newToday > 0) {
-    const strong = incoming.filter((a) => (a.match || 0) >= 85).length;
     rows.push({
       key: 'new',
       figure: pulse.newToday,
       statement: `new applicant${pulse.newToday === 1 ? '' : 's'} today`,
-      sub: strong ? `${strong} scoring 85 or higher` : null,
-      avgMatch: null,
+      sub: null,
       faces,
       to: '/dashboard/agency/submissions',
       cta: 'Triage inbox',
@@ -193,7 +163,7 @@ export function buildDocket(kpis, pulse, boards = [], incoming = []) {
 }
 
 // /overview/recent-applicants returns:
-// { applicationId, profileId, name, location, profileImage, matchScore, slug, isNew }
+// { applicationId, profileId, name, location, profileImage, slug, isNew }
 export function mapApplicant(a) {
   const img = a.profileImage || a.avatar || a.photo || null;
   const isDefault = typeof img === 'string' && img.includes('default-avatar');
@@ -208,7 +178,6 @@ export function mapApplicant(a) {
     city: a.location || a.city || null,
     location: a.location || a.city || null,
     status: a.status || a.application_status || 'available',
-    match: a.matchScore ?? a.match ?? a.match_score ?? 0,
     slug: a.slug || null,
   };
 }

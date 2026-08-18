@@ -15,6 +15,10 @@ const {
   PACKAGE_ADVISORY_COPY,
   advisoryInline,
 } = require("../../../shared/constants/frame-taxonomy");
+const {
+  STATES: FRESHNESS_STATES,
+  digitalsFreshness,
+} = require("./digitals-freshness");
 
 function parseMetadata(raw) {
   if (!raw) return {};
@@ -31,8 +35,16 @@ function parseSignals(img) {
   return meta?.ai?.signals || meta?.ai?.classification?.signals || {};
 }
 
+/*
+ * Age from the shoot date only.
+ *
+ * `created_at` used to stand in when `captured_at` was missing, which reported
+ * an undated picture as being as old as its upload — so a set nobody could date
+ * came back fresh. The upload path already refuses to stamp a capture date it
+ * does not know; this no longer contradicts it.
+ */
 function getImageAgeDays(img, now = new Date()) {
-  const raw = img?.captured_at || img?.created_at;
+  const raw = img?.captured_at;
   if (!raw) return null;
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return null;
@@ -43,28 +55,57 @@ function digitalSlotImages(images) {
   return (images || []).filter(isDigitalSlot);
 }
 
+/**
+ * Recency, backed by the freshness engine.
+ *
+ * The legacy shape (`isStale` / `oldestDays` / `staleImageIds`) is kept for its
+ * callers, with the four-state reading alongside it. The distinction that
+ * matters: `isStale` means genuinely old, while `isCurrent` requires a *known*
+ * recent set — an undated one is neither.
+ */
 function analyzeRecency(images, now = new Date()) {
   const digitals = digitalSlotImages(images);
+  const freshness = digitalsFreshness(digitals, now);
   const ages = digitals
     .map((img) => ({ id: img.id, days: getImageAgeDays(img, now) }))
     .filter((x) => x.days != null);
-  if (!ages.length) {
-    return { isStale: false, oldestDays: null, staleImageIds: [] };
-  }
-  const oldest = ages.reduce((a, b) => (a.days >= b.days ? a : b));
-  const staleImageIds = ages
-    .filter((a) => a.days > DIGITALS_STALE_DAYS)
-    .map((a) => a.id);
+  const oldest = ages.length
+    ? ages.reduce((a, b) => (a.days >= b.days ? a : b)).days
+    : null;
+
   return {
-    isStale: oldest.days > DIGITALS_STALE_DAYS,
-    oldestDays: oldest.days,
-    staleImageIds,
+    state: freshness.state,
+    isCurrent: freshness.state === FRESHNESS_STATES.CURRENT,
+    // `isStale` has always meant "past the window an agency calls fresh", which
+    // the four-state reading splits into `aging` and `stale`. It keeps that
+    // wider meaning so every existing caller behaves as before; `state` is
+    // where the finer distinction lives.
+    isStale: [FRESHNESS_STATES.AGING, FRESHNESS_STATES.STALE].includes(freshness.state),
+    isUndated: freshness.state === FRESHNESS_STATES.UNDATED,
+    oldestDays: oldest,
+    staleImageIds: ages
+      .filter((a) => a.days > DIGITALS_STALE_DAYS)
+      .map((a) => a.id),
+    undatedImageIds: digitals
+      .filter((img) => getImageAgeDays(img, now) == null)
+      .map((img) => img.id),
+    freshness,
   };
 }
 
 function buildAdvisories(images, slots, recency) {
   const advisories = [];
   const list = images || [];
+
+  if (recency.isUndated && recency.undatedImageIds?.length) {
+    advisories.push({
+      id: "undated_digitals",
+      severity: "warn",
+      message:
+        "Some digitals have no shoot date, so this set cannot be shown as current. Add the date each was taken.",
+      imageIds: recency.undatedImageIds,
+    });
+  }
 
   if (recency.isStale) {
     advisories.push({

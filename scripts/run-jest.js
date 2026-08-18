@@ -32,6 +32,14 @@ if (requestedDatabase) {
 delete process.env.AGENCY_LEGAL_ENFORCE;
 delete process.env.MINOR_SUBMISSION_ENFORCE;
 
+// pdfjs-dist ships ESM only from v4 on, and `src/shared/lib/pdf-text.js` reaches
+// it with a dynamic import. Jest's VM realm rejects that without this flag. The
+// alternative — pinning pdfjs to the last CJS release, 3.11 — would mean parsing
+// untrusted uploaded PDFs on a build that predates the CVE-2024-4367 fix.
+process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--experimental-vm-modules"]
+  .filter(Boolean)
+  .join(" ");
+
 const jestBin = path.join(
   __dirname,
   "..",

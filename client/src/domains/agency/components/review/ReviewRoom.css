@@ -269,29 +269,6 @@
   min-width: 0;
 }
 
-.rv-match {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.rv-match-score {
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-weight: 300;
-  font-size: clamp(1.6rem, 1.8vw, 2rem);
-  line-height: 1;
-  color: var(--rv-ink);
-  font-variant-numeric: tabular-nums;
-}
-
-.rv-match-tier {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--rv-faint);
-}
-
 /* ═══ the spec line ═══ */
 
 .rv-spec {

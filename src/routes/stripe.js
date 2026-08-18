@@ -13,6 +13,9 @@ const {
   upsertSubscriptionFromStripe,
 } = require("../shared/lib/subscriptions");
 const { normalizeBillingInterval, STUDIO_PLUS_PLAN } = require("../shared/lib/billing-plan");
+const {
+  evaluateCheckoutJurisdiction,
+} = require("../shared/lib/checkout-jurisdiction");
 
 const router = express.Router();
 
@@ -39,6 +42,30 @@ router.post(
         return res.status(400).json({
           error:
             "Please accept the Studio+ trial and auto-renewal terms before checkout.",
+        });
+      }
+
+      // NY-first rollout: refuse paid checkout from states whose talent-services
+      // rules are still under review (Cal. Lab. Code §1702.1 / §1701 — advance-fee
+      // talent services registration and bonding; see checkout-jurisdiction.js for
+      // the full reasoning). This gate covers the PAID TIER ONLY — the free
+      // profile, portfolio, comp card, and submission flows are untouched
+      // everywhere. It FAILS OPEN: any geolocation timeout, error, or unknown
+      // region allows checkout, so a geo outage can never block a sale.
+      const jurisdiction = await evaluateCheckoutJurisdiction(
+        // req.clientIp is set by the IP-resolution middleware in app.js; req.ip
+        // is undefined under serverless-http, hence the ordering.
+        req.clientIp || req.ip || null,
+      );
+      if (!jurisdiction.allowed) {
+        console.warn(
+          "[Stripe] Checkout blocked by jurisdiction gate:",
+          jurisdiction.regionCode,
+        );
+        return res.status(403).json({
+          error: jurisdiction.message,
+          code: "region_unavailable",
+          region: jurisdiction.regionCode,
         });
       }
 

@@ -110,6 +110,28 @@
   line-height: 1.65;
 }
 
+.app-requirements-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: #75501b;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-requirements-link:hover {
+  color: var(--app-text);
+}
+
+.app-requirements-link:focus-visible {
+  outline: 2px solid var(--app-gold);
+  outline-offset: 4px;
+}
+
 
 
 .app-market-index {
@@ -1209,6 +1231,10 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  /* Agency name and meta line inherit their tracking from the card. Declared
+     here since global.css no longer resets bare <button> inside the SPA. */
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
   transition:
     background 0.3s var(--app-ease),
     color 0.3s var(--app-ease);
@@ -1582,8 +1608,79 @@
   margin-top: 28px;
 }
 
+/* A live slot offer runs on the organizer's clock, so it gets its own row and
+   a hairline separating it from the standing actions underneath. */
+.app-detail__actions--offer {
+  gap: 12px;
+  margin-top: 22px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--app-hairline, rgba(26, 24, 21, 0.08));
+}
+
+.app-detail__actions--offer + .app-detail__actions {
+  margin-top: 18px;
+}
+
 .app-detail__act {
   flex-shrink: 0;
+}
+
+/* ── Tracker rows — the talent's own record, in the same ledger ───────────── */
+
+/* Filters and the log action share the head's right-hand column so the ledger
+   keeps its two-column masthead at every width. */
+.app-ledger-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 14px 20px;
+}
+
+.app-ledger-log {
+  flex-shrink: 0;
+}
+
+.app-tracker-edit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* Pressed-paper well, sized to the panel. Never resizable. */
+.app-tracker-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--app-hair-strong);
+  border-radius: 8px;
+  background: rgba(26, 26, 26, 0.02);
+  color: var(--app-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.6;
+  resize: none;
+  transition:
+    border-color 0.25s var(--app-ease),
+    box-shadow 0.25s var(--app-ease);
+}
+
+.app-tracker-textarea:focus {
+  outline: none;
+  border-color: rgba(201, 165, 90, 0.42);
+  box-shadow: 0 0 0 4px rgba(201, 165, 90, 0.12);
+}
+
+.app-tracker-privacy {
+  margin: 18px 0 0;
+  max-width: 34rem;
+  color: var(--app-text-faint);
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.6;
 }
 
 .app-detail__withdraw {
@@ -2027,6 +2124,10 @@
   .app-filter-row {
     width: 100%;
     overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .app-ledger-tools {
     justify-content: flex-start;
   }
 

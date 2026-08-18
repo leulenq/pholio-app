@@ -345,76 +345,32 @@
       }
     });
 
-    // Image-level attention (Intel Capture v2): impressions, opens, dwell.
-    // The book is the product — the intel page needs to know which frames
-    // carry it. Dwell accumulates per image while ≥60% visible and is
-    // flushed once on page hide via sendBeacon.
+    // Record only observable frame actions: shown in the viewport and opened.
     (() => {
       const frames = document.querySelectorAll('[data-image-id]');
       if (!frames.length || !('IntersectionObserver' in window)) return;
-
-      const dwell = new Map(); // imageId -> { total, since }
       const seen = new Set();
-
-      const imageObserver = new IntersectionObserver((entries) => {
-        const now = Date.now();
-        entries.forEach(entry => {
+      const record = (eventType, imageId) => {
+        fetch(`/portfolio/${slug}/event`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventType, imageId })
+        }).catch(() => {});
+      };
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
           const id = entry.target.getAttribute('data-image-id');
-          if (!id) return;
-          const state = dwell.get(id) || { total: 0, since: null };
-          if (entry.isIntersecting) {
-            if (!seen.has(id)) {
-              seen.add(id);
-              fetch(`/portfolio/${slug}/event`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ eventType: 'image_impression', imageId: id })
-              }).catch(() => {});
-            }
-            if (state.since === null) state.since = now;
-          } else if (state.since !== null) {
-            state.total += now - state.since;
-            state.since = null;
-          }
-          dwell.set(id, state);
+          if (!entry.isIntersecting || !id || seen.has(id)) return;
+          seen.add(id);
+          record('image_impression', id);
         });
       }, { threshold: 0.6 });
-      frames.forEach(f => imageObserver.observe(f));
-
-      // Open = deliberate tap/click on a frame.
-      frames.forEach(f => {
-        f.addEventListener('click', () => {
-          const id = f.getAttribute('data-image-id');
-          fetch(`/portfolio/${slug}/event`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventType: 'image_open', imageId: id })
-          }).catch(() => {});
+      frames.forEach((frame) => {
+        observer.observe(frame);
+        frame.addEventListener('click', () => {
+          const id = frame.getAttribute('data-image-id');
+          if (id) record('image_open', id);
         });
-      });
-
-      let flushed = false;
-      const flushDwell = () => {
-        if (flushed) return;
-        flushed = true;
-        const now = Date.now();
-        dwell.forEach((state, id) => {
-          const total = state.total + (state.since !== null ? now - state.since : 0);
-          if (total < 1200) return; // below a meaningful look
-          const payload = JSON.stringify({ eventType: 'image_dwell', imageId: id, dwellMs: total });
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon(`/portfolio/${slug}/event`, new Blob([payload], { type: 'application/json' }));
-          } else {
-            fetch(`/portfolio/${slug}/event`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: payload, keepalive: true
-            }).catch(() => {});
-          }
-        });
-      };
-      window.addEventListener('pagehide', flushDwell);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') flushDwell();
       });
     })();
 

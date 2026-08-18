@@ -4,7 +4,9 @@ const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const apiResponse = require("../../../shared/lib/api-response");
-const { requireStudioPlus } = require("../services/writer-shared/studio-plus");
+const {
+  requireTalentProfile,
+} = require("../services/writer-shared/writer-profile");
 const {
   buildSubmissionContext,
 } = require("../services/submission-note-writer/context-builder");
@@ -69,7 +71,7 @@ router.post(
   "/draft",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const { agencyId, agencyName, targetBoards, note } = req.body || {};
@@ -101,7 +103,7 @@ router.post(
   "/sharpen",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const { agencyId, agencyName, targetBoards, note } = req.body || {};
@@ -136,7 +138,7 @@ router.post(
   "/shorten",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const { note } = req.body || {};

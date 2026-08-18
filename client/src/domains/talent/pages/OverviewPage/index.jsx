@@ -22,12 +22,13 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../../auth/hooks/useAuth';
-import { useProfileStrength } from '../../hooks/useProfileStrength';
+import { useProfileReadiness } from '../../hooks/useProfileReadiness';
 import { READINESS_KEY_TO_PROFILE_URL } from '../../components/profileReadinessItems';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import { talentApi } from '../../api/talent';
 import { bucketCounts } from '../../utils/applicationStatus';
 import { StatsCurrencyPrompt } from '../../components/StatsCurrencyPrompt';
+import OpenCallsCard from './OpenCallsCard';
 import PholioButton from '../../../../shared/components/ui/PholioButton';
 import {
   isMinorProfile,
@@ -76,7 +77,7 @@ function displayPublicUrl(url) {
 
 /**
  * Hairline sparkline for the site ledger. Deliberately axis-less and
- * tooltip-less — shape only. The readable chart lives on /analytics.
+ * tooltip-less; the accessible chart appears in the website section below.
  */
 function SiteSparkline({ series, animate = true }) {
   const width = 220;
@@ -170,7 +171,7 @@ export default function OverviewPage() {
     isAnalyticsLoading,
     refetch: refetchAnalytics,
     isAnalyticsRefetching,
-  } = useAnalytics(30, { includeAdvanced: isPro });
+  } = useAnalytics(30);
 
   const {
     data: applicationsPayload,
@@ -194,20 +195,6 @@ export default function OverviewPage() {
     ? applicationsPayload
     : applicationsPayload?.data || [];
   const standing = bucketCounts(applicationsList);
-
-  // Interviews awaiting the talent's response — the clearest "ball in your court" signal.
-  const { data: interviewsPayload } = useQuery({
-    queryKey: ['talent-interviews'],
-    queryFn: () => talentApi.getInterviews(),
-    staleTime: 60 * 1000,
-    retry: 1,
-  });
-  const interviewsList = Array.isArray(interviewsPayload)
-    ? interviewsPayload
-    : interviewsPayload?.data || [];
-  const interviewsNeedingResponse = interviewsList.filter(
-    (iv) => iv.status === 'pending' || iv.status === 'rescheduled',
-  ).length;
 
   const firstName = profile?.first_name || '';
   const imageCount = Array.isArray(images) ? images.length : 0;
@@ -238,13 +225,16 @@ export default function OverviewPage() {
   const websiteGradientId = `ov-website-gradient-${React.useId().replace(/:/g, '')}`;
   const readinessPct = asNum(completeness?.percentage);
 
-  const { topGaps, totalGaps, isRequiredComplete, fieldCompletion, isLoading: auditLoading } = useProfileStrength();
+  const { topGaps, totalGaps, isRequiredComplete, fieldCompletion, isLoading: auditLoading } = useProfileReadiness();
   const shouldReduce = useReducedMotion();
 
   const minor = isMinorProfile(profile);
   const sensitiveUnlocked = minorSensitiveFieldsUnlocked(profile);
   const minorGated = minor && !sensitiveUnlocked;
-  const showPublicWebsite = isPro && !minorGated;
+  // The public portfolio exists for every talent, so the card — its URL and
+  // share affordances — is free. Only the traffic analytics inside it are
+  // Studio+ (see the panel below).
+  const showPublicWebsite = !minorGated;
 
   // Digitals recency: fieldCompletion.digitals_recency is false when existing digital
   // images are older than DIGITALS_STALE_DAYS (client-side signal, no new date math).
@@ -321,9 +311,9 @@ export default function OverviewPage() {
               </div>
               <div className="ov-hero-kpi">
                 <span className="ov-hero-kpi-value">
-                  {appsPending || appsError ? '—' : standing.signed}
+                  {appsPending || appsError ? '—' : standing.represented}
                 </span>
-                <span className="ov-hero-kpi-label">Signed</span>
+                <span className="ov-hero-kpi-label">Represented</span>
               </div>
             </div>
           </motion.div>
@@ -488,6 +478,13 @@ export default function OverviewPage() {
               <PholioButton to={auditCtaTo} variant="primary" tone="dark">
                 {auditCtaLabel}
               </PholioButton>
+
+              {/* The pre-gate path into the requirements surface (ruling R-A):
+                  the talent deciding what to shoot reaches it from here even
+                  before the Market nav unlocks. */}
+              <Link to="/dashboard/talent/applications/requirements" className="ov-readiness-market-link">
+                What agencies ask for <ArrowUpRight size={12} aria-hidden />
+              </Link>
             </div>
           </div>
         </div>
@@ -543,21 +540,6 @@ export default function OverviewPage() {
                       <p className="ov-stat-label">Profile views (30d)</p>
                     </div>
                   </div>
-
-                  {interviewsNeedingResponse > 0 && (
-                    <PholioButton
-                      to="/dashboard/talent/applications"
-                      variant="meta"
-                      tone="dark"
-                      className="ov-standing-action"
-                    >
-                      <span>
-                        {interviewsNeedingResponse}{' '}
-                        {interviewsNeedingResponse === 1 ? 'interview needs' : 'interviews need'} your response
-                      </span>
-                      <ArrowUpRight size={13} aria-hidden />
-                    </PholioButton>
-                  )}
 
                 </>
               )}
@@ -631,6 +613,8 @@ export default function OverviewPage() {
           </div>
         </div>
 
+        <OpenCallsCard />
+
         {showPublicWebsite && (
           <motion.section
             className="ov-website"
@@ -660,7 +644,16 @@ export default function OverviewPage() {
             </div>
 
             <div className="ov-website-panel">
-              {isAnalyticsLoading ? (
+              {!isPro ? (
+                <div className="ov-website-locked">
+                  <p className="ov-website-locked-line">
+                    Studio+ keeps 90 days of your own visit history here, alongside the premium comp-card themes.
+                  </p>
+                  <PholioButton to="/dashboard/talent/settings/studio" variant="tertiary" tone="dark">
+                    See Studio+
+                  </PholioButton>
+                </div>
+              ) : isAnalyticsLoading ? (
                 <div className="ov-website-metrics ov-website-metrics--loading">
                   {[0, 1, 2, 3].map((i) => (
                     <div key={i} className="ov-website-stat">
@@ -803,11 +796,6 @@ export default function OverviewPage() {
                 </div>
               )}
 
-              <div className="ov-website-footer">
-                <Link to="/dashboard/talent/analytics" className="ov-website-intel">
-                  Full analytics <ArrowUpRight size={12} aria-hidden />
-                </Link>
-              </div>
             </div>
           </motion.section>
         )}

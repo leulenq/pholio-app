@@ -4,6 +4,12 @@ const {
   updateSubscription,
   upsertSubscriptionFromStripe,
 } = require('../shared/lib/subscriptions');
+const {
+  applyProviderSession,
+  syncVerification,
+  markVerificationRedacted,
+} = require('../domains/talent/services/age-verification');
+const { sendTrialWillEndNotice } = require('../shared/services/billing-notices');
 
 /**
  * Stripe Webhook Handler
@@ -104,8 +110,37 @@ async function handleStripeWebhook(req, res) {
       }
 
       case 'customer.subscription.trial_will_end': {
-        // Optional: Send notification to user about trial ending
-        console.log('[Stripe Webhook] Trial will end:', event.data.object.id);
+        // The pre-charge notice: what date, what amount, how to cancel. Sent
+        // exactly once per (subscription, trial-end) — the idempotency gate is a
+        // unique-indexed marker row, see shared/services/billing-notices.js.
+        //
+        // Errors deliberately propagate to the handler-level catch below, which
+        // returns a non-2xx so Stripe retries. A swallowed failure here would
+        // mean a member is charged with no warning, which is the one outcome
+        // this event exists to prevent.
+        const result = await sendTrialWillEndNotice(event.data.object);
+        console.log(
+          '[Stripe Webhook] Trial will end:',
+          event.data.object.id,
+          '— notice:',
+          result.reason,
+        );
+        break;
+      }
+
+      case 'identity.verification_session.verified': {
+        await syncVerification(event.data.object.id);
+        break;
+      }
+
+      case 'identity.verification_session.requires_input':
+      case 'identity.verification_session.canceled': {
+        await applyProviderSession(event.data.object);
+        break;
+      }
+
+      case 'identity.verification_session.redacted': {
+        await markVerificationRedacted(event.data.object.id);
         break;
       }
 

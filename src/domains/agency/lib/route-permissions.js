@@ -64,21 +64,6 @@ const ROUTE_PERMISSION_RULES = [
     permission: "org.complete_onboarding",
   },
   {
-    method: "POST",
-    pattern: /^\/api\/agency\/import-jobs$/,
-    permission: "org.complete_onboarding",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/analytics\/season$/,
-    permission: "org.view_analytics",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/analytics$/,
-    permission: "org.view_analytics",
-  },
-  {
     method: "GET",
     pattern: /^\/api\/agency\/activity$/,
     permission: "org.view_activity",
@@ -164,83 +149,6 @@ const ROUTE_PERMISSION_RULES = [
     method: "GET",
     pattern: /^\/api\/agency\/profiles\/[^/]+\/details$/,
     permission: "discover.view_details",
-  },
-
-  // Roster
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/roster$/,
-    permission: "roster.view",
-  },
-  // Measured-in-person confirmation is the only write path for the
-  // measured_in_person_at / measured_by_agency_id state (roster.js). Keep the
-  // measured rules ABOVE the generic /roster/:id GET so they win by specificity
-  // for their unsafe methods.
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/roster\/[^/]+\/measured$/,
-    permission: "roster.manage_status",
-  },
-  {
-    method: "DELETE",
-    pattern: /^\/api\/agency\/roster\/[^/]+\/measured$/,
-    permission: "roster.manage_status",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/roster\/[^/]+$/,
-    permission: "roster.view_profile",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/talent-records$/,
-    permission: "roster.add_talent",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/talent-records\/[^/]+$/,
-    permission: "roster.add_talent",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/roster-memberships\/[^/]+$/,
-    permission: "roster.manage_status",
-  },
-  {
-    // Replaces the set of boards a talent sits on, and their standing on each.
-    // Same authority as changing their roster status: it decides who this
-    // agency represents, and on which board.
-    method: "PUT",
-    pattern: /^\/api\/agency\/roster-memberships\/[^/]+\/boards$/,
-    permission: "roster.manage_status",
-  },
-
-  // Booking Desk calendar. Talent-declared bookouts are included by the read
-  // endpoint but remain immutable through these agency routes.
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/commitments$/,
-    permission: "calendar.view",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/commitments$/,
-    permission: "calendar.manage",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
-    permission: "calendar.manage",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/commitments\/[^/]+\/confirm$/,
-    permission: "calendar.manage",
-  },
-  {
-    method: "DELETE",
-    pattern: /^\/api\/agency\/commitments\/[^/]+$/,
-    permission: "calendar.manage",
   },
 
   // Applications — bulk before parameterized
@@ -374,11 +282,6 @@ const ROUTE_PERMISSION_RULES = [
   },
   {
     method: "POST",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/calculate-scores$/,
-    permission: "boards.recalculate_scores",
-  },
-  {
-    method: "POST",
     pattern: /^\/api\/agency\/boards\/[^/]+\/duplicate$/,
     permission: "boards.duplicate",
   },
@@ -386,11 +289,6 @@ const ROUTE_PERMISSION_RULES = [
     method: "PUT",
     pattern: /^\/api\/agency\/boards\/[^/]+\/requirements$/,
     permission: "boards.edit_requirements",
-  },
-  {
-    method: "PUT",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/weights$/,
-    permission: "boards.edit_weights",
   },
   {
     method: "GET",
@@ -423,23 +321,6 @@ const ROUTE_PERMISSION_RULES = [
     permission: "boards.assign_application",
   },
 
-  // Matching (decision-support ranking / booker decisions / fairness monitor)
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/rank$/,
-    permission: "matching.rank",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/candidates\/[^/]+\/decision$/,
-    permission: "matching.decide",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/boards\/[^/]+\/fairness$/,
-    permission: "matching.view_fairness",
-  },
-
   // Open call links
   {
     method: "GET",
@@ -454,6 +335,80 @@ const ROUTE_PERMISSION_RULES = [
   {
     method: "PATCH",
     pattern: /^\/api\/agency\/open-call\/links\/[^/]+$/,
+    permission: "open_call.manage",
+  },
+
+  // Event casting (design §f). An event call IS an open call link, so the
+  // permissions are the same pair — ruling R10 forbids a parallel RBAC model
+  // for organizers. Literal `pick-lists` patterns sit above the `:linkId`
+  // patterns because rules are first-match and `[^/]+` would swallow them.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+\/selections$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "PATCH",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+\/(reissue|revoke|items)$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/agency\/events\/pick-lists\/[^/]+\/items$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events\/[^/]+\/(pool|pick-lists|lineup)$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/events\/[^/]+\/pick-lists$/,
+    permission: "open_call.manage",
+  },
+  {
+    // Handing an applicant a slot writes their application status. It is the
+    // organizer's decision, so it needs the manage grant, not the read one.
+    method: "POST",
+    pattern: /^\/api\/agency\/events\/[^/]+\/offers$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/events\/[^/]+$/,
+    permission: "open_call.view",
+  },
+
+  // Spec Builder — the requirements published against those links.
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/spec-builder$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/spec-builder\/revisions$/,
+    permission: "open_call.view",
+  },
+  {
+    method: "PUT",
+    pattern: /^\/api\/agency\/spec-builder\/draft$/,
+    permission: "open_call.manage",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/spec-builder\/publish$/,
     permission: "open_call.manage",
   },
 
@@ -487,75 +442,6 @@ const ROUTE_PERMISSION_RULES = [
     method: "POST",
     pattern: /^\/api\/agency\/messages\/[^/]+\/read$/,
     permission: "messages.mark_read",
-  },
-
-  // Interviews
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/interviews$/,
-    permission: "interviews.view",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/applications\/[^/]+\/interviews$/,
-    permission: "interviews.view",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/applications\/[^/]+\/interviews$/,
-    permission: "interviews.schedule",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/interviews\/[^/]+$/,
-    permission: "interviews.update",
-  },
-  {
-    method: "DELETE",
-    pattern: /^\/api\/agency\/interviews\/[^/]+$/,
-    permission: "interviews.cancel",
-  },
-
-  // Reminders
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/reminders$/,
-    permission: "reminders.view",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/reminders\/due$/,
-    permission: "reminders.view",
-  },
-  {
-    method: "GET",
-    pattern: /^\/api\/agency\/applications\/[^/]+\/reminders$/,
-    permission: "reminders.view",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/applications\/[^/]+\/reminders$/,
-    permission: "reminders.create",
-  },
-  {
-    method: "PATCH",
-    pattern: /^\/api\/agency\/reminders\/[^/]+$/,
-    permission: "reminders.update",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/reminders\/[^/]+\/complete$/,
-    permission: "reminders.complete",
-  },
-  {
-    method: "POST",
-    pattern: /^\/api\/agency\/reminders\/[^/]+\/snooze$/,
-    permission: "reminders.snooze",
-  },
-  {
-    method: "DELETE",
-    pattern: /^\/api\/agency\/reminders\/[^/]+$/,
-    permission: "reminders.delete",
   },
 
   // Notifications

@@ -3,8 +3,11 @@
  * 
  * Derives pool status from existing profile fields:
  * - REFERRAL_LOCKED: profile.partner_agency_id is set
- * - DISCOVERABLE: profile.is_pro && profile.is_discoverable are both true
+ * - DISCOVERABLE: profile.is_discoverable is true
  * - PRIVATE_INTAKE: default (all other cases)
+ *
+ * Discoverability is a consent decision, never a purchased one. Payment must
+ * not change reach, ranking, or agency-visible presentation.
  * 
  * Pool status is NOT stored as a separate enum field to avoid redundancy.
  * It is computed on-demand from existing fields.
@@ -30,8 +33,8 @@ function getPoolStatus(profile) {
     return 'REFERRAL_LOCKED';
   }
 
-  // DISCOVERABLE: Studio+ member who has opted into global discoverability
-  if (profile.is_pro && profile.is_discoverable) {
+  // DISCOVERABLE: has opted into global discoverability
+  if (profile.is_discoverable) {
     return 'DISCOVERABLE';
   }
 

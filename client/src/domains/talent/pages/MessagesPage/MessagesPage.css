@@ -347,6 +347,9 @@
   margin-top: 4px;
   padding: 0;
   border: 0;
+  /* The global button reset injects border-radius: 999px — reset it so the
+     hover underline stays a straight line. */
+  border-radius: 0;
   border-bottom: 1px solid transparent;
   background: transparent;
   color: var(--tmx-ink);

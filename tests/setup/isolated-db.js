@@ -59,6 +59,33 @@ async function migrate(knex) {
 async function migrateAndSeed(knex) {
   await migrate(knex);
   await knex.seed.run();
+  await verifySeededEmails(knex);
+}
+
+/**
+ * Mark every seeded account's email as verified.
+ *
+ * seeds/seed.js sets `onboarding_completed_at` and current legal-acceptance
+ * versions but never sets `users.email_verified`. Since
+ * `requireTalentDashboardEligibility` (src/domains/auth/middleware/require-auth.js)
+ * was added in front of the talent surface, an unverified seeded talent gets
+ *
+ *   403 {"error":"EMAIL_VERIFICATION_REQUIRED"}
+ *
+ * on every /api/talent/* route and every ownership-checked /api/pdf/* route.
+ * That is what made tests/talent/intel.test.js, tests/overview-backend.test.js
+ * and tests/app.test.js fail wholesale — the 403s had nothing to do with
+ * Firebase, despite the "[Firebase Admin] Firebase configuration missing"
+ * warning these suites also print (that warning is emitted by every suite that
+ * requires src/app.js, including ones that pass).
+ *
+ * Done here rather than in each suite so a seeded account behaves like a real
+ * signed-up one everywhere. The proper long-term fix is for seeds/seed.js to
+ * set the column — the demo accounts are unusable in a browser without it —
+ * but that file is outside this lane's ownership.
+ */
+async function verifySeededEmails(knex) {
+  await knex("users").update({ email_verified: true });
 }
 
 /** Remove the file. Safe to call when it was never created. */
@@ -74,5 +101,6 @@ module.exports = {
   useIsolatedDatabase,
   migrate,
   migrateAndSeed,
+  verifySeededEmails,
   dropIsolatedDatabase,
 };

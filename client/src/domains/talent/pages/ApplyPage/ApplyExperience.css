@@ -4910,6 +4910,52 @@
   line-height: 1.65;
 }
 
+/* The payoff block. Same sheet as "What happens next" so the two read as one
+   pair of facts, not as a promotion bolted onto a confirmation. */
+.apply-success__keep {
+  display: grid;
+  gap: 12px;
+  margin-top: clamp(10px, 1.6vw, 16px);
+  max-width: 34rem;
+  padding: clamp(20px, 2.6vw, 28px) clamp(22px, 3vw, 32px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 30%, #fff);
+  text-align: left;
+}
+
+.apply-success__keep-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--app-text-soft);
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.apply-success__keep-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 2px;
+}
+
+.apply-success__keep-links a {
+  color: var(--app-gold);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.apply-success__keep-links a:hover {
+  border-bottom-color: currentColor;
+}
+
 .apply-success__actions {
   margin-top: clamp(8px, 1.4vw, 14px);
 }

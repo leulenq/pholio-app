@@ -6,6 +6,10 @@ import { getBoards, inviteTalent } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
 import { AgencyButton, DeclineButton } from '../ui';
+import {
+  isOfferedApplicationStatus,
+  isRepresentedApplicationStatus,
+} from '../../../../shared/constants/applicationStatus';
 import './TalentActionBar.css';
 
 // Download a talent comp card PDF (same flow the talent dashboard uses).
@@ -29,6 +33,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
   const { can } = useAgencyPermissions();
   const {
     accept,
+    confirmRepresentation,
     shortlist,
     decline,
     keepOnFile,
@@ -84,8 +89,8 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
   };
 
   const isShortlisted = status === 'shortlisted';
-  const isAccepted = status === 'accepted' || status === 'booked';
-  const isSigned = isAccepted || status === 'represented' || status === 'signed';
+  const isAccepted = isOfferedApplicationStatus(status);
+  const isRepresented = isRepresentedApplicationStatus(status);
   const isDeclined = status === 'declined';
   const isKeptOnFile = status === 'kept_on_file';
   const isRequestedMore = status === 'requested_more';
@@ -94,7 +99,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
   const isPipeline = context === 'applicants' || context === 'overview';
 
   const compCardBtn = slug && can('talent.download_comp_card') && (
-    <button className={`tact-btn${context === 'roster' ? ' tact-btn--primary' : ''}`} disabled={downloading} onClick={handleCompCard}>
+    <button className="tact-btn" disabled={downloading} onClick={handleCompCard}>
       <Download size={15} /> {downloading ? 'Preparing…' : 'Comp Card'}
     </button>
   );
@@ -141,12 +146,21 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
         {inviteBtn}
 
         {isPipeline && applicationId && (
-          isSigned ? (
+          isRepresented ? (
             can('applications.accept') && (
               <AgencyButton variant="primary" disabled icon={<Check size={15} />}>
-                Signed
+                Represented
               </AgencyButton>
             )
+          ) : isAccepted ? (
+            <AgencyButton
+              variant="primary"
+              loading={isPending}
+              onClick={() => confirmRepresentation.mutate()}
+              icon={<Check size={15} />}
+            >
+              Mark represented
+            </AgencyButton>
           ) : isDeclined ? (
             <AgencyButton variant="secondary" disabled icon={<X size={15} />}>
               Declined
@@ -155,7 +169,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
             <>
               {can('applications.accept') && (
                 <AgencyButton variant="primary" loading={isPending} onClick={() => accept.mutate()} icon={<Check size={15} />}>
-                  Sign
+                  Offer representation
                 </AgencyButton>
               )}
               {can('applications.decline') && (
@@ -210,12 +224,21 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
 
       {isPipeline && applicationId && (
         <>
-          {isSigned ? (
+          {isRepresented ? (
             can('applications.accept') && (
               <AgencyButton variant="primary" disabled icon={<Check size={15} />}>
-                Signed
+                Represented
               </AgencyButton>
             )
+          ) : isAccepted ? (
+            <AgencyButton
+              variant="primary"
+              loading={isPending}
+              onClick={() => confirmRepresentation.mutate()}
+              icon={<Check size={15} />}
+            >
+              Mark represented
+            </AgencyButton>
           ) : isDeclined ? (
             <AgencyButton variant="secondary" disabled icon={<X size={15} />}>
               Declined
@@ -224,7 +247,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
             <>
               {can('applications.accept') && (
                 <AgencyButton variant="primary" loading={isPending} onClick={() => accept.mutate()} icon={<Check size={15} />}>
-                  Sign
+                  Offer representation
                 </AgencyButton>
               )}
               {can('applications.decline') && (
@@ -232,7 +255,7 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
               )}
             </>
           )}
-          {!isSigned && !isDeclined && secondary.map(({ key, Icon, label, disabled, onClick, title }) => (
+          {!isRepresented && !isDeclined && secondary.map(({ key, Icon, label, disabled, onClick, title }) => (
             <button key={key} className="tact-btn" disabled={disabled} onClick={onClick} title={title}>
               <Icon size={15} /> {label}
             </button>

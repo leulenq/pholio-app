@@ -41,6 +41,7 @@ import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCus
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
 import { formatPhoneDisplay } from '../../../../shared/lib/phone-format';
 import { identityFormFromProfile } from './identityForm';
+import { STUDIO_LEDE, portalReturnStatus } from './studioCopy';
 import './SettingsPage.css';
 
 /* ------------------------------------------------------------------ *
@@ -386,7 +387,7 @@ export default function SettingsPage() {
       case 'privacy':
         return <PrivacyMovement settings={settings} isLoading={isLoading} />;
       case 'legal':
-        return <LegalMovement settings={settings} />;
+        return <LegalMovement />;
       case 'account':
         return <AccountMovement settings={settings} />;
       default:
@@ -678,14 +679,36 @@ function IdentityMovement({ settings }) {
 function PresenceMovement({ settings, isLoading }) {
   const { profile } = useAuth();
   const mutation = useSettingsMutation({ onSuccess: () => toast.success('Presence updated') });
+  const agencyDirectoryQuery = useQuery({
+    queryKey: ['agency-privacy-directory'],
+    queryFn: talentApi.getAgencyPrivacyDirectory,
+  });
   const [blockInput, setBlockInput] = useState('');
   const minorLocked = isMinorProfile(profile) && !minorPublicExposureAllowed(profile);
   const blockedAgencies = settings?.blockedAgencies || [];
+  const agencyDirectory = Array.isArray(agencyDirectoryQuery.data)
+    ? agencyDirectoryQuery.data
+    : [];
+  const agencyById = new Map(agencyDirectory.map((agency) => [agency.id, agency]));
+
+  const normalizedAgencyIdentity = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/$/, '');
 
   const update = (payload) => mutation.mutate(payload);
   const addBlock = () => {
-    const value = blockInput.trim();
-    if (!value) return;
+    const entered = blockInput.trim();
+    if (!entered) return;
+    const needle = normalizedAgencyIdentity(entered);
+    const matchedAgency = agencyDirectory.find((agency) => [
+      agency.id,
+      agency.name,
+      agency.agency_website,
+    ].some((identity) => normalizedAgencyIdentity(identity) === needle));
+    const value = matchedAgency?.id || entered;
     update({ blockedAgencies: [...new Set([...blockedAgencies, value])] });
     setBlockInput('');
   };
@@ -709,7 +732,7 @@ function PresenceMovement({ settings, isLoading }) {
             <Row title="Public portfolio" description="Let your book be viewed at its public link, outside your account.">
               <Toggle label="Public portfolio" checked={!!settings?.isPublic} disabled={mutation.isPending || minorLocked} onChange={() => update({ isPublic: !settings?.isPublic })} />
             </Row>
-            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio scout and roster search.">
+            <Row title="Agency discovery" description="Let vetted agencies surface you in Pholio Discover search.">
               <Toggle label="Agency discovery" checked={!!settings?.isDiscoverable} disabled={mutation.isPending || minorLocked} onChange={() => update({ isDiscoverable: !settings?.isDiscoverable })} />
             </Row>
             {/*
@@ -745,7 +768,13 @@ function PresenceMovement({ settings, isLoading }) {
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBlock(); } }}
             placeholder="Agency name or domain"
             aria-label="Agency to block"
+            list="agency-block-options"
           />
+          <datalist id="agency-block-options">
+            {agencyDirectory.map((agency) => (
+              <option key={agency.id} value={agency.name} />
+            ))}
+          </datalist>
           <PholioButton type="button" variant="secondary" onClick={addBlock} disabled={!blockInput.trim() || mutation.isPending}>
             <Plus size={15} aria-hidden="true" /> Block
           </PholioButton>
@@ -754,8 +783,8 @@ function PresenceMovement({ settings, isLoading }) {
           <ul className="set-blocklist">
             {blockedAgencies.map((agency) => (
               <li key={agency}>
-                <span>{agency}</span>
-                <button type="button" onClick={() => removeBlock(agency)} disabled={mutation.isPending} aria-label={`Unblock ${agency}`}>
+                <span>{agencyById.get(agency)?.name || agency}</span>
+                <button type="button" onClick={() => removeBlock(agency)} disabled={mutation.isPending} aria-label={`Unblock ${agencyById.get(agency)?.name || agency}`}>
                   <X size={13} aria-hidden="true" /> Remove
                 </button>
               </li>
@@ -786,7 +815,6 @@ const NOTIFICATION_ROWS = [
 /** Time-sensitive by nature — the notification service will not suppress these. */
 const ALWAYS_ON_ROWS = [
   ['Messages from agencies', 'A booker writing to you always reaches you.'],
-  ['Interview times', 'Scheduled meetings, changes, and cancellations always reach you.'],
 ];
 
 function NotificationsMovement({ settings, isLoading }) {
@@ -830,12 +858,23 @@ function NotificationsMovement({ settings, isLoading }) {
 
 /* --- V · Studio+ --------------------------------------------------- */
 
-function StudioMovement({ settings, isLoading }) {
+export function StudioMovement({ settings, isLoading }) {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [returnState, setReturnState] = useState(() => searchParams.get('checkout'));
+  // Stripe's billing portal returns to `?billing=portal-return` (set in
+  // src/shared/lib/stripe.js). The portal is where cancelling actually happens,
+  // and until now this page ignored the parameter entirely — you cancelled,
+  // came back, and the page still showed the pre-cancel state from cache.
+  const [portalReturn] = useState(
+    () => searchParams.get('billing') === 'portal-return',
+  );
   const [opening, setOpening] = useState(false);
+  // A refused checkout that the talent must be able to read and act on — the
+  // jurisdiction gate (403 region_unavailable) is a standing fact about where
+  // we sell, not a transient failure, so it outlives a toast.
+  const [checkoutBlocked, setCheckoutBlocked] = useState(null);
   // useBrandedStripeCheckout takes the session-creating FUNCTION and owns the
   // handoff state itself. It was being handed an options object, so the hook
   // called that object and threw "createSession is not a function" — surfacing
@@ -855,6 +894,16 @@ function StudioMovement({ settings, isLoading }) {
     setSearchParams({}, { replace: true });
   }, [queryClient, returnState, setSearchParams]);
 
+  // Coming back from the portal, the cached subscription is stale by
+  // definition. Refetch, then state what is now true (see portalReturnStatus)
+  // and strip the parameter so a refresh doesn't re-announce it.
+  useEffect(() => {
+    if (!portalReturn) return;
+    queryClient.invalidateQueries({ queryKey: ['talent-settings'] });
+    queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+    setSearchParams({}, { replace: true });
+  }, [portalReturn, queryClient, setSearchParams]);
+
   const openBilling = async () => {
     if (subscription?.stripeCustomerId && subscription.status && !['free', 'canceled'].includes(subscription.status)) {
       window.location.href = '/stripe/customer-portal';
@@ -865,14 +914,26 @@ function StudioMovement({ settings, isLoading }) {
   const confirmCheckout = async (payload) => {
     setCheckoutOpen(false);
     setOpening(true);
-    try { await redirectToCheckout(payload); } catch (error) { toast.error(error?.message || 'Unable to open billing'); setOpening(false); }
+    setCheckoutBlocked(null);
+    try {
+      await redirectToCheckout(payload);
+    } catch (error) {
+      // 403 region_unavailable: Studio+ isn't sold in this state yet. That is a
+      // fact the talent needs on the page, not a red toast that vanishes.
+      if (error?.status === 403 && error?.data?.code === 'region_unavailable') {
+        setCheckoutBlocked(error.message);
+      } else {
+        toast.error(error?.message || 'Unable to open billing');
+      }
+      setOpening(false);
+    }
   };
 
   return (
     <Movement
       id="studio"
       title="Membership"
-      lede="The membership behind expanded insight, submission volume, and premium presentation."
+      lede={STUDIO_LEDE}
     >
       <CheckoutHandoff open={handoffOpen} planLabel="Studio+" />
       <SubscriptionReturnBanner state={returnState} onDismiss={() => setReturnState(null)} />
@@ -903,6 +964,16 @@ function StudioMovement({ settings, isLoading }) {
                     </>
                   )}
             </p>
+            {portalReturn && (
+              <p className="set-plan__status" role="status" data-testid="portal-return-status">
+                {portalReturnStatus(subscription)}
+              </p>
+            )}
+            {checkoutBlocked && (
+              <p className="set-plan__status set-plan__status--blocked" role="status" data-testid="checkout-blocked">
+                {checkoutBlocked}
+              </p>
+            )}
             <p className="set-plan__fine">Submissions an agency invites through their open call never count toward the monthly limit, on any plan.</p>
             <p className="set-plan__method">
               <CreditCard size={14} aria-hidden="true" />
@@ -1214,7 +1285,7 @@ function PrivacyMovement({ settings, isLoading }) {
 
 /* --- VIII · Legal & safety ----------------------------------------- */
 
-function LegalMovement({ settings }) {
+function LegalMovement() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [reportOpen, setReportOpen] = useState(false);
@@ -1276,9 +1347,6 @@ function LegalMovement({ settings }) {
       <ReportDialog
         open={reportOpen}
         onClose={() => setReportOpen(false)}
-        targetType="user"
-        targetId={profile?.user_id || settings?.user?.id || profile?.id || 'talent-settings'}
-        targetLabel="Pholio settings"
       />
     </Movement>
   );
@@ -1296,7 +1364,15 @@ function AccountMovement({ settings }) {
   });
   const remove = useMutation({
     mutationFn: talentApi.deleteAccount,
-    onSuccess: (result) => { purgeApplyDraftStorage(); toast.success('Account deleted'); window.location.href = result?.redirect || '/login'; },
+    onSuccess: (result) => {
+      purgeApplyDraftStorage();
+      if (result?.fullyErased) {
+        toast.success('Account deleted');
+      } else {
+        toast.warning('Your Pholio account was removed. Provider deletion is still pending.');
+      }
+      window.location.href = result?.redirect || '/login';
+    },
     onError: (error) => toast.error(error?.message || 'Unable to delete account'),
   });
 
@@ -1337,7 +1413,7 @@ function AccountMovement({ settings }) {
         <ul className="set-danger__list">
           <li>Your book, every image in it, and any comp card built from them</li>
           <li>Submissions, drafts, and the history behind each one</li>
-          <li>Messages and interview records with agencies</li>
+          <li>Messages with agencies</li>
           <li>Your profile, your public link, and this sign-in</li>
         </ul>
         <p className="set-danger__fine">

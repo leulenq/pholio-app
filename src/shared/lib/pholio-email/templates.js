@@ -25,7 +25,7 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName } = {}) {
     blocks: [
       heading("Your board is ready."),
       goldRule(),
-      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, roster review, messaging, and casting work.`),
+      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, messaging, discovery, and casting work.`),
       button("Open agency workspace", `${appUrl()}/dashboard/agency`),
       signoff(),
     ],
@@ -46,7 +46,7 @@ function buildAgencyActivationEmailHtml({ contactName, agencyName, activationUrl
       heading("Your access is granted."),
       goldRule(),
       paragraph(`${greet(contactName)} ${agencyName ? strong(agencyName) : "your agency"} has been reviewed and accepted into Pholio.`),
-      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, and decide how your roster arrives — most of it is confirmation rather than new information."),
+      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, configure intake, and invite your team — most of it is confirmation rather than new information."),
       button("Set your password", activationUrl),
       note(`This link expires in ${expiresMinutes || 60} minutes and can be used once. If it has lapsed, request a new one from the sign-in page or reply to this email.`),
       signoff(),
@@ -137,12 +137,26 @@ function buildMagicSignInEmailHtml({ firstName, signInUrl, expiresMinutes } = {}
 function buildApplicationStatusEmailHtml({ talentName, agencyName, status } = {}) {
   const agency = agencyName || "the agency";
   const accepted = status === "accepted";
+  const represented = status === "represented";
+  const positive = accepted || represented;
   return renderEmail({
-    previewText: accepted ? `${agency} wants to move forward with representation.` : `${agency} sent an update on your submission.`,
+    previewText: represented
+      ? `${agency} confirmed your representation agreement.`
+      : accepted
+        ? `${agency} wants to move forward with representation.`
+        : `${agency} sent an update on your submission.`,
     blocks: [
-      heading(accepted ? "The agency wants to move forward." : "A decision on your submission."),
+      heading(represented
+        ? "Your representation is confirmed."
+        : accepted
+          ? "The agency wants to move forward."
+          : "A decision on your submission."),
       goldRule(),
-      paragraph(accepted ? `${greet(talentName)} ${strong(agency)} would like to move forward with representation and will follow up with next steps. Keep your book and measurements current in the meantime.` : `${greet(talentName)} ${strong(agency)} is not moving forward this time. That is a normal part of representation submissions — keep your digitals current and your package ready for the next review.`),
+      paragraph(represented
+        ? `${greet(talentName)} ${strong(agency)} confirmed that your representation agreement is complete. They will follow up with onboarding details.`
+        : positive
+          ? `${greet(talentName)} ${strong(agency)} would like to move forward with representation and will follow up with next steps. An offer is not a completed representation agreement.`
+          : `${greet(talentName)} ${strong(agency)} is not moving forward this time. That is a normal part of representation submissions — keep your digitals current and your package ready for the next review.`),
       button("View submissions", `${appUrl()}/dashboard/talent/applications`),
       signoff(),
     ],
@@ -194,6 +208,38 @@ function buildTeamInviteEmailHtml({ inviteeName, agencyName, inviterName, roleLa
   });
 }
 
+/**
+ * Pre-charge notice for a Studio+ trial that is about to convert.
+ *
+ * This is a compliance email, not marketing. ROSCA (15 U.S.C. §8403) and the
+ * FTC's negative-option rule expect a clear statement, before the first charge,
+ * of WHEN the charge lands, HOW MUCH it is, and HOW to stop it. So the three
+ * facts lead, they are stated plainly, and the cancel path is named — never
+ * softened, never buried under an upsell. No "don't miss out", no countdown
+ * urgency, no benefit re-sell.
+ */
+function buildTrialEndingEmailHtml({ firstName, trialEndLabel, priceLabel, manageUrl } = {}) {
+  const amount = priceLabel || "$9.99/month";
+  const when = trialEndLabel || "shortly";
+  return renderEmail({
+    previewText: `Your Studio+ trial ends ${when}, then ${amount}.`,
+    blocks: [
+      heading("Your Studio+ trial ends soon."),
+      goldRule(),
+      paragraph(`${greet(firstName)} this is the notice before the first charge. Your free trial of Studio+ ends on ${strong(when)}, and unless you cancel first, your card is charged ${strong(amount)} on that date. It renews at that price each period until you cancel.`),
+      detailList([
+        { label: "Trial ends", value: when },
+        { label: "Then", value: amount },
+        { label: "Cancel", value: "Settings → Membership → Manage billing" },
+      ]),
+      paragraph("Cancelling is available at any time before that date, and takes two clicks in Settings. If you cancel, you keep Studio+ until the trial ends and are not charged."),
+      button("Open billing settings", manageUrl || `${appUrl()}/dashboard/talent/settings/subscription`),
+      note("You receive this notice because a paid trial on your account is about to convert. It is a billing notice, so it is sent regardless of your notification preferences."),
+      signoff(),
+    ],
+  });
+}
+
 function buildGuardianConsentEmailHtml({ guardianName, talentName, talentPhotoUrl, talentCity, agencyName, consentUrl, expiresDays = 7 } = {}) {
   const talent = talentName || "a minor in your care";
   return renderEmail({
@@ -212,4 +258,4 @@ function buildGuardianConsentEmailHtml({ guardianName, talentName, talentPhotoUr
   });
 }
 
-module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildAgencyActivationEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildSignInMethodNoticeEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml };
+module.exports = { buildWelcomeTalentEmailHtml, buildWelcomeAgencyEmailHtml, buildAgencyActivationEmailHtml, buildEmailVerificationHtml, buildPasswordResetEmailHtml, buildSignInMethodNoticeEmailHtml, buildPasswordChangedEmailHtml, buildMagicSignInEmailHtml, buildApplicationStatusEmailHtml, buildNewMessageEmailHtml, buildAgencyInviteEmailHtml, buildTeamInviteEmailHtml, buildGuardianConsentEmailHtml, buildTrialEndingEmailHtml };

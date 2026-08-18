@@ -26,7 +26,7 @@ const closeLabel = (ts, wrapped) => {
 function mapBoard(b) {
   const applicants = b.application_count || 0;
   const submitted = b.submitted_count || 0;
-  const signed = b.booked_count || 0;
+  const represented = b.represented_count || 0;
   const wrapped = b.is_active === false;
   return {
     id: b.id,
@@ -35,7 +35,7 @@ function mapBoard(b) {
     description: b.description || '',
     applicants,
     submitted,
-    signed,
+    represented,
     target: b.target_slots || 0,
     preview: Array.isArray(b.preview) ? b.preview : [],
     closesAt: b.closes_at || null,
@@ -57,8 +57,8 @@ function LedgerLine({ board }) {
   const parts = [];
   if (board.applicants > 0) parts.push(<React.Fragment key="c"><b>{board.applicants}</b> in consideration</React.Fragment>);
   if (board.submitted > 0) parts.push(<React.Fragment key="r"><b>{board.submitted}</b> awaiting review</React.Fragment>);
-  if (board.target > 0) parts.push(<React.Fragment key="s"><b>{board.signed} of {board.target}</b> {vocab.decidedLower}</React.Fragment>);
-  else if (board.signed > 0) parts.push(<React.Fragment key="s"><b>{board.signed}</b> {vocab.decidedLower}</React.Fragment>);
+  if (board.target > 0) parts.push(<React.Fragment key="s"><b>{board.represented} of {board.target}</b> {vocab.decidedLower}</React.Fragment>);
+  else if (board.represented > 0) parts.push(<React.Fragment key="s"><b>{board.represented}</b> {vocab.decidedLower}</React.Fragment>);
   if (parts.length === 0) return <span className="sg-ledgerline">Awaiting first submissions</span>;
   return (
     <span className="sg-ledgerline">

@@ -1325,9 +1325,13 @@ const videoMimeSet = new Set(VIDEO_MIME_VALUES);
 
 const SHOT_TYPE_VALUES = [
   "headshot",
+  "close_up",
   "beauty",
+  "waist_up",
   "half_body",
+  "mid_length",
   "three_quarter",
+  "portrait_length",
   "full_length",
   "profile",
   "profile_left",  // legacy — kept for existing records

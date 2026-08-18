@@ -2,8 +2,8 @@ import { Crown, ShieldCheck, Compass, Search } from 'lucide-react';
 
 const ROLES = [
   { role: 'OWNER', title: 'Principal', icon: Crown, text: 'The house. Full control of identity, team, permissions, and every board.' },
-  { role: 'ADMIN', title: 'Managing Agent', icon: ShieldCheck, text: 'Runs operations — roster, pipeline, team management, and custom access grants.' },
-  { role: 'AGENT', title: 'Agent · Booker', icon: ShieldCheck, text: 'Signs talent, runs casting pipelines, messaging, and roster bookings.' },
+  { role: 'ADMIN', title: 'Managing Agent', icon: ShieldCheck, text: 'Runs intake, casting, team management, and custom access grants.' },
+  { role: 'AGENT', title: 'Agent · Booker', icon: ShieldCheck, text: 'Reviews talent, runs casting pipelines, and manages messaging.' },
   { role: 'SCOUT', title: 'Scout · Junior', icon: Compass, text: 'Discovers and shortlists — cannot sign, decline, or change house settings.' },
   { role: 'VIEWER', title: 'Observer', icon: Search, text: 'Read-only visibility across the dashboard.' },
 ];

@@ -1,0 +1,278 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "elite-models-na:online-general",
+  "revisionId": "elite-models-na:online-general@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": {
+      "id": "elite-models",
+      "name": "Elite Models",
+      "legalName": null,
+      "officialDomains": ["elitemodels.com"]
+    },
+    "office": {
+      "id": null,
+      "name": null
+    },
+    "market": {
+      "kind": "region",
+      "code": "north-america",
+      "countryCodes": ["CA", "US"],
+      "city": null
+    },
+    "channel": {
+      "id": "become-elite-web-form",
+      "type": "official_web_form",
+      "url": "https://www.elitemodels.com/become-elite"
+    },
+    "divisions": {
+      "mode": "unspecified",
+      "values": []
+    },
+    "applicantTracks": {
+      "mode": "unspecified",
+      "values": []
+    },
+    "evidenceIds": ["elite-na-become-elite-20260809"]
+  },
+  "lifecycle": {
+    "observedOn": "2026-08-09",
+    "effectiveFrom": null,
+    "effectiveUntil": null,
+    "reviewedOn": "2026-08-09",
+    "nextReviewOn": "2026-11-07"
+  },
+  "rules": {
+    "shots": {
+      "count": {
+        "minimum": 6,
+        "maximum": 6,
+        "basis": "explicit_form_semantics",
+        "evidenceIds": ["elite-na-become-elite-20260809"]
+      },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        {
+          "id": "full-length",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "Full length",
+          "match": { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-na-become-elite-20260809"],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "full-length-profile",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "Full length profile",
+          "match": {
+            "all": [
+              { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null },
+              { "field": "shot.view", "operator": "equals", "value": "profile", "unit": null }
+            ]
+          },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-na-become-elite-20260809"],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "portrait-length",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "Portrait length",
+          "match": { "field": "shot.frame", "operator": "equals", "value": "portrait_length", "unit": null },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-na-become-elite-20260809"],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "close-up-hair-pulled-back",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "Close up (hair pulled back)",
+          "match": {
+            "all": [
+              { "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null },
+              { "field": "appearance.hair_state", "operator": "equals", "value": "pulled_back", "unit": null }
+            ]
+          },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-na-become-elite-20260809"],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "close-up-profile-hair-pulled-back",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "Close up profile (hair pulled back)",
+          "match": {
+            "all": [
+              { "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null },
+              { "field": "shot.view", "operator": "equals", "value": "profile", "unit": null },
+              { "field": "appearance.hair_state", "operator": "equals", "value": "pulled_back", "unit": null }
+            ]
+          },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-na-become-elite-20260809"],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "personality-pic",
+          "quantity": { "minimum": 1, "maximum": 1 },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "Personality pic",
+          "match": { "field": "shot.purpose", "operator": "equals", "value": "personality", "unit": null },
+          "appliesWhen": null,
+          "evidenceIds": ["elite-na-become-elite-20260809"],
+          "matchability": "manual_confirmation"
+        }
+      ]
+    },
+    "setWide": [
+      {
+        "id": "form-fitted-clothing",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": { "field": "clothing.fit", "operator": "equals", "value": "form_fitted", "unit": null },
+        "appliesWhen": null,
+        "sourceLabel": "form fitted clothing",
+        "evidenceIds": ["elite-na-become-elite-20260809"],
+        "matchability": "hybrid",
+        "appliesTo": { "mode": "all_shots", "shotIds": [] }
+      },
+      {
+        "id": "no-makeup",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+        "constraint": { "field": "appearance.makeup_level", "operator": "not_equals", "value": "none", "unit": null },
+        "appliesWhen": null,
+        "sourceLabel": "do not wear any makeup",
+        "evidenceIds": ["elite-na-become-elite-20260809"],
+        "matchability": "automatic",
+        "appliesTo": { "mode": "all_shots", "shotIds": [] }
+      },
+      {
+        "id": "no-large-accessories",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+        "constraint": { "field": "appearance.accessory_type", "operator": "equals", "value": "large", "unit": null },
+        "appliesWhen": null,
+        "sourceLabel": "large accessories",
+        "evidenceIds": ["elite-na-become-elite-20260809"],
+        "matchability": "hybrid",
+        "appliesTo": { "mode": "all_shots", "shotIds": [] }
+      },
+      {
+        "id": "no-smiles",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+        "constraint": { "field": "expression.smile", "operator": "equals", "value": true, "unit": null },
+        "appliesWhen": null,
+        "sourceLabel": "No smiles",
+        "evidenceIds": ["elite-na-become-elite-20260809"],
+        "matchability": "automatic",
+        "appliesTo": { "mode": "all_shots", "shotIds": [] }
+      }
+    ],
+    "files": [],
+    "eligibility": [
+      {
+        "id": "typical-female-identified-minimum-age",
+        "modality": "preferred",
+        "basis": "explicit_text",
+        "constraint": { "field": "applicant.age_years", "operator": "gte", "value": 15, "unit": "year" },
+        "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "female_identified", "unit": null },
+        "sourceLabel": "female identified persons ages 15 and up",
+        "evidenceIds": ["elite-na-become-elite-20260809"],
+        "matchability": "automatic"
+      },
+      {
+        "id": "minor-written-parental-consent",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": { "field": "guardian.written_consent", "operator": "equals", "value": true, "unit": null },
+        "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" },
+        "sourceLabel": "written parental consent",
+        "evidenceIds": ["elite-na-become-elite-20260809"],
+        "matchability": "manual_confirmation"
+      }
+    ],
+    "applicationFields": [
+      { "id": "first-name", "field": "applicant.first_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "First name", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "last-name", "field": "applicant.last_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Last name", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "email", "field": "contact.email", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "E-mail", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "phone", "field": "contact.phone", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Phone number", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "address", "field": "contact.address", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Adress", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "city", "field": "contact.city", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "City", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "country", "field": "contact.country", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Country", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "postal-code", "field": "contact.postal_code", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Zip / Postal code", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "state", "field": "contact.state_region", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "State", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "date-of-birth", "field": "applicant.date_of_birth", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Date of birth", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "story", "field": "applicant.story", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Briefly tell us about yourself", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "current-representation", "field": "applicant.current_representation", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Do You Already Have Representation?", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "bust", "field": "measurements.bust", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Bust", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "waist", "field": "measurements.waist", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Waist", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "hips", "field": "measurements.hips", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Hips", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "height", "field": "measurements.height", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Height", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "shoe", "field": "measurements.shoe_size", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Shoe", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "hair", "field": "appearance.hair_color", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Hair", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "eye", "field": "appearance.eye_color", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Eye", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "cup", "field": "measurements.cup_size", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Cup", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "instagram", "field": "social.instagram", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Instagram URL", "evidenceIds": ["elite-na-become-elite-20260809"] },
+      { "id": "image-submission-authority", "field": "consent.image_submission_authority", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "permission to submit", "evidenceIds": ["elite-na-become-elite-20260809"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "scope.receiving_office", "appliesWhen": null, "reason": "not_published", "note": "The page lists several North American locations but does not identify the receiving office for this form.", "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": "The source does not say whether one image may satisfy more than one named upload target.", "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "files.per_file_size", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "files.mime_types", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "presentation.lighting", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "eligibility.age", "appliesWhen": null, "reason": "ambiguous", "note": "The page states a typical female-identified scouting audience age 15 and up, not a universal hard floor.", "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["elite-na-become-elite-20260809"] },
+    { "fact": "application.guardian_fields", "appliesWhen": null, "reason": "not_published", "note": "The page requests minor information below the age notice, but the field labels are not exposed in the retrieved form content.", "evidenceIds": ["elite-na-become-elite-20260809"] }
+  ],
+  "evidence": [
+    {
+      "id": "elite-na-become-elite-20260809",
+      "authority": "first_party_published",
+      "publisher": "Elite Models",
+      "url": "https://www.elitemodels.com/become-elite",
+      "title": "Become Elite Model - Apply to Elite Models Agency | Elite Models",
+      "locale": "en-US",
+      "retrievedOn": "2026-08-09",
+      "locator": { "kind": "whole_page", "value": null },
+      "excerpt": null,
+      "archivedUrl": null,
+      "contentHash": null
+    }
+  ],
+  "review": {
+    "authority": "first_party_published",
+    "method": "dual_reviewer",
+    "reviewers": [
+      { "id": "source-review-20260809", "reviewedOn": "2026-08-09" },
+      { "id": "normalization-review-20260809", "reviewedOn": "2026-08-09" }
+    ],
+    "notes": "Official published web form and normalization reviewed independently. Named upload fields are requested because hard browser-required semantics were not exposed. Public-source assertions remain advisory."
+  }
+}

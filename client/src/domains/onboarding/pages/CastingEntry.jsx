@@ -13,6 +13,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { auth } from '../../../shared/lib/firebase';
+import { startInstagramAuth } from '../../auth/lib/instagram-auth';
 import {
   takeOnboardingAuthHandoff,
   waitForFirebaseUser,
@@ -309,10 +310,7 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
     }
   };
 
-  // Instagram remains visible, but its redirect cannot safely carry DOB
-  // evidence during the adults-only launch.
-  const [authNote, setAuthNote] = useState(null);
-  const handleInstagramSignIn = () => {
+  const handleInstagramSignIn = async () => {
     setAuthError(null);
     if (!validateAdultEligibility()) return;
     setAuthenticatingMethod('instagram');
@@ -332,7 +330,13 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
       return;
     }
 
-    setAuthNote('Instagram sign-up is unavailable during this adults-only launch. Use Google or email.');
+    setIsAuthenticating(true);
+    try {
+      await startInstagramAuth({ flow: 'signup', dateOfBirth: dob });
+    } catch (error) {
+      setAuthError(error.message || 'Instagram sign-up could not be started.');
+      setIsAuthenticating(false);
+    }
   };
 
   const validateAdultEligibility = () => {
@@ -577,27 +581,6 @@ function CastingEntry({ onComplete, onProgress, registerBack, initialStep, onAut
 
               <InlineErrorText message={authError} className="cinematic-field-error" />
 
-              <AnimatePresence>
-                {authNote && (
-                  <motion.p
-                    key="auth-note"
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    style={{
-                      margin: '0.75rem 0 0',
-                      fontFamily: "var(--cinematic-font-sans, 'Inter', sans-serif)",
-                      fontSize: '11px',
-                      letterSpacing: '0.04em',
-                      lineHeight: 1.5,
-                      color: 'rgba(255, 255, 255, 0.45)',
-                    }}
-                  >
-                    {authNote}
-                  </motion.p>
-                )}
-              </AnimatePresence>
             </div>
 
             <div style={{ marginTop: '1.75rem' }}>

@@ -5,7 +5,6 @@ const {
   classifyPortfolioImage,
   persistImageSignals,
 } = require("../../ai/classify-portfolio-image");
-const { reindexDiscoverProfile } = require("../../ai/embeddings");
 const { fetchImageBuffer } = require("../../../shared/lib/fetch-image-buffer");
 const {
   hasRecordedDateOfBirth,
@@ -15,8 +14,6 @@ const {
   applyClassificationPolicy,
 } = require("./image-classification-policy");
 
-const DISCOVER_REINDEX_DEBOUNCE_MS = 5000;
-const discoverReindexTimers = new Map();
 
 function imageAiProcessingAllowed(profile, env = process.env) {
   return (
@@ -115,32 +112,6 @@ function extractImageIntel(metadata) {
   };
 }
 
-function scheduleDiscoverReindex(knex, profileId) {
-  if (!profileId) return;
-
-  const existingTimer = discoverReindexTimers.get(profileId);
-  if (existingTimer) {
-    clearTimeout(existingTimer);
-  }
-
-  const timer = setTimeout(() => {
-    discoverReindexTimers.delete(profileId);
-    reindexDiscoverProfile(knex, profileId).catch((err) => {
-      console.warn(
-        "[PITS] discover reindex failed:",
-        profileId,
-        err?.message || String(err),
-      );
-    });
-  }, DISCOVER_REINDEX_DEBOUNCE_MS);
-
-  if (typeof timer.unref === "function") {
-    timer.unref();
-  }
-
-  discoverReindexTimers.set(profileId, timer);
-}
-
 /**
  * Full PITS pipeline for one image row.
  * @param {import('knex').Knex} knex
@@ -193,7 +164,6 @@ async function runImageClassification(knex, imageId) {
 
     if (!classification) return;
 
-    let persisted = false;
     await knex.transaction(async (trx) => {
       // Locking the profile on PostgreSQL serializes this write with consent
       // withdrawal. If withdrawal won the race, the provider result is dropped;
@@ -243,9 +213,7 @@ async function runImageClassification(knex, imageId) {
           ...columnUpdates,
         });
       await persistImageSignals(trx, imageId, classification);
-      persisted = true;
     });
-    if (persisted) scheduleDiscoverReindex(knex, imageRow.profile_id);
   } catch (err) {
     console.warn("[PITS] runImageClassification failed:", imageId, err.message);
   }

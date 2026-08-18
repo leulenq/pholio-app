@@ -140,10 +140,8 @@ function PlatformCard({ platformKey, values, onChange, disabled }) {
     : null;
 
   return (
-    <motion.div
+    <div
       className={`st-platform-card ${p.brandClass}${isConnected ? ' st-platform-card--connected' : ''}`}
-      whileHover={{ y: -1 }}
-      transition={{ type: 'spring', stiffness: 55, damping: 16 }}
     >
       <div className="st-platform-head">
         <div className="st-platform-icon">
@@ -196,7 +194,7 @@ function PlatformCard({ platformKey, values, onChange, disabled }) {
           Add profile link manually
         </button>
       )}
-    </motion.div>
+    </div>
   );
 }
 

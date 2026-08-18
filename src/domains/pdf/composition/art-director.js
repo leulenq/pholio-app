@@ -104,7 +104,7 @@ Author a design brief for THIS talent from their casting analysis, archetype, an
 - wordmarkCorner: where the small gold brand mark sits on the front — pick the corner with the calmest image area (use the quietTop/quietBottom measurements) that stays away from the name placement and the talent's face/figure.
 Return ONLY the JSON brief.`;
 
-// ── Groq client (lazy, mirrors ai-advisor/groq-casting pattern) ─────────────
+// ── Groq client (lazy) ──────────────────────────────────────────────────────
 
 let groqClient = null;
 let groqInitFailed = false;

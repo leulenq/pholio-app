@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pholio.studio/schemas/trust-registry/v1/verification-entry.schema.json",
+  "title": "Pholio Trust Registry verification entry",
+  "description": "One curated match between a row in a committed public-registry snapshot and an organisation Pholio knows about. Every registry-derived field must reproduce the snapshot row verbatim; the validator checks that, so a fabricated certificate number cannot reach the database.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "registry",
+    "rawSnapshot",
+    "organizationId",
+    "agencyId",
+    "legalName",
+    "dba",
+    "certificateNumber",
+    "registeredOn",
+    "expiresOn",
+    "registryStatus",
+    "officialSiteUrl",
+    "officialApplyUrl",
+    "evidenceUrl",
+    "retrievedOn",
+    "verifiedOn",
+    "notes"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../schemas/verification-entry.schema.json"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "registry": {
+      "description": "Closed vocabulary, mirrored in src/shared/constants/submission-tracker.js. A registry is only listed once a snapshot of it is committed under raw/.",
+      "enum": [
+        "ny_dol"
+      ]
+    },
+    "rawSnapshot": {
+      "description": "Pack-relative path of the snapshot this entry was curated from. The validator reads it and byte-compares every registry-derived field.",
+      "type": "string",
+      "pattern": "^raw/[a-z0-9][a-z0-9.-]*\\.json$"
+    },
+    "organizationId": {
+      "description": "Spec Registry organisation slug (scope.organization.id). Null for an entry that only names a live Pholio agency.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/slug"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "agencyId": {
+      "description": "Live Pholio agencies.id. Null for a reference entry, which by definition has no agencies row.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "legalName": {
+      "description": "Verbatim business_name from the snapshot row.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "dba": {
+      "description": "Verbatim dba from the snapshot row, or null when the row publishes none.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "certificateNumber": {
+      "description": "Verbatim certificate_number. Half of the (registry, certificateNumber) natural key the sync upserts on.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "registeredOn": {
+      "description": "Snapshot issue_date, date part only.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expiresOn": {
+      "description": "Snapshot expiration_date, date part only.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "registryStatus": {
+      "description": "Snapshot status, lowercased.",
+      "enum": [
+        "active",
+        "expired",
+        "revoked"
+      ]
+    },
+    "officialSiteUrl": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "officialApplyUrl": {
+      "description": "Taken from the matching spec-pack revision's scope.channel.url when one exists — never invented here.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidenceUrl": {
+      "description": "Where the snapshot came from, so a reader can re-pull it.",
+      "$ref": "#/$defs/httpsUrl"
+    },
+    "retrievedOn": {
+      "description": "When the registry rows were pulled.",
+      "$ref": "#/$defs/date"
+    },
+    "verifiedOn": {
+      "description": "When a human matched that row to this organisation. A different claim from retrievedOn, and the only one the talent-facing copy shows.",
+      "$ref": "#/$defs/date"
+    },
+    "notes": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[a-z0-9][a-z0-9._:-]*$"
+    },
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://",
+      "maxLength": 500
+    }
+  }
+}

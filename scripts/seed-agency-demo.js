@@ -4,9 +4,6 @@
 "use strict";
 
 const { randomUUID } = require("crypto");
-const {
-  syncRosterMembershipForApplication,
-} = require("../src/domains/agency/services/roster-memberships");
 
 const AGENCY_EMAIL = "agency@example.com";
 const DEMO_DOMAIN = "@seed.pholio.studio";
@@ -557,7 +554,6 @@ async function seedAgencyDemo(knex) {
       profile_id: p.pid,
       agency_id: aid,
       status,
-      match_score: ri(72, 98),
       created_at: created,
       updated_at: created,
       ...extra,
@@ -583,13 +579,6 @@ async function seedAgencyDemo(knex) {
     });
   await knex("applications").insert(apps);
 
-  // Signed talent must exist on the Roster too: production signs go through
-  // syncRosterMembershipForApplication, so the seed uses the same service
-  // instead of leaving represented/accepted applications roster-less.
-  for (const app of apps) {
-    await syncRosterMembershipForApplication(knex, app, app.status);
-  }
-
   // ---- board_applications: link review/booked + 5 accepted to boards ----
   const boardRows = BOARDS.map((b, i) => ({
     id: randomUUID(),
@@ -611,7 +600,7 @@ async function seedAgencyDemo(knex) {
   }));
   await knex("boards").insert(boardRows);
 
-  // Brief requirements + scoring for flagship boards (Dior + NYFW).
+  // Declared brief requirements for flagship boards (Dior + NYFW).
   const flagshipBoards = [boardRows[1], boardRows[3]];
   await knex("board_requirements").insert(
     flagshipBoards.map((board, i) => ({
@@ -628,24 +617,6 @@ async function seedAgencyDemo(knex) {
       updated_at: new Date(),
     })),
   );
-  await knex("board_scoring_weights").insert(
-    flagshipBoards.map((board) => ({
-      id: randomUUID(),
-      board_id: board.id,
-      age_weight: 2.0,
-      height_weight: 4.0,
-      measurements_weight: 2.5,
-      body_type_weight: 1.5,
-      comfort_weight: 1.0,
-      experience_weight: 3.0,
-      skills_weight: 1.0,
-      location_weight: 2.0,
-      social_reach_weight: 0.5,
-      created_at: new Date(),
-      updated_at: new Date(),
-    })),
-  );
-
   const linkable = apps.filter((a) =>
     ["submitted", "shortlisted", "represented"].includes(a.status),
   );
@@ -655,7 +626,6 @@ async function seedAgencyDemo(knex) {
     id: randomUUID(),
     board_id: pick(boardRows).id,
     application_id: a.id,
-    match_score: a.match_score,
     created_at: a.created_at,
     updated_at: a.created_at,
   }));
@@ -672,7 +642,7 @@ async function seedAgencyDemo(knex) {
     { type: "submitted", desc: "submitted for review" },
     { type: "status_change", desc: "moved to Shortlisted" },
     { type: "booked", desc: "was booked" },
-    { type: "accepted", desc: "was signed to the roster" },
+    { type: "accepted", desc: "received a representation offer" },
     { type: "declined", desc: "was passed on" },
     { type: "note_added", desc: "received a new team note" },
   ];
@@ -880,7 +850,7 @@ async function seedAgencyDemo(knex) {
       app: apps[31],
       type: "custom",
       when: daysAhead(5),
-      title: "Quarterly roster check-in",
+      title: "Submission follow-up",
       priority: "low",
     },
   ];
@@ -955,7 +925,7 @@ async function seedAgencyDemo(knex) {
       msgs: [
         {
           from: "AGENCY",
-          text: "Welcome to the Lumen roster! Let's schedule your onboarding session.",
+          text: "We're pleased to offer representation. We'll continue onboarding through our agency system.",
         },
         {
           from: "TALENT",
@@ -1109,18 +1079,9 @@ async function seedAgencyDemo(knex) {
 }
 
 if (require.main === module) {
-  const runEmbed = process.argv.includes("--embed");
   const knex = require("knex")(require("../knexfile.js"));
 
   seedAgencyDemo(knex)
-    .then(async () => {
-      if (runEmbed) {
-        const {
-          backfillDiscoverEmbeddings,
-        } = require("./backfill-discover-embeddings");
-        await backfillDiscoverEmbeddings(knex);
-      }
-    })
     .then(() => knex.destroy())
     .catch((e) => {
       console.error("SEED ERROR:", e.message);

@@ -21,7 +21,6 @@ export const ApplicantsZone = ({ applicationId, onProfileHydrated }) => {
     if (hydration) {
       onProfileHydrated?.({
         ...hydration,
-        matchScore: application?.match_score ?? null,
         status: application?.status ?? null,
       });
     }

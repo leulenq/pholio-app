@@ -182,6 +182,34 @@ describe("talent media bulk operations and classification status", () => {
     expect(updatedImages[1].image_type).toBe("tearsheet");
   });
 
+  test("bulk shot updates preserve talent-confirmed classification provenance", async () => {
+    const auth = await withSession(adultUserId, `media-bulk-adult-${adultUserId}@example.com`);
+    const res = await auth(
+      request(app)
+        .post("/api/talent/media/bulk-update")
+        .send({
+          imageIds: [adultImgId1, adultImgId2],
+          patch: { shot_type: "full_length" },
+        }),
+    );
+
+    expect(res.status).toBe(200);
+    const updatedImages = await knex("images")
+      .whereIn("id", [adultImgId1, adultImgId2])
+      .select("shot_type", "metadata");
+    for (const image of updatedImages) {
+      const metadata = typeof image.metadata === "string"
+        ? JSON.parse(image.metadata)
+        : image.metadata;
+      expect(image.shot_type).toBe("full_length");
+      expect(metadata.ai.classification).toMatchObject({
+        source: "user",
+        confirmed: true,
+        shot_type: { value: "full_length", confidence: 1 },
+      });
+    }
+  });
+
   test("POST /api/talent/media/bulk-update enforces minor safety check", async () => {
     const auth = await withSession(minorUserId, `media-bulk-minor-${minorUserId}@example.com`);
     

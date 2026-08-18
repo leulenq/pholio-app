@@ -25,7 +25,6 @@ const {
   analyzePackageIntelligence,
   auditSubmissionPackage,
 } = require("../../src/domains/talent/services/package-intelligence");
-const { getStrengthUI: serverStrengthUI } = require("../../src/domains/talent/services/profile-strength");
 
 /** Registry populated during matrix run for report generation */
 const MATRIX_RESULTS = [];
@@ -716,12 +715,6 @@ describe("PITS product matrix", () => {
 });
 
 describe("PITS taxonomy and mirror checks", () => {
-  test("server strength UI differs from client at 85-99 (documented drift)", () => {
-    const server = serverStrengthUI(90, true);
-    expect(server.label).toBe("Strong package");
-    // Client mirror uses "Submission ready" for same band — verified by file audit
-  });
-
   test("recency copy vs constant: 8-12 weeks vs 90 days", () => {
     const staleImages = [
       { id: "1", shot_type: "headshot", image_type: "digital", captured_at: daysAgo(95) },

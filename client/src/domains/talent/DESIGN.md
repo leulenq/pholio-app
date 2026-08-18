@@ -93,7 +93,7 @@ components:
 
 **Creative North Star: "The Portfolio Stage"**
 
-The talent dashboard is a stage on which a creative's work performs. Where the agency system is a calm ledger, this one is cinematic: surfaces reveal, images take the lead, and milestone moments (unlocking a portfolio, hitting full profile strength, generating a comp card) are celebrated with spring-physics motion rather than a static toast. A model or actor should open this surface and feel their presence is being *staged for an audience* — the software disappears behind the work.
+The talent dashboard is a stage on which a creative's work performs. Where the agency system is a calm ledger, this one is cinematic: surfaces reveal, images take the lead, and real milestone moments (unlocking a portfolio or generating a comp card) are celebrated with spring-physics motion rather than a static toast. A model or actor should open this surface and feel their presence is being *staged for an audience* — the software disappears behind the work.
 
 This system is **warm, tactile, and motion-forward**. It shares Pholio's material — cream paper, a single gold accent, Inter body — but speaks in its own voice: Noto Serif Display for editorial headlines, the ink-fill "Editorial Ledger" button system (see `PholioButton`), deeper "pressed paper" form wells, and Framer Motion entrances tuned to feel alive (`stiffness ~55, damping ~16`). It is intentionally a *separate design system* from the agency command center; it trades operational density for breathing room and choreography.
 
@@ -190,8 +190,8 @@ Layered and lifted. Unlike the flatter agency system, talent surfaces use a real
 - **States:** Hover tints; active carries gold; focus shows the gold ring.
 - **Mobile:** Collapses structurally to a drawer / icon rail.
 
-### Signature Component — The Reveal / Unlock Cinematic
-Milestone moments (profile unlock, comp-card generation, full profile strength) are staged as motion-first cinematic experiences — surfaces reveal, content auto-plays, spring physics carry the entrance — not static poster screens or a single toast. One celebration moment at a time, integrated into the surface, with a `prefers-reduced-motion` crossfade fallback.
+### Signature Component — The Unlock Cinematic
+Real milestone moments (profile unlock and comp-card generation) are staged as motion-first cinematic experiences — surfaces reveal, content auto-plays, spring physics carry the entrance — not static poster screens or a single toast. One celebration moment at a time, integrated into the surface, with a `prefers-reduced-motion` crossfade fallback.
 
 ## 6. Do's and Don'ts
 

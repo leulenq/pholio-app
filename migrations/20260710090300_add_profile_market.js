@@ -5,7 +5,7 @@
  *
  * Canonical industry-market slug derived from `profiles.city` at write time
  * ('new-york', 'los-angeles', 'paris', ... — the same vocabulary as
- * `profile_events.market`, see intel/market-resolve.js). Nullable: profiles
+ * `profile_events.market`, see talent/services/market-resolve.js). Nullable: profiles
  * whose city is not a recognised industry market stay NULL.
  *
  * Backfill: scripts/backfill-profile-market.js. Write-path hook lives on the

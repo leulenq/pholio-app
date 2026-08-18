@@ -9,7 +9,6 @@ import PholioButton, {
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../../shared/components/ui/PholioButton';
-import { BOOKING_LANE_BY_SLUG } from '../../../../shared/constants/bookingLanes';
 import {
   resolveStatsTrack,
   coreCircumferenceFor,
@@ -33,9 +32,11 @@ export function MeasurementsSection({
   measurementsLocked = false,
 }) {
   const shoeRegion = watch('shoe_region') || 'US';
-  const primaryLane = watch('booking_primary_lane');
-  const laneInfo = BOOKING_LANE_BY_SLUG[primaryLane];
-  const showWeight = !laneInfo || laneInfo.group !== 'fashion';
+  // Weight renders for every lane. This used to be hidden for fashion lanes off
+  // the talent's `booking_primary_lane`, which left fashion talent unable to
+  // record a stat agencies still ask for; the lane lookup that drove it went
+  // with the condition.
+  const showWeight = true;
 
   // Which measurement set renders. Resolved through the shared helper so the
   // stored lowercase value matches, and so a profile that has never picked a

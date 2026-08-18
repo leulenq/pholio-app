@@ -8,8 +8,6 @@ import {
   heightFigure,
   measurementFigure,
   ageFigure,
-  scoreFigure,
-  scoreTier,
   freshness,
   countLabel,
 } from './metaFormat';
@@ -175,27 +173,6 @@ describe('ageFigure', () => {
   it('returns null when there is nothing to work from', () => {
     expect(ageFigure({}, NOW)).toBeNull();
     expect(ageFigure(null, NOW)).toBeNull();
-  });
-});
-
-describe('scoreFigure / scoreTier', () => {
-  it('bands the tiers from lib/matchTier — the declared single source', () => {
-    expect(scoreTier(92)).toBe('exceptional');
-    expect(scoreTier(90)).toBe('exceptional');
-    expect(scoreTier(80)).toBe('strong');
-    expect(scoreTier(70)).toBe('fair');
-    expect(scoreTier(69)).toBe('low');
-  });
-
-  it('clamps out-of-range model output', () => {
-    expect(scoreFigure(104).value).toBe('100');
-    expect(scoreFigure(-3).value).toBe('0');
-  });
-
-  it('distinguishes a zero score from no score', () => {
-    expect(scoreFigure(0).value).toBe('0');
-    expect(scoreFigure(null)).toBeNull();
-    expect(scoreFigure(undefined)).toBeNull();
   });
 });
 

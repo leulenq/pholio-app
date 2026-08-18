@@ -1,11 +1,8 @@
 import React, { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { MessagesSquare, PenLine, BellRing, SendHorizontal, Plus, CalendarClock } from 'lucide-react';
-import {
-  getMessages, sendMessage, getNotes, createNote,
-  getReminders, createReminder,
-} from '../../api/agency';
+import { MessagesSquare, PenLine, SendHorizontal, Plus } from 'lucide-react';
+import { getMessages, sendMessage, getNotes, createNote } from '../../api/agency';
 import './TalentThread.css';
 import { MetaLine, Moment, Notation } from '../meta';
 
@@ -143,69 +140,9 @@ function Notes({ applicationId }) {
   );
 }
 
-function Followup({ applicationId }) {
-  const qc = useQueryClient();
-  const [date, setDate] = useState('');
-  const [title, setTitle] = useState('');
-  const { data: reminders = [] } = useQuery({
-    queryKey: ['reminders', applicationId],
-    queryFn: () => getReminders({ application_id: applicationId }),
-    enabled: !!applicationId,
-    select: (d) => {
-      const list = Array.isArray(d) ? d : d?.data ?? d?.reminders ?? [];
-      return list.filter((r) => !r.application_id || r.application_id === applicationId);
-    },
-  });
-  const create = useMutation({
-    mutationFn: () => createReminder(applicationId, {
-      reminder_type: 'follow_up',
-      reminder_date: date,
-      title: title.trim() || 'Follow up with talent',
-    }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['reminders', applicationId] });
-      qc.invalidateQueries({ queryKey: ['agency'] });
-      setDate(''); setTitle('');
-      toast.success('Follow-up scheduled');
-    },
-    onError: () => toast.error('Could not schedule follow-up'),
-  });
-
-  return (
-    <div className="tt-pane">
-      <div className="tt-followform">
-        <span className="tt-form-label">Schedule a follow-up</span>
-        <input type="text" className="tt-field" placeholder="What's the follow-up?" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <div className="tt-followrow">
-          <input type="date" className="tt-field tt-field--date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <button className="tt-form-btn" disabled={!date || create.isPending} onClick={() => create.mutate()}>
-            {create.isPending ? 'Setting…' : 'Set reminder'}
-          </button>
-        </div>
-      </div>
-      <div className="tt-log">
-        {reminders.length === 0 && <Empty icon={BellRing}>No follow-ups scheduled.</Empty>}
-        {reminders.map((r, i) => (
-          <div key={r.id || i} className="tt-reminder">
-            <span className="tt-reminder-icon"><CalendarClock size={15} /></span>
-            <div className="tt-reminder-body">
-              <div className="tt-reminder-title">{r.title}{r.notes ? ` — ${r.notes}` : ''}</div>
-              <MetaLine className="tt-meta" size="sm">
-                <Moment value={r.reminder_date} as="date" prefix="Due" size="sm" />
-                {r.status && r.status !== 'pending' ? r.status : null}
-              </MetaLine>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const TABS = [
   { key: 'messages', label: 'Conversation', icon: MessagesSquare },
   { key: 'notes', label: 'Notes', icon: PenLine },
-  { key: 'followup', label: 'Follow-up', icon: BellRing },
 ];
 
 export function TalentThread({ applicationId }) {
@@ -228,7 +165,6 @@ export function TalentThread({ applicationId }) {
       </div>
       {tab === 'messages' && <Conversation applicationId={applicationId} />}
       {tab === 'notes' && <Notes applicationId={applicationId} />}
-      {tab === 'followup' && <Followup applicationId={applicationId} />}
     </div>
   );
 }

@@ -30,7 +30,7 @@ export default function WelcomeScreen({ agencyName, contactFirstName, approvedAt
             {agencyName || 'Your agency'} has been reviewed and accepted.
             {approvedOn ? ` Approved ${approvedOn}.` : ''} What follows
             establishes the workspace itself — the boards your bookers work,
-            how your roster arrives, who holds a key, and how talent reach you.
+            how submissions are routed, who holds a key, and how talent reach you.
           </p>
 
           <dl className="stg-welcome__terms">

@@ -7,9 +7,9 @@
  *   decisions   — what to do next, ranked, each carrying its trigger number
  *   submissions — where submissions die (conversion) and which are past a read
  *   materials   — whether the package can be sent today
- *   attention   — whether anyone with intent is looking, and from where
- *   book        — which frames earn opens
- *   momentum    — whether the recent weeks beat the ones before them
+ *   attention   — recorded traffic and actions, and where they came from
+ *   book        — which frames were shown and opened
+ *   momentum    — weekly activity counts, without a composite score
  *
  * Non-negotiables (spec §4), unchanged:
  *  - agency attention only in aggregate (no per-agency view logs anywhere)
@@ -25,13 +25,12 @@
 const knex = require("../../../../shared/db/knex");
 const { daysAgo, dayRange, dayKey, parseDbDate } = require("./db-utils");
 const { isMinorProfile } = require("../../../../shared/lib/talent-age");
-const { marketLabel } = require("./market-resolve");
+const { marketLabel } = require("../market-resolve");
 const attention = require("./attention");
 const pipeline = require("./pipeline");
 const materials = require("./materials");
 const conversion = require("./conversion");
 const { buildDecisions } = require("./decisions");
-const { buildSearchDemandNudges } = require("./searchability");
 
 const DELTA_MIN_PRIOR_EVENTS = 10;
 const SMALL_N_VIEWS = 20;
@@ -217,32 +216,32 @@ async function buildIntel(profile, { days, tz = "UTC" }) {
   const dayKeys = dayRange(since, days);
   const priorDayKeys = dayRange(priorSince, days);
 
-  const intentNow = attention.intentByDay({ legacyEvents, intelEvents, sessions });
-  const intentPrior = attention.intentByDay({
+  const activityNow = attention.activityByDay({ legacyEvents, intelEvents, sessions });
+  const activityPrior = attention.activityByDay({
     legacyEvents: priorLegacyEvents,
     intelEvents: priorIntelEvents,
     sessions: priorSessions,
   });
-  const intentTotal = t345.cardPulls + t345.linkOpens + t345.qualified;
-  const priorIntentTotal =
-    priorT345.cardPulls + priorT345.linkOpens + priorT345.qualified;
+  const activityTotal = t345.cardPulls + t345.linkOpens + t345.visits;
+  const priorActivityTotal =
+    priorT345.cardPulls + priorT345.linkOpens + priorT345.visits;
 
   const eventDays = pipeline.pipelineEventsByDay(periodActivities);
   const annotations = selfAnnotations({ images, applications, since });
 
   const attentionPayload = {
-    intent: {
-      total: intentTotal,
-      priorTotal: deltasSuppressed ? null : priorIntentTotal,
+    activity: {
+      total: activityTotal,
+      priorTotal: deltasSuppressed ? null : priorActivityTotal,
       changePct:
-        deltasSuppressed || priorIntentTotal === 0
+        deltasSuppressed || priorActivityTotal === 0
           ? null
-          : (intentTotal - priorIntentTotal) / priorIntentTotal,
-      series: attention.intentSeries({
+          : (activityTotal - priorActivityTotal) / priorActivityTotal,
+      series: attention.activitySeries({
         dayKeys,
         priorDayKeys,
-        current: intentNow,
-        prior: intentPrior,
+        current: activityNow,
+        prior: activityPrior,
         comparable: !deltasSuppressed,
       }),
       // Days that carry a cause the talent created, so a step in the line is
@@ -259,11 +258,9 @@ async function buildIntel(profile, { days, tz = "UTC" }) {
         }))
         .filter((d) => d.reviews > 0 || d.advances > 0),
     },
-    // Ordered weak → strong. Reach is last and never dominates the reading:
-    // the frontend charts intent, and reports reach as context.
+    // Separate, observable event types. Their order does not imply quality.
     composition: [
-      { key: "reach", label: "Reach", count: t345.reach, tier: 5 },
-      { key: "qualified", label: "Qualified visits", count: t345.qualified, tier: 4 },
+      { key: "visits", label: "Profile visits", count: t345.visits, tier: 4 },
       { key: "pulls", label: "Card pulls", count: t345.cardPulls, tier: 3 },
       { key: "opens", label: "Link opens", count: t345.linkOpens, tier: 3 },
       { key: "reviews", label: "Agency reviews", count: reviews, tier: 1 },
@@ -280,8 +277,6 @@ async function buildIntel(profile, { days, tz = "UTC" }) {
     now,
   });
 
-  const demandNudges = await buildSearchDemandNudges(profile);
-
   return {
     meta: { ...meta, smallSample, deltasSuppressed },
     decisions,
@@ -290,7 +285,7 @@ async function buildIntel(profile, { days, tz = "UTC" }) {
     attention: attentionPayload,
     book: attention.bookAttention(intelEvents, images),
     momentum,
-    demand: { nudges: demandNudges },
+    demand: null,
   };
 }
 
@@ -333,7 +328,7 @@ async function buildMomentum(profileId, { applications, activitiesByApp, now }) 
       sent: applications.filter((a) => inWeek(a.created_at)).length,
       reviews,
       advances,
-      intent: t345.cardPulls + t345.linkOpens + t345.qualified,
+      activity: t345.cardPulls + t345.linkOpens + t345.visits,
     });
   }
 
@@ -345,7 +340,7 @@ async function buildMomentum(profileId, { applications, activitiesByApp, now }) 
     sent: sum(rows, "sent"),
     reviews: sum(rows, "reviews"),
     advances: sum(rows, "advances"),
-    intent: sum(rows, "intent"),
+    activity: sum(rows, "activity"),
   });
 
   return {
@@ -367,12 +362,13 @@ async function buildIntelDay(profile, date) {
     attention.loadVisitorSessions(profile.id, start, end),
   ]);
 
-  const viewerClasses = { agency: 0, client: 0, public: 0 };
+  const viewerClasses = { agency: 0, shared: 0, public: 0 };
   const actions = {};
   const marketsCount = new Map();
   for (const e of intelEvents) {
-    if (viewerClasses[e.viewer_class] !== undefined)
-      viewerClasses[e.viewer_class] += 1;
+    const viewerClass = e.viewer_class === "client" ? "shared" : e.viewer_class;
+    if (viewerClasses[viewerClass] !== undefined)
+      viewerClasses[viewerClass] += 1;
     actions[e.action] = (actions[e.action] || 0) + 1;
     if (e.market)
       marketsCount.set(e.market, (marketsCount.get(e.market) || 0) + 1);
