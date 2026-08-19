@@ -182,6 +182,28 @@ function hasConsentPurposeColumns(db) {
   return promise;
 }
 
+/*
+ * The same guard for `applicant_identity_id`
+ * (`20260819130000_snapshot_and_consent_identity_support.js`). Separate cache
+ * because the two columns ship in different migrations and a deploy can land
+ * between them.
+ */
+const identitySchemaPromises = new WeakMap();
+function hasConsentIdentityColumn(db) {
+  const client = db?.client || db;
+  let promise = identitySchemaPromises.get(client);
+  if (!promise) {
+    promise = db.schema
+      .hasColumn("application_submission_consent_events", "applicant_identity_id")
+      .catch(() => {
+        identitySchemaPromises.delete(client);
+        return false;
+      });
+    identitySchemaPromises.set(client, promise);
+  }
+  return promise;
+}
+
 async function recordSubmissionDisclosureConsent(
   trx,
   {
@@ -198,9 +220,30 @@ async function recordSubmissionDisclosureConsent(
     purpose = DEFAULT_CALL_PURPOSE,
     openCallLinkId = null,
     compensationDisclosure = null,
+    applicantIdentityId = null,
   },
 ) {
-  if (!applicationId || !userId || !profileId || !agencyId) {
+  /*
+   * WHO THIS CONSENT BELONGS TO — two shapes, one row.
+   *
+   * An account-backed submission is scoped by (user, profile), and that pair
+   * stays mandatory for it: a consent row with a NULL profile on the
+   * representation path would be an audit record nobody can attribute.
+   *
+   * An anonymous open-call submission has neither — no `users` row and no
+   * `profiles` row exist at state 2 of the identity ladder
+   * (`docs/open-call-applicant-flow-design-2026-08.md` §3.2) — and it is scoped
+   * by `applicant_identity_id` instead. Migration `20260819130000` made both
+   * columns nullable and added that pointer for exactly this. The rule is
+   * therefore "one of the two scopes, never neither", which is the presence
+   * invariant that migration deliberately left to this service rather than
+   * restating as a second CHECK.
+   *
+   * Existing call sites are byte-compatible: they pass user and profile and
+   * no identity, and take the first branch unchanged.
+   */
+  const hasAccountScope = Boolean(userId && profileId);
+  if (!applicationId || !agencyId || !(hasAccountScope || applicantIdentityId)) {
     throw new Error("Submission disclosure consent requires application scope");
   }
   if (!packageFingerprint) {
@@ -223,11 +266,18 @@ async function recordSubmissionDisclosureConsent(
       }
     : {};
 
+  // Written only where the column exists, so a consent row still lands during
+  // the window between the code deploying and `20260819130000` running.
+  const identityColumn =
+    applicantIdentityId && (await hasConsentIdentityColumn(trx))
+      ? { applicant_identity_id: applicantIdentityId }
+      : {};
+
   await trx("application_submission_consent_events").insert({
     id: uuidv4(),
     application_id: applicationId,
-    user_id: userId,
-    profile_id: profileId,
+    user_id: userId || null,
+    profile_id: profileId || null,
     agency_id: agencyId,
     package_fingerprint: packageFingerprint,
     consent_text_version: disclosureVersionForPurpose(resolvedPurpose),
@@ -239,6 +289,7 @@ async function recordSubmissionDisclosureConsent(
     user_agent: userAgent || null,
     created_at: trx.fn.now(),
     ...purposeColumns,
+    ...identityColumn,
   });
 }
 

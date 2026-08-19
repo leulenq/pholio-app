@@ -17,6 +17,9 @@ const express = require("express");
 
 const router = express.Router();
 
+// The anonymous apply surface — draft, email step, uploads, submit (§5.1–§5.3).
+router.use("/", require("./apply"));
+
 // Claim / disown magic links (§5.2, §5.5).
 router.use("/", require("./claim"));
 
