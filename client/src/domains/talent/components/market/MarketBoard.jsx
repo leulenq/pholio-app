@@ -1,7 +1,9 @@
 import React, { useDeferredValue, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
 import HouseBand from './HouseBand';
+import MarketCoverage from './MarketCoverage';
 import { SCOPE, SCOPE_FILTERS, buildHouses, filterHouses } from '../../lib/marketDirectory';
+import { coverageSeriesIds } from '../../lib/coverageModel';
 import './market-board.css';
 
 /**
@@ -57,6 +59,19 @@ export default function MarketBoard({
     [images],
   );
 
+  /*
+    The coverage strip states one fact about the whole researched market, so it
+    shows only when the whole market is showing: no query, no scope, and at
+    least two houses publishing into the registry. A sentence that says "9
+    houses" above a board filtered down to 3 would be false on its face, and
+    recomputing it per subset is where the analytics dashboard begins.
+    Unmounting also resets the strip's open state, deliberately.
+  */
+  const coverageEligible =
+    deferredQuery.trim() === '' &&
+    scope === SCOPE.ALL &&
+    coverageSeriesIds(houses).length >= 2;
+
   const toggle = (key) => setOpenKey((current) => (current === key ? null : key));
 
   if (isLoading) {
@@ -104,6 +119,8 @@ export default function MarketBoard({
           ))}
         </div>
       </header>
+
+      {coverageEligible ? <MarketCoverage houses={houses} images={images} /> : null}
 
       {sorted.length === 0 ? (
         <div className="mb-empty">
