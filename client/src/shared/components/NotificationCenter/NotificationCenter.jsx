@@ -47,11 +47,6 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
     [markReadMutation, navigate, onClose],
   );
 
-  const handleFooter = useCallback(() => {
-    onClose?.();
-    navigate('/dashboard/talent/applications');
-  }, [navigate, onClose]);
-
   return (
     <NotificationInbox
       className={panelClassName}

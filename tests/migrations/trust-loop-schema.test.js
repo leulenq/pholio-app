@@ -558,12 +558,38 @@ describe("M4 reference agency conversion (ruling R5)", () => {
 });
 
 /**
+ * The number of completed migrations from M1 to the head, inclusive — i.e. how
+ * many `down()` steps it takes to unwind M1–M4 whatever has been appended
+ * since.
+ */
+async function stepsBackThroughM1() {
+  const [completed] = await db.migrate.list();
+  const names = completed.map((entry) =>
+    typeof entry === "string" ? entry : entry.name || entry.file,
+  );
+  const index = names.findIndex((name) =>
+    name.includes("create_off_platform_submissions"),
+  );
+  if (index < 0) throw new Error("M1 is not in the completed migration list");
+  return names.length - index;
+}
+
+/**
  * Runs last: it takes the schema down and back up, so nothing may depend on it
  * having finished in the state it started.
  */
 describe("rolling M1–M4 back", () => {
+  // How many migrations sit on top of M1 decides how far down() has to walk.
+  // Counting them beats hard-coding four: any migration added after this lane
+  // lands between M4 and the head, and a fixed count would then stop short and
+  // leave M1's table standing.
+  let rollbackSteps = 0;
+
   test("rollback drops the three tables", async () => {
-    for (let step = 0; step < 4; step += 1) await db.migrate.down();
+    rollbackSteps = await stepsBackThroughM1();
+    expect(rollbackSteps).toBeGreaterThanOrEqual(4);
+
+    for (let step = 0; step < rollbackSteps; step += 1) await db.migrate.down();
 
     expect(await db.schema.hasTable("off_platform_submissions")).toBe(false);
     expect(await db.schema.hasTable("agency_verifications")).toBe(false);
@@ -576,7 +602,7 @@ describe("rolling M1–M4 back", () => {
 
   test("and re-applies cleanly", async () => {
     const [, log] = await db.migrate.latest();
-    expect(log).toHaveLength(4);
+    expect(log).toHaveLength(rollbackSteps);
     expect(await db.schema.hasTable("off_platform_submissions")).toBe(true);
     expect(await db.schema.hasTable("agency_verifications")).toBe(true);
     expect(await db.schema.hasTable("agency_call_windows")).toBe(true);
