@@ -29,11 +29,11 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
 - [x] **W3-D (Opus)** `resolveApplicantIdentity` resolver + enforcement test; the 8 agency
       `profiles`-join sites; unclaimed rows in inbox + CSV; verified-email/completeness as plain
       text; Request-materials endpoint + chase email. Tests.
-- [ ] **W4-E (Opus)** Client applicant flow at `/opencall/:code`: screen-1-with-first-question,
+- [x] **W4-E (Opus)** Client applicant flow at `/opencall/:code`: screen-1-with-first-question,
       apply-stage spec screens (photos last), email step (no oracle), consent, send, payoff;
       draft resume; retire arrival page as a gate.
-- [ ] **W4-E2 (Sonnet)** Materials fulfilment page (tokenized, ReplyPage shape) + claim offer after send.
-- [ ] **W5 (lead)** Full test suite + client lint + adversarial diff review; docs updated; commits.
+- [x] **W4-E2 (Opus)** Materials fulfilment page (tokenized, ReplyPage shape) + claim offer after send.
+- [x] **W5 (lead)** Full test suite + client lint + adversarial diff review; docs updated; commits.
 
 ## Review log
 - W1-B landed: constants + parity test (19 tests). Committed.
@@ -62,3 +62,13 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
 - W4 launched (3 parallel): E applicant flow client (Opus), E2 materials fulfilment server+client
   (Opus — also closes the missing /materials/:token endpoints), E3 agency SPA identity null-path
   (Sonnet).
+- W4 all landed: E applicant flow (543 client tests + build), E2 materials fulfilment (16+5 tests;
+  lead wired the App.jsx route), E3 agency SPA null-path (121 tests; found+fixed a pre-existing
+  bug where the overview substituted application ids for null profile ids).
+- W5: full server suite 3092 passed / 0 failed; client 549 passed; lint clean (1 pre-existing
+  warning). High-effort adversarial review found 5 correctness issues (cross-purpose claim
+  consumption, minor-profile attach bypassing the guardian gate, materials token unbound to its
+  request, plus-tag matching no-op, identity rows crowding the inbox hard cap) + 1 cleanup —
+  fix lane dispatched; one finding referenced a file absent from HEAD (moot).
+- Open before production: 7.1 anonymous-media moderation wiring; board-candidates endpoint
+  identity fields; HEIC; minors policy (other workstream).
