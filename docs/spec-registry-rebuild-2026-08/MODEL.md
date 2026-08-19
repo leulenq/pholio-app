@@ -69,8 +69,9 @@ Channel fields:
   `external_contest` | `event_form` (FWB's Google Forms) | `department_email`
 - `address`: URL **or email address** (v1 structurally could not store Muse's
   scouting@musenyc.com — the single most operationally important fact of an email route)
-- `provider` + `platform_cluster`: Snapcast, cDs (Muse/CURV/Q), Mainboard/Portfoliopad
-  (State-native/Bicoastal), Google Forms (FWB), WordPress+Gravity (JAG). Clusters drive
+- `provider` + `platform_cluster`: Snapcast (State-alternate, Ford-Paris), selectroom.app
+  (Ford-canonical), cDs (Muse/CURV/Q), Mainboard/Portfoliopad (State-native/Bicoastal),
+  Google Forms (FWB), WordPress+Gravity (JAG). Clusters drive
   per-platform re-verification (evidenced twice in this set by near-identical template
   text across unrelated agencies).
 - `account_required`: Snapcast embeds password creation in the application; Elite Model
