@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ArrowUpRight, ChevronDown } from 'lucide-react';
 import { apiClient } from '../../../shared/lib/api-client';
 import PholioButton from '../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
@@ -16,7 +16,6 @@ import {
   readLabels,
   sourceNeedsReview,
 } from '../lib/specRegistry';
-import { SpecMark } from './spec-marks';
 import styles from './RegistryPreflight.module.css';
 
 /**
@@ -331,9 +330,25 @@ export default function RegistryPreflight({
       </div>
     );
   } else {
+    const covered = Math.min(view.covered || 0, view.published || 0);
     body = (
       <>
-        <p className={styles.summary}>{setSentence(view)}</p>
+        {/* The same coverage idiom the digitals band below already speaks —
+            gold segments, one per published shot — so their set and your set
+            read as one system, not two counters. */}
+        <div className={styles.summaryRow}>
+          {view.published > 0 ? (
+            <span className={styles.coverage} aria-hidden="true">
+              {Array.from({ length: view.published }, (_, index) => (
+                <span
+                  key={index}
+                  className={`${styles.seg}${index < covered ? ` ${styles.segOn}` : ''}`}
+                />
+              ))}
+            </span>
+          ) : null}
+          <p className={styles.summary}>{setSentence(view)}</p>
+        </div>
 
         {shotRows.length ? (
           <ul className={styles.list} aria-label="Their set">
@@ -342,7 +357,6 @@ export default function RegistryPreflight({
               const action = needed ? shot.target : null;
               return (
                 <li key={shot.key} className={styles.item}>
-                  <SpecMark state={shot.state} size={12} className={styles.itemMark} />
                   <span className={styles.itemBody}>
                     <span className={styles.itemLabel}>{shot.label}</span>
                     {shot.note ? <span className={styles.itemNote}>{shot.note}</span> : null}
@@ -469,22 +483,11 @@ export default function RegistryPreflight({
         ) : null}
 
         {/* Provenance stays on the panel: this is Pholio reading an agency's
-            published page, not Pholio speaking for the agency. */}
+            published page, not Pholio speaking for the agency. The link to
+            their page lives in the head rail; this line carries the claim. */}
         <p className={styles.provenance}>
           Published by {resolvedAgencyName}
           {checkedOn ? `, checked ${checkedOn}` : ''}.
-          {resolvedSourceUrl ? (
-            <>
-              {' '}
-              <a
-                className={styles.link}
-                href={resolvedSourceUrl}
-                {...externalLinkProps(resolvedSourceUrl)}
-              >
-                Their page
-              </a>
-            </>
-          ) : null}
         </p>
         {sourceNeedsReview(evaluation) ? (
           <p className={styles.caution}>
@@ -504,6 +507,15 @@ export default function RegistryPreflight({
       {available ? (
         <div className={styles.head}>
           <h2 className={styles.title}>For {resolvedAgencyName}</h2>
+          {ready && resolvedSourceUrl ? (
+            <a
+              className={styles.headLink}
+              href={resolvedSourceUrl}
+              {...externalLinkProps(resolvedSourceUrl)}
+            >
+              Their page <ArrowUpRight size={11} aria-hidden="true" />
+            </a>
+          ) : null}
           {routeOptions.length > 1 ? (
             <div className={styles.route}>
               <PholioCustomSelect

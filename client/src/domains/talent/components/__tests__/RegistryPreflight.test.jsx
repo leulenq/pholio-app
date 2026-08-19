@@ -17,11 +17,11 @@ function renderPreflight(props = {}) {
   );
 }
 
-/** The mark states of the set list, in row order. */
-function markStates(list) {
-  return Array.from(list.querySelectorAll('[data-mark-state]')).map((mark) =>
-    mark.getAttribute('data-mark-state'),
-  );
+/** The state words of the set list, in row order. */
+function stateWords(list) {
+  return within(list)
+    .getAllByRole('listitem')
+    .map((row) => row.querySelector('[class*="itemState"]')?.textContent);
 }
 
 /** A slice of `registryTaxonomyLabels()` — the vocabulary the panel speaks in. */
@@ -210,12 +210,16 @@ describe('RegistryPreflight', () => {
 
     const list = await screen.findByRole('list', { name: 'Their set' });
     // One row per published shot — the set renders once, never as a mark
-    // strip above a second list of the same shots.
+    // strip above a second list of the same shots. State is words, in the
+    // page's own row idiom.
     const rows = within(list).getAllByRole('listitem');
     expect(rows).toHaveLength(4);
-    expect(markStates(list)).toEqual(['needed', 'in_set', 'needed', 'needed']);
-    expect(within(list).getByText('In your set')).toBeInTheDocument();
-    expect(within(list).getAllByText('Still needed')).toHaveLength(3);
+    expect(stateWords(list)).toEqual([
+      'Still needed',
+      'In your set',
+      'Still needed',
+      'Still needed',
+    ]);
     // A published slot Pholio can't verify is still asked for — it reads as
     // "still needed", never "not asked for" (live-verification correction).
     expect(within(list).queryByText('Not asked for')).not.toBeInTheDocument();
