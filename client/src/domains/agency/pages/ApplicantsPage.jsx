@@ -60,6 +60,8 @@ function mapRow(p) {
   const status = p.application_status || 'submitted';
   return {
     applicationId: p.application_id,
+    // Identity-backed rows (no Pholio account yet) arrive with `id: null` and
+    // `slug: null` — never invent a profile id or a portfolio link for them.
     profileId: p.id,
     name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown',
     city: p.city || null,
@@ -68,6 +70,13 @@ function mapRow(p) {
     appliedAt: p.application_created_at,
     slug: p.slug,
     type: p.archetype || 'editorial',
+    // Plain-data truth fields (design: open-call-applicant-flow). Undefined on
+    // an older API response — the row renders nothing for those, never a guess.
+    emailVerified: p.emailVerified,
+    identityClaimed: p.identityClaimed,
+    identityDisputed: p.identityDisputed,
+    identitySource: p.identitySource,
+    materialsStatus: p.materialsStatus,
   };
 }
 
@@ -83,7 +92,26 @@ function mapCandidate(c) {
     appliedAt: c.created_at,
     slug: c.slug,
     type: c.archetype || 'editorial',
+    // The board-candidates endpoint does not yet resolve identity truth
+    // fields — undefined here, same "render nothing" contract as mapRow.
+    emailVerified: c.emailVerified,
+    identityClaimed: c.identityClaimed,
+    identityDisputed: c.identityDisputed,
+    identitySource: c.identitySource,
+    materialsStatus: c.materialsStatus,
   };
+}
+
+/** Plain-text truth fragments for a row's meta line — undefined fields render
+ *  nothing (older API), and email state is only meaningful for identity rows
+ *  (a profile row already went through Pholio's own signup verification). */
+function identityMetaParts(a) {
+  const parts = [];
+  if (a.identitySource === 'submission' && typeof a.emailVerified === 'boolean') {
+    parts.push(a.emailVerified ? 'Email verified' : 'Email unverified');
+  }
+  if (a.identityDisputed) parts.push('Identity disputed');
+  return parts;
 }
 
 /** Multi-select checkbox affordance — a square control, not a status marker.
@@ -198,6 +226,9 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
       <div className="ap-card-spec">
         <DivisionMark division={a.type || 'editorial'} size="sm" />
         {a.city ? <span className="ap-card-loc"> · {formatLocation(a.city)}</span> : null}
+        {identityMetaParts(a).map((part) => (
+          <span className="ap-card-loc" key={part}> · {part}</span>
+        ))}
       </div>
       <span className="ap-card-state">
         <Moment value={a.appliedAt} className="ap-card-when" />
@@ -248,6 +279,9 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
         <div className="ap-meta">
           <DivisionMark division={a.type || 'editorial'} size="sm" />
           {a.city ? <span className="ap-loc"> · {formatLocation(a.city)}</span> : null}
+          {identityMetaParts(a).map((part) => (
+            <span className="ap-loc" key={part}> · {part}</span>
+          ))}
         </div>
       </div>
       <Moment value={a.appliedAt} className="ap-applied" />

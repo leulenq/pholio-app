@@ -82,6 +82,11 @@ function TagStrip({ applicationId, tags }) {
 
 export function StandingRail({ dossier, applicationId }) {
   const { application, standing, compliance, contact } = dossier;
+  // Only meaningful for an identity-backed applicant — a profile row already
+  // went through Pholio's own signup verification, so it says nothing here.
+  const emailLine = dossier.identitySource === 'submission' && typeof dossier.emailVerified === 'boolean'
+    ? (dossier.emailVerified ? 'Verified' : 'Unverified')
+    : null;
 
   const ladder = [
     { label: 'Submitted', at: standing?.submitted_at },
@@ -122,6 +127,7 @@ export function StandingRail({ dossier, applicationId }) {
           ))}
           <Fact label="Filed to" value={standing?.board?.name} />
           <Fact label="Route" value={standing?.invited ? 'We invited them' : 'They came to us'} />
+          <Fact label="Email" value={emailLine} />
           <Fact
             label="Notes"
             value={standing?.notes?.length ? `${standing.notes.length} on file` : null}

@@ -170,7 +170,10 @@ export function mapApplicant(a) {
   return {
     id: a.applicationId ?? a.id,
     applicationId: a.applicationId ?? a.id,
-    profileId: a.profileId ?? a.profile_id ?? a.id,
+    // `a.profileId` is explicitly `null` for an identity-backed applicant (no
+    // Pholio account yet) — never fall through to the application id there,
+    // or an unrelated id starts posing as a profile id.
+    profileId: a.profileId ?? a.profile_id ?? null,
     name: a.name,
     photo: isDefault ? null : img,
     type: (a.archetype || 'editorial').toLowerCase(),

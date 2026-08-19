@@ -221,6 +221,18 @@
 }
 .dx-plate__rep-detail { font-size: 0.875rem; font-weight: 500; color: var(--dx-on-ink-2); }
 
+/* On the ink plate ground — a lighter warm red so it stays legible over
+   near-black, the same "words, not a badge" rule the rest of the dossier
+   holds elsewhere for genuine alerts. */
+.dx-plate__disputed {
+  max-width: 66ch;
+  margin: 16px 0 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.6;
+  color: #F2A490;
+}
+
 .dx-plate__bio {
   max-width: 66ch;
   margin: 20px 0 0;

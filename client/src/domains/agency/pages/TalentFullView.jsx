@@ -276,7 +276,11 @@ export default function TalentFullView() {
         </div>
 
         <Sheet id="dx-log" title="The record" tone="wide">
-          <WorkingRecord applicationId={applicationId} timeline={standing?.timeline} />
+          <WorkingRecord
+            applicationId={applicationId}
+            timeline={standing?.timeline}
+            canMessage={!(data.identitySource === 'submission' && data.identityClaimed === false)}
+          />
         </Sheet>
       </div>
     </motion.div>
