@@ -65,6 +65,7 @@ import './ApplyExperience.css';
 import SubmissionThreshold from './SubmissionThreshold';
 import RegistryPreflight from '../../components/RegistryPreflight';
 import {
+  AgencyBriefScene,
   HandoffScene,
   PrepareScene,
   pagesForTarget,
@@ -2088,6 +2089,32 @@ export default function ApplyExperience() {
     );
   }
 
+  // The Agency Brief is the first scene an off-Pholio target opens to (design
+  // §Tier 2, see ./offPholio/AgencyBriefScene) — what applying here actually
+  // involves, before any preparation starts. Everything it owns lives in that
+  // folder; this is the one conditional that seats it in the workspace.
+  if (offPholio.isOffPholio && offPholio.briefOpen) {
+    return (
+      <div className="applications-view-container apply-experience">
+        <ApplyHeader
+          selectedAgency={null}
+          targetName={offPholio.displayName || offPholio.agencyName}
+          intentLabel="Reviewing"
+          showDraftState={false}
+          onExit={exitToMarket}
+          onSaveAndExit={exitToMarket}
+          actionLabel="Exit"
+        />
+        <AgencyBriefScene
+          route={offPholio.route}
+          seriesId={offPholio.seriesId}
+          onStartPreparing={offPholio.dismissBrief}
+          onOutboundClick={offPholio.recordOutboundClick}
+        />
+      </div>
+    );
+  }
+
   // Submission success takes over as a full-screen state. It uses the captured
   // `submitted` payload (not selectedAgency, which the post-submit refetch drops
   // from the open list), and shares the cream ground so the swap reads as a calm
@@ -2330,7 +2357,7 @@ export default function ApplyExperience() {
       ? boardPageCopy(selectedAgency, agencyOpenBoards)
       : { title: page.title, standfirst: page.standfirst };
   const workspaceName = offPholio.isOffPholio
-    ? offPholio.agencyName
+    ? offPholio.displayName || offPholio.agencyName
     : selectedAgency?.name;
 
   return (
@@ -2340,7 +2367,7 @@ export default function ApplyExperience() {
     >
       <ApplyHeader
         selectedAgency={selectedAgency}
-        targetName={offPholio.isOffPholio ? offPholio.agencyName : selectedAgency?.name}
+        targetName={workspaceName}
         // Off Pholio the talent is preparing, not submitting — and there is no
         // draft to report on, because there is nothing on a server to resume.
         intentLabel={offPholio.isOffPholio ? 'Preparing for' : 'Submitting to'}
@@ -2475,6 +2502,8 @@ export default function ApplyExperience() {
                 onPrepare={offPholio.prepare}
                 onModify={(id) => goTo(pages.findIndex((p) => p.id === id))}
                 onOpenMedia={() => navigate('/dashboard/talent/media')}
+                onReviewBrief={offPholio.reopenBrief}
+                displayName={offPholio.displayName}
               />
             )}
             {page.id === eventIntake.pageId && (

@@ -11,12 +11,58 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "full_length", "label": "Full length", "description": "A head-to-toe or source-labelled full-length frame.", "aliases": ["full body", "full-length"] },
-        { "id": "portrait_length", "label": "Portrait length", "description": "The distinct portrait-length frame named by a source; it is not automatically equivalent to a headshot.", "aliases": ["portrait length"] },
-        { "id": "close_up", "label": "Close-up", "description": "A tightly framed face or head-and-shoulders image.", "aliases": ["close up", "close-up"] },
-        { "id": "headshot", "label": "Headshot", "description": "A source-labelled headshot without assuming a tighter close-up framing.", "aliases": ["head shot"] },
-        { "id": "mid_length", "label": "Mid-length", "description": "A source-labelled mid-length frame without inferring an exact crop boundary.", "aliases": ["mid length", "mid-length"] },
-        { "id": "waist_up", "label": "Waist-up", "description": "A frame showing the applicant from approximately the waist upward.", "aliases": ["waist up", "waist-up"] }
+        {
+          "id": "full_length",
+          "label": "Full length",
+          "description": "A head-to-toe or source-labelled full-length frame.",
+          "aliases": [
+            "full body",
+            "full-length"
+          ]
+        },
+        {
+          "id": "portrait_length",
+          "label": "Portrait length",
+          "description": "The distinct portrait-length frame named by a source; it is not automatically equivalent to a headshot.",
+          "aliases": [
+            "portrait length"
+          ]
+        },
+        {
+          "id": "close_up",
+          "label": "Close-up",
+          "description": "A tightly framed face or head-and-shoulders image.",
+          "aliases": [
+            "close up",
+            "close-up"
+          ]
+        },
+        {
+          "id": "headshot",
+          "label": "Headshot",
+          "description": "A source-labelled headshot without assuming a tighter close-up framing.",
+          "aliases": [
+            "head shot"
+          ]
+        },
+        {
+          "id": "mid_length",
+          "label": "Mid-length",
+          "description": "A source-labelled mid-length frame without inferring an exact crop boundary.",
+          "aliases": [
+            "mid length",
+            "mid-length"
+          ]
+        },
+        {
+          "id": "waist_up",
+          "label": "Waist-up",
+          "description": "A frame showing the applicant from approximately the waist upward.",
+          "aliases": [
+            "waist up",
+            "waist-up"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -28,8 +74,25 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "front", "label": "Front", "description": "The applicant faces the camera.", "aliases": ["front facing", "face on"] },
-        { "id": "profile", "label": "Profile", "description": "A side profile; left and right are compatible subtypes.", "aliases": ["side profile", "profile left", "profile right"] }
+        {
+          "id": "front",
+          "label": "Front",
+          "description": "The applicant faces the camera.",
+          "aliases": [
+            "front facing",
+            "face on"
+          ]
+        },
+        {
+          "id": "profile",
+          "label": "Profile",
+          "description": "A side profile; left and right are compatible subtypes.",
+          "aliases": [
+            "side profile",
+            "profile left",
+            "profile right"
+          ]
+        }
       ],
       "matchabilityDefault": "automatic"
     },
@@ -41,7 +104,16 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "personality", "label": "Personality", "description": "An image intended to communicate personality; manual confirmation is required in v1.", "aliases": ["personality pic", "personality picture", "personality shot"] }
+        {
+          "id": "personality",
+          "label": "Personality",
+          "description": "An image intended to communicate personality; manual confirmation is required in v1.",
+          "aliases": [
+            "personality pic",
+            "personality picture",
+            "personality shot"
+          ]
+        }
       ],
       "matchabilityDefault": "manual_confirmation"
     },
@@ -53,11 +125,48 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "pulled_back", "label": "Pulled back", "description": "Hair is pulled back from the face.", "aliases": ["hair pulled back", "hair back"] },
-        { "id": "away_from_face", "label": "Away from face", "description": "Hair does not obscure the face, without requiring a specific style.", "aliases": ["hair away from face", "keeping your hair away from your face"] },
-        { "id": "up", "label": "Hair up", "description": "Hair is worn up, preserving the source's broader wording without assuming a specific tied-back style.", "aliases": ["hair up"] },
-        { "id": "down", "label": "Hair down", "description": "Hair is worn down.", "aliases": ["hair down"] },
-        { "id": "natural", "label": "Natural hair", "description": "Hair is presented in the source-described natural state; this does not imply a natural hair color.", "aliases": ["natural hair"] }
+        {
+          "id": "pulled_back",
+          "label": "Pulled back",
+          "description": "Hair is pulled back from the face.",
+          "aliases": [
+            "hair pulled back",
+            "hair back"
+          ]
+        },
+        {
+          "id": "away_from_face",
+          "label": "Away from face",
+          "description": "Hair does not obscure the face, without requiring a specific style.",
+          "aliases": [
+            "hair away from face",
+            "keeping your hair away from your face"
+          ]
+        },
+        {
+          "id": "up",
+          "label": "Hair up",
+          "description": "Hair is worn up, preserving the source's broader wording without assuming a specific tied-back style.",
+          "aliases": [
+            "hair up"
+          ]
+        },
+        {
+          "id": "down",
+          "label": "Hair down",
+          "description": "Hair is worn down.",
+          "aliases": [
+            "hair down"
+          ]
+        },
+        {
+          "id": "natural",
+          "label": "Natural hair",
+          "description": "Hair is presented in the source-described natural state; this does not imply a natural hair color.",
+          "aliases": [
+            "natural hair"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -89,9 +198,31 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "none", "label": "No makeup", "description": "No visible makeup.", "aliases": ["no make-up", "without makeup"] },
-        { "id": "minimal", "label": "Minimal makeup", "description": "A minimal or natural-looking makeup presentation.", "aliases": ["natural makeup"] },
-        { "id": "styled", "label": "Styled makeup", "description": "Clearly styled or prominent makeup.", "aliases": ["full makeup"] }
+        {
+          "id": "none",
+          "label": "No makeup",
+          "description": "No visible makeup.",
+          "aliases": [
+            "no make-up",
+            "without makeup"
+          ]
+        },
+        {
+          "id": "minimal",
+          "label": "Minimal makeup",
+          "description": "A minimal or natural-looking makeup presentation.",
+          "aliases": [
+            "natural makeup"
+          ]
+        },
+        {
+          "id": "styled",
+          "label": "Styled makeup",
+          "description": "Clearly styled or prominent makeup.",
+          "aliases": [
+            "full makeup"
+          ]
+        }
       ],
       "matchabilityDefault": "automatic"
     },
@@ -103,8 +234,24 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "large", "label": "Large accessories", "description": "Large or visually distracting accessories.", "aliases": ["large accessories", "hoop earrings", "bracelets"] },
-        { "id": "jewelry", "label": "Jewelry", "description": "Jewelry of any size when a source addresses the category generally.", "aliases": ["jewellery"] }
+        {
+          "id": "large",
+          "label": "Large accessories",
+          "description": "Large or visually distracting accessories.",
+          "aliases": [
+            "large accessories",
+            "hoop earrings",
+            "bracelets"
+          ]
+        },
+        {
+          "id": "jewelry",
+          "label": "Jewelry",
+          "description": "Jewelry of any size when a source addresses the category generally.",
+          "aliases": [
+            "jewellery"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -156,8 +303,24 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "neutral", "label": "Neutral", "description": "A neutral facial expression without an inferred mood.", "aliases": ["neutral facial expression", "neutral expression"] },
-        { "id": "natural_relaxed", "label": "Natural and relaxed", "description": "A natural, relaxed presentation rather than an assumed formal pose.", "aliases": ["natural and relaxed", "most natural and relaxed"] }
+        {
+          "id": "neutral",
+          "label": "Neutral",
+          "description": "A neutral facial expression without an inferred mood.",
+          "aliases": [
+            "neutral facial expression",
+            "neutral expression"
+          ]
+        },
+        {
+          "id": "natural_relaxed",
+          "label": "Natural and relaxed",
+          "description": "A natural, relaxed presentation rather than an assumed formal pose.",
+          "aliases": [
+            "natural and relaxed",
+            "most natural and relaxed"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -169,9 +332,32 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "form_fitted", "label": "Form-fitted", "description": "Clothing is fitted enough for body shape to be visible.", "aliases": ["form fitted", "form-fitting"] },
-        { "id": "slim_fitting", "label": "Slim-fitting", "description": "Clothing has a slim fit.", "aliases": ["slim fitting"] },
-        { "id": "baggy", "label": "Baggy", "description": "Loose clothing whose volume obscures or substantially changes the visible body outline.", "aliases": ["baggy clothing", "loose-fitting clothing"] }
+        {
+          "id": "form_fitted",
+          "label": "Form-fitted",
+          "description": "Clothing is fitted enough for body shape to be visible.",
+          "aliases": [
+            "form fitted",
+            "form-fitting"
+          ]
+        },
+        {
+          "id": "slim_fitting",
+          "label": "Slim-fitting",
+          "description": "Clothing has a slim fit.",
+          "aliases": [
+            "slim fitting"
+          ]
+        },
+        {
+          "id": "baggy",
+          "label": "Baggy",
+          "description": "Loose clothing whose volume obscures or substantially changes the visible body outline.",
+          "aliases": [
+            "baggy clothing",
+            "loose-fitting clothing"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -183,12 +369,55 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "vest_top", "label": "Vest top", "description": "A vest or tank-style top.", "aliases": ["vest top", "tank top"] },
-        { "id": "jeans", "label": "Jeans", "description": "Jeans without an inferred fit.", "aliases": [] },
-        { "id": "slim_fitting_jeans", "label": "Slim-fitting jeans", "description": "Jeans explicitly described as slim fitting.", "aliases": ["slim fitting jeans", "skinny jeans"] },
-        { "id": "swimwear", "label": "Swimwear", "description": "Swimwear submitted as clothing in an image.", "aliases": ["swimsuit", "bikini"] },
-        { "id": "underwear", "label": "Underwear", "description": "Underwear or lingerie submitted as clothing in an image.", "aliases": ["lingerie"] },
-        { "id": "high_heels", "label": "High heels", "description": "High-heeled footwear.", "aliases": ["heels"] }
+        {
+          "id": "vest_top",
+          "label": "Vest top",
+          "description": "A vest or tank-style top.",
+          "aliases": [
+            "vest top",
+            "tank top"
+          ]
+        },
+        {
+          "id": "jeans",
+          "label": "Jeans",
+          "description": "Jeans without an inferred fit.",
+          "aliases": []
+        },
+        {
+          "id": "slim_fitting_jeans",
+          "label": "Slim-fitting jeans",
+          "description": "Jeans explicitly described as slim fitting.",
+          "aliases": [
+            "slim fitting jeans",
+            "skinny jeans"
+          ]
+        },
+        {
+          "id": "swimwear",
+          "label": "Swimwear",
+          "description": "Swimwear submitted as clothing in an image.",
+          "aliases": [
+            "swimsuit",
+            "bikini"
+          ]
+        },
+        {
+          "id": "underwear",
+          "label": "Underwear",
+          "description": "Underwear or lingerie submitted as clothing in an image.",
+          "aliases": [
+            "lingerie"
+          ]
+        },
+        {
+          "id": "high_heels",
+          "label": "High heels",
+          "description": "High-heeled footwear.",
+          "aliases": [
+            "heels"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -200,7 +429,14 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "shirtless", "label": "Shirtless", "description": "No shirt or upper-body garment is worn.", "aliases": ["without a shirt"] }
+        {
+          "id": "shirtless",
+          "label": "Shirtless",
+          "description": "No shirt or upper-body garment is worn.",
+          "aliases": [
+            "without a shirt"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -212,8 +448,23 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "favorite_outfit", "label": "Favorite outfit", "description": "An applicant-selected favorite outfit used to show personal style.", "aliases": ["favourite outfit", "your favorite outfit"] },
-        { "id": "personal_style", "label": "Personal style", "description": "Clothing selected to communicate the applicant's personal style, without requiring one garment category.", "aliases": ["your personal style"] }
+        {
+          "id": "favorite_outfit",
+          "label": "Favorite outfit",
+          "description": "An applicant-selected favorite outfit used to show personal style.",
+          "aliases": [
+            "favourite outfit",
+            "your favorite outfit"
+          ]
+        },
+        {
+          "id": "personal_style",
+          "label": "Personal style",
+          "description": "Clothing selected to communicate the applicant's personal style, without requiring one garment category.",
+          "aliases": [
+            "your personal style"
+          ]
+        }
       ],
       "matchabilityDefault": "manual_confirmation"
     },
@@ -225,8 +476,24 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "plain", "label": "Plain", "description": "A plain, non-environmental background.", "aliases": ["plain background", "plain wall"] },
-        { "id": "uncluttered", "label": "Uncluttered", "description": "A background clear from clutter without implying a plain wall or studio backdrop.", "aliases": ["clear from clutter", "background clear from clutter"] }
+        {
+          "id": "plain",
+          "label": "Plain",
+          "description": "A plain, non-environmental background.",
+          "aliases": [
+            "plain background",
+            "plain wall"
+          ]
+        },
+        {
+          "id": "uncluttered",
+          "label": "Uncluttered",
+          "description": "A background clear from clutter without implying a plain wall or studio backdrop.",
+          "aliases": [
+            "clear from clutter",
+            "background clear from clutter"
+          ]
+        }
       ],
       "matchabilityDefault": "automatic"
     },
@@ -238,7 +505,15 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "clean_simple", "label": "Clean and simple", "description": "An overall clean and simple image presentation without implying a specific background.", "aliases": ["clean and simple images", "clean/simple images"] }
+        {
+          "id": "clean_simple",
+          "label": "Clean and simple",
+          "description": "An overall clean and simple image presentation without implying a specific background.",
+          "aliases": [
+            "clean and simple images",
+            "clean/simple images"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -250,10 +525,40 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "front_facing_natural_daylight", "label": "Front-facing natural daylight", "description": "Natural daylight illuminates the applicant from the front.", "aliases": ["front facing natural daylight"] },
-        { "id": "bright_natural_light", "label": "Bright natural light", "description": "Bright natural light without a stricter directional claim.", "aliases": ["bright, natural light", "bright natural light"] },
-        { "id": "natural_light", "label": "Natural light", "description": "Natural rather than artificial or heavily styled light.", "aliases": ["natural daylight"] },
-        { "id": "well_lit", "label": "Well-lit", "description": "A space with sufficient light, without inferring that the light is natural, bright, or front-facing.", "aliases": ["well lit", "well-lit space"] }
+        {
+          "id": "front_facing_natural_daylight",
+          "label": "Front-facing natural daylight",
+          "description": "Natural daylight illuminates the applicant from the front.",
+          "aliases": [
+            "front facing natural daylight"
+          ]
+        },
+        {
+          "id": "bright_natural_light",
+          "label": "Bright natural light",
+          "description": "Bright natural light without a stricter directional claim.",
+          "aliases": [
+            "bright, natural light",
+            "bright natural light"
+          ]
+        },
+        {
+          "id": "natural_light",
+          "label": "Natural light",
+          "description": "Natural rather than artificial or heavily styled light.",
+          "aliases": [
+            "natural daylight"
+          ]
+        },
+        {
+          "id": "well_lit",
+          "label": "Well-lit",
+          "description": "A space with sufficient light, without inferring that the light is natural, bright, or front-facing.",
+          "aliases": [
+            "well lit",
+            "well-lit space"
+          ]
+        }
       ],
       "matchabilityDefault": "hybrid"
     },
@@ -265,7 +570,15 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "color", "label": "Color", "description": "A color image rather than monochrome.", "aliases": ["colour", "in colour"] }
+        {
+          "id": "color",
+          "label": "Color",
+          "description": "A color image rather than monochrome.",
+          "aliases": [
+            "colour",
+            "in colour"
+          ]
+        }
       ],
       "matchabilityDefault": "automatic"
     },
@@ -277,7 +590,15 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "phone", "label": "Phone", "description": "A mobile phone camera.", "aliases": ["camera phone", "mobile phone"] }
+        {
+          "id": "phone",
+          "label": "Phone",
+          "description": "A mobile phone camera.",
+          "aliases": [
+            "camera phone",
+            "mobile phone"
+          ]
+        }
       ],
       "matchabilityDefault": "manual_confirmation"
     },
@@ -439,25 +760,83 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "women", "label": "Women", "description": "The women or source-labelled female application track.", "aliases": ["female", "female identified"] },
-        { "id": "men", "label": "Men", "description": "The men or source-labelled male application track.", "aliases": ["male"] },
-        { "id": "curve", "label": "Curve", "description": "A source-labelled curve application track.", "aliases": [] },
-        { "id": "non_binary", "label": "Non-binary", "description": "A source-labelled non-binary application track.", "aliases": ["non binary"] }
+        {
+          "id": "women",
+          "label": "Women",
+          "description": "The women or source-labelled female application track.",
+          "aliases": [
+            "female",
+            "female identified"
+          ]
+        },
+        {
+          "id": "men",
+          "label": "Men",
+          "description": "The men or source-labelled male application track.",
+          "aliases": [
+            "male"
+          ]
+        },
+        {
+          "id": "curve",
+          "label": "Curve",
+          "description": "A source-labelled curve application track.",
+          "aliases": []
+        },
+        {
+          "id": "non_binary",
+          "label": "Non-binary",
+          "description": "A source-labelled non-binary application track.",
+          "aliases": [
+            "non binary"
+          ]
+        }
       ],
       "matchabilityDefault": "automatic"
     },
     {
       "id": "applicant.gender",
-      "label": "Source gender category",
+      "label": "Gender",
       "description": "The gender category or audience named by the source; this preserves source language and is not an inferred statement about the applicant's identity.",
       "category": "applicant",
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "male", "label": "Male", "description": "The source-labelled male category or audience.", "aliases": ["man", "men"] },
-        { "id": "female", "label": "Female", "description": "The source-labelled female category or audience.", "aliases": ["woman", "women"] },
-        { "id": "non_binary", "label": "Non-binary", "description": "The source-labelled non-binary category or audience.", "aliases": ["non binary"] },
-        { "id": "female_identified", "label": "Female identified", "description": "The source-labelled female-identified audience, preserved without inferring identity.", "aliases": ["female identified", "female-identified"] }
+        {
+          "id": "male",
+          "label": "Male",
+          "description": "The source-labelled male category or audience.",
+          "aliases": [
+            "man",
+            "men"
+          ]
+        },
+        {
+          "id": "female",
+          "label": "Female",
+          "description": "The source-labelled female category or audience.",
+          "aliases": [
+            "woman",
+            "women"
+          ]
+        },
+        {
+          "id": "non_binary",
+          "label": "Non-binary",
+          "description": "The source-labelled non-binary category or audience.",
+          "aliases": [
+            "non binary"
+          ]
+        },
+        {
+          "id": "female_identified",
+          "label": "Female identified",
+          "description": "The source-labelled female-identified audience, preserved without inferring identity.",
+          "aliases": [
+            "female identified",
+            "female-identified"
+          ]
+        }
       ],
       "matchabilityDefault": "manual_confirmation"
     },
@@ -829,10 +1208,36 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "mr", "label": "Mr", "description": "The source-labelled Mr title.", "aliases": ["Mr."] },
-        { "id": "mrs", "label": "Mrs", "description": "The source-labelled Mrs title.", "aliases": ["Mrs."] },
-        { "id": "miss", "label": "Miss", "description": "The source-labelled Miss title.", "aliases": [] },
-        { "id": "ms", "label": "Ms", "description": "The source-labelled Ms title.", "aliases": ["Ms."] }
+        {
+          "id": "mr",
+          "label": "Mr",
+          "description": "The source-labelled Mr title.",
+          "aliases": [
+            "Mr."
+          ]
+        },
+        {
+          "id": "mrs",
+          "label": "Mrs",
+          "description": "The source-labelled Mrs title.",
+          "aliases": [
+            "Mrs."
+          ]
+        },
+        {
+          "id": "miss",
+          "label": "Miss",
+          "description": "The source-labelled Miss title.",
+          "aliases": []
+        },
+        {
+          "id": "ms",
+          "label": "Ms",
+          "description": "The source-labelled Ms title.",
+          "aliases": [
+            "Ms."
+          ]
+        }
       ],
       "matchabilityDefault": "automatic"
     },
@@ -844,8 +1249,20 @@
       "valueType": "string",
       "unit": null,
       "allowedValues": [
-        { "id": "parent", "label": "Parent", "description": "The source-labelled parent relationship.", "aliases": [] },
-        { "id": "guardian", "label": "Guardian", "description": "The source-labelled guardian relationship.", "aliases": ["legal guardian"] }
+        {
+          "id": "parent",
+          "label": "Parent",
+          "description": "The source-labelled parent relationship.",
+          "aliases": []
+        },
+        {
+          "id": "guardian",
+          "label": "Guardian",
+          "description": "The source-labelled guardian relationship.",
+          "aliases": [
+            "legal guardian"
+          ]
+        }
       ],
       "matchabilityDefault": "automatic"
     },
@@ -961,33 +1378,145 @@
     }
   ],
   "unknownFacts": [
-    { "id": "scope.receiving_office", "label": "Receiving office", "description": "The office or legal entity that receives the scoped submission." },
-    { "id": "scope.destination_markets", "label": "Destination markets", "description": "The selectable offices, cities, or markets to which the scoped route can send an application." },
-    { "id": "shots.count.minimum", "label": "Minimum shot count", "description": "The minimum number of images accepted or requested by the scoped route." },
-    { "id": "shots.count.maximum", "label": "Maximum shot count", "description": "The maximum number of images accepted by the scoped route." },
-    { "id": "shots.types", "label": "Shot types", "description": "The frames, views, or purposes requested for the image set." },
-    { "id": "shots.image_reuse", "label": "Image reuse", "description": "Whether one image may satisfy more than one named shot target." },
-    { "id": "presentation.clothing", "label": "Clothing guidance", "description": "Required, permitted, preferred, or prohibited clothing for the image set." },
-    { "id": "presentation.hair", "label": "Hair guidance", "description": "Required or preferred hair presentation for the image set." },
-    { "id": "presentation.makeup", "label": "Makeup guidance", "description": "Required or prohibited makeup presentation for the image set." },
-    { "id": "presentation.accessories", "label": "Accessory guidance", "description": "Required, permitted, or prohibited accessories for the image set." },
-    { "id": "presentation.expression", "label": "Expression guidance", "description": "Required or prohibited facial expression for the image set." },
-    { "id": "presentation.background", "label": "Background guidance", "description": "Required or preferred background for the image set." },
-    { "id": "presentation.lighting", "label": "Lighting guidance", "description": "Required or preferred lighting for the image set." },
-    { "id": "presentation.color_mode", "label": "Color-mode guidance", "description": "Whether submitted images must be in color or another mode." },
-    { "id": "presentation.filters", "label": "Filter guidance", "description": "Whether visual filters are permitted on submitted images." },
-    { "id": "presentation.effects", "label": "Effects guidance", "description": "Whether visual effects are permitted on submitted images." },
-    { "id": "presentation.retouching", "label": "Retouching guidance", "description": "Whether retouching is permitted on submitted images." },
-    { "id": "presentation.image_style", "label": "Image-style guidance", "description": "The overall presentation style requested for submitted images." },
-    { "id": "presentation.image_quality", "label": "Image-quality guidance", "description": "Published qualitative or technical image-quality expectations." },
-    { "id": "files.per_file_size", "label": "Per-file size limit", "description": "The maximum size of each submitted file." },
-    { "id": "files.total_size", "label": "Total package size", "description": "The maximum combined size of all submitted files." },
-    { "id": "files.mime_types", "label": "Accepted MIME types", "description": "The file MIME types accepted by the scoped route." },
-    { "id": "files.dimensions", "label": "Image dimensions", "description": "Published pixel-dimension constraints for submitted images." },
-    { "id": "eligibility.age", "label": "Age eligibility", "description": "A published minimum, maximum, or range for applicant age." },
-    { "id": "eligibility.height", "label": "Height eligibility", "description": "A published minimum, maximum, or range for applicant height." },
-    { "id": "application.guardian_fields", "label": "Guardian fields", "description": "Guardian information fields required or shown by the application route." },
-    { "id": "application.unresolved_fields", "label": "Unresolved application fields", "description": "Visible application controls whose labels, meanings, or requiredness cannot be resolved." },
-    { "id": "application.gated_fields", "label": "Gated application fields", "description": "Application controls or requirements downstream of an age, market, division, authentication, or similar source-access gate that could not be observed." }
+    {
+      "id": "scope.receiving_office",
+      "label": "Receiving office",
+      "description": "The office or legal entity that receives the scoped submission."
+    },
+    {
+      "id": "scope.destination_markets",
+      "label": "Destination markets",
+      "description": "The selectable offices, cities, or markets to which the scoped route can send an application."
+    },
+    {
+      "id": "shots.count.minimum",
+      "label": "Minimum shot count",
+      "description": "The minimum number of images accepted or requested by the scoped route."
+    },
+    {
+      "id": "shots.count.maximum",
+      "label": "Maximum shot count",
+      "description": "The maximum number of images accepted by the scoped route."
+    },
+    {
+      "id": "shots.types",
+      "label": "Shot types",
+      "description": "The frames, views, or purposes requested for the image set."
+    },
+    {
+      "id": "shots.image_reuse",
+      "label": "Image reuse",
+      "description": "Whether one image may satisfy more than one named shot target."
+    },
+    {
+      "id": "presentation.clothing",
+      "label": "Clothing guidance",
+      "description": "Required, permitted, preferred, or prohibited clothing for the image set."
+    },
+    {
+      "id": "presentation.hair",
+      "label": "Hair guidance",
+      "description": "Required or preferred hair presentation for the image set."
+    },
+    {
+      "id": "presentation.makeup",
+      "label": "Makeup guidance",
+      "description": "Required or prohibited makeup presentation for the image set."
+    },
+    {
+      "id": "presentation.accessories",
+      "label": "Accessory guidance",
+      "description": "Required, permitted, or prohibited accessories for the image set."
+    },
+    {
+      "id": "presentation.expression",
+      "label": "Expression guidance",
+      "description": "Required or prohibited facial expression for the image set."
+    },
+    {
+      "id": "presentation.background",
+      "label": "Background guidance",
+      "description": "Required or preferred background for the image set."
+    },
+    {
+      "id": "presentation.lighting",
+      "label": "Lighting guidance",
+      "description": "Required or preferred lighting for the image set."
+    },
+    {
+      "id": "presentation.color_mode",
+      "label": "Color-mode guidance",
+      "description": "Whether submitted images must be in color or another mode."
+    },
+    {
+      "id": "presentation.filters",
+      "label": "Filter guidance",
+      "description": "Whether visual filters are permitted on submitted images."
+    },
+    {
+      "id": "presentation.effects",
+      "label": "Effects guidance",
+      "description": "Whether visual effects are permitted on submitted images."
+    },
+    {
+      "id": "presentation.retouching",
+      "label": "Retouching guidance",
+      "description": "Whether retouching is permitted on submitted images."
+    },
+    {
+      "id": "presentation.image_style",
+      "label": "Image-style guidance",
+      "description": "The overall presentation style requested for submitted images."
+    },
+    {
+      "id": "presentation.image_quality",
+      "label": "Image-quality guidance",
+      "description": "Published qualitative or technical image-quality expectations."
+    },
+    {
+      "id": "files.per_file_size",
+      "label": "Per-file size limit",
+      "description": "The maximum size of each submitted file."
+    },
+    {
+      "id": "files.total_size",
+      "label": "Total package size",
+      "description": "The maximum combined size of all submitted files."
+    },
+    {
+      "id": "files.mime_types",
+      "label": "Accepted MIME types",
+      "description": "The file MIME types accepted by the scoped route."
+    },
+    {
+      "id": "files.dimensions",
+      "label": "Image dimensions",
+      "description": "Published pixel-dimension constraints for submitted images."
+    },
+    {
+      "id": "eligibility.age",
+      "label": "Age eligibility",
+      "description": "A published minimum, maximum, or range for applicant age."
+    },
+    {
+      "id": "eligibility.height",
+      "label": "Height eligibility",
+      "description": "A published minimum, maximum, or range for applicant height."
+    },
+    {
+      "id": "application.guardian_fields",
+      "label": "Guardian fields",
+      "description": "Guardian information fields required or shown by the application route."
+    },
+    {
+      "id": "application.unresolved_fields",
+      "label": "Unresolved application fields",
+      "description": "Visible application controls whose labels, meanings, or requiredness cannot be resolved."
+    },
+    {
+      "id": "application.gated_fields",
+      "label": "Gated application fields",
+      "description": "Application controls or requirements downstream of an age, market, division, authentication, or similar source-access gate that could not be observed."
+    }
   ]
 }

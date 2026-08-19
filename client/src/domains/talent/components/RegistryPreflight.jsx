@@ -83,6 +83,20 @@ function firstTarget(items) {
   return items.find((item) => item?.target?.href)?.target || null;
 }
 
+/**
+ * The files block as one sentence, never a raw list of rows. `view.files`
+ * already carries the agency's own figures settled by `publishedWording`
+ * (ruling R-E) — this only decides how they read together. Absent a stated
+ * figure the sentence says so plainly rather than dropping the section.
+ */
+function filesSentence(files) {
+  if (!files) return null;
+  const subjects = joinPhrases(files.subjects);
+  return files.published.length
+    ? `Their form publishes limits on ${subjects} (${joinPhrases(files.published)}) — we convert and resize on export.`
+    : `Their form asks about ${subjects}, with no stated limit — we convert and resize on export.`;
+}
+
 /** A titled block inside the details disclosure. */
 function DetailBlock({ title, children }) {
   return (
@@ -296,6 +310,9 @@ export default function RegistryPreflight({
                     className={styles.rowMark}
                   />
                   <span className={styles.rowLabel}>{shot.label}</span>
+                  {shot.marginalia ? (
+                    <span className={styles.rowMarginalia}>“{shot.marginalia}”</span>
+                  ) : null}
                   <span className={styles.rowGuidance}>
                     {SLOT_STATE_WORD[SLOT_STATE.NEEDED]}
                   </span>
@@ -364,10 +381,7 @@ export default function RegistryPreflight({
 
                   {view.files ? (
                     <DetailBlock title="Files">
-                      <p className={styles.noteLine}>
-                        Their form publishes limits on {joinPhrases(view.files.subjects)} —
-                        your package is converted and resized to fit.
-                      </p>
+                      <p className={styles.noteLine}>{filesSentence(view.files)}</p>
                     </DetailBlock>
                   ) : null}
 

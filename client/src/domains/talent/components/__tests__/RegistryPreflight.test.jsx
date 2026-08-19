@@ -238,6 +238,26 @@ describe('RegistryPreflight', () => {
     expect(
       screen.getByText('Elite Models doesn’t publish file limits.'),
     ).toBeInTheDocument();
+    // Files reads as one sentence carrying the agency's own figure, not a
+    // generic "limits on file size" with the number left out.
+    expect(
+      screen.getByText(
+        'Their form publishes limits on file size (Max. 5mb each) — we convert and resize on export.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  test('quotes the agency’s own wording beside a shot only when it says something ours does not (ruling R-E)', async () => {
+    renderPreflight({ queryFn: () => Promise.resolve(result) });
+
+    await screen.findByText('Profile shot');
+    // IMG's button says "upload profile" — genuinely different from the
+    // canonical name, so it is kept as marginalia.
+    expect(screen.getByText('“Upload profile”')).toBeInTheDocument();
+    // The hair-state shot's own wording is the same fact as its canonical
+    // name once punctuation is stripped — nothing to quote beside it.
+    expect(screen.getByText('Close-up, hair pulled back')).toBeInTheDocument();
+    expect(screen.queryByText(/Close up \(hair pulled back\)/)).not.toBeInTheDocument();
   });
 
   test('formats the source date rather than printing the raw calendar value', async () => {

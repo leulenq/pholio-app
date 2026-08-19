@@ -123,6 +123,50 @@ describe('buildMarketDirectory', () => {
   });
 });
 
+describe('buildMarketDirectory — glance', () => {
+  test('a researched route with no authored brief gets a glance derived from its own DTO', () => {
+    const [entry] = buildMarketDirectory({
+      agencies: [],
+      routes: [route('some-agency', 'Some Agency')],
+    });
+
+    expect(entry.glance).toEqual({
+      applyMethod: 'Online form',
+      prepSummary: null,
+      gates: [],
+      hasHeadsUp: false,
+      checkedOn: null,
+    });
+  });
+
+  test('a route matching an authored brief gets the authored glance', () => {
+    const [entry] = buildMarketDirectory({
+      agencies: [],
+      routes: [route('elite-models-na:online-general', 'Elite Model Management')],
+    });
+
+    expect(entry.glance.applyMethod).toBe('Online form or email');
+    expect(entry.glance.gates).toEqual(['Women only']);
+    expect(entry.glance.hasHeadsUp).toBe(true);
+  });
+
+  test('an agency Pholio delivers to also carries the glance for its requirements', () => {
+    const entries = buildMarketDirectory({
+      agencies: [agency('a-1', 'Nomad')],
+      routes: [
+        route('nomad-nyc', 'Nomad Management LLC', {
+          acceptsPholioSubmissions: true,
+          pholioAgencyId: 'a-1',
+          channelType: 'official_email',
+        }),
+      ],
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].glance.applyMethod).toBe('Email');
+  });
+});
+
 describe('sortMarketDirectory', () => {
   test('work in progress first, then Pholio houses, then the researched market', () => {
     const entries = buildMarketDirectory({

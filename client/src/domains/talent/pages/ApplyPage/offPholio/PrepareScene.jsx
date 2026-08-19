@@ -178,11 +178,13 @@ export default function PrepareScene({
   onPrepare,
   onModify,
   onOpenMedia,
+  onReviewBrief,
+  displayName,
 }) {
   const reduce = useReducedMotion();
   const preparing = exportState?.status === 'pending';
   const prepared = exportState?.status === 'done';
-  const agencyName = route?.agencyName || 'this agency';
+  const agencyName = displayName || route?.agencyName || 'this agency';
 
   return (
     <div className="apply-prepare">
@@ -216,6 +218,17 @@ export default function PrepareScene({
             applications on their own channel, so you send it yourself — and their page stays
             the source of truth for what they want today.
           </p>
+
+          {onReviewBrief ? (
+            <PholioButton
+              type="button"
+              variant="meta"
+              className="apply-dispatch__brief-link"
+              onClick={onReviewBrief}
+            >
+              Re-read what {agencyName} asks for
+            </PholioButton>
+          ) : null}
 
           {gaps.length > 0 ? (
             <ul className="apply-dispatch__gaps">
