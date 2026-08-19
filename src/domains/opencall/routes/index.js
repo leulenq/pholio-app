@@ -23,4 +23,7 @@ router.use("/", require("./apply"));
 // Claim / disown magic links (§5.2, §5.5).
 router.use("/", require("./claim"));
 
+// Shortlist-stage fulfilment — the applicant's half of "request materials" (§5.4).
+router.use("/", require("./materials"));
+
 module.exports = router;

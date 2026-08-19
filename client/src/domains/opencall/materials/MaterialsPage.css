@@ -1,0 +1,324 @@
+/**
+ * Shortlist-stage fulfilment — the agency design system on a public page.
+ *
+ * Cream canvas, white paper, Playfair on the event name and nowhere else, Inter
+ * for every control. Gold appears on exactly one thing: the send. No badges, no
+ * chips, no glass, no gradients, no side stripes — the bans apply here the same
+ * as inside the dashboard.
+ *
+ * Tokens are referenced with literal fallbacks throughout because this page
+ * renders before (and entirely without) the dashboard token sheet.
+ */
+
+.mt-page {
+  min-height: 100vh;
+  background: var(--ag-surface-0, #faf8f5);
+  color: var(--ag-text-0, #1a1815);
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- shared states ------------------------------------------------------ */
+
+.mt-page__center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 24px;
+  text-align: center;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.mt-page__center--quiet h1 {
+  margin: 0;
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--ag-text-0, #1a1815);
+}
+
+.mt-page__center--quiet p {
+  margin: 0;
+  max-width: 46ch;
+  line-height: 1.6;
+}
+
+.mt-page__spinner {
+  animation: mt-spin 0.8s linear infinite;
+  color: var(--ag-gold, #c9a55a);
+}
+
+@keyframes mt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- masthead ----------------------------------------------------------- */
+
+.mt-masthead {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(26, 24, 21, 0.08);
+}
+
+.mt-masthead__inner {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 24px 32px;
+}
+
+.mt-masthead__event {
+  margin: 0;
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: clamp(1.75rem, 5vw, 2.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.mt-masthead__meta,
+.mt-masthead__ask,
+.mt-masthead__note {
+  margin: 8px 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ag-text-2, #6b6560);
+  max-width: 60ch;
+}
+
+.mt-masthead__ask {
+  margin-top: 16px;
+  color: var(--ag-text-1, #2d2a26);
+  font-weight: 500;
+}
+
+/* --- form --------------------------------------------------------------- */
+
+.mt-main {
+  flex: 1;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.mt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.mt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mt-field__label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ag-text-0, #1a1815);
+}
+
+.mt-field__hint {
+  margin: 0 0 4px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.mt-field input[type='text'],
+.mt-field input[type='url'],
+.mt-field input[type='date'] {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(26, 24, 21, 0.16);
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  color: var(--ag-text-0, #1a1815);
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mt-field input::placeholder {
+  color: #a39e99;
+}
+
+.mt-field input:focus {
+  outline: none;
+  border-color: var(--ag-gold, #c9a55a);
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.15);
+}
+
+.mt-field input:disabled {
+  opacity: 0.6;
+}
+
+.mt-field__range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mt-field__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ag-text-3, #9c958e);
+}
+
+.mt-field__error {
+  margin: 2px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #9a3412;
+}
+
+/* --- confirmation + disclosure ------------------------------------------ */
+
+.mt-confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ag-text-1, #2d2a26);
+  cursor: pointer;
+}
+
+.mt-confirm input {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ag-gold, #c9a55a);
+  flex-shrink: 0;
+}
+
+.mt-disclosure {
+  margin: 0;
+  padding-top: 20px;
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  color: var(--ag-text-2, #6b6560);
+}
+
+.mt-actions {
+  display: flex;
+}
+
+.mt-send {
+  height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--ag-gold, #c9a55a);
+  color: #141210;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mt-send:hover:not(:disabled) {
+  background: var(--ag-gold-hover, #b8956a);
+}
+
+.mt-send:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.28);
+}
+
+.mt-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- done --------------------------------------------------------------- */
+
+.mt-sent__title {
+  margin: 0;
+  font-family: var(--font-display, 'Playfair Display', Georgia, serif);
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.mt-sent__body {
+  margin: 12px 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--ag-text-2, #6b6560);
+  max-width: 56ch;
+}
+
+/* The claim offer. Quiet on purpose — it arrives after the work is done and
+   it is an offer, not a step. */
+.mt-claim {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(26, 24, 21, 0.08);
+}
+
+.mt-claim__body {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--ag-text-2, #6b6560);
+  max-width: 56ch;
+}
+
+.mt-claim__link {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ag-text-0, #1a1815);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ag-gold, #c9a55a);
+  padding-bottom: 2px;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mt-claim__link:hover {
+  color: var(--ag-gold-hover, #b8956a);
+}
+
+@media (max-width: 640px) {
+  .mt-masthead__inner {
+    padding: 28px 16px 24px;
+  }
+
+  .mt-main {
+    padding: 24px 16px 48px;
+  }
+
+  .mt-field__range {
+    grid-template-columns: 1fr;
+  }
+
+  .mt-send {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-page__spinner {
+    animation: none;
+  }
+
+  .mt-field input,
+  .mt-send,
+  .mt-claim__link {
+    transition: none;
+  }
+}

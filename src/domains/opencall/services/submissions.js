@@ -1150,6 +1150,11 @@ module.exports = {
   jsonForDb,
   loadCallContext,
   loadDraftMedia,
+  // Exported for the shortlist-stage fulfilment route (`routes/materials.js`):
+  // materials answers must be normalized by exactly the vocabulary rules the
+  // apply stage uses, or a walk video URL accepted at fulfilment would be one
+  // the apply stage would have refused.
+  normalizeAnswer,
   packageFingerprint,
   parseJsonColumn,
   readDraftToken,

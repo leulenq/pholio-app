@@ -656,11 +656,16 @@ app.use("/api/public/open-call", authLimiter);
 // load, per-screen autosaves, email, two uploads, consent fetch, submit).
 // authLimiter's 10–15/min ceiling would 429 real applicants mid-form — the
 // exact failure rateLimitMax.onboarding was raised to fix — so the form
-// prefix takes the onboarding ceiling while the credential-shaped claim and
-// disown endpoints keep the strict one. Per-draft media is separately capped
+// prefix takes the onboarding ceiling while the credential-shaped claim,
+// disown and materials endpoints keep the strict one — those are magic links,
+// one click each, not a form someone types into for four minutes. Per-draft media is separately capped
 // (5 rows, 8MB each, gated behind the email step).
 app.use(
-  ["/api/public/opencall/claim", "/api/public/opencall/disown"],
+  [
+    "/api/public/opencall/claim",
+    "/api/public/opencall/disown",
+    "/api/public/opencall/materials",
+  ],
   authLimiter,
 );
 app.use("/api/public/opencall/call", onboardingLimiter);
