@@ -214,6 +214,25 @@ const ROUTE_PERMISSION_RULES = [
     permission: "applications.update_status",
   },
 
+  /* Request materials (open-call design §6). REUSES existing permission keys
+     rather than introducing a new one: asking a shortlisted applicant for the
+     call's shortlist-stage materials is the same class of act as moving their
+     status — the roles that may triage an application are exactly the roles that
+     may ask it for more — and reading the outstanding ask is part of reading the
+     application. A new permission key would have to be granted to every existing
+     role to preserve today's behaviour, which is a migration in exchange for no
+     new distinction. */
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/applications\/[^/]+\/request-materials$/,
+    permission: "applications.update_status",
+  },
+  {
+    method: "GET",
+    pattern: /^\/api\/agency\/applications\/[^/]+\/material-request$/,
+    permission: "applications.view_detail",
+  },
+
   // Notes
   {
     method: "GET",

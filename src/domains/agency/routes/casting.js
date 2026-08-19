@@ -10,6 +10,10 @@ const {
   mapApplicationStatusToCastingStage,
   formatCastingMeasurements,
 } = require("./casting-stage-helpers");
+const {
+  hasApplicantIdentitySupport,
+  resolveApplicantIdentities,
+} = require("../services/applicant-identity");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
@@ -98,9 +102,17 @@ router.get(
         return res.status(404).json({ error: "Board not found" });
       }
 
+      const identitySupported = await hasApplicantIdentitySupport(knex);
+
+      /* INCLUDES UNCLAIMED APPLICANTS (design §4, §6 requirement 1). Nothing
+         stops an organizer assigning an open-call application to a board —
+         `POST /api/agency/applications/:id/assign-board` never looks at
+         `profile_id` — so an INNER JOIN here meant a candidate could be filed
+         onto a board and then be invisible on it. LEFT JOIN keeps the row and
+         the resolver fills the identity-backed fields from the frozen snapshot. */
       const applicationRows = await applyMinorSubmissionFilter(knex("board_applications as ba")
         .join("applications as a", "a.id", "ba.application_id")
-        .join("profiles as p", "p.id", "a.profile_id")
+        .leftJoin("profiles as p", "p.id", "a.profile_id")
         .where({
           "ba.board_id": boardId,
           "a.agency_id": agencyId,
@@ -110,6 +122,7 @@ router.get(
           "a.id as application_id",
           "a.status as application_status",
           "a.created_at as application_created_at",
+          ...(identitySupported ? ["a.applicant_identity_id"] : []),
           "p.id as profile_id",
           "p.first_name",
           "p.last_name",
@@ -128,7 +141,23 @@ router.get(
           allowMinor: req.allowMinorSubmissions,
         });
 
-      const profileIds = applicationRows.map((row) => row.profile_id);
+      const identityRows = applicationRows.filter(
+        (row) => !row.profile_id && row.applicant_identity_id,
+      );
+      const resolvedIdentities = identityRows.length
+        ? await resolveApplicantIdentities(
+            knex,
+            identityRows.map((row) => ({
+              id: row.application_id,
+              profile_id: null,
+              applicant_identity_id: row.applicant_identity_id,
+            })),
+          )
+        : new Map();
+
+      const profileIds = applicationRows
+        .map((row) => row.profile_id)
+        .filter(Boolean);
       const images = profileIds.length
         ? await knex("images")
             .whereIn("profile_id", profileIds)
@@ -157,27 +186,36 @@ router.get(
       }
 
       const candidates = applicationRows.map((row) => {
-        const profileImages = imagesByProfile.get(row.profile_id) || [];
+        // Identity-backed rows carry no live profile, so their name, city,
+        // height and images come off the frozen snapshot instead.
+        const identity = resolvedIdentities.get(row.application_id) || null;
+        const profileImages = row.profile_id
+          ? imagesByProfile.get(row.profile_id) || []
+          : identity?.images || [];
         const primaryImage =
           profileImages.find((image) => image.is_primary) ||
           profileImages[0] ||
           null;
-        const location = row.city || null;
+        const heightCm = row.height_cm ?? identity?.heightCm ?? null;
+        const location = row.city || identity?.city || null;
 
         return {
           id: row.application_id,
           applicationId: row.application_id,
-          profileId: row.profile_id,
+          profileId: row.profile_id || null,
           name:
             [row.first_name, row.last_name].filter(Boolean).join(" ").trim() ||
+            identity?.displayName ||
             "Unknown Talent",
           archetype: row.archetype || "editorial",
           avatar: primaryImage?.path || null,
           stage: mapApplicationStatusToCastingStage(row.application_status),
           backendStatus: row.application_status || "submitted",
-          height: row.height_cm ? `${row.height_cm} cm` : null,
+          height: heightCm ? `${heightCm} cm` : null,
           location,
-          measurements: formatCastingMeasurements(row),
+          measurements: row.profile_id
+            ? formatCastingMeasurements(row)
+            : identity?.measurements?.text || null,
           portfolio: profileImages.map((image) => ({
             id: image.id,
             url: image.path,

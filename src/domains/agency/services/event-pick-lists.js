@@ -42,6 +42,49 @@ const {
   buildPickListTokenMaterial,
   mintPickListToken,
 } = require("../../events/services/pick-list-tokens");
+const {
+  hasApplicantIdentitySupport,
+  resolveApplicantIdentities,
+} = require("./applicant-identity");
+
+/**
+ * INCLUDES UNCLAIMED APPLICANTS (design §4, §6 requirement 1).
+ *
+ * Every organizer read in this module used to INNER JOIN `profiles`, which for
+ * an event call under `identity_policy: account_optional` would drop most of
+ * the pool: the FWBK applicant of identity-ladder state 2 has an `applications`
+ * row and no profile. The pool, the per-designer read-back and the lineup are
+ * the three surfaces the whole event product is, so all three LEFT JOIN and
+ * source names/city/height through the resolver.
+ *
+ * Only the identity-backed rows go through the resolver — a profile-backed name
+ * already arrived on the JOIN and re-resolving it would add queries for a value
+ * the row already holds.
+ */
+async function resolveIdentityRows(db, rows) {
+  if (!(await hasApplicantIdentitySupport(db))) return new Map();
+  const identityRows = rows.filter(
+    (row) => !row.profile_id && row.applicant_identity_id,
+  );
+  if (identityRows.length === 0) return new Map();
+  return resolveApplicantIdentities(
+    db,
+    identityRows.map((row) => ({
+      id: row.application_id,
+      profile_id: null,
+      applicant_identity_id: row.applicant_identity_id,
+    })),
+  );
+}
+
+/** `p.first_name || ' ' || p.last_name`, then the snapshot, then "Unknown". */
+function applicantName(row, resolved) {
+  return (
+    [row.first_name, row.last_name].filter(Boolean).join(" ") ||
+    resolved.get(row.application_id)?.displayName ||
+    "Unknown"
+  );
+}
 
 /**
  * The status an offer writes. Sourced from the shared vocabulary rather than
@@ -316,18 +359,35 @@ async function listPool(
   }
   const term = String(search || "").trim();
 
+  const identitySupported = await hasApplicantIdentitySupport(db);
+
   const scoped = () => {
     const query = db("applications as a")
-      .join("profiles as p", "p.id", "a.profile_id")
+      .leftJoin("profiles as p", "p.id", "a.profile_id")
       .where("a.agency_id", agencyId)
       .where("a.open_call_link_id", linkId)
       .whereNot("a.status", "withdrawn");
+    /* Search reaches the identity's email as a fourth term rather than a full
+       DTO pass: the snapshot's name lives inside a JSON payload that no
+       database in this stack can index, and the identity's email is the one
+       indexed, searchable fact an unclaimed applicant has. A pool search that
+       matched only profile columns would quietly hide the unclaimed half. */
+    if (identitySupported) {
+      query.leftJoin(
+        "applicant_identities as ai",
+        "ai.id",
+        "a.applicant_identity_id",
+      );
+    }
     if (stageKey) query.whereIn("a.status", EVENT_POOL_STAGES[stageKey]);
     if (term) {
       query.andWhere((qb) => {
         qb.whereILike("p.first_name", `%${term}%`)
           .orWhereILike("p.last_name", `%${term}%`)
           .orWhereILike("p.city", `%${term}%`);
+        if (identitySupported) {
+          qb.orWhereILike("ai.email_normalized", `%${term}%`);
+        }
       });
     }
     return query;
@@ -345,6 +405,7 @@ async function listPool(
         "p.last_name",
         "p.city",
         "p.height_cm",
+        ...(identitySupported ? ["a.applicant_identity_id"] : []),
       )
       .orderBy([
         { column: "a.created_at", order: "desc" },
@@ -354,27 +415,32 @@ async function listPool(
       .offset(page.offset),
   ]);
 
-  const marksByApplication = await loadMarkRollups(
-    db,
-    rows.map((row) => row.application_id),
-  );
+  const [marksByApplication, resolved] = await Promise.all([
+    loadMarkRollups(
+      db,
+      rows.map((row) => row.application_id),
+    ),
+    resolveIdentityRows(db, rows),
+  ]);
 
   return {
     total: Number(totalRow?.count || 0),
     limit: page.limit,
     offset: page.offset,
     stage: stageKey || null,
-    applicants: rows.map((row) => ({
-      applicationId: row.application_id,
-      profileId: row.profile_id,
-      name:
-        [row.first_name, row.last_name].filter(Boolean).join(" ") || "Unknown",
-      city: row.city || null,
-      heightCm: row.height_cm ?? null,
-      status: row.status,
-      appliedAt: row.applied_at,
-      marks: marksByApplication.get(row.application_id) || emptyMarkRollup(),
-    })),
+    applicants: rows.map((row) => {
+      const identity = resolved.get(row.application_id) || null;
+      return {
+        applicationId: row.application_id,
+        profileId: row.profile_id || null,
+        name: applicantName(row, resolved),
+        city: row.city || identity?.city || null,
+        heightCm: row.height_cm ?? identity?.heightCm ?? null,
+        status: row.status,
+        appliedAt: row.applied_at,
+        marks: marksByApplication.get(row.application_id) || emptyMarkRollup(),
+      };
+    }),
   };
 }
 
@@ -879,9 +945,13 @@ async function removePickListItems(db, { agencyId, pickListId, applicationIds })
 async function listSelections(db, { agencyId, pickListId }) {
   const row = await loadOwnedPickList(db, { agencyId, pickListId });
 
+  const identitySupported = await hasApplicantIdentitySupport(db);
+
+  // LEFT JOIN, see resolveIdentityRows above: an unclaimed applicant a designer
+  // marked must read back to the organizer, not vanish from the read-back.
   const rows = await db("event_pick_list_items as i")
     .join("applications as a", "a.id", "i.application_id")
-    .join("profiles as p", "p.id", "a.profile_id")
+    .leftJoin("profiles as p", "p.id", "a.profile_id")
     .leftJoin("event_pick_selections as s", (join) => {
       join
         .on("s.application_id", "=", "i.application_id")
@@ -892,6 +962,8 @@ async function listSelections(db, { agencyId, pickListId }) {
       "i.application_id",
       "i.sort",
       "a.status as application_status",
+      "a.profile_id",
+      ...(identitySupported ? ["a.applicant_identity_id"] : []),
       "p.first_name",
       "p.last_name",
       "p.city",
@@ -905,14 +977,16 @@ async function listSelections(db, { agencyId, pickListId }) {
       { column: "i.application_id", order: "asc" },
     ]);
 
-  const rollups = await loadPickListRollups(db, [pickListId]);
+  const [rollups, resolved] = await Promise.all([
+    loadPickListRollups(db, [pickListId]),
+    resolveIdentityRows(db, rows),
+  ]);
   return {
     pickList: serializePickList(row, rollups.get(pickListId) || {}),
     selections: rows.map((item) => ({
       applicationId: item.application_id,
-      name:
-        [item.first_name, item.last_name].filter(Boolean).join(" ") || "Unknown",
-      city: item.city || null,
+      name: applicantName(item, resolved),
+      city: item.city || resolved.get(item.application_id)?.city || null,
       applicationStatus: item.application_status,
       mark: item.mark || null,
       note: item.note || null,
@@ -941,10 +1015,14 @@ async function buildLineup(db, { agencyId, linkId }) {
     .where({ agency_id: agencyId, open_call_link_id: linkId })
     .orderBy("created_at", "asc");
 
+  const identitySupported = await hasApplicantIdentitySupport(db);
+
+  // LEFT JOIN, see resolveIdentityRows above. The lineup is where slots get
+  // offered; an unclaimed applicant three designers picked must appear on it.
   const rows = await db("event_pick_selections as s")
     .join("event_pick_lists as l", "l.id", "s.pick_list_id")
     .join("applications as a", "a.id", "s.application_id")
-    .join("profiles as p", "p.id", "a.profile_id")
+    .leftJoin("profiles as p", "p.id", "a.profile_id")
     .where("l.agency_id", agencyId)
     .where("l.open_call_link_id", linkId)
     .whereIn("s.mark", [PICK_MARKS.PICK, PICK_MARKS.MAYBE])
@@ -958,6 +1036,8 @@ async function buildLineup(db, { agencyId, linkId }) {
       "l.designer_name",
       "l.label as pick_list_label",
       "a.status as application_status",
+      "a.profile_id",
+      ...(identitySupported ? ["a.applicant_identity_id"] : []),
       "p.first_name",
       "p.last_name",
       "p.city",
@@ -966,6 +1046,8 @@ async function buildLineup(db, { agencyId, linkId }) {
       { column: "p.last_name", order: "asc" },
       { column: "p.first_name", order: "asc" },
     ]);
+
+  const resolved = await resolveIdentityRows(db, rows);
 
   const byApplication = new Map();
   const byList = new Map(
@@ -986,9 +1068,8 @@ async function buildLineup(db, { agencyId, linkId }) {
   for (const row of rows) {
     const applicant = byApplication.get(row.application_id) || {
       applicationId: row.application_id,
-      name:
-        [row.first_name, row.last_name].filter(Boolean).join(" ") || "Unknown",
-      city: row.city || null,
+      name: applicantName(row, resolved),
+      city: row.city || resolved.get(row.application_id)?.city || null,
       status: row.application_status,
       pickedBy: [],
       maybeBy: [],

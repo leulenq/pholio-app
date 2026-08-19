@@ -54,6 +54,16 @@ const {
   resolveWindowDays,
 } = require("../../../shared/lib/application-auto-close");
 
+const {
+  hasApplicantIdentitySupport,
+  hasColumnCached,
+  identityTruthFields,
+  loadMaterialRequests,
+  materialsStatusFor,
+  resolveApplicantIdentities,
+  resolveApplicantIdentity,
+} = require("../services/applicant-identity");
+
 const { recordAuditEvent } = require("../services/audit");
 const { canAssignRole, normalizePresetRole } = require("../lib/permissions");
 const { isAgencyBlockedForTalent } = require("../../../shared/lib/blocked-agencies");
@@ -106,6 +116,111 @@ const addTeamMemberSchema = z.object({
 const agencyMemberUpdateSchema = z.object({
   membership_role: z.enum(["ADMIN", "AGENT", "SCOUT", "VIEWER"]),
 });
+
+/**
+ * A resolver DTO, in the column shape `buildSubmissionProfileSnapshot` reads.
+ *
+ * An unclaimed open-call applicant has no `profiles` row, but the organizer's
+ * inbox must not learn a second row shape because of that (design §4: two
+ * sources, ONE shape). Rather than hand-assemble a parallel DTO, the resolved
+ * identity is expressed as the handful of profile columns the canonical snapshot
+ * builder consumes and passed through that builder unchanged.
+ */
+function identityProfileRow(dto) {
+  return {
+    id: null,
+    slug: null,
+    first_name: dto?.firstName || null,
+    last_name: dto?.lastName || null,
+    city: dto?.city || null,
+    gender: dto?.gender || null,
+    height_cm: dto?.heightCm ?? null,
+    bust_cm: dto?.measurements?.bustCm ?? null,
+    waist_cm: dto?.measurements?.waistCm ?? null,
+    hips_cm: dto?.measurements?.hipsCm ?? null,
+    // Never asserted by an anonymous applicant — the event spec asks for the
+    // 18+ attestation, not a date of birth (design §3.1, ruling Q1). A null DOB
+    // makes `is_minor` false and `age` null, which is the honest answer.
+    date_of_birth: null,
+  };
+}
+
+/**
+ * The comparable part of a phone number: digits only, and at most the last ten
+ * of them.
+ *
+ * "+1 (718) 555-0134", "718-555-0134" and "7185550134" are the same number typed
+ * three ways, and the same applicant will type it differently on two editions —
+ * once with the country code, once without. Comparing full digit strings misses
+ * exactly that case, which is the case §5.6 is about. Ten digits is the national
+ * significant number in the markets this ships to; it is deliberately a loose
+ * comparison because the output is a *signal* an organizer reads, never an
+ * action the system takes.
+ */
+function phoneDigits(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+/**
+ * The possible-duplicate SIGNAL (design §5.6).
+ *
+ * "The same human with two email addresses is two identities … automatic
+ * merging is not the answer — merging two humans because a phone number matched
+ * leaks one person's data to another." So this returns an application id and
+ * nothing else: plain data for the organizer to read, never an action.
+ *
+ * Detail-view only, never the list: it is one bounded query per opened
+ * application, and paying it 2,000 times to render a pool would be absurd.
+ * Scoped to the same open call when the application has one (an organizer
+ * running Brooklyn and Queens expects the same model in both pools — that is
+ * the cross-edition path the strategy calls the prize, not a duplicate).
+ */
+async function findPossibleDuplicateApplication(
+  db,
+  { agencyId, application, identityDto },
+) {
+  const digits = phoneDigits(identityDto?.phone);
+  // Shorter than a national number: a typo or the response sheet's famous
+  // "I don't have a phone num". Never a match.
+  if (digits.length < 7) return null;
+  if (!(await hasApplicantIdentitySupport(db))) return null;
+
+  const profilePhoneColumn = await hasColumnCached(db, "profiles", "phone");
+
+  let query = db("applications as a")
+    .leftJoin("applicant_identities as ai", "ai.id", "a.applicant_identity_id")
+    .leftJoin("profiles as p", "p.id", "a.profile_id")
+    .where("a.agency_id", agencyId)
+    .whereNot("a.id", application.id)
+    .whereNot("a.status", "withdrawn")
+    .where((scope) => {
+      scope.whereNotNull("ai.phone_normalized");
+      if (profilePhoneColumn) scope.orWhereNotNull("p.phone");
+    })
+    .select(
+      "a.id",
+      "ai.phone_normalized",
+      ...(profilePhoneColumn ? ["p.phone"] : []),
+    )
+    .orderBy("a.created_at", "asc")
+    .limit(500);
+
+  if (
+    application.open_call_link_id &&
+    (await hasApplicationEventColumns(db))
+  ) {
+    query = query.where("a.open_call_link_id", application.open_call_link_id);
+  }
+
+  const rows = await query.catch(() => []);
+  const match = rows.find(
+    (row) =>
+      phoneDigits(row.phone_normalized) === digits ||
+      phoneDigits(row.phone) === digits,
+  );
+  return match?.id || null;
+}
 
 function shouldIncludeExportNotes(query) {
   const value = query.include_notes ?? query.includeNotes;
@@ -869,15 +984,30 @@ router.get(
         date_to = "",
       } = req.query;
 
+      const [identitySupported, emailVerifiedColumn] = await Promise.all([
+        hasApplicantIdentitySupport(knex),
+        hasColumnCached(knex, "users", "email_verified"),
+      ]);
+
       // SECURITY (audit P0-3): this endpoint returns ONLY real applicants to the
-      // session agency. An INNER JOIN scoped to `applications.agency_id = <session
-      // agency>` replaces the previous LEFT JOIN + `whereNull("applications.id")`
-      // path, which leaked every discoverable profile (non-applicants included) to
-      // any agency. Withdrawn submissions are excluded.
+      // session agency. The scope is `applications.agency_id = <session agency>`
+      // — never the old LEFT JOIN + `whereNull("applications.id")` path, which
+      // leaked every discoverable profile (non-applicants included) to any
+      // agency. Withdrawn submissions are excluded.
+      //
+      // INCLUDES UNCLAIMED APPLICANTS (design §4, §6 requirement 1). The query
+      // used to be driven FROM `profiles` and inner-join `applications`, which
+      // made "has a profile" a precondition of appearing in the inbox at all.
+      // It is now driven from `applications` — the primary object (design §2.6)
+      // — with `profiles` LEFT JOINed, and the `bio_curated` gate applies only
+      // to the account-backed half that has a profile to gate on. For a pool of
+      // account-backed applications the rows, the shape and the order are
+      // unchanged.
+      //
       // NOTE: knex silently drops .select() arguments that follow an array
       // argument, so the audience columns must be spread into one flat list
       // or the application_* aliases never reach the SQL.
-      let query = knex("profiles")
+      let query = knex("applications")
         .select([
           ...selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
             table: "profiles",
@@ -885,18 +1015,40 @@ router.get(
           "applications.status as application_status",
           "applications.id as application_id",
           "applications.created_at as application_created_at",
+          "applications.profile_id as application_profile_id",
+          // Plain-data truth fields (design §6 requirement 2) — read from the
+          // two authoritative columns rather than through the resolver, which
+          // would cost a second pass over rows this query already has.
+          ...(emailVerifiedColumn
+            ? ["users.email_verified as account_email_verified"]
+            : []),
+          ...(identitySupported
+            ? [
+                "applications.applicant_identity_id",
+                "applicant_identities.claimed_at as identity_claimed_at",
+                "applicant_identities.disowned_at as identity_disowned_at",
+              ]
+            : []),
         ])
-        .innerJoin("applications", (join) => {
-          join
-            .on("applications.profile_id", "=", "profiles.id")
-            .andOn(
-              "applications.agency_id",
-              "=",
-              knex.raw("?", [req.session.userId]),
+        .leftJoin("profiles", "applications.profile_id", "profiles.id")
+        .leftJoin("users", "profiles.user_id", "users.id")
+        .modify((builder) => {
+          if (identitySupported) {
+            builder.leftJoin(
+              "applicant_identities",
+              "applicant_identities.id",
+              "applications.applicant_identity_id",
             );
+          }
         })
-        .whereNotNull("profiles.bio_curated")
-        .whereNot("applications.status", "withdrawn");
+        .where("applications.agency_id", req.session.userId)
+        .whereNot("applications.status", "withdrawn")
+        .where((scope) => {
+          scope.whereNotNull("profiles.bio_curated");
+          if (identitySupported) {
+            scope.orWhereNull("applications.profile_id");
+          }
+        });
       query = applyMinorSubmissionFilter(query, {
         alias: "applications",
         allowMinor: req.allowMinorSubmissions,
@@ -916,20 +1068,44 @@ router.get(
         query = query.where("applications.open_call_link_id", openCallLinkId);
       }
 
-      // Apply filters (same logic as main route)
+      /* Apply filters (same logic as main route).
+         A filter that names a `profiles` column cannot be evaluated in SQL for
+         an identity-backed row — its name, city and height live inside a JSON
+         payload no database in this stack can index. Rather than let those rows
+         be dropped by a predicate that can only be false for them (the exact
+         silent-omission failure this lane exists to stop), each profile-scoped
+         predicate keeps `applications.profile_id IS NULL` rows in the candidate
+         set, and the identical filter is re-applied in JS against the resolved
+         DTO further down (`identityFilters`). The result set is bounded by
+         SUBMISSIONS_HARD_CAP, so the second pass is over a page, not a table. */
+      const keepIdentityRows = (scope, build) => {
+        scope.where((inner) => {
+          build(inner);
+          if (identitySupported) inner.orWhereNull("applications.profile_id");
+        });
+      };
       if (city) {
-        query = query.whereILike("profiles.city", `%${city}%`);
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.whereILike("profiles.city", `%${city}%`),
+          ),
+        );
       }
       if (letter) {
-        query = query.whereILike("profiles.last_name", `${letter}%`);
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.whereILike("profiles.last_name", `${letter}%`),
+          ),
+        );
       }
       if (search) {
-        query = query.andWhere((qb) => {
-          qb.whereILike("profiles.first_name", `%${search}%`).orWhereILike(
-            "profiles.last_name",
-            `%${search}%`,
-          );
-        });
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner
+              .whereILike("profiles.first_name", `%${search}%`)
+              .orWhereILike("profiles.last_name", `%${search}%`),
+          ),
+        );
       }
       if (status && status !== "all") {
         if (status === "pending") {
@@ -945,15 +1121,27 @@ router.get(
       const minHeightNumber = parseInt(min_height, 10);
       const maxHeightNumber = parseInt(max_height, 10);
       if (!Number.isNaN(minHeightNumber)) {
-        query = query.where("profiles.height_cm", ">=", minHeightNumber);
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.where("profiles.height_cm", ">=", minHeightNumber),
+          ),
+        );
       }
       if (!Number.isNaN(maxHeightNumber)) {
-        query = query.where("profiles.height_cm", "<=", maxHeightNumber);
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.where("profiles.height_cm", "<=", maxHeightNumber),
+          ),
+        );
       }
 
       // Gender filter
       if (gender) {
-        query = query.where("profiles.gender", gender);
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.where("profiles.gender", gender),
+          ),
+        );
       }
 
       // Date range filter
@@ -1000,18 +1188,95 @@ router.get(
       // Safety ceiling only — see SUBMISSIONS_HARD_CAP comment above.
       query = query.limit(SUBMISSIONS_HARD_CAP);
 
-      const profiles = await query;
-      const capped = profiles.length >= SUBMISSIONS_HARD_CAP;
+      const allRows = await query;
+      const capped = allRows.length >= SUBMISSIONS_HARD_CAP;
       if (capped) {
         console.warn(
           `[API/Agency/Applications] Submissions hard cap (${SUBMISSIONS_HARD_CAP}) reached for agency ${req.session.userId}; results truncated.`,
         );
       }
 
+      /* Resolve the identity-backed half from the frozen snapshot, then finish
+         the profile-scoped filters and the sort in JS (see `keepIdentityRows`).
+         `profiles` below is the surviving set, so everything downstream — image
+         fallback, tags, DTO shaping — is unchanged for account-backed rows. */
+      const identityRows = allRows.filter(
+        (row) => !row.application_profile_id && row.applicant_identity_id,
+      );
+      const resolvedIdentities = identityRows.length
+        ? await resolveApplicantIdentities(
+            knex,
+            identityRows.map((row) => ({
+              id: row.application_id,
+              profile_id: null,
+              applicant_identity_id: row.applicant_identity_id,
+            })),
+          )
+        : new Map();
+
+      const matchesIdentityFilters = (dto) => {
+        if (!dto) return false;
+        const like = (value, term) =>
+          String(value || "")
+            .toLowerCase()
+            .includes(String(term).toLowerCase());
+        if (city && !like(dto.city, city)) return false;
+        if (
+          letter &&
+          !String(dto.lastName || "")
+            .toLowerCase()
+            .startsWith(String(letter).toLowerCase())
+        ) {
+          return false;
+        }
+        if (
+          search &&
+          !like(dto.firstName, search) &&
+          !like(dto.lastName, search)
+        ) {
+          return false;
+        }
+        if (!Number.isNaN(minHeightNumber)) {
+          if (dto.heightCm == null || dto.heightCm < minHeightNumber) return false;
+        }
+        if (!Number.isNaN(maxHeightNumber)) {
+          if (dto.heightCm == null || dto.heightCm > maxHeightNumber) return false;
+        }
+        if (gender && dto.gender !== gender) return false;
+        return true;
+      };
+
+      const profiles = allRows.filter((row) => {
+        if (row.application_profile_id) return true;
+        if (!row.applicant_identity_id) return true;
+        return matchesIdentityFilters(
+          resolvedIdentities.get(row.application_id),
+        );
+      });
+
+      /* SQL ordered by `profiles.last_name` / `profiles.city`, which are NULL
+         for an identity-backed row, so the ordering is completed here against
+         the resolved values. An all-account-backed pool sorts identically. */
+      const sortKeyFor = (row) => {
+        const dto = resolvedIdentities.get(row.application_id);
+        const last = (row.last_name || dto?.lastName || "").toLowerCase();
+        const first = (row.first_name || dto?.firstName || "").toLowerCase();
+        const town = (row.city || dto?.city || "").toLowerCase();
+        return sort === "city" ? [town, last] : [last, first];
+      };
+      profiles.sort((a, b) => {
+        const left = sortKeyFor(a);
+        const right = sortKeyFor(b);
+        for (let i = 0; i < left.length; i += 1) {
+          if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
+        }
+        return 0;
+      });
+
       const submissionPackages = await loadApplicationSubmissionPackages(
         knex,
         profiles
-          .filter((profile) => profile.application_id)
+          .filter((profile) => profile.application_id && profile.id)
           .map((profile) => ({
             id: profile.application_id,
             profile_id: profile.id,
@@ -1024,8 +1289,9 @@ router.get(
       const profileIds = profiles
         .filter(
           (profile) =>
-            !profile.application_id ||
-            !submissionPackages.has(profile.application_id),
+            profile.id &&
+            (!profile.application_id ||
+              !submissionPackages.has(profile.application_id)),
         )
         .map((profile) => profile.id);
       let allImages = [];
@@ -1073,22 +1339,42 @@ router.get(
         tagsByApplication[tag.application_id].push(tag);
       });
 
+      // One query for the page (design §6: requested / fulfilled / overdue as
+      // plain text on the row).
+      const materialsByApplication = await loadMaterialRequests(
+        knex,
+        applicationIds,
+      );
+
       const safeProfiles = profiles.map((profile) => {
         const submissionPackage = submissionPackages.get(
           profile.application_id,
         );
+        const identityDto = resolvedIdentities.get(profile.application_id);
         // A frozen submission snapshot (already minor-safe) wins; otherwise shape
         // the live row through the agency-submission DTO. Never spread the raw
         // profile row and never surface the owner's account email (audit P0-3).
+        //
+        // An identity-backed row has no live profile at all, so the resolver DTO
+        // is fed through the SAME snapshot builder — one shape for the SPA,
+        // whichever source it came from.
         const submitted = submissionPackage?.profile
           ? {
               ...submissionPackage.profile,
               images: submissionPackage.images || [],
             }
-          : buildAgencySubmissionDTO(profile, {
-              images: imagesByProfile[profile.id] || [],
-              social: socialByProfile.get(profile.id) || [],
-            });
+          : profile.id
+            ? buildAgencySubmissionDTO(profile, {
+                images: imagesByProfile[profile.id] || [],
+                social: socialByProfile.get(profile.id) || [],
+              })
+            : {
+                ...buildAgencySubmissionDTO(
+                  identityProfileRow(identityDto),
+                  {},
+                ),
+                images: identityDto?.images || [],
+              };
         return {
           ...submitted,
           application_status: profile.application_status,
@@ -1096,6 +1382,22 @@ router.get(
           application_created_at: profile.application_created_at,
           submission_package: submissionPackage || null,
           tags: tagsByApplication[profile.application_id] || [],
+          ...identityTruthFields(
+            profile.application_profile_id
+              ? {
+                  isEmailVerified: Boolean(profile.account_email_verified),
+                  isClaimed: true,
+                  isDisowned: Boolean(profile.identity_disowned_at),
+                  identitySource: "profile",
+                }
+              : {
+                  isEmailVerified: Boolean(profile.identity_claimed_at),
+                  isClaimed: Boolean(profile.identity_claimed_at),
+                  isDisowned: Boolean(profile.identity_disowned_at),
+                  identitySource: "submission",
+                },
+            materialsByApplication.get(profile.application_id),
+          ),
         };
       });
 
@@ -2644,8 +2946,21 @@ router.get(
       }
       const eventScoped = Boolean(eventLink);
 
-      // Build query similar to main dashboard route
-      let query = knex("profiles")
+      const [identitySupported, emailVerifiedColumn, profilePhoneColumn] =
+        await Promise.all([
+          hasApplicantIdentitySupport(knex),
+          hasColumnCached(knex, "users", "email_verified"),
+          hasColumnCached(knex, "profiles", "phone"),
+        ]);
+
+      /* Build query similar to main dashboard route.
+         INCLUDES UNCLAIMED APPLICANTS (design §6 requirement 3): "an export that
+         silently omits unclaimed rows is worse than the Google Form and would
+         end the partnership on contact." Driven from `applications` with
+         `profiles` LEFT JOINed; the `bio_curated` gate applies only to rows that
+         have a profile to gate on. Identity-backed name/email/phone/city/height
+         come from the resolver below. */
+      let query = knex("applications")
         .select(
           "profiles.first_name",
           "profiles.last_name",
@@ -2657,21 +2972,31 @@ router.get(
           // Age is DERIVED from DOB (audit P0-7) — never the stored column.
           "profiles.date_of_birth",
           "profiles.bio_curated",
+          ...(profilePhoneColumn ? ["profiles.phone"] : []),
           "applications.id as application_id",
+          "applications.profile_id as application_profile_id",
           "applications.status as application_status",
           "applications.created_at as application_created_at",
           "applications.accepted_at",
           "applications.declined_at",
           "users.email as owner_email",
+          ...(emailVerifiedColumn
+            ? ["users.email_verified as owner_email_verified"]
+            : []),
+          ...(identitySupported
+            ? ["applications.applicant_identity_id"]
+            : []),
         )
+        .leftJoin("profiles", "applications.profile_id", "profiles.id")
         .leftJoin("users", "profiles.user_id", "users.id")
-        .innerJoin("applications", (join) => {
-          join
-            .on("applications.profile_id", "=", "profiles.id")
-            .andOn("applications.agency_id", "=", knex.raw("?", [agencyId]));
-        })
-        .whereNotNull("profiles.bio_curated")
-        .whereNot("applications.status", "withdrawn");
+        .where("applications.agency_id", agencyId)
+        .whereNot("applications.status", "withdrawn")
+        .where((scope) => {
+          scope.whereNotNull("profiles.bio_curated");
+          if (identitySupported) {
+            scope.orWhereNull("applications.profile_id");
+          }
+        });
 
       if (eventScoped) {
         // `status_changed_at` is when the applicant answered; there is no
@@ -2707,23 +3032,93 @@ router.get(
         }
       }
 
+      /* Profile-scoped filters keep identity-backed rows in the candidate set
+         (their name and city live in a JSON payload no index can reach) and are
+         re-applied against the resolved DTO below. Same rule, same reason as
+         `GET /api/agency/applications`. */
+      const keepIdentityRows = (scope, build) => {
+        scope.where((inner) => {
+          build(inner);
+          if (identitySupported) inner.orWhereNull("applications.profile_id");
+        });
+      };
+
       if (city) {
-        query = query.whereILike("profiles.city", `%${city}%`);
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.whereILike("profiles.city", `%${city}%`),
+          ),
+        );
       }
 
       if (search) {
-        query = query.andWhere((qb) => {
-          qb.whereILike("profiles.first_name", `%${search}%`).orWhereILike(
-            "profiles.last_name",
-            `%${search}%`,
-          );
-        });
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner
+              .whereILike("profiles.first_name", `%${search}%`)
+              .orWhereILike("profiles.last_name", `%${search}%`),
+          ),
+        );
       }
 
-      const applications = await query.orderBy([
+      const allApplications = await query.orderBy([
         "profiles.last_name",
         "profiles.first_name",
       ]);
+
+      const exportIdentities = await resolveApplicantIdentities(
+        knex,
+        allApplications
+          .filter(
+            (app) => !app.application_profile_id && app.applicant_identity_id,
+          )
+          .map((app) => ({
+            id: app.application_id,
+            profile_id: null,
+            applicant_identity_id: app.applicant_identity_id,
+          })),
+      );
+
+      const includesTerm = (value, term) =>
+        String(value || "")
+          .toLowerCase()
+          .includes(String(term).toLowerCase());
+
+      const applications = allApplications
+        .filter((app) => {
+          if (app.application_profile_id || !app.applicant_identity_id) {
+            return true;
+          }
+          const dto = exportIdentities.get(app.application_id);
+          if (!dto) return false;
+          if (city && !includesTerm(dto.city, city)) return false;
+          if (
+            search &&
+            !includesTerm(dto.firstName, search) &&
+            !includesTerm(dto.lastName, search) &&
+            !includesTerm(dto.displayName, search)
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .sort((a, b) => {
+          // SQL sorted on profile columns, NULL for identity rows; finish it
+          // against the resolved names so the sheet reads alphabetically.
+          const nameOf = (row) => {
+            const dto = exportIdentities.get(row.application_id);
+            return [
+              (row.last_name || dto?.lastName || "").toLowerCase(),
+              (row.first_name || dto?.firstName || "").toLowerCase(),
+            ];
+          };
+          const left = nameOf(a);
+          const right = nameOf(b);
+          for (let i = 0; i < left.length; i += 1) {
+            if (left[i] !== right[i]) return left[i] < right[i] ? -1 : 1;
+          }
+          return 0;
+        });
 
       // Query related rows and aggregate in JavaScript rather than using a
       // database-specific aggregate (PostgreSQL string_agg vs SQLite group_concat).
@@ -2775,29 +3170,57 @@ router.get(
         ? formatExportCompensation(eventLink)
         : "";
 
+      // The two columns design §6 requirement 2 makes mandatory before FWBK is
+      // asked to switch. One query for the whole sheet.
+      const materialsByApplication = await loadMaterialRequests(
+        knex,
+        applicationIds,
+      );
+
       // Format data for export
       const exportData = applications.map((app) => {
+        const identity = app.application_profile_id
+          ? null
+          : exportIdentities.get(app.application_id) || null;
+
         // Format measurements from individual fields
         const measurements = [];
         if (app.bust) measurements.push(`Bust: ${app.bust}`);
         if (app.waist) measurements.push(`Waist: ${app.waist}`);
         if (app.hips) measurements.push(`Hips: ${app.hips}`);
         const measurementsStr =
-          measurements.length > 0 ? measurements.join(", ") : "";
+          measurements.length > 0
+            ? measurements.join(", ")
+            : identity?.measurements?.text || "";
 
         // Applicant email to the agency they applied to is legitimate — but a
         // minor's contact is nulled (guardian-mediated), matching the DTO layer.
+        // An identity-backed row has no DOB and so is never a known minor; the
+        // 18+ attestation is what the event spec collects (design §3.1).
         const minor = isMinorProfile(app);
         const derivedAge = computeAge(app.date_of_birth);
+        const materials = materialsByApplication.get(app.application_id);
+        const emailVerified = identity
+          ? identity.isEmailVerified
+          : Boolean(app.owner_email_verified);
 
         const exportedApplication = {
-          name: `${app.first_name} ${app.last_name}`,
-          email: minor ? "" : app.owner_email || "",
-          city: app.city || "",
-          height_cm: app.height_cm || "",
+          name:
+            [app.first_name, app.last_name].filter(Boolean).join(" ") ||
+            identity?.displayName ||
+            "",
+          email: minor ? "" : app.owner_email || identity?.email || "",
+          phone: minor ? "" : identity?.phone || app.phone || "",
+          city: app.city || identity?.city || "",
+          height_cm: app.height_cm || identity?.heightCm || "",
           measurements: measurementsStr,
           age: derivedAge != null ? derivedAge : "",
           bio: app.bio_curated || "",
+          email_verified: emailVerified ? "Yes" : "No",
+          materials:
+            materialsStatusFor(materials) === "none"
+              ? ""
+              : materialsStatusFor(materials),
           tags: tagsByApplication.get(app.application_id) || "",
           application_status: app.application_status || "pending",
           applied_date: app.application_created_at
@@ -2870,6 +3293,10 @@ router.get(
         const csvColumns = [
           { header: "Name", key: "name" },
           { header: "Email", key: "email" },
+          // Phone is what the FWBK response sheet collects and what an
+          // organizer chases a shortlisted applicant on; the column exists so
+          // an identity-backed row is not a name and an email alone.
+          { header: "Phone", key: "phone" },
           { header: "City", key: "city" },
           { header: "Height (cm)", key: "height_cm" },
           { header: "Measurements", key: "measurements" },
@@ -2881,6 +3308,14 @@ router.get(
           { header: "Applied Date", key: "applied_date" },
           { header: "Accepted Date", key: "accepted_date" },
           { header: "Declined Date", key: "declined_date" },
+          /* Design §6 requirement 2: "Verified-email state must be visible …
+             It is real signal about who will actually turn up to a fitting, and
+             it is FWBK's replacement for 'I emailed them and it bounced.'" And
+             the materials request reads as exactly what it is, in one word.
+             Both sit BEFORE the event block so `headers.slice(-6)` stays the
+             run-of-show columns. */
+          { header: "Email verified", key: "email_verified" },
+          { header: "Materials", key: "materials" },
           // Design §f, in the order a run-of-show is read.
           ...(eventScoped
             ? [
@@ -3227,43 +3662,64 @@ router.get(
         });
       }
 
-      // Get full profile with all details
-      const profile = await knex("profiles")
-        .where({ id: application.profile_id })
-        .select(
-          selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
-            table: "profiles",
-          }),
-        )
-        .first();
+      /* INCLUDES UNCLAIMED APPLICANTS (design §4, §6 requirement 1). An
+         identity-backed application has no `profiles` row at all, so the
+         previous "Profile not found" 404 was the detail view's version of the
+         silent drop: the organizer could see the row in their inbox and could
+         not open it. The resolver supplies the identity block for that branch. */
+      const identityDto = await resolveApplicantIdentity(knex, application);
+      const materialRequest =
+        (await loadMaterialRequests(knex, [application.id])).get(
+          application.id,
+        ) || null;
 
-      if (!profile) {
+      const profile = application.profile_id
+        ? await knex("profiles")
+            .where({ id: application.profile_id })
+            .select(
+              selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
+                table: "profiles",
+              }),
+            )
+            .first()
+        : null;
+
+      if (application.profile_id && !profile) {
         return res.status(404).json({ error: "Profile not found" });
       }
 
       // Get user info
-      const user = await knex("users")
-        .where({ id: profile.user_id })
-        .first("email");
-      const submissionPackages = await loadApplicationSubmissionPackages(knex, [
-        {
-          id: application.id,
-          profile_id: application.profile_id,
-          slug: profile.slug,
-        },
-      ]);
+      const user = profile?.user_id
+        ? await knex("users").where({ id: profile.user_id }).first("email")
+        : null;
+      const submissionPackages = profile
+        ? await loadApplicationSubmissionPackages(knex, [
+            {
+              id: application.id,
+              profile_id: application.profile_id,
+              slug: profile.slug,
+            },
+          ])
+        : new Map();
       const submittedPackage = submissionPackages.get(application.id) || null;
       // Only needed for the live-profile fallback below — a frozen package
       // snapshot already has its social links baked in.
-      const social = submittedPackage?.profile
-        ? []
-        : await loadSocialAccountsForProfile(profile.id);
+      const social =
+        submittedPackage?.profile || !profile
+          ? []
+          : await loadSocialAccountsForProfile(profile.id);
       const submittedProfile =
         submittedPackage?.profile ||
-        buildSubmissionProfileSnapshot(profile, { social });
+        buildSubmissionProfileSnapshot(profile || identityProfileRow(identityDto), {
+          social,
+        });
       let images;
       if (submittedPackage) {
         images = submittedPackage.images;
+      } else if (!profile) {
+        // The frozen snapshot's media — `open_call_submission_media` ids with
+        // already-public URLs (design §3.3).
+        images = identityDto.images;
       } else {
         await ensureModerationColumnChecked(knex);
         const imageQuery = knex("images").where({ profile_id: profile.id });
@@ -3282,7 +3738,26 @@ router.get(
                   phone: profile.phone || null,
                 },
           }
-        : null;
+        : !profile
+          ? {
+              // No frozen package row for this application (or one that was
+              // redacted): the identity still owes the organizer a contact.
+              id: null,
+              submittedAt: application.created_at || null,
+              images: identityDto.images,
+              contact: {
+                email: identityDto.email,
+                phone: identityDto.phone,
+              },
+              profile: null,
+            }
+          : null;
+
+      const possibleDuplicateOf = await findPossibleDuplicateApplication(knex, {
+        agencyId,
+        application,
+        identityDto,
+      });
 
       // Get notes
       const notes = await knex("application_notes")
@@ -3312,11 +3787,21 @@ router.get(
         profile: {
           ...submittedProfile,
           images,
-          user_email: submittedProfile.is_minor ? null : user?.email || null,
+          user_email: submittedProfile.is_minor
+            ? null
+            : user?.email || identityDto.email || null,
         },
         submissionPackage,
         notes,
         tags,
+        // Plain data, words not badges (design §6 requirement 2, CLAUDE.md
+        // banned pattern #4).
+        ...identityTruthFields(identityDto, materialRequest),
+        materialRequest,
+        /* §5.6's duplicate SIGNAL: "surfaced to the organizer as plain inline
+           text on the row … and never as an automatic action or a badge. The
+           organizer knows their pool; the system does not." */
+        possibleDuplicateOf,
       });
     } catch (error) {
       console.error("[Application Details API] Error:", error);
@@ -3494,16 +3979,27 @@ router.get(
       const agencyId = req.session.userId;
       const limit = parseInt(req.query.limit) || 5;
 
+      const identitySupported = await hasApplicantIdentitySupport(knex);
+
       // Get recent applications with profile data
       // Explicit allowlist select (no users join / owner email needed — the
       // response below is a hand-built shape, not a raw row).
+      //
+      // INCLUDES UNCLAIMED APPLICANTS (design §4, §6 requirement 1). This was an
+      // INNER JOIN, so "recent applicants" on the organizer's overview would
+      // show nothing at all for a call running under
+      // `identity_policy: account_optional` — the newest arrivals are exactly
+      // the ones least likely to have claimed yet.
       const recentApplications = await knex("applications")
         .where({ "applications.agency_id": agencyId })
-        .join("profiles", "applications.profile_id", "profiles.id")
+        .leftJoin("profiles", "applications.profile_id", "profiles.id")
         .select(
           "applications.id as application_id",
           "applications.status as application_status",
           "applications.created_at as application_created_at",
+          ...(identitySupported
+            ? ["applications.applicant_identity_id"]
+            : []),
           "profiles.id as profile_id",
           "profiles.first_name",
           "profiles.last_name",
@@ -3516,8 +4012,24 @@ router.get(
         .orderBy("applications.created_at", "desc")
         .limit(limit);
 
+      const recentIdentityRows = recentApplications.filter(
+        (a) => !a.profile_id && a.applicant_identity_id,
+      );
+      const recentResolved = recentIdentityRows.length
+        ? await resolveApplicantIdentities(
+            knex,
+            recentIdentityRows.map((a) => ({
+              id: a.application_id,
+              profile_id: null,
+              applicant_identity_id: a.applicant_identity_id,
+            })),
+          )
+        : new Map();
+
       // Primary headshot per profile (separate query avoids row duplication)
-      const recentPids = recentApplications.map((a) => a.profile_id);
+      const recentPids = recentApplications
+        .map((a) => a.profile_id)
+        .filter(Boolean);
       const primaryImages = recentPids.length
         ? await knex("images")
             .whereIn("profile_id", recentPids)
@@ -3544,20 +4056,28 @@ router.get(
         const isNew =
           new Date(app.application_created_at) >
           new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const identity = recentResolved.get(app.application_id) || null;
         const fullName =
-          `${app.first_name || ""} ${app.last_name || ""}`.trim() || "Unknown";
+          `${app.first_name || ""} ${app.last_name || ""}`.trim() ||
+          identity?.displayName ||
+          "Unknown";
 
         return {
           applicationId: app.application_id,
-          profileId: app.profile_id,
+          profileId: app.profile_id || null,
           name: fullName,
           archetype: app.archetype || null,
-          location: app.city || "Location not specified",
-          height: app.height_cm || null,
+          location: app.city || identity?.city || "Location not specified",
+          height: app.height_cm || identity?.heightCm || null,
           age: ageFrom(app.date_of_birth),
-          profileImage: imageByProfile[app.profile_id] || null,
+          profileImage:
+            imageByProfile[app.profile_id] ||
+            identity?.images?.[0]?.public_url ||
+            null,
           isNew: isNew,
-          slug: app.slug,
+          // No profile means no portfolio page to link to; the organizer opens
+          // the application detail instead.
+          slug: app.slug || null,
           createdAt: app.application_created_at,
         };
       });
