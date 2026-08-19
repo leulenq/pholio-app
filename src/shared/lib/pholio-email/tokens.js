@@ -1,39 +1,53 @@
 /**
- * Pholio Email — full-frame cinematic tokens.
+ * Pholio Email — design tokens.
  *
- * Derived from the onboarding dark stage and the agency applications language:
- * black stage, warm-white serif identity, Inter for operational clarity, and
- * one restrained gold light. Values are deliberately email-safe hex colors.
+ * Derived from the shipped talent dashboard, not invented for email. The
+ * dashboard's own token files are the source: cream canvas, warm ink, one gold,
+ * and a three-weight hairline system. Two rules are load-bearing and were got
+ * wrong before:
+ *
+ *   1. Gold #C9A55A is 2.33:1 on cream. It is a RULE and BORDER value only.
+ *      Gold that has to be read is #806634 (4.7:1).
+ *   2. The dashboard's faint text (rgba(26,26,26,.38) => ~#A5A29E) is 2.38:1
+ *      once flattened onto cream — the same failure. Secondary text is #6F6D6A
+ *      (4.8:1); rank is carried by size, tracking and weight instead of tint.
  */
 
 const COLOR = {
-  stage: "#050403",
-  stageRaised: "#0B0A08",
-  stageSoft: "#14110D",
-  panel: "#17130E",
-  panelWarm: "#211A12",
-  ink: "#F5F1EA",
-  body: "#D8D0C4",
-  muted: "#A79C8C",
-  ghost: "#6F665A",
-  gold: "#C9A55A",
-  goldDeep: "#B8956A",
-  goldInk: "#0A0806",
-  hairline: "#3A3023",
-  hairlineSoft: "#2A241C",
-  cream: "#FAF8F5",
-  creamInk: "#1A1815",
-  danger: "#E2A399",
+  paper: "#FAF7F2",       // canvas — never #FFFFFF (dodges forced-inversion)
+  white: "#FFFFFF",       // reserved: "these are someone else's words"
+  tint: "#F6EFDF",        // gold 8% — reserved: a quoted/foreign region
+  well: "#F8F8F7",        // avatar/initial backdrop
+
+  ink: "#14120F",         // 17.6:1 — headlines, values, verdicts
+  body: "#6F6D6A",        // 4.83:1 — secondary text, labels, footers
+  goldText: "#806634",    // 5.08:1 — gold that must be legible as type
+  attention: "#9A5B32",   // warm brown for "stale"/failed. Not red.
+
+  gold: "#C9A55A",        // rules, borders, the sweep. NEVER type.
+  goldDeep: "#A8894E",    // initials on a well
+  bronzeRule: "#E4D6C0",  // the kept-on-file standing outline
+
+  rule: "#EAE7E2",        // group  — rows inside one object
+  ruleStrong: "#DBD7D1",  // separate — object from object
+  ruleGold: "#EEE2C9",    // elevate — belongs to the gold system
 };
 
 const FONT = {
-  serif: "'Playfair Display', Georgia, 'Times New Roman', serif",
-  sans: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-  mono: "'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace",
+  serif: "Georgia,'Times New Roman',Times,serif",
+  sans: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+  mono: "'SF Mono',Consolas,'Courier New',monospace",
 };
 
-const SPACE = { xs: 8, sm: 12, md: 18, lg: 28, xl: 40, xxl: 56 };
-const RADIUS = { frame: 4, panel: 8, button: 8 };
-const LAYOUT = { width: 720, gutter: 48 };
+/** Micro-label tracking tiers. Tracking encodes rank, per the dashboard. */
+const TRACK = {
+  kicker: ".28em",  // chapter label
+  key: ".22em",     // definition-list key
+  label: ".18em",   // working label
+  stamp: ".16em",   // status marker
+  time: ".14em",    // timestamp
+};
 
-module.exports = { COLOR, FONT, SPACE, RADIUS, LAYOUT };
+const LAYOUT = { width: 600, gutter: 52 };
+
+module.exports = { COLOR, FONT, TRACK, LAYOUT };

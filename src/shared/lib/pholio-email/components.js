@@ -1,4 +1,10 @@
-const { COLOR, FONT, SPACE, RADIUS, LAYOUT } = require("./tokens");
+/**
+ * Pholio Email — AGENCY components (the older dark composition).
+ *
+ * Used only by templates-agency.js. The talent system uses ./primitives.js and
+ * ./blocks.js instead. Do not mix the two in one email.
+ */
+const { COLOR, FONT, SPACE, RADIUS, LAYOUT } = require("./tokens-agency");
 const { getEmailAppBaseUrl, getMarketingSiteUrl } = require("./urls");
 
 function esc(value) {
