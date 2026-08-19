@@ -45,6 +45,9 @@ const {
 } = require("../services/claim-tokens");
 const { claimIdentity, disownIdentity } = require("../services/claim");
 const { splitLegalName } = require("../services/claim");
+// The domain's one JSON-column reader. `allowArrays` keeps this call site's
+// pre-consolidation tolerance — see services/json.js.
+const { parseJsonColumn } = require("../services/json");
 const {
   FUNNEL_EVENT_TYPES,
 } = require("../../../shared/constants/event-casting");
@@ -69,17 +72,6 @@ const INVALID = { success: true, data: { valid: false } };
  * straight to the shortened, prefilled remainder is the honest destination.
  */
 const CLAIMED_REDIRECT = "/onboarding";
-
-function parseJsonColumn(value) {
-  if (!value) return {};
-  if (typeof value === "object") return value;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 /**
  * Open a talent session, with exactly the fields `POST /login` sets
@@ -143,7 +135,7 @@ async function buildClaimPreview(identity) {
 
   let firstName = "";
   for (const submission of submissions) {
-    const answers = parseJsonColumn(submission.answers);
+    const answers = parseJsonColumn(submission.answers, { allowArrays: true });
     if (answers.legal_name) {
       firstName = splitLegalName(answers.legal_name).firstName;
       if (firstName) break;
@@ -295,6 +287,20 @@ router.post("/claim/:token", async (req, res) => {
           error: "IDENTITY_EMAIL_IS_AGENCY",
           message:
             "This address belongs to an agency workspace. Contact support@pholio.studio and we'll sort it out.",
+        });
+      case "IDENTITY_EMAIL_IS_MINOR":
+        // Same shape and same posture as the agency case above: this address
+        // already has a Pholio account, so there is nothing to set up here.
+        // Nothing was created — the service refuses before any write — and the
+        // organizer has the application either way. Age is never named: the
+        // sentence is true of any existing account and reveals nothing about
+        // whose it is. Guardian-consented minor intake on this path is design
+        // §9 Q1, owned by the minors/age-policy workstream.
+        return res.status(409).json({
+          success: false,
+          error: "IDENTITY_EMAIL_IS_MINOR",
+          message:
+            "This address already has a Pholio account. Sign in to manage this from your existing account, or email support@pholio.studio and we'll help.",
         });
       case "CLAIM_TOKEN_CONFLICT":
         return res.json({

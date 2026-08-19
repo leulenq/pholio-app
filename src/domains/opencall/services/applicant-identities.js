@@ -121,6 +121,91 @@ function normalizeIdRow(row) {
 }
 
 /**
+ * `%`, `_` and `\` are wildcards (or the escape) inside a LIKE pattern, and all
+ * three are legal in an email local part. Escaped with a backslash, declared to
+ * the engine with `ESCAPE '\'` at the call site — both PostgreSQL and SQLite
+ * accept that spelling.
+ */
+function escapeLikePattern(value) {
+  return String(value).replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
+/**
+ * THE ACCOUNT LOOKUP FOR AN IDENTITY ADDRESS. One function, because every way
+ * of getting this wrong ends in the same place: a duplicate account for someone
+ * who already has one.
+ *
+ * `applicant_identities.email_normalized` is plus-STRIPPED (see
+ * `normalizeIdentityEmail`) while `users.email` holds whatever the person
+ * registered with — very often plus-TAGGED. So the identity `a@x.com` and the
+ * account `a+pholio@x.com` are the same human and no equality test will ever
+ * say so. Two exact candidates were tried before this function existed, but for
+ * an already-normalized input they are the same string, which made the second
+ * candidate a no-op and the plus-tagged account invisible: it was offered a
+ * claim, and claiming would have created a second account beside the one it
+ * could not see.
+ *
+ * So the search is exact-address OR `<local>+%@<domain>`, and every LIKE hit is
+ * CONFIRMED by re-normalizing the candidate's own address — the pattern is a
+ * cheap index-friendly filter, `normalizeIdentityEmail` is the authority.
+ *
+ * DETERMINISTIC when several accounts collapse onto one identity (`a@x.com`,
+ * `a+work@x.com`): an exact match on the address wins — it is the account that
+ * literally owns the address the identity is keyed by — and otherwise the oldest
+ * account wins, because the newest is the likelier accident. Never a
+ * database-order `.first()`, which would hand the same identity a different
+ * account on different days.
+ *
+ * @param {import('knex')} db
+ * @param {string} email raw, typed or normalized.
+ * @param {{select?: string[]}} [options] extra `users` columns to project.
+ * @returns {Promise<object|null>} the users row, or null.
+ */
+async function findUserForIdentityEmail(db, email, { select = [] } = {}) {
+  const normalized = normalizeIdentityEmail(email);
+  const asTyped = normalizeEmailAsTyped(email);
+  const exact = [...new Set([normalized, asTyped].filter(Boolean))];
+  if (!exact.length) return null;
+
+  const columns = [...new Set(["id", "role", "email", "created_at", ...select])];
+
+  const rows = await db("users")
+    .where((scope) => {
+      scope.whereRaw(
+        `LOWER(email) IN (${exact.map(() => "?").join(", ")})`,
+        exact,
+      );
+      if (normalized) {
+        const at = normalized.lastIndexOf("@");
+        const local = escapeLikePattern(normalized.slice(0, at));
+        const domain = escapeLikePattern(normalized.slice(at + 1));
+        scope.orWhereRaw(`LOWER(email) LIKE ? ESCAPE '\\'`, [
+          `${local}+%@${domain}`,
+        ]);
+      }
+    })
+    .select(columns);
+
+  const confirmed = rows.filter(
+    (row) => normalizeIdentityEmail(row.email) === normalized,
+  );
+  if (!confirmed.length) return null;
+
+  const rank = (row) => (exact.includes(String(row.email || "").toLowerCase()) ? 0 : 1);
+  const millis = (row) => {
+    const parsed = Date.parse(row.created_at);
+    return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+  };
+  confirmed.sort(
+    (left, right) =>
+      rank(left) - rank(right) ||
+      millis(left) - millis(right) ||
+      String(left.id).localeCompare(String(right.id)),
+  );
+  return confirmed[0];
+}
+
+/**
  * The identity for a normalized address, or null.
  *
  * @param {import('knex')} db
@@ -235,16 +320,11 @@ async function ensureIdentityForEmail(db, { email, phone } = {}) {
  */
 async function findClaimedProfileForEmail(db, email) {
   const normalized = normalizeIdentityEmail(email);
-  const asTyped = normalizeEmailAsTyped(email);
-  const candidates = [normalized, asTyped].filter(Boolean);
-  if (!candidates.length) return null;
 
-  const user = await db("users")
-    .whereRaw(
-      `LOWER(email) IN (${candidates.map(() => "?").join(", ")})`,
-      candidates,
-    )
-    .first("id", "role", "email");
+  // Includes accounts registered with a plus tag on this same address — see
+  // `findUserForIdentityEmail`. Missing them here is what offered a claim to
+  // someone who already had an account.
+  const user = await findUserForIdentityEmail(db, email);
 
   if (user) {
     const profile = await db("profiles")
@@ -284,6 +364,7 @@ module.exports = {
   ensureIdentityForEmail,
   findClaimedProfileForEmail,
   findIdentityByEmail,
+  findUserForIdentityEmail,
   normalizeEmailAsTyped,
   normalizeIdentityEmail,
   normalizePhone,

@@ -160,15 +160,30 @@ function fieldDefsFor(keys) {
 }
 
 /**
- * The token carries an identity, not an application — so the request is resolved
- * by joining back through `applications`.
+ * Which ask is this link for?
  *
- * Ordering: unfulfilled requests win, newest due date first (a re-request moves
- * the deadline, and the deadline the applicant was last told about is the one
- * they are answering). When nothing is outstanding, the most recently fulfilled
- * request is returned so the page can say "already sent" instead of "invalid".
+ * SINCE `20260819140000`, THE TOKEN SAYS. `applicant_claim_tokens.
+ * material_request_id` names the one request the link was emailed for, and the
+ * identity join below is what confirms that request is this applicant's — a
+ * token cannot reach a request belonging to someone else, and cannot reach one
+ * whose application has been withdrawn.
+ *
+ * The identity-join heuristic that follows is now LEGACY-ONLY: it runs when the
+ * token carries no binding, which means a token minted before the migration (or
+ * before the column existed on this deployment). It was the only rule this page
+ * had, and it is wrong whenever two organizers have outstanding requests against
+ * the same applicant at once — both links resolve to the same request, so one
+ * organizer's link renders the other's asks and marks the other's request
+ * fulfilled. Keeping it only for unbound tokens honours the links already in
+ * people's inboxes without carrying the bug forward.
+ *
+ * Legacy ordering: unfulfilled requests win, newest due date first (a re-request
+ * moves the deadline, and the deadline the applicant was last told about is the
+ * one they are answering). When nothing is outstanding, the most recently
+ * fulfilled request is returned so the page can say "already sent" instead of
+ * "invalid".
  */
-async function loadRequestContext(db, identity) {
+async function loadRequestContext(db, identity, token = null) {
   if (!(await hasTable(db, REQUESTS_TABLE))) return null;
 
   const rows = await db(`${REQUESTS_TABLE} as r`)
@@ -189,18 +204,27 @@ async function loadRequestContext(db, identity) {
     .catch(() => []);
   if (!rows.length) return null;
 
-  const outstanding = rows
-    .filter((row) => !row.fulfilled_at)
-    .sort(
-      (left, right) =>
-        (millis(right.due_at) ?? -Infinity) - (millis(left.due_at) ?? -Infinity) ||
-        (millis(right.requested_at) ?? 0) - (millis(left.requested_at) ?? 0),
-    );
-  const fulfilled = rows
-    .filter((row) => row.fulfilled_at)
-    .sort((left, right) => (millis(right.fulfilled_at) ?? 0) - (millis(left.fulfilled_at) ?? 0));
-
-  const request = outstanding[0] || fulfilled[0];
+  const boundRequestId = token?.material_request_id || null;
+  let request;
+  if (boundRequestId) {
+    // The bound request must be among this identity's own rows. It is not there
+    // when it belongs to another applicant, when the application was withdrawn,
+    // or when the request was deleted — all of which are "this link has nothing
+    // to show", answered in the one INVALID shape by the callers.
+    request = rows.find((row) => row.request_id === boundRequestId) || null;
+  } else {
+    const outstanding = rows
+      .filter((row) => !row.fulfilled_at)
+      .sort(
+        (left, right) =>
+          (millis(right.due_at) ?? -Infinity) - (millis(left.due_at) ?? -Infinity) ||
+          (millis(right.requested_at) ?? 0) - (millis(left.requested_at) ?? 0),
+      );
+    const fulfilled = rows
+      .filter((row) => row.fulfilled_at)
+      .sort((left, right) => (millis(right.fulfilled_at) ?? 0) - (millis(left.fulfilled_at) ?? 0));
+    request = outstanding[0] || fulfilled[0];
+  }
   if (!request) return null;
 
   const link = request.open_call_link_id
@@ -306,7 +330,7 @@ router.get("/materials/:token", async (req, res) => {
     // what the application contained.
     if (found.identity.disowned_at) return res.json(INVALID);
 
-    const context = await loadRequestContext(knex, found.identity);
+    const context = await loadRequestContext(knex, found.identity, found.token);
     const usable = !found.token.consumed_at && !isExpired(found.token.expires_at);
 
     if (!usable) {
@@ -429,7 +453,7 @@ router.post("/materials/:token", async (req, res) => {
     if (!valid) return res.json(INVALID);
     if (valid.identity.disowned_at) return res.json(INVALID);
 
-    const context = await loadRequestContext(knex, valid.identity);
+    const context = await loadRequestContext(knex, valid.identity, valid.token);
     if (!context) return res.json(INVALID);
     if (context.fulfilled) {
       // Nothing outstanding. Not an error — the page says "already sent".

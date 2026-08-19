@@ -85,6 +85,7 @@ const {
 const {
   submissionRetentionExpiry,
 } = require("../../../shared/lib/submission-retention");
+const { isMinorProfile } = require("../../../shared/lib/talent-age");
 const {
   anonIdFromRequest,
   recordEventFunnelEvent,
@@ -100,6 +101,10 @@ const {
   CLAIM_TOKEN_PURPOSES,
   mintClaimToken,
 } = require("./claim-tokens");
+// One reader for the JSON-ish columns of this domain — see services/json.js for
+// why it is its own module and what `allowArrays` is for. Re-exported below,
+// unchanged, because `routes/materials.js` imports it from here.
+const { parseJsonColumn } = require("./json");
 const {
   MEDIA_FIELD_SHOT_TYPES,
   publicUrlForStorageKey,
@@ -144,19 +149,6 @@ function codedError(message, code, extra = {}) {
   const error = new Error(message);
   error.code = code;
   return Object.assign(error, extra);
-}
-
-function parseJsonColumn(value) {
-  if (!value) return {};
-  if (typeof value === "object") return value;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed
-      : {};
-  } catch {
-    return {};
-  }
 }
 
 /** jsonb where the database has it, text where it does not — public.js's idiom. */
@@ -816,12 +808,74 @@ const ALREADY_APPLIED_MESSAGE =
   "You have already applied to this call.";
 
 /**
+ * Is the profile this address resolves to a minor's?
+ *
+ * Built from the same combined shape the account-backed submit feeds
+ * `isMinorProfile` — the profile row plus the account's email — so the two paths
+ * decide "minor" from identical inputs. `isMinorProfile` reads only the date of
+ * birth; a profile with none (or an unparseable one) is not a minor to either
+ * path, which is the pre-existing platform rule and not this guard's to change.
+ */
+async function isMinorDestinationProfile(db, claimed) {
+  const profile = await db("profiles")
+    .where({ id: claimed.profileId })
+    .first("id", "date_of_birth");
+  if (!profile) return false;
+  const user = claimed.userId
+    ? await db("users").where({ id: claimed.userId }).first("email")
+    : null;
+  return isMinorProfile({ ...profile, email: user?.email || null });
+}
+
+/** The one destination an address with nothing behind it produces. */
+function identityOnlyDestination() {
+  return { profileId: null, userId: null, alreadyHadAccount: false, mintClaim: true };
+}
+
+/**
  * Where this application lands (§5.3). NEVER SURFACED TO THE APPLICANT.
  *
  * A claimed talent profile takes the application; anything else — an agency
  * operator's mailbox, an account with no profile yet, a brand-new address —
  * stays identity-only. The only observable difference is which of two emails
  * arrives in a mailbox the applicant must control to read.
+ *
+ * A MINOR'S PROFILE IS "ANYTHING ELSE" HERE, and that is the whole of this
+ * lane's minors handling.
+ *
+ * The account-backed submit (`src/domains/talent/routes/applications.js`) hard-
+ * gates a minor profile behind `getAgencyConsentGrant`: without a guardian's
+ * per-agency authorization the submission is refused GUARDIAN_AGENCY_CONSENT_
+ * REQUIRED. This path has no such grant to check and no guardian in the room —
+ * anyone can type a minor's address into a public form — so attaching would
+ * hand that profile an agency application their guardian never approved, with a
+ * consent row that records an adult's attestation. Not attaching is the only
+ * answer available here that is both true and silent.
+ *
+ * Two constraints shape it, and neither is negotiable:
+ *
+ *  - **The response must not branch on account existence** (§5.3). So the minor
+ *    case returns the SAME destination an unknown address returns, byte for
+ *    byte: the application is identity-only, and every HTTP response, code and
+ *    message is identical. A refusal here would be a live oracle for "this
+ *    address belongs to a minor with a Pholio profile".
+ *  - **Real minor intake is out of scope for this branch.** Design §9 Q1
+ *    (minors / age policy) is explicitly owned by a separate workstream — the
+ *    guardian-consent machinery assumes accounts throughout and grafting it onto
+ *    an anonymous flow is that workstream's build, not this one's. This guard is
+ *    the containment that keeps the anonymous path from writing into that
+ *    problem before it is solved; it is not a policy, and it must be revisited
+ *    by the minors workstream when it lands.
+ *
+ * WHAT THE APPLICANT SEES, end to end: the destination is identity-only, so
+ * `alreadyHadAccount` is false and the ordinary claim receipt goes out — the one
+ * that offers "Keep it — takes one tap" and never says the application was
+ * attached to a Pholio profile (which would be false here). Clicking that claim
+ * link reaches `claimIdentity`, which finds the existing minor-profile account
+ * and refuses IDENTITY_EMAIL_IS_MINOR, and `routes/claim.js` answers with the
+ * same friendly "manage this from your existing account" response it gives an
+ * agency mailbox. Nothing is created, nothing is stranded, and the organizer has
+ * the application either way.
  */
 async function resolveDestination(db, { identity, answers }) {
   const claimed = await findClaimedProfileForEmail(
@@ -829,7 +883,10 @@ async function resolveDestination(db, { identity, answers }) {
     answers.email || identity.email_normalized,
   );
   if (!claimed) {
-    return { profileId: null, userId: null, alreadyHadAccount: false, mintClaim: true };
+    return identityOnlyDestination();
+  }
+  if (claimed.profileId && (await isMinorDestinationProfile(db, claimed))) {
+    return identityOnlyDestination();
   }
   return {
     profileId: claimed.role === "TALENT" ? claimed.profileId || null : null,

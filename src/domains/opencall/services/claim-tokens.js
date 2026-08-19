@@ -129,13 +129,45 @@ function isExpired(value, now = Date.now()) {
 }
 
 /**
+ * Deploy-before-migrate guard for the token→request binding
+ * (`20260819140000`). Until the column exists a token carries an identity and a
+ * purpose exactly as before, so a deploy that lands ahead of the migration mints
+ * links instead of 500ing. Checked once per process — the same idiom as
+ * `hasClaimPurposeColumn` in
+ * `src/domains/talent/services/open-call-claims.js`.
+ */
+let materialRequestColumnPromise = null;
+function hasMaterialRequestColumn(db) {
+  if (!materialRequestColumnPromise) {
+    materialRequestColumnPromise = db.schema
+      .hasColumn(TOKENS_TABLE, "material_request_id")
+      .catch(() => {
+        materialRequestColumnPromise = null;
+        return false;
+      });
+  }
+  return materialRequestColumnPromise;
+}
+
+/**
  * Mint a token for one purpose against one identity.
  *
+ * `materialRequestId` binds a `materials` token to the ONE request it was
+ * emailed for. Without it the fulfilment page has to guess from the identity's
+ * outstanding requests, and an applicant shortlisted by two organizers at once
+ * has each organizer's link resolving to whichever request sorts first — see
+ * `20260819140000`. Optional, because the claim and disown purposes have no
+ * request to name, and because the organizer's route mints before the request
+ * row exists — it binds afterwards through `bindClaimTokenToRequest`.
+ *
  * @param {import('knex')} db
- * @param {{identityId: string, purpose: string, ttlDays?: number}} input
+ * @param {{identityId: string, purpose: string, ttlDays?: number, materialRequestId?: string|null}} input
  * @returns {Promise<{tokenId: string, rawToken: string, tokenHash: string, url: string, expiresAt: Date, purpose: string}>}
  */
-async function mintClaimToken(db, { identityId, purpose, ttlDays } = {}) {
+async function mintClaimToken(
+  db,
+  { identityId, purpose, ttlDays, materialRequestId = null } = {},
+) {
   if (!identityId) {
     const error = new Error("identityId is required");
     error.code = "CLAIM_TOKEN_IDENTITY_REQUIRED";
@@ -164,6 +196,9 @@ async function mintClaimToken(db, { identityId, purpose, ttlDays } = {}) {
     purpose,
     expires_at: expiresAt.toISOString(),
     created_at: db.fn.now(),
+    ...(materialRequestId && (await hasMaterialRequestColumn(db))
+      ? { material_request_id: materialRequestId }
+      : {}),
   });
 
   // The RAW token is returned once, for the emailed URL, and is never written
@@ -176,6 +211,31 @@ async function mintClaimToken(db, { identityId, purpose, ttlDays } = {}) {
     expiresAt,
     url: buildClaimTokenUrl(purpose, rawToken),
   };
+}
+
+/**
+ * Bind an already-minted materials token to its request.
+ *
+ * Exists because of an ordering the organizer's route is right about: it mints
+ * the applicant's link BEFORE it writes the `open_call_material_requests` row,
+ * so that an ask can never be recorded against an applicant who was never told
+ * about it. `material_request_id` is a FOREIGN KEY, so at that moment there is
+ * nothing to point at — the binding has to be closed immediately after the
+ * upsert, which is still before the email goes out.
+ *
+ * A no-op (returning false) when the column is absent or the update matched
+ * nothing. The caller must treat that as "this token stays unbound", which is
+ * the legacy identity-join path — degraded, never broken.
+ *
+ * @returns {Promise<boolean>} whether the binding was written.
+ */
+async function bindClaimTokenToRequest(db, tokenId, materialRequestId) {
+  if (!tokenId || !materialRequestId) return false;
+  if (!(await hasMaterialRequestColumn(db))) return false;
+  const updated = await db(TOKENS_TABLE)
+    .where({ id: tokenId })
+    .update({ material_request_id: materialRequestId });
+  return updated === 1;
 }
 
 /**
@@ -255,10 +315,12 @@ module.exports = {
   CLAIM_TOKEN_PURPOSE_VALUES,
   CLAIM_TOKEN_TTL_DAYS,
   TOKENS_TABLE,
+  bindClaimTokenToRequest,
   buildClaimTokenUrl,
   consumeClaimToken,
   findClaimTokenByRawToken,
   getAppBaseUrl,
+  hasMaterialRequestColumn,
   hashToken,
   isExpired,
   mintClaimToken,
