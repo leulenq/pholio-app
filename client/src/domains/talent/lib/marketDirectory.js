@@ -19,6 +19,8 @@
  */
 
 import { cityName } from './marketFormat';
+import { glanceForEntry } from './glanceModel';
+import { briefForSeries } from '../content/agencyBriefs';
 
 export const DELIVERY = Object.freeze({
   /** Pholio receives the submission and the agency answers inside Pholio. */
@@ -180,6 +182,7 @@ export function buildMarketDirectory({ agencies = [], routes = [] } = {}) {
     if (existing) {
       // Requirements Pholio holds for a house it also delivers to. The card
       // stays one card; the apply workspace resolves the spec by agency id.
+      const isFirstRoute = !existing.seriesId;
       existing.seriesId = existing.seriesId || route.seriesId;
       existing.sourceUrl = existing.sourceUrl || route.sourceUrl || null;
       existing.channelType = existing.channelType || route.channelType || null;
@@ -190,13 +193,20 @@ export function buildMarketDirectory({ agencies = [], routes = [] } = {}) {
         existing.callWindows = route.callWindows;
       }
       existing.verification = existing.verification || route.verification || null;
+      // The glance rides with whichever route actually became the entry's
+      // seriesId — not a later route the merge otherwise ignored.
+      if (isFirstRoute) {
+        existing.glance = glanceForEntry(route, briefForSeries(route.seriesId));
+      }
       continue;
     }
 
     // A route whose agency is on Pholio but was not in the list the talent can
     // see (blocked, inactive, or filtered upstream) is still a destination —
     // they can prepare a package and send it on the agency's own channel.
-    entries.push(fromRoute(route));
+    const entry = fromRoute(route);
+    entry.glance = glanceForEntry(route, briefForSeries(route.seriesId));
+    entries.push(entry);
   }
 
   return entries;

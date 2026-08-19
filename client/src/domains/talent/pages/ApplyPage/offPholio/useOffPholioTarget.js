@@ -10,6 +10,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../../../api/talent';
+import { briefForSeries } from '../../../content/agencyBriefs';
 import { readRoute } from '../../../lib/specRegistry';
 import {
   DEFAULT_TRACKER_CHANNEL,
@@ -48,6 +49,11 @@ export function useOffPholioTarget({ seriesId, imageIds = [] }) {
   // The handover takes over the screen once an archive exists, and can be put
   // down to go back and change the set — a second export raises it again.
   const [handoffDismissed, setHandoffDismissed] = useState(false);
+  // The Agency Brief is the first thing an off-Pholio target opens to (design
+  // §Tier 2) — what applying here actually involves, before any preparation
+  // starts. One-way per visit, mirroring `handoffDismissed`: "Start preparing"
+  // puts it down and the rest of the flow proceeds underneath it.
+  const [briefDismissed, setBriefDismissed] = useState(false);
 
   const routeQuery = useQuery({
     queryKey: ['spec-registry-route', seriesId],
@@ -125,6 +131,10 @@ export function useOffPholioTarget({ seriesId, imageIds = [] }) {
   });
 
   const dismissHandoff = useCallback(() => setHandoffDismissed(true), []);
+  const dismissBrief = useCallback(() => setBriefDismissed(true), []);
+  // The flow keeps a way back — a talent mid-preparation gets to re-read what
+  // the agency asks without abandoning the workspace.
+  const reopenBrief = useCallback(() => setBriefDismissed(false), []);
 
   const gaps = useMemo(
     () => (isOffPholio ? prepareGaps({ filledSlots: normalizedImageIds.length, route }) : []),
@@ -136,6 +146,9 @@ export function useOffPholioTarget({ seriesId, imageIds = [] }) {
     seriesId: seriesId || null,
     route,
     agencyName: route?.agencyName || null,
+    // The curated name when an authored brief exists, so the workspace chrome
+    // and the brief's own masthead say the same thing about the same house.
+    displayName: briefForSeries(seriesId)?.name || route?.agencyName || null,
     isLoading: isOffPholio && routeQuery.isLoading,
     error: isOffPholio ? routeQuery.error : null,
     refetch: routeQuery.refetch,
@@ -143,6 +156,12 @@ export function useOffPholioTarget({ seriesId, imageIds = [] }) {
     exportState,
     handoffOpen: exportState?.status === 'done' && !handoffDismissed,
     dismissHandoff,
+    // Shown before the rest of the flow, once the route has resolved — see
+    // the guard in ApplyExperience.jsx, which only reaches the dossier once
+    // this is false.
+    briefOpen: isOffPholio && !briefDismissed,
+    dismissBrief,
+    reopenBrief,
     prepare,
     recordOutboundClick,
     logSubmission,

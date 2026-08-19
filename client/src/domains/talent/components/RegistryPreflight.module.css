@@ -134,6 +134,18 @@
   overflow-wrap: anywhere;
 }
 
+/* The agency's own wording beside our canonical name — quoted, quiet, never
+   spoken in Pholio's voice (ruling R-E). Mono sets it apart as a excerpt
+   rather than a second label, the "Intel idiom" the redesign spec asks for. */
+.rowMarginalia {
+  min-width: 0;
+  color: var(--pf-text-2);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .rowAction,
 .link {
   color: var(--pf-gold-text);
