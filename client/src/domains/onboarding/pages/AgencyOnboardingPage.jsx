@@ -94,6 +94,12 @@ function AgencyOnboardingExperience({ profile, members, isTeamError }) {
   });
   const [memberEmail, setMemberEmail] = useState('');
   const [memberRole, setMemberRole] = useState('SCOUT');
+  /*
+    No generated monogram anywhere in here. Showing an agency a two-letter mark
+    built from their name presents a fabricated logo as their identity — the
+    one place that lie is most convincing is the agency's own onboarding. Until
+    they upload a real mark, their name is their mark.
+  */
   const [logoPreview, setLogoPreview] = useState(() => resolveAgencyLogoUrl(profile));
 
   const profileMutation = useMutation({
@@ -170,15 +176,6 @@ function AgencyOnboardingExperience({ profile, members, isTeamError }) {
     [activeMembers],
   );
 
-  const agencyInitials = useMemo(() => {
-    const source = profileForm.agency_name.trim() || 'Agency';
-    return source
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((word) => word[0])
-      .join('')
-      .toUpperCase();
-  }, [profileForm.agency_name]);
 
   const canContinue = useMemo(() => {
     if (STEPS[currentStep]?.id === 'profile') {
@@ -282,12 +279,16 @@ function AgencyOnboardingExperience({ profile, members, isTeamError }) {
           <PholioBillingWordmark variant="on-ink" size="md" />
         </div>
         <section className="agency-onboarding-ready__stage" role="status" aria-live="polite" tabIndex={-1} autoFocus>
-          <div
-            className="agency-onboarding-ready__mark"
-            style={{ '--agency-mark': brandingForm.agency_brand_color }}
-          >
-            {logoPreview ? <img src={logoPreview} alt="" /> : <span>{agencyInitials}</span>}
-          </div>
+          {/* The frame only exists to hold a real mark. Rendered empty it is
+              just a bordered box standing in for branding that isn't there. */}
+          {logoPreview ? (
+            <div
+              className="agency-onboarding-ready__mark"
+              style={{ '--agency-mark': brandingForm.agency_brand_color }}
+            >
+              <img src={logoPreview} alt="" />
+            </div>
+          ) : null}
           <h1>Your workspace is ready.</h1>
           <p>
             {profileForm.agency_name || 'Your agency'} is now commissioned inside Pholio.
@@ -478,9 +479,11 @@ function AgencyOnboardingExperience({ profile, members, isTeamError }) {
               </div>
               <span className="agency-onboarding__proof-rule" aria-hidden="true" />
               <div className="agency-onboarding__proof-agency">
-                <div className="agency-onboarding__proof-mark" aria-hidden="true">
-                  {logoPreview ? <img src={logoPreview} alt="" /> : <span>{agencyInitials}</span>}
-                </div>
+                {logoPreview ? (
+                  <div className="agency-onboarding__proof-mark" aria-hidden="true">
+                    <img src={logoPreview} alt="" />
+                  </div>
+                ) : null}
                 <div>
                   <strong>{profileForm.agency_name || 'Your Agency'}</strong>
                   <span>{profileForm.agency_location || 'Private agency workspace'}</span>
@@ -592,9 +595,11 @@ function AgencyOnboardingExperience({ profile, members, isTeamError }) {
               </div>
               <span className="agency-onboarding__review-divider" aria-hidden="true" />
               <div className="agency-onboarding__review-agency">
-                <div className="agency-onboarding__review-mark" aria-hidden="true">
-                  {logoPreview ? <img src={logoPreview} alt="" /> : <span>{agencyInitials}</span>}
-                </div>
+                {logoPreview ? (
+                  <div className="agency-onboarding__review-mark" aria-hidden="true">
+                    <img src={logoPreview} alt="" />
+                  </div>
+                ) : null}
                 <div>
                   <h2>{profileForm.agency_name || 'Your Agency'}</h2>
                   <p>{profileForm.agency_location || 'Private agency workspace'}</p>

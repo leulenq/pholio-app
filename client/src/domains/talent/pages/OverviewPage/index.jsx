@@ -479,10 +479,10 @@ export default function OverviewPage() {
                 {auditCtaLabel}
               </PholioButton>
 
-              {/* The pre-gate path into the requirements surface (ruling R-A):
-                  the talent deciding what to shoot reaches it from here even
-                  before the Market nav unlocks. */}
-              <Link to="/dashboard/talent/applications/requirements" className="ov-readiness-market-link">
+              {/* The path into the market for a talent deciding what to shoot
+                  (ruling R-A). Market is no longer profile-gated, so this
+                  reaches the published requirements at any readiness. */}
+              <Link to="/dashboard/talent/applications" className="ov-readiness-market-link">
                 What agencies ask for <ArrowUpRight size={12} aria-hidden />
               </Link>
             </div>

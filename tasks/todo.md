@@ -1,5 +1,84 @@
 # Implementation state — strategic plan execution (session handoff doc)
 
+## Apply draft production-safety audit (2026-08-19)
+
+- [x] Research established production autosave, optimistic-concurrency, offline, and multi-tab patterns from primary sources.
+- [x] Model the lifecycle invariants and build an adversarial matrix spanning normal, failure, crash, cache, retry, and concurrency states.
+- [x] Exercise client and server synchronization with deterministic delayed, failed, duplicated, reordered, and concurrent operations.
+- [x] Fix any underlying architectural defects found; avoid modal suppression and scenario-specific guards.
+- [x] Run focused, integration, build, lint, and differential verification appropriate to the touched surface.
+- [x] Record researched patterns, scenarios, failures, fixes, residual edge cases, and confidence in the Review section.
+
+### Review
+
+- Production patterns checked: RFC 9110 strong validators/idempotent retry,
+  canonical JSON, TanStack authoritative-cache/mutation/offline behavior, browser
+  page lifecycle/storage/multi-tab primitives, and Firestore offline/concurrency.
+  The retained model is one server dossier plus durable per-tab descendants,
+  single-writer coalescing, fresh reconciliation before replay, and semantic
+  three-way merge; timestamps remain display-only.
+- Additional failures found and fixed: Version 1+ offline recovery was cleared
+  after a failed GET; an older acknowledgement could clear a newer debounce-period
+  edit; failed queue entries were dropped; no reconnect/5xx retry existed; tabs
+  shared and erased one local record; the queue could cross agency scope; slow
+  prerequisite queries could destructively hydrate; set/map merges were too coarse;
+  dynamic server repair changed content without a validator change; delayed
+  same-material requests could roll cursor/confirmations backward; optional event
+  telemetry could poison a PostgreSQL transaction; latest-draft ordering tied.
+- Final design: content-derived `revisionToken` supplements generation/version;
+  successful responses update the detail/list cache and acknowledge only the exact
+  local fingerprint; crash journals are tab-scoped and dirty entries are not TTL/LRU
+  pruned; transient failures use bounded backoff plus online/focus resync; queues are
+  dossier-scoped/disposable; server-normalized responses reconcile into visible state;
+  map keys, set membership, and availability endpoints merge independently. The
+  chooser is reached only when the same semantic atom changed differently from a
+  known common base (or a terminal lifecycle/schema precondition requires action).
+- Verification: 25/25 focused client fault/model tests; 512/512 full client tests;
+  15/15 server draft integration tests including simultaneous identical/divergent
+  PUTs, lost-response retry, live-repair token drift, lifecycle boundaries, and
+  stale nonmaterial writes; touched ESLint, Node syntax, `git diff --check`, and
+  production Vite build pass. Full server regression has one unrelated existing
+  migration rollback failure in `tests/migrations/trust-loop-schema.test.js` (M1-M4
+  rollback leaves `off_platform_submissions`); the draft suite itself is green.
+- Residual validation gap: deterministic concurrency ran on isolated SQLite. The
+  CAS predicates are database-portable and PostgreSQL transaction/savepoint behavior
+  was audited, but a dedicated PostgreSQL CI race lane is still recommended before
+  declaring zero platform-specific risk. Browser localStorage remains best-effort;
+  storage failure is now surfaced and server autosave continues, while IndexedDB plus
+  Web Locks/BroadcastChannel would be the next durability tier if full offline-first
+  editing becomes a product promise. A browser-mutating pass was not run against the
+  already-running local instance because it was bound to the configured Neon database
+  and real SMTP; the lifecycle was instead exercised through isolated HTTP integration,
+  jsdom lifecycle contracts, and the deterministic two-actor fault model.
+
+## Apply draft synchronization root-cause fix (2026-08-18)
+
+- [x] Reproduce the false conflict and identify the exact local/server state transition.
+- [x] Define canonical content equality, draft identity, revision, and save-ack invariants.
+- [x] Fix client hydration/autosave/conflict classification and server concurrency semantics at the root.
+- [x] Add coverage for refresh, rapid autosaves, Apply navigation, Market entry, stale local state, and real concurrent divergence.
+- [x] Run focused client/server tests plus lint/build checks for the touched surface.
+- [x] Review the diff and record the causal chain and verification evidence here.
+
+### Review
+
+- Root cause: a cached `null` detail query was treated as the saved base for 30 seconds.
+  The first idle autosave created Version 1 but never updated that cache; returning from
+  Market reset the client to version/generation `0/0`, so an identical default document
+  received 409 and was mislabeled “This device — Not saved.” Overlapping fire-and-forget
+  saves could produce the same state independently.
+- Fix: fresh authoritative hydration, no automatic blank Version 1, canonical cache
+  updates on every acknowledgement, a local crash buffer tied to its base document,
+  single-writer/latest-state autosave coalescing, server-side idempotent convergence,
+  and three-way material reconciliation. Only incompatible edits to the same dossier
+  field now reach the chooser; cursor/confirmation differences and disjoint edits rebase.
+- Verification: client synchronization tests 9/9; server draft integration tests
+  12/12; touched client lint green; production client build green; `node --check`
+  and `git diff --check` green. A whole-client run is not currently a reliable gate:
+  the separately edited Market ledger has eight stale selector/copy assertions, and
+  the existing CastingCallPage timing test exceeded its timeout; neither touches the
+  draft synchronization paths.
+
 **Branch:** `claude/pholio-strategic-analysis-dyducf` (all work lands here)
 **Plan of record:** `docs/pholio-strategic-analysis-2026-08.md` (this branch) + user corrections below.
 **Updated:** 2026-08-15
@@ -185,6 +264,434 @@ DESIGN RULES (talent-side frontend)
       discoverability, watermark-free standard card, QR/logo/socials, preflight/export/
       tracker, writers)
 - [ ] Phase 8: tests green, lint, final review pass
+
+## Market / Apply unification (2026-08-18, branch `claude/market-apply-unification`)
+
+Plan of record: `~/.claude/plans/misty-wiggling-tulip.md`. Owner ruling: the standalone
+talent Requirements page dies; on-Pholio and off-Pholio agencies list together in Market;
+both enter the same Apply Workspace, tweaked for off-Pholio.
+
+**Why the split was wrong.** The backend never had one: `spec_registry_series.origin`
+(`editorial` | `agency`) is provenance, not delivery. Delivery is decided by
+`acceptsPholioSubmissions` / `pholioAgencyId`, computed on every route by
+`listRegistryRoutes`. Both origins mint revisions into `spec_registry_revisions` and
+resolve through one matcher, one `/preflight`, one `/export`. The two-surface frontend
+also broke §7.5's flywheel: a reference agency that joins Pholio would have moved the
+talent's campaign to a different part of the app.
+
+DONE
+- [x] Deleted `pages/RequirementsPage/**` (6 files). Route now redirects to Market so
+      saved links don't 404.
+- [x] Gate moved from route to action: `RESTRICTED_TALENT_ROUTES` is now empty and
+      `PROFILE_GATE_EXEMPT_ROUTES` is gone; Market nav no longer renders locked. Every
+      on-Pholio submission CTA still disables on `!isCoreReady`, and the gate banner is
+      scoped to Pholio submissions. Off-Pholio preparation is never gated — the talent's
+      own files, same ruling as `POST /spec-registry/export`.
+- [x] `lib/marketDirectory.js` merges `getAgencies()` + `getSpecRegistryRoutes()` into one
+      grid, joined on `pholioAgencyId` so a house Pholio delivers to draws once. The
+      on/off-Pholio sign is the CTA label plus a present-tense channel line
+      ("Apply by email"), sibling of the ledger's past-tense `trackerChannelLine`.
+      No badge/chip/dot — banned patterns.
+- [x] `pages/ApplyPage/offPholio/**` — the variant, built to the `./event` precedent
+      (`ApplyExperience.jsx` gets one hook call and one branch). Steps off Pholio:
+      digitals → stats → prepare. Board/book/comp card/message are dropped because
+      `buildSpecExport` archives images + README + STATS + EMAIL only.
+      `PrepareScene` ports the export → download → outbound → tracker-log sequence from
+      the deleted `AgencyDetail.jsx`; presentation rebuilt in the workspace's language.
+- [x] Entry: Market sends `?agency=` (Pholio) or `?series=` (researched). Pholio always
+      wins when both are possible.
+
+EXPANDED AGENCY STATE REBUILT AS A BRIEF (2026-08-18, sixth pass)
+
+CRITIQUE. The panel printed `buildAgencyView` faithfully, and that view is *research*: every
+published clause, every form field, and Pholio's own notes on what it could not verify. Four
+equally weighted columns gave a twenty-item form inventory the same standing as the shot
+list. Specifics:
+- Elite's "Close-up, hair pulled back" and "Close-up profile, hair pulled back" read as
+  near-duplicates because the actual instruction — hair pulled back, on everything — was
+  buried inside both labels while a *separate* column carried the rest of the conditions.
+- Six frames, none satisfied, produced "Still needed" six times.
+- "exactly 6 shots".
+- Eligibility printed "Age — Pholio can't check this from your profile", which is honest
+  bookkeeping and useless as advice.
+- `notPublished` printed a raw seriesId as a sentence subject.
+- The form-field column listed "first name, last name, email, phone, address, city, country,
+  postal code…" — twenty items Pholio mostly fills itself.
+- Elite appeared three times in the board: the registry models Paris, North America and
+  Tokyo as three organizations.
+
+BUILT
+- **`lib/briefModel.js`** — the presentation-time pass. It normalises, deduplicates and
+  drops; it never invents, and each compromise is commented as a stopgap for the dataset
+  rebuild.
+  - `splitFrames` lifts a trailing clause off the frame names *only when more than one frame
+    carries it*, so Elite's shared "hair pulled back" becomes one condition while Muse's
+    "hair up" / "hair down" — genuinely two different pictures — stay whole. Frames that
+    reduce to the same label collapse.
+  - `readConditions` sorts published clauses by modality into Shoot / Avoid and drops the
+    merely-permitted, which is what removed "Or a bikini" (a fragment of the source
+    sentence).
+  - `readStanding` keeps only eligibility that says something: a range the talent sits
+    *outside* is the loudest line on the screen; "Pholio can't check this" is dropped.
+  - `askedFor` — "6 frames" / "At least 3 frames" / "3–5 frames", never "exactly 6 shots".
+- **`HouseBrief`** rebuilt around four questions in the order a talent asks them: can I do
+  this and what's missing (one serif line at size), what do I shoot (bare frame list, marks
+  only on what you *have* — marking the gaps was the "Still needed ×6" problem), how do they
+  want it (two short lines), how do I apply. Everything else — form-field *count*, file
+  caps, registration, when Pholio last read them — is a footnote behind one "More detail"
+  disclosure.
+- **`foldBrands`** in marketDirectory folds a brand's offices into one house. Conservative
+  by design: two brands merge only when one's root is a token-wise prefix of the other's, so
+  Elite absorbs Elite Japan while "New York Models" and "New Faces" stay apart. Parent
+  chains are resolved to a root first — without that, Elite Japan folded into Elite Models
+  which had itself already been absorbed, and a route was silently lost (caught by test).
+
+Tests: 15 in `briefModel.test.js` pinning each normalisation against the real published
+shapes, 4 more in `marketDirectory.test.js` for the brand fold. 310/310 talent, build green.
+
+SUBMISSION HISTORY REBUILT (2026-08-18, fifth pass)
+
+CRITIQUE THAT DROVE IT. The section promised four things and could answer none of them:
+- **What was sent** — the detail panel rendered three static links to /media and /profile,
+  i.e. the talent's *current* book and comp card. A book edited since is a different book,
+  so the panel was quietly claiming something false. Meanwhile
+  `talent_submission_packages` has held the frozen package all along, unreachable: no
+  talent endpoint returned it.
+- **What happened afterwards** — `application_activities` records submitted / status_change
+  / accepted / declined / booked, `GET /:id/activity` already existed, and
+  `talentApi.getApplicationActivity` was already on the client. Nothing ever called it.
+- **Through Pholio or merely recorded here** — the most consequential fact on the surface,
+  rendered as a grey meta line indistinguishable from a location.
+- **Scan quickly** — rows carried a running index that renumbered on every filter change,
+  and relative dates with no year, so two seasons read as one stack.
+Plus: the empty state said "browse agencies below" when the board had moved above it;
+filters carried no counts; and the two-column panel made history a differently-shaped
+surface beside the market rather than a continuation of it.
+
+BUILT
+- **`GET /applications/:id/record`** (new) — the frozen package *summarised* plus the whole
+  chronology. Only counts and names cross the wire: the payload holds a full profile
+  snapshot and contact details, and a receipt does not need a second copy of the talent's
+  personal data on another surface. Revoked/redacted packages say so rather than
+  under-reporting. 6 tests, including one that greps the response for the contact details
+  to prove they never leave.
+- **`market/SubmissionLedger.jsx`** — time is the spine: records group by month, the day
+  holds the left edge, and the running index is gone. Filters carry counts and disable at
+  zero. Records open **in place**, in warm ink, exactly as a band does upstairs.
+- **`market/SubmissionRecord.jsx`** — receipt + chronology + your message, and for logged
+  rows an honest "Pholio recorded it on your word — it never held the package."
+- Route is structural: the same gold that means "Pholio carries it" on the board means
+  "Pholio carried it" here.
+
+REGRESSION CAUGHT BY THE EXISTING SUITE. The first cut of the logged-record panel dropped
+three real capabilities `TrackerDetail` had — record a reply with an outcome note, close a
+record, and the delete confirmation. `ApplicationsViewLedger.test.jsx` failed on all three
+and they were restored in the new language. Lapse/waiting copy now comes from
+`trackerStatusConfig(row).next` rather than being rewritten here, so this surface cannot
+drift from the row's own status vocabulary.
+
+Also fixed while there: the record endpoint originally selected `applications.note`, which
+is not a column — the list endpoint composes it from the talent's first message. The record
+uses the row's existing note instead of querying twice.
+
+Overrides of global.css: `.sr-answer__field` overrides the canonical textarea (white box,
+8px radius, inset shadow, 120px min-height) because it sits on ink; `resize: none` is kept
+per banned pattern 11. Local, zero-specificity, documented in the stylesheet.
+
+Verification: 492/492 client, 35/35 on the touched backend suites, build green.
+
+SEASON BOARD REFINEMENT (2026-08-18, fourth pass — take A + owner corrections)
+
+Three band languages were pitched (artifact 79e905f2): A Manifest Line, B Ledger, C Gutter
+Stamp. Owner took **A**, and corrected four things on top of it.
+
+DONE
+- **Top is one row.** Search left, scope switch pinned hard right (`margin-left: auto`), no
+  rule beneath it — the first band is the rule. The spelled count line and the market strip
+  are both gone.
+- **City sections and the market strip both removed.** Two navigation devices for one axis
+  were what ate the board's room; search already reaches cities. The board is now flat and
+  alphabetical.
+- **Location is a dateline.** Geography moved above the house name, where it locates the
+  entry before you read it — a show listing or an auction lot, not another string in a
+  metadata row. `primaryMarket` already resolved seat-city → Global → Selected markets, so
+  it feeds this directly. A place is ink; a scope is lighter and tracked wider, because
+  they are not the same kind of fact. **"+3 offices" is gone from the closed band** — further
+  offices are dossier material, and hanging a counter off a city was the tack-on that made
+  the line look assembled rather than set.
+- **Route is one word and one accent.** Gold means Pholio carries it; everything else is
+  quiet ink with an arrow meaning you leave. The rule-and-terminal device is gone entirely —
+  no glyph vocabulary, no badges. One colour, one meaning.
+- **Three metadata kinds, three forms.** Roster is a spaced small-caps taxonomy (no dots —
+  the spacing separates). Territory is underscored mono codes ONLY where it is a hand-picked
+  set of countries; a region or a country has a proper name and gets set as one, in italic
+  serif ("North America", "Global"). That last part was a real bug caught in the render:
+  Elite Models was printing `CA US` and Models1 `GB`.
+- **Warm ink throughout** — `#1a1613` / `#221d18`, related to the cream, replacing the cool
+  blue-black; hover is a warm wash.
+
+Overrides of global.css unchanged and still documented in `market-board.css`: the canonical
+input box and the `#A39E99` placeholder (~2.6:1), both local, both zero-specificity.
+
+Verification: 483/483, build green, screenshotted desktop + mobile against a real preflight
+payload captured from the registry.
+
+MARKET AS THE SEASON BOARD (2026-08-18, third pass — owner picked direction 02)
+
+Four directions were mocked with real registry data and pitched as an artifact
+(https://claude.ai/code/artifact/65d483b6-ff94-44f8-890a-38f772968343): 01 Dossier
+(index + ink panel), 02 Season Board, 03 Fit Lens (organised by what houses demand of
+you), 04 Contact Sheet. Owner chose **02**.
+
+WHAT DECIDED THE DIRECTIONS. Category check first: Models.com and the Fashion Model
+Directory are listings — contact details, offices, rosters. **Nobody surfaces what a house
+asks you to send.** The spec registry holds exactly that (Muse: close-ups hair up and hair
+down, min 3 shots, email; Elite: six shots incl. a personality picture) and Market showed
+none of it, which is why every previous pass was a directory of names no layout could
+rescue.
+
+BUILT.
+- `components/market/MarketBoard.jsx` — masthead (the one serif moment), search, scopes,
+  and a market jump strip. The jump strip is the answer to this direction's known trade:
+  poster bands cannot be scanned two hundred at a time, so search and jumps do the work
+  scrolling used to.
+- `components/market/HouseBand.jsx` — one house to a band. Closed: name at poster scale
+  plus a standing line built only from facts the listing already holds (channel,
+  registry claim, next open call, board count) so a board of any size stays ONE request.
+- `components/market/HouseBrief.jsx` + `useHouseBrief.js` — opening a band turns it ink and
+  states the whole brief in place: what they ask for with your coverage against it, how
+  they want it (the agency's own published wording, quoted and italic), who they take, the
+  house. Requirements are fetched **on open only** — never one preflight per house — and
+  cached. Columns appear only if that house published something for them.
+- Register is deliberately not the dashboard's: house names in the sans, heavy, tracked
+  tight, uppercase — the modern fashion-wordmark voice. The serif appears once. Gold is
+  punctuation. Ink/cream carries the state change instead of more gold.
+
+PRODUCTION POLISH. `lib/marketFormat.js` is the single normalisation layer — title-casing
+that spares acronyms (IMG, DNA), city extraction, channel names, registry names, country
+codes, reach scopes, freshness notes, dates, and number/noun agreement. Nothing reaches the
+screen as a raw enum; unknown vocabulary degrades to readable title case rather than a slug
+or a blank. `cityOf` in marketDirectory now routes through it, which fixed a real bug the
+preview exposed: "Los Angeles, CA" and "los angeles, ca" were forking one market into two.
+
+OVERRIDES OF global.css (documented, local, zero-specificity — global.css wraps its
+defaults in `:where()`, so no `!important` and no escalation):
+1. `.mb-search__input` overrides the canonical input (white box, 8px radius, 44px, inset
+   shadow). Search is the primary way through a board this size and a boxed form control
+   fights a poster surface.
+2. `.mb-search__input::placeholder` overrides `#A39E99` (~2.6:1 on this ground).
+The board also breaks the page container's gutter with a negative inline margin so bands
+run edge to edge — a poster-scale name inside a padded column stops being a poster.
+
+Superseded: `MarketDirectory.jsx`/`.css` and the row-era exports deleted in the second pass.
+
+Verification: 483/483 client, build green, and screenshotted at desktop and mobile with a
+**real preflight payload** captured from the registry against a seeded profile — so the
+brief's shot list, coverage figure and quoted guidance are the real pipeline, not a mock.
+
+**Pre-existing, not mine:** `NotificationCenter.jsx` has an uncommitted edit (by another
+session) that removed `onFooterClick={handleFooter}`, orphaning the handler and producing
+the one remaining lint error. Left alone.
+
+MARKET REBUILT AS AN EDITORIAL INDEX OF HOUSES (2026-08-18, second pass)
+
+The row-directory was rejected as sterile, weakly hierarchical, and reading as a database
+rather than a Pholio surface — with agencies collapsed into one repetitive horizontal
+pattern and no identity left after the logos went. The owner's screenshot also showed
+DNA twice, Elite three times.
+
+DIAGNOSIS. Those duplicates were the tell: **the page was listing routes, not agencies.**
+Elite publishes four registry routes (Paris, Tokyo, Global, North America) and their dev
+DB holds duplicate agency rows. Any layout that treats a route as an entity prints the
+same name repeatedly in identical lines — no visual treatment can rescue that.
+
+REBUILD.
+1. **The entity is the house.** `buildHouses()` groups entries by `organization.id`
+   (now carried through `readRoute`) or a name slug, so a house appears once and its
+   routes become the substance of its entry. Duplicate rows collapse. A house that is
+   both on Pholio and researched offers both ways in, ranked.
+2. **Grouped by market, not alphabet.** "Who is in Paris" is a question a model asks when
+   planning a season; "who begins with E" is not. `cityOf()` normalises "Los Angeles, CA"
+   / "New York, NY" / "Paris, France" to the city so one market stops splitting into
+   three. A *reach* is explicitly forbidden from becoming a section heading — "US · FR · ES"
+   is a scope and reads like a database key — so city-less houses gather under Global /
+   Selected markets / Unlisted, which trail the cities.
+3. **Identity is composition.** Each house is its name in the display serif at a size
+   worth reading, its own gold rule, and the shape its facts give it. Entries are NOT
+   stretched to match their neighbours: a house with two offices, a registry certificate
+   and a Thursday open call is taller than one with a name and a URL, because it is more.
+   The variation is data, never decoration. A house also stops repeating the market it is
+   already filed under, so many entries get shorter and the rhythm varies further.
+4. **Anchor.** A serif masthead states the market as a fact ("15 houses across eight
+   markets"), replacing a floating mono tally that said the same thing in the weaker place.
+5. **Actions are text, not buttons.** Thirty repeated mono buttons is what made the page
+   read as a control panel; a gold-underlined phrase carries the same affordance and lets
+   the house's name stay the loudest thing in its entry.
+
+Superseded and removed: the row component, `channelIntentLine`, `filterMarketDirectory`,
+`matchesQuery`/`matchesScope`, `sectionMarketDirectory` and their suites — replaced by the
+house equivalents. `app-discovery__meta` and its CSS are gone with the tally.
+
+Verification: 467/467 client, lint 0 errors, build green, and screenshotted against data
+shaped like the owner's dev DB (duplicate DNA rows, multi-route Elite, drafts, an applied
+agency) at desktop and mobile.
+
+MARKET AS A DIRECTORY + REPO-WIDE PLACEHOLDER-LOGO REMOVAL (2026-08-18)
+
+ARCHITECTURE. The card grid became a directory list (`components/MarketDirectory.jsx`
++ `.css`): sticky toolbar (search + 4 scopes + count), alphabetical sections with sticky
+letters, dense two-line rows. Cards could not hold hundreds and each one demanded a square
+mark — which is what produced the letter monograms. Scaling proof: rendered at 203 rows,
+~16 rows/viewport (was 8). Filtering/search/sectioning are pure functions in
+`lib/marketDirectory.js` with `useDeferredValue` on the query. The whole pack is loaded
+at once (tens of routes, not a paginated corpus); if it ever passes a few hundred rows,
+window the rendered list — nothing in the lib changes.
+
+SEMANTIC METADATA. Three dimensions, three treatments, replacing the stacked
+"Los Angeles, CA / Apply through Pholio" lines:
+- **place** (sans, soft, under the name) — the office that receives applications, plus a
+  positive-only NYSDOL claim and the next open-call window when published.
+- **reach** (mono, tracked, its own column) — the market the agency represents across.
+  This is now *typed*, not a string: `readReach()` reads `market.kind`
+  (city/country/region/global/selected_market). Ford publishes ONE route covering US, FR
+  and ES — the server's `marketLabel` is null for exactly that case, which is why Ford and
+  Wilhelmina used to render blank or, worse, "Global". They now read `US · FR · ES`.
+  Required extending `readRoute` to carry `market` and `office` (it only carried
+  `marketLabel`).
+- **state** — carried by the action itself (Compose / Continue / Prepare package /
+  Locked / Unavailable / "In your ledger"), never a fourth metadata line.
+Applied agencies now stay visible with their state instead of dropping out of the market.
+`canResumeDraft` moved into the lib so a blocked/inactive agency's draft still can't be
+resumed (it would have been silently lost with the card).
+
+BRANDING — the generated letter placeholders are gone repo-wide.
+Investigated first, and the investigation decided the design: `agencies.logo_path` is the
+only branding field, the spec registry carries NO branding at all, and the repo holds
+exactly TWO real assets (`public/agency-logos/{marilyn-agency,lumen-model-management}.svg`).
+So logo-less is the dominant state, not the exception.
+Removed at: `ApplicationsView` (market card + application detail mast), `TrackerDetail`,
+`ApplyExperience` (agency chooser dossier crest), `OpenCallArrivalPage`,
+`AgencyOnboardingPage` (×3 — the agency's own onboarding previewed a fabricated two-letter
+monogram as their mark, the most convincing place for that lie), and `AgencyRow`
+(talent-photo fallback → an empty hatched frame; a person's initial is a weaker case than a
+fake agency mark, flagged for the owner). Dead CSS removed with them.
+`src/domains/pdf/composition/front-program/synthesize.js:1096` had already removed its own
+monogram primitive for the same reason — consistent precedent.
+
+**Directory rows carry no logo at all, including the two real ones.** Both assets are
+square marks with type set inside them; at row height they render as illegible specks and
+made those two rows look cheaper than the typographic rows around them (verified by
+screenshot before reverting the decision). Real marks are used where one agency is the
+subject and the asset can be shown at a size that works — the apply dossier crest and the
+application detail mast, both now logo-or-nothing. Directory identity is uniformly the
+house's name in the display serif.
+
+OVERRIDES OF global.css (both local, both zero-specificity so no `!important` needed —
+`global.css` deliberately wraps its defaults in `:where()`):
+1. `.mk-search__input` overrides the canonical input (white box, 8px radius, 44px, inset
+   shadow). That control is right for a form and wrong for a directory filter on cream
+   paper; the search is a rule the talent types against, in the surface's own language.
+2. `.mk-search__input::placeholder` overrides `#A39E99`, which measures ~2.6:1 on this
+   ground and fails the 4.5:1 placeholders need.
+No `.md` rule was overridden. The banned-pattern list was followed as written: the scope
+filters reuse the existing `PholioToggleGroup` (a form control, not a decorative chip), and
+there are no badges, pills, dots or count bubbles anywhere in the directory.
+
+Verification: 461/461 client tests (17 in `marketDirectory.test.js`, incl. reach typing,
+scope/search filtering and sectioning), lint 0 errors, build green, and screenshots at real
+data, 203 rows, and mobile.
+
+REDESIGN OF THE TERMINAL STEP (2026-08-18, owner: "needs to be at the level of the
+on-Pholio one")
+- The first pass collapsed both on-Pholio terminal surfaces into one flat section. The
+  on-Pholio flow actually has TWO: `ReviewSendPage` (in-workspace printed dossier +
+  terms rail) and `ApplySuccess` (portaled takeover, staggered spring, seal, mono
+  receipts). Off-Pholio now mirrors that pair.
+- `PrepareScene` = **the manifest** — the archive as a printed document, in the
+  `.apply-package` vocabulary (paper card, mono PHOLIO lockup, italic serif kicker,
+  uppercase serif agency name, roman-numeral sections) + **the dispatch rail**
+  (`PHOLIO → YOU → THEM`, who carries it, gaps, the action). Sections name the real
+  files: frames / STATS.txt / EMAIL.txt (email routes only) / README.txt. A gold sweep
+  crosses the document while the archive builds — no spinner parked mid-page.
+- `HandoffScene` = **the handover** — portaled takeover built from ApplySuccess's own
+  parts (cream + radial gold wash, stagger 0.08/spring 58-16, 58px seal, mono receipts,
+  "What you keep"). The honesty is in the mirroring: the seal is an archive glyph not a
+  check, the title never says sent, and the receipt slot that reads "Under review" on a
+  Pholio submission reads **"Not sent yet"** here. The tracker log moved here, where it
+  is finally a real question.
+- Verified by screenshot (headless Chrome over the real components + real CSS), desktop
+  and mobile, both scenes. Three defects found and fixed that way:
+  1. `--app-text-faint` measures **2.41:1** on this cream. Bumped the labels that carry
+     information (section titles, file names, frame captions, block labels) to
+     `--app-text-soft` (4.97:1), and the two emphasis words to deep gold `#75501b`
+     (6.73:1). Left the purely decorative faint uses matching the house style.
+  2. `tone="dark"` on PholioButton means "sits on a dark canvas" — it paints a CREAM
+     button. Dropped it from the handoff action.
+  3. Flow line carried the full agency name; shortened to `THEM`.
+- Tests: 454/454 client (25 new across PrepareScene + HandoffScene, incl. explicit
+  "never says submitted/confirmed/sent" assertions).
+
+**Also fixed (pre-existing, on-Pholio — owner approved):** `ApplySuccess` rendered its
+primary action with `variant="primary" tone="dark"` on a cream ground.
+`PholioButton.css:420` paints that combination `#faf7f2` on `#faf7f2` with `!important`,
+so the button SURFACE was invisible — only the dark label floated on the page and the
+marquee submission CTA read as plain text. Verified before/after by rendering the real
+component classes against the real ground. Fix is the one call site: `tone="dark"` means
+"sits on a dark canvas", and this canvas is cream.
+
+Audited every other `tone="dark"` usage while there: FrameEditor, PhotoEditorModal,
+ImageMetadataModal, DigitalsContactSheet, PhotosTab and StatsCurrencyPrompt are all
+genuinely dark surfaces and are correct. `ApplyExperience.jsx:2494`
+(`.apply-workspace-logo`, on the cream top bar) is also nominally wrong but harmless —
+the page CSS sets its colour explicitly, so it never resolves the tone tokens. Left alone.
+
+DEVIATIONS FROM THE APPROVED PLAN (deliberate, both reduce risk)
+1. **`RegistryPreflight` and `spec-marks` kept, not rebuilt.** The plan had them deleted
+   and replaced by a new `SpecRequirements` panel. On inspection the panel already took
+   `seriesId` OR `agencyId` — it was already the shared component the plan wanted — and it
+   lives inside the Apply Workspace, one of the four reference surfaces. Rebuilding it was
+   churn with regression risk on the flow the owner asked to preserve. Only its dead link
+   to the deleted page was removed. Its `agencyId` / new `seriesId` props are now the one
+   seam between the two modes.
+2. **`buildAgencyView` kept.** The plan called it a page view model; it is not — it is the
+   per-agency category reading used by the panel too, and it carries the eligibility-mirror
+   wording and the form-fields collapse ruling. Only `buildMarketView` was deleted.
+
+RECOVERABLE, NOT LOST
+- `buildMarketView` (cross-market shot coverage + the "completes vs alsoAsked"
+  recommendation ruling) was deleted with the page. It is the engine for the cross-market
+  coverage view that belongs on Market later. Recover from `git show 39dac647:client/src/
+  domains/talent/lib/specRegistry.js` — it is the last ~110 lines.
+
+VERIFICATION RUN
+- Client: 435/435 vitest, lint 0 errors (1 pre-existing `react-hooks/incompatible-library`
+  warning in ProfilePage), vite build green.
+- New tests: `lib/__tests__/marketDirectory.test.js` (10), `offPholio/__tests__/
+  offPholioIntake.test.js` (16), `offPholio/__tests__/PrepareScene.test.jsx` (9).
+- **Real-payload check.** `.env` DATABASE_URL points at PRODUCTION Neon, so no migrate /
+  seed / release was run against it. Instead: isolated scratch SQLite
+  (`env -u DATABASE_URL PHOLIO_SAFE_TEST_RUNNER=1 DB_CLIENT=sqlite3
+  PHOLIO_SAFE_DEFAULT_DATABASE=<scratch> npx knex migrate:latest` + `npm run
+  sync:spec-registry`), then the real `listRegistryRoutes` payload was piped through the
+  client's own `readRoutes` → `buildMarketDirectory`. All 10 editorial routes render with
+  honest channel lines (Muse = email, Ford = third-party form).
+  That check caught a real bug: Ford and Wilhelmina publish NO market scope, and the
+  directory was defaulting them to "Global" — Pholio asserting something the agency never
+  said. Fixed to omit the line.
+- Preflight against the scratch registry resolves (34 findings for Muse, 41 for Society).
+  `buildSpecExport` returns `SPEC_EXPORT_EMPTY` there because seeded images carry
+  `shot_type` values that match no published slot — a seed-data condition, not a code path,
+  and `PrepareScene` renders that error correctly.
+
+NOT DONE / NEXT
+- [ ] No live browser pass. Requires Firebase auth against a real session, and the only
+      configured DB is production. Worth doing before merge on a proper dev environment.
+- [ ] Comp card + book in the export (backend `buildSpecExport`), which would restore
+      those two steps to the off-Pholio flow. Highest-value follow-up — §9.2 calls the
+      comp card the artifact the industry actually exchanges.
+- [ ] Cross-market coverage on Market (see `buildMarketView` recovery note above).
+- [ ] Off-Pholio destinations in the `?new=1` chooser — today off-Pholio always arrives
+      from Market with a `seriesId`.
 
 ## Session 2 resume state (post limit-reset, 2026-08-15 ~09:00 UTC)
 - FE wave INTEGRATED + PUSHED during previous session: 64b2ac5 (age verification
@@ -2754,6 +3261,14 @@ pre-existing failures.
 
 # Apple Wallet Identity Pass — Design Lock (2026-06-12)
 
+## Pholio ID pass visual redesign (2026-08-18)
+
+- [x] Inspect the approved device reference and map it to generic-pass constraints.
+- [x] Rework pass asset generation and front-field hierarchy around the black, ivory,
+      gold, and circular-portrait identity-card treatment.
+- [x] Add focused generator coverage and verify the generated visual assets.
+- [x] Run the wallet test suite and record the result: 7 focused tests passed.
+
 - [x] Research verified against Apple docs: pkpass anatomy + signing
       (manifest SHA-1 → PKCS#7 with Pass Type ID cert + WWDR G4), GENERIC is
       the correct style (icon/logo/thumbnail only — no strip/background;
@@ -4561,3 +5076,51 @@ uploaded file):**
 - Two false-positive CSAM escalations + two pending queue rows remain on profile
   `ed43363e…` in production, and that profile is still parked at `scout` with both
   headshots held at `review`.
+
+# Instagram login setup — 2026-08-18
+
+- [x] Confirm the existing Firebase custom-token bridge and Meta app ownership.
+- [x] Add the Instagram API use case to the existing Pholio Meta app.
+- [x] Register the production OAuth redirect URI.
+- [x] Update Pholio to Meta's current authorization host.
+- [x] Add signed deauthorization and data-deletion callbacks required for review.
+- [x] Configure the local credential and lifecycle callback URLs.
+- [x] Run focused auth tests and record the remaining publication requirements.
+
+## Review
+
+- Meta app `Pholio` now has the Instagram API use case. Production OAuth,
+  deauthorization, and deletion URLs are registered. The generated business-login
+  URL confirmed Instagram app ID `1058009693761008` and the current
+  `https://www.instagram.com/oauth/authorize` host.
+- Pholio verifies Meta lifecycle callbacks with timing-safe HMAC-SHA256 checks.
+  Deauthorization revokes every Express session plus Firebase refresh tokens;
+  data deletion reuses the existing complete account-erasure path and returns
+  Meta's required receipt/status response. OAuth session state now expires after
+  ten minutes.
+- Verification: 27 focused tests passed; all changed JavaScript files passed
+  `node --check`; `git diff --check` passed. The root repository has no supported
+  ESLint config, so the attempted generic ESLint 10 invocation was discarded.
+- The Instagram app secret is now configured locally and the runtime config is
+  valid. Remaining: add the secret to the production environment, add a
+  professional Instagram tester, complete live OAuth testing, business
+  verification, App Review for `instagram_business_basic`, and publication.
+
+# Instagram login production availability — 2026-08-18
+
+- [x] Trace the login message through the client status probe and production API.
+- [x] Prevent optional pdfjs font metadata from crashing the serverless API at startup.
+- [x] Distinguish a temporarily unavailable status endpoint from an unconfigured provider.
+- [x] Build the function, run focused server/client tests, and verify the production fix path.
+
+## Review
+
+- Root cause: production returned `502 Runtime.ImportModuleError` for every API request
+  because `pdf-text.js` resolved `pdfjs-dist/package.json` at module load, while the
+  serverless bundle omits that optional metadata. The static login page treated the
+  failed status probe as a durable `configured: false` result.
+- Verification: the generated function now starts successfully; 29 focused server
+  tests and 3 focused client tests pass; the full client production build passes;
+  changed auth files pass ESLint. The running local API reports
+  `configured: true` and `/api/auth/instagram/start` returns the expected Instagram
+  authorization redirect. Production remains on the broken bundle until deployment.

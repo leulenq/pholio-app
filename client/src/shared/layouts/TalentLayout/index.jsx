@@ -186,11 +186,6 @@ export default function TalentLayout({ outletContext = {}, children }) {
               onClick={() => setIsNotificationsOpen((open) => !open)}
             >
               <Bell size={18} strokeWidth={1.5} />
-              {unreadCount > 0 && (
-                <span className="tl-action-badge" aria-hidden>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
             </button>
 
             {isNotificationsOpen && (

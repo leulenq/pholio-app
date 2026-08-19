@@ -106,7 +106,9 @@ export default function LoginPage() {
   useAuthenticatedEntryRedirect();
 
   useEffect(() => {
-    isInstagramAuthConfigured().then(setInstagramEnabled);
+    isInstagramAuthConfigured()
+      .then(setInstagramEnabled)
+      .catch(() => setInstagramEnabled(false));
   }, []);
 
   // Deliberately NOT prefetching the dashboard chunk from here. Pulling the
@@ -188,14 +190,24 @@ export default function LoginPage() {
 
   const handleInstagramSignIn = async () => {
     setError(null);
-
-    if (!instagramEnabled) {
-      setError('Instagram sign-in is not configured yet. Use email or Google for now.');
-      return;
-    }
-
     setIsInstagramLoading(true);
-    startInstagramAuth({ flow: 'login', next: from });
+
+    try {
+      const configured = instagramEnabled
+        || await isInstagramAuthConfigured({ refresh: true });
+
+      if (!configured) {
+        setError('Instagram sign-in is not configured yet. Use email or Google for now.');
+        setIsInstagramLoading(false);
+        return;
+      }
+
+      setInstagramEnabled(true);
+      startInstagramAuth({ flow: 'login', next: from });
+    } catch {
+      setError('Instagram sign-in is temporarily unavailable. Please try again.');
+      setIsInstagramLoading(false);
+    }
   };
 
   const handleEmailSignIn = async (e) => {

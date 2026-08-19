@@ -863,3 +863,10 @@
      rebuilding a surface it names.
   5. Overlay/popup components must use the established portal/positioning pattern; verify
      placement at common viewport sizes.
+
+## 2026-08-18 — Verify the Meta asset chain by ID before configuring login
+
+- When several similarly named Meta assets exist, begin from the user-confirmed Business
+  Suite account and record the business portfolio ID, Instagram account ID, and owning app
+  ID before changing developer settings. Names alone are not sufficient: verify the full
+  chain from the Instagram asset to its portfolio and the exact app listed under Accounts.

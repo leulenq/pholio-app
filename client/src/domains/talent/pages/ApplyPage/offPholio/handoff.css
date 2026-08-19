@@ -1,0 +1,370 @@
+/* ============================================================
+   THE HANDOVER — off-Pholio's terminal moment.
+
+   The counterpart to .apply-success, built from the same parts
+   deliberately: portaled takeover, cream ground with a gold
+   wash from above, mono receipts, serif display title.
+
+   The difference is the claim, not the craft. Nothing was
+   submitted here, so the seal is an archive rather than a
+   check, and the receipt line — "Under review" on a Pholio
+   submission — tells the truth instead.
+   ============================================================ */
+
+.apply-handoff {
+  /* Portaled to <body>, outside .applications-view-container — re-declare the
+     token set so the surface and its text resolve correctly. */
+  --app-cream: #faf7f2;
+  --app-cream-warm: #f5f0e8;
+  --app-gold: #c9a55a;
+  --app-gold-warm: #c8a96e;
+  --app-ink: #050505;
+  --app-text: #1a1a1a;
+  --app-text-soft: rgba(26, 26, 26, 0.62);
+  --app-text-faint: rgba(26, 26, 26, 0.38);
+  --app-hair: rgba(26, 26, 26, 0.09);
+  --app-hair-strong: rgba(26, 26, 26, 0.16);
+  --app-hair-gold: rgba(201, 165, 90, 0.24);
+  --app-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --app-radius: 6px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: clamp(36px, 6vw, 88px) clamp(20px, 5vw, 64px);
+  color: var(--app-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(
+      130% 80% at 50% -10%,
+      color-mix(in srgb, var(--app-gold) 7%, var(--app-cream)) 0%,
+      var(--app-cream) 58%
+    ),
+    var(--app-cream);
+}
+
+.apply-handoff__inner {
+  width: 100%;
+  max-width: 40rem;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(15px, 1.9vw, 22px);
+}
+
+.apply-handoff__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(4px, 1vw, 10px);
+}
+
+.apply-handoff__pholio {
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+}
+
+.apply-handoff__brand-div {
+  width: 1px;
+  height: 13px;
+  background: var(--app-hair-strong);
+}
+
+.apply-handoff__brand-sub {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-handoff__seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border: 1px solid var(--app-hair-gold);
+  border-radius: 50%;
+  color: var(--app-gold);
+  background: color-mix(in srgb, var(--app-gold) 8%, #fff);
+}
+
+.apply-handoff__title {
+  margin: 0;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-weight: 300;
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.apply-handoff__lede {
+  margin: 0;
+  max-width: 32rem;
+  color: var(--app-text-soft);
+  font-size: clamp(1.05rem, 1.6vw, 1.25rem);
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.apply-handoff__lede em {
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-style: italic;
+}
+
+.apply-handoff__receipt {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Deep gold, not the #c9a55a accent: that measures ~2.2:1 on this cream and
+   this is the line that must not be missed. */
+.apply-handoff__status {
+  color: #75501b;
+  font-weight: 600;
+}
+
+.apply-handoff__receipt--file {
+  margin-top: -6px;
+  text-transform: none;
+  letter-spacing: 0.1em;
+}
+
+/* ── blocks ──────────────────────────────────────────────── */
+
+.apply-handoff__guidance,
+.apply-handoff__keep {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: clamp(6px, 1.2vw, 12px);
+  padding: clamp(20px, 2.6vw, 28px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 34%, #fff);
+  text-align: left;
+}
+
+.apply-handoff__label {
+  display: block;
+  margin-bottom: 14px;
+  /* See prepare.css — faint is 2.41:1 here, and this names the block. */
+  color: var(--app-text-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-handoff__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: handoff-step;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.apply-handoff__steps li {
+  counter-increment: handoff-step;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  color: var(--app-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.apply-handoff__steps li::before {
+  content: counter(handoff-step, decimal-leading-zero);
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.9;
+}
+
+.apply-handoff__outbound {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--app-gold);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-handoff__outbound:hover {
+  color: var(--app-gold);
+}
+
+.apply-handoff__outbound:focus-visible,
+.apply-handoff__keep-links a:focus-visible {
+  outline: 2px solid var(--app-gold);
+  outline-offset: 4px;
+}
+
+.apply-handoff__keep-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.apply-handoff__keep-list li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--app-text-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.apply-handoff__keep-list li::before {
+  content: '';
+  position: absolute;
+  top: 0.62em;
+  left: 0;
+  width: 5px;
+  height: 1px;
+  background: var(--app-gold);
+}
+
+.apply-handoff__keep-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-handoff__keep-links a {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-handoff__keep-links a:hover {
+  color: var(--app-gold);
+}
+
+.apply-handoff__problem {
+  margin: 16px 0 0;
+  color: #8b4e3d;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ── the record prompt ───────────────────────────────────── */
+
+.apply-handoff__log {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 6px 14px;
+  width: 100%;
+  padding-top: clamp(6px, 1.2vw, 12px);
+}
+
+.apply-handoff__log-line {
+  margin: 0;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.apply-handoff__log-action,
+.apply-handoff__log-dismiss,
+.apply-handoff__back {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-handoff__log-action {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.apply-handoff__log-action:hover:not(:disabled) {
+  color: var(--app-gold);
+}
+
+.apply-handoff__log-action:disabled {
+  color: var(--app-text-faint);
+  cursor: default;
+}
+
+.apply-handoff__log-dismiss,
+.apply-handoff__back {
+  color: var(--app-text-faint);
+}
+
+.apply-handoff__log-dismiss:hover,
+.apply-handoff__back:hover {
+  color: var(--app-text-soft);
+}
+
+.apply-handoff__log-problem {
+  flex-basis: 100%;
+  margin: 0;
+  color: #8b4e3d;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.apply-handoff__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: clamp(6px, 1.2vw, 12px);
+}
+
+@media (max-width: 560px) {
+  .apply-handoff__inner {
+    gap: 14px;
+  }
+
+  .apply-handoff__log {
+    justify-content: flex-start;
+  }
+}

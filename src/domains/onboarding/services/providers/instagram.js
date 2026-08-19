@@ -3,9 +3,10 @@
  * https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login
  */
 
+const crypto = require("crypto");
 const config = require("../../../../config");
 
-const INSTAGRAM_AUTH_URL = "https://api.instagram.com/oauth/authorize";
+const INSTAGRAM_AUTH_URL = "https://www.instagram.com/oauth/authorize";
 const INSTAGRAM_TOKEN_URL = "https://api.instagram.com/oauth/access_token";
 const INSTAGRAM_GRAPH_URL = "https://graph.instagram.com";
 
@@ -28,9 +29,62 @@ function buildInstagramAuthorizeUrl(state) {
     scope: config.instagram.scope,
     response_type: "code",
     state,
+    force_reauth: "true",
   });
 
   return `${INSTAGRAM_AUTH_URL}?${params.toString()}`;
+}
+
+/**
+ * Verify and decode the signed_request Meta sends to Instagram lifecycle
+ * callbacks. The HMAC covers the still-encoded payload segment, not the decoded
+ * JSON. Never trust user_id until this comparison succeeds.
+ *
+ * @param {string} signedRequest
+ * @returns {Object}
+ */
+function verifyInstagramSignedRequest(signedRequest) {
+  if (typeof signedRequest !== "string" || !signedRequest.trim()) {
+    throw new Error("Missing Instagram signed request");
+  }
+  if (!config.instagram?.appSecret) {
+    throw new Error("Instagram OAuth is not configured");
+  }
+
+  const parts = signedRequest.split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    throw new Error("Invalid Instagram signed request");
+  }
+
+  const [encodedSignature, encodedPayload] = parts;
+  const actualSignature = Buffer.from(encodedSignature, "base64url");
+  const expectedSignature = crypto
+    .createHmac("sha256", config.instagram.appSecret)
+    .update(encodedPayload)
+    .digest();
+
+  if (
+    actualSignature.length !== expectedSignature.length ||
+    !crypto.timingSafeEqual(actualSignature, expectedSignature)
+  ) {
+    throw new Error("Invalid Instagram signed request signature");
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch {
+    throw new Error("Invalid Instagram signed request payload");
+  }
+
+  if (payload.algorithm && payload.algorithm !== "HMAC-SHA256") {
+    throw new Error("Unsupported Instagram signed request algorithm");
+  }
+  if (!payload.user_id) {
+    throw new Error("Instagram signed request is missing user_id");
+  }
+
+  return payload;
 }
 
 /**
@@ -152,5 +206,6 @@ module.exports = {
   isInstagramConfigured,
   buildInstagramAuthorizeUrl,
   verifyInstagramCode,
+  verifyInstagramSignedRequest,
   normalizeInstagramUser,
 };

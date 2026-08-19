@@ -109,7 +109,7 @@ describe('the open calls card', () => {
     renderCard();
 
     const link = await screen.findByRole('link', { name: /all open calls/i });
-    expect(link).toHaveAttribute('href', '/dashboard/talent/applications/requirements');
+    expect(link).toHaveAttribute('href', '/dashboard/talent/applications');
   });
 
   test('renders nothing at all when Pholio holds no windows', async () => {

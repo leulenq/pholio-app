@@ -110,30 +110,6 @@
   line-height: 1.65;
 }
 
-.app-requirements-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 18px;
-  color: #75501b;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.4;
-  text-decoration: none;
-  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.app-requirements-link:hover {
-  color: var(--app-text);
-}
-
-.app-requirements-link:focus-visible {
-  outline: 2px solid var(--app-gold);
-  outline-offset: 4px;
-}
-
-
-
 .app-market-index {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
@@ -170,17 +146,6 @@
 }
 
 /* ── Open-agencies discovery meta ────────────────────────────────────────── */
-
-.app-discovery__meta {
-  margin: clamp(28px, 3.5vw, 44px) 0 clamp(20px, 2.4vw, 30px);
-  color: var(--app-text-faint);
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-align: right;
-  text-transform: uppercase;
-}
 
 /* Send pre-flight — what still blocks a submission, and where to clear it */
 .app-preflight {
@@ -328,7 +293,6 @@
     transform: none;
   }
 }
-
 
 .app-modal-section__head {
   display: flex;
@@ -1372,8 +1336,7 @@
   color: var(--app-gold-light);
 }
 
-.app-ledger-card--skeleton,
-.app-agency-card--skeleton {
+.app-ledger-card--skeleton {
   overflow: hidden;
   min-height: 94px;
   border-bottom: 1px solid var(--app-hair);
@@ -1411,8 +1374,7 @@
   border-bottom: 1px solid var(--app-hair);
 }
 
-.app-detail__mark,
-.app-agency-card__mark {
+.app-detail__mark {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1428,20 +1390,10 @@
   height: 50px;
 }
 
-.app-detail__mark img,
-.app-agency-card__mark img {
+.app-detail__mark img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.app-detail__mark span,
-.app-agency-card__mark span {
-  color: var(--app-gold);
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.35rem;
-  font-style: italic;
-  font-weight: 300;
 }
 
 .app-detail__name {
@@ -1903,71 +1855,6 @@
   padding-top: 0;
 }
 
-.app-agency-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--app-hair);
-  border-left: 1px solid var(--app-hair);
-}
-
-.app-agency-card {
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 22px;
-  padding: clamp(22px, 2.5vw, 32px);
-  border-right: 1px solid var(--app-hair);
-  border-bottom: 1px solid var(--app-hair);
-  background: rgba(255, 255, 255, 0.18);
-}
-
-.app-agency-card__mark {
-  width: 48px;
-  height: 48px;
-}
-
-.app-agency-card__body {
-  min-width: 0;
-}
-
-.app-agency-card h3 {
-  margin: 0;
-  color: var(--app-text);
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(1.45rem, 2.3vw, 2.2rem);
-  font-weight: 300;
-  letter-spacing: 0;
-  line-height: 1.02;
-  overflow-wrap: anywhere;
-}
-
-.app-agency-card__location {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 10px 0 0;
-  color: var(--app-text-faint);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.app-agency-card__desc {
-  display: -webkit-box;
-  overflow: hidden;
-  margin: 22px 0 0;
-  color: var(--app-text-soft);
-  font-size: 14px;
-  font-weight: 300;
-  line-height: 1.65;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-}
-
-.app-agency-card__apply {
-  justify-self: start;
-}
-
 .app-empty-state,
 .app-detail-empty,
 .app-error-state {
@@ -2026,11 +1913,7 @@
     border-left: 0;
   }
 
-  .app-agency-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .app-agency-selector__list {
+.app-agency-selector__list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     border-left: 1px solid var(--app-hair);
@@ -2187,12 +2070,7 @@
   .app-ledger-card:hover::before,
   .app-ledger-card--selected::before {
     right: -12px;
-  }
-
-  .app-agency-grid {
-    grid-template-columns: 1fr;
-  }
-}
+  }}
 
 @media (max-width: 520px) {
   .applications-view-container {
@@ -2233,13 +2111,7 @@
     height: 38px;
   }
 
-  .app-agency-card {
-    padding: 22px 0;
-    background: transparent;
-    border-right: 0;
-  }
-
-  /* Long house names shouldn't clip mid-word in the narrow ledger column —
+/* Long house names shouldn't clip mid-word in the narrow ledger column —
      allow two lines with an ellipsis on the second. Desktop keeps its
      single-line ellipsis (rule unchanged above the breakpoint). */
   .app-ledger-card__agency {

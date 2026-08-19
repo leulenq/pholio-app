@@ -100,13 +100,13 @@ export function AgencyRow({
         </span>
       )}
 
+      {/* The fallback is an empty frame, not an initial. A letter tile reads as
+          a mark somebody chose; "no photo on file" is the actual fact. */}
       <span className="ag-row-photo">
         {photoUrl ? (
           <img src={photoUrl} alt={photoAlt ?? name ?? ''} loading="lazy" />
         ) : (
-          <span className="ag-row-photo-fallback" aria-hidden="true">
-            {name ? name.trim().charAt(0).toUpperCase() : ''}
-          </span>
+          <span className="ag-row-photo-fallback" aria-hidden="true" />
         )}
       </span>
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -64,7 +64,26 @@ import '../../components/ApplicationsView.css';
 import './ApplyExperience.css';
 import SubmissionThreshold from './SubmissionThreshold';
 import RegistryPreflight from '../../components/RegistryPreflight';
-import { draftFingerprint, getDraftClientId } from './applicationDraftStorage';
+import {
+  HandoffScene,
+  PrepareScene,
+  pagesForTarget,
+  readSeriesId,
+  useOffPholioTarget,
+} from './offPholio';
+import {
+  applicationDraftQueryOptions,
+  clearLocalDraft,
+  clearLocalDraftIfFingerprint,
+  createLatestDraftSaveQueue,
+  draftFingerprint,
+  draftRetryDelay,
+  getDraftClientId,
+  provisionalDraftState,
+  readLocalDraft,
+  reconcileDraftDocuments,
+  writeLocalDraft,
+} from './applicationDraftStorage';
 
 const XIcon = ({ size = 24, className }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}>
@@ -199,15 +218,20 @@ function repairStepIndex(warnings = [], pages = PAGES) {
   return pages.findIndex((page) => page.id === 'review');
 }
 
-function clientDraftDocument(serverDraft, { restoreConsent = false } = {}) {
+function clientDraftDocument(
+  serverDraft,
+  { restoreConsent = false, restoreAttestations = false } = {},
+) {
   if (!serverDraft?.payload) return null;
   return {
     currentStepId: serverDraft.currentStepId,
     payload: {
       ...serverDraft.payload,
       consent: restoreConsent && serverDraft.payload.consent === true,
-      accuracyConfirmed: false,
-      adultAuthorityConfirmed: false,
+      accuracyConfirmed:
+        restoreAttestations && serverDraft.payload.accuracyConfirmed === true,
+      adultAuthorityConfirmed:
+        restoreAttestations && serverDraft.payload.adultAuthorityConfirmed === true,
     },
   };
 }
@@ -228,7 +252,16 @@ function formatSavedAt(value) {
 
 // Pages that take over the full workspace (rail steps aside) for an immersive,
 // breathing review of the visual work.
-const FULLSCREEN_PAGES = new Set(['digitals', 'stats', 'book', 'compcard', 'review']);
+const FULLSCREEN_PAGES = new Set([
+  'digitals',
+  'stats',
+  'book',
+  'compcard',
+  'review',
+  // Off-Pholio's terminal step. Also the reason the editorial rail never has to
+  // reason about a missing agency row: every off-Pholio step is full-bleed.
+  'prepare',
+]);
 
 /* Page 01 is agency-primary. A submission goes TO the agency (which decides
    placement); a board is optional context shown ONLY when the agency actually
@@ -419,10 +452,6 @@ function websiteUrl(value) {
   return `https://${trimmed}`;
 }
 
-function agencyInitial(name) {
-  return String(name || 'Agency').trim().charAt(0).toUpperCase() || 'A';
-}
-
 function agencyDomain(value) {
   if (!value || typeof value !== 'string') return null;
   return value.replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -569,9 +598,15 @@ export default function ApplyExperience() {
     images: authImages = [],
     isLoading: authLoading,
   } = useAuth();
+  const profileId = profile?.id || null;
 
   const startNew = searchParams.get('new') === '1';
   const agencyFromUrl = searchParams.get('agency');
+  // `?series=` opens the same workspace against a researched route Pholio does
+  // not deliver to. It is never combined with `?agency=`: a destination Pholio
+  // can carry is always carried (see `openApplyFlow` in ApplicationsView).
+  const seriesFromUrl = readSeriesId(searchParams);
+  const isOffPholioTarget = Boolean(seriesFromUrl) && !agencyFromUrl;
   const [pageIndex, setPageIndex] = useState(0);
   const [selectedAgencyId, setSelectedAgencyId] = useState(
     startNew ? null : agencyFromUrl,
@@ -584,6 +619,7 @@ export default function ApplyExperience() {
   // than one). Null = the live default composed card. Recorded on submit so the
   // agency receives that exact rendering.
   const [selectedCompCardPreset, setSelectedCompCardPreset] = useState(null);
+  const [selectedExternalCompCard, setSelectedExternalCompCard] = useState(null);
   // Submission-scoped: which qualifying digital represents each slot (swap).
   const [digitalSlotPicks, setDigitalSlotPicks] = useState({});
   const [specRegistryRevisionId, setSpecRegistryRevisionId] = useState(null);
@@ -608,10 +644,20 @@ export default function ApplyExperience() {
   const deepLinked = !!agencyFromUrl && !startNew;
   const draftVersionRef = useRef(0);
   const draftGenerationRef = useRef(0);
+  const draftRevisionTokenRef = useRef(null);
   const lastSavedFingerprintRef = useRef('');
+  const baseDraftDocumentRef = useRef(null);
   const currentDraftRef = useRef(null);
   const autosaveTimerRef = useRef(null);
   const persistDraftRef = useRef(null);
+  const saveOneDraftRef = useRef(null);
+  const draftSaveQueueRef = useRef(null);
+  const draftSaveQueueScopeRef = useRef(null);
+  const offlineHydratedFor = useRef(null);
+  const draftStatusRef = useRef(draftStatus);
+  const draftRetryTimerRef = useRef(null);
+  const draftRetryAttemptRef = useRef(0);
+  const requestDraftResyncRef = useRef(null);
 
   const applicationsQuery = useQuery({
     queryKey: ['applications'],
@@ -637,6 +683,12 @@ export default function ApplyExperience() {
     staleTime: 1000 * 60 * 3,
     retry: 1,
   });
+  const externalCompCardsQuery = useQuery({
+    queryKey: ['external-comp-cards'],
+    queryFn: talentApi.listExternalCompCards,
+    staleTime: 60_000,
+  });
+  const externalCompCards = externalCompCardsQuery.data?.cards || [];
   const minor = isMinorProfile(profile);
   const agencyConsentQuery = useQuery({
     queryKey: ['guardian-agency-consent', selectedAgencyId],
@@ -670,11 +722,7 @@ export default function ApplyExperience() {
   });
   // Resume an in-progress dossier for the chosen house, if one was saved.
   const draftQuery = useQuery({
-    queryKey: ['application-draft', selectedAgencyId],
-    queryFn: () => talentApi.getDraft(selectedAgencyId),
-    enabled: !!selectedAgencyId,
-    staleTime: 1000 * 30,
-    retry: 0,
+    ...applicationDraftQueryOptions(selectedAgencyId, talentApi.getDraft),
   });
 
   // The one-time submission-program acknowledgment. Resolved as the dossier
@@ -815,7 +863,10 @@ export default function ApplyExperience() {
   // The single seam for event casting in this file (design §e, T2). Everything
   // it owns — the casting page, its state, its draft fields — lives in ./event.
   const eventIntake = useEventIntake({ basePages: PAGES, claim: openCallClaim });
-  const pages = eventIntake.pages;
+  // Off-Pholio drops the steps that have nowhere to go — board, book, comp card
+  // and message — and ends on Prepare instead of Review & send. Known from the
+  // URL, so the step list never waits on a query.
+  const pages = pagesForTarget(eventIntake.pages, isOffPholioTarget);
   // Stable across renders (the hook memoizes it), so callbacks that restore a
   // draft can depend on it without churning.
   const hydrateEventDraft = eventIntake.hydrateFromDraft;
@@ -863,6 +914,7 @@ export default function ApplyExperience() {
             seed: selectedCompCardPreset.seed || null,
           }
         : null,
+      externalCompCard: selectedExternalCompCard,
       note,
       ...eventIntake.submissionFields,
       measurementsConfirmed: eventIntake.measurementsConfirmedForDraft,
@@ -885,9 +937,17 @@ export default function ApplyExperience() {
     pages,
     selectedBoards,
     selectedCompCardPreset,
+    selectedExternalCompCard,
     selectedMediaSetId,
     minor,
   ]);
+
+  // Network acknowledgements race React's passive effects. Keep the newest
+  // committed editor snapshot available before a response is allowed to clear
+  // its crash journal.
+  useLayoutEffect(() => {
+    currentDraftRef.current = draftDocument;
+  }, [draftDocument]);
 
   // Restore the form from a saved draft, dropping any reference (board, media
   // set, image) that is no longer available. Consent is never auto-restored —
@@ -931,6 +991,7 @@ export default function ApplyExperience() {
         : null,
     );
     setSelectedCompCardPreset(payload.compCardPreset || null);
+    setSelectedExternalCompCard(payload.externalCompCard || null);
     setNote(typeof payload.note === 'string' ? payload.note.slice(0, 1200) : '');
     hydrateEventDraft(payload);
     setConsent(false);
@@ -945,6 +1006,8 @@ export default function ApplyExperience() {
     applyDraftDocument(serverDocument, options);
     draftVersionRef.current = Number(server.version) || 0;
     draftGenerationRef.current = Number(server.generation) || 0;
+    draftRevisionTokenRef.current = server.revisionToken || null;
+    baseDraftDocumentRef.current = serverDocument;
     currentDraftRef.current = serverDocument;
     lastSavedFingerprintRef.current = draftFingerprint(serverDocument);
     setDraftUpdatedAt(server.updatedAt || null);
@@ -954,8 +1017,9 @@ export default function ApplyExperience() {
       ['application-draft', selectedAgencyId],
       server,
     );
+    if (profileId) clearLocalDraft(profileId, selectedAgencyId);
     return true;
-  }, [applyDraftDocument, queryClient, selectedAgencyId]);
+  }, [applyDraftDocument, profileId, queryClient, selectedAgencyId]);
 
   // Hydrate the dossier from the saved draft once the agency's draft has loaded.
   // A draft is a convenience — any error simply means "no resume" and never
@@ -963,23 +1027,100 @@ export default function ApplyExperience() {
   const hydratedFor = useRef(null);
   useEffect(() => {
     if (!selectedAgencyId || hydratedFor.current === selectedAgencyId) return;
-    if (draftQuery.isLoading || mediaSetsQuery.isLoading || authLoading) return;
+    // Cached null/old data cannot establish an optimistic-concurrency base.
+    // Wait for the mount refetch before hydrating this agency.
+    if (
+      draftQuery.isLoading ||
+      draftQuery.isFetching ||
+      mediaSetsQuery.isLoading ||
+      agenciesQuery.isLoading ||
+      applicationsQuery.isLoading ||
+      applicationQuotaQuery.isLoading ||
+      authLoading
+    ) return;
+
+    const local = profileId ? readLocalDraft(profileId, selectedAgencyId) : null;
+    if (draftQuery.isError) {
+      if (offlineHydratedFor.current === selectedAgencyId) return;
+      offlineHydratedFor.current = selectedAgencyId;
+      const cachedServerDocument = draftQuery.data?.payload
+        ? clientDraftDocument(draftQuery.data)
+        : null;
+      const provisional = provisionalDraftState({
+        local,
+        cachedServer: cachedServerDocument
+          ? { ...draftQuery.data, document: cachedServerDocument }
+          : null,
+        fallbackDocument: draftDocument,
+      });
+      const localDocument = provisional.document;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guarded one-time offline hydration restores the durable editor snapshot
+      if (localDocument !== draftDocument) applyDraftDocument(localDocument);
+      currentDraftRef.current = localDocument;
+      baseDraftDocumentRef.current = provisional.baseDocument;
+      draftVersionRef.current = provisional.version;
+      draftGenerationRef.current = provisional.generation;
+      draftRevisionTokenRef.current = provisional.revisionToken;
+      lastSavedFingerprintRef.current = draftFingerprint(provisional.baseDocument);
+      setDraftIssue(null);
+      draftStatusRef.current = 'error';
+      setDraftStatus('error');
+      setDraftHydrated(true);
+      if (!draftRetryTimerRef.current) {
+        const delay = draftRetryDelay(draftRetryAttemptRef.current);
+        draftRetryAttemptRef.current += 1;
+        draftRetryTimerRef.current = window.setTimeout(() => {
+          draftRetryTimerRef.current = null;
+          requestDraftResyncRef.current?.();
+        }, delay);
+      }
+      return;
+    }
+
     hydratedFor.current = selectedAgencyId;
+    offlineHydratedFor.current = null;
+    draftRetryAttemptRef.current = 0;
+    if (draftRetryTimerRef.current) {
+      clearTimeout(draftRetryTimerRef.current);
+      draftRetryTimerRef.current = null;
+    }
 
     const server = draftQuery.data || null;
     if (server && server.payload) {
       const serverDocument = clientDraftDocument(server);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration guarded by hydratedFor ref; setState inside applyDraftDocument is intentional
-      applyDraftDocument(serverDocument);
+      const reconciliation = local?.kind === 'draft' && local.dirty && local.document
+        ? reconcileDraftDocuments({
+            base: local.baseDocument || null,
+            local: local.document,
+            remote: serverDocument,
+          })
+        : null;
+      const documentToHydrate = reconciliation && reconciliation.status !== 'conflict'
+        ? reconciliation.document
+        : serverDocument;
+      applyDraftDocument(documentToHydrate);
       draftVersionRef.current = Number(server.version) || 0;
       draftGenerationRef.current = Number(server.generation) || 0;
-      currentDraftRef.current = serverDocument;
+      draftRevisionTokenRef.current = server.revisionToken || null;
+      baseDraftDocumentRef.current = serverDocument;
+      currentDraftRef.current = documentToHydrate;
       lastSavedFingerprintRef.current = draftFingerprint(serverDocument);
       setDraftUpdatedAt(server.updatedAt || null);
       const unsupportedSchema = server.repairWarnings?.some(
         (warning) => warning.code === 'unsupported_schema',
       );
-      if (
+      if (reconciliation?.status === 'conflict') {
+        setDraftIssue({
+          code: 'draft_conflict',
+          source: 'hydrate',
+          message: 'This device and the saved draft both changed the same application details.',
+          latest: server,
+          localDocument: local.document,
+          conflictFields: reconciliation.conflictFields,
+          repairWarnings: server.repairWarnings || [],
+        });
+        setDraftStatus('conflict');
+      } else if (
         ['expired', 'deleted'].includes(server.lifecycleState) ||
         unsupportedSchema
       ) {
@@ -1007,51 +1148,179 @@ export default function ApplyExperience() {
         );
       } else {
         setDraftIssue(null);
-        setDraftStatus('saved');
+        const hasUnsavedReconciliation =
+          reconciliation?.status === 'merged' &&
+          draftFingerprint(documentToHydrate) !== draftFingerprint(serverDocument);
+        setDraftStatus(hasUnsavedReconciliation ? 'unsaved' : 'saved');
+        if (!hasUnsavedReconciliation) {
+          if (profileId) clearLocalDraft(profileId, selectedAgencyId);
+        }
       }
     } else {
+      const provisional = provisionalDraftState({ local, fallbackDocument: draftDocument });
+      const recoverLocal = provisional.dirty;
+      const initialDocument = provisional.document;
+      if (recoverLocal) applyDraftDocument(initialDocument);
+      currentDraftRef.current = initialDocument;
+      baseDraftDocumentRef.current = provisional.baseDocument;
+      draftVersionRef.current = provisional.version;
+      draftGenerationRef.current = provisional.generation;
+      draftRevisionTokenRef.current = provisional.revisionToken;
+      // An untouched new workspace is not a draft. Seeding this baseline stops
+      // the old behavior that created Version 1 after 1.5 seconds of inactivity.
+      lastSavedFingerprintRef.current = draftFingerprint(draftDocument);
       setDraftIssue(null);
-      setDraftStatus('idle');
+      setDraftStatus(recoverLocal ? 'unsaved' : 'idle');
+      if (!recoverLocal && profileId) clearLocalDraft(profileId, selectedAgencyId);
     }
     setDraftHydrated(true);
   }, [
     applyDraftDocument,
     authLoading,
     draftQuery.data,
+    draftQuery.isFetching,
+    draftQuery.isError,
     draftQuery.isLoading,
+    agenciesQuery.isLoading,
+    applicationsQuery.isLoading,
+    applicationQuotaQuery.isLoading,
     mediaSetsQuery.isLoading,
+    profileId,
     selectedAgencyId,
+    draftDocument,
   ]);
 
-  // Save the draft to the server. Fire-and-forget and tolerant: a conflict
-  // (the draft moved on another device) just re-syncs the version; any other
-  // failure is surfaced quietly. A draft never blocks the submission.
-  const persistDraftDocument = useCallback(async (document = currentDraftRef.current) => {
-    if (!selectedAgencyId || !draftHydrated || !document) return false;
+  const saveOneDraft = useCallback(async (document, targetAgencyId = selectedAgencyId) => {
     const fingerprint = draftFingerprint(document);
-    if (fingerprint === lastSavedFingerprintRef.current) {
-      setDraftStatus(draftVersionRef.current > 0 ? 'saved' : 'idle');
+    if (targetAgencyId === selectedAgencyId && fingerprint === lastSavedFingerprintRef.current) {
       return true;
     }
-    currentDraftRef.current = document;
-    setDraftStatus('saving');
+    const requestVersion = draftVersionRef.current;
+    const requestGeneration = draftGenerationRef.current;
+    const requestRevisionToken = draftRevisionTokenRef.current;
+    const requestBase = baseDraftDocumentRef.current;
+    if (targetAgencyId === selectedAgencyId) setDraftStatus('saving');
     try {
-      const result = await talentApi.saveDraft(selectedAgencyId, {
+      const result = await talentApi.saveDraft(targetAgencyId, {
         payload: document.payload,
         currentStepId: document.currentStepId,
-        expectedVersion: draftVersionRef.current,
-        expectedGeneration: draftGenerationRef.current,
+        expectedVersion: requestVersion,
+        expectedGeneration: requestGeneration,
+        expectedRevisionToken: requestRevisionToken,
         clientId: draftClientId,
         clientUpdatedAt: new Date().toISOString(),
       });
+      const savedDocument = clientDraftDocument(result, {
+        restoreConsent: true,
+        restoreAttestations: true,
+      }) || document;
+      queryClient.setQueryData(['application-draft', targetAgencyId], result);
+      queryClient.invalidateQueries({ queryKey: ['application-drafts'] });
+      if (targetAgencyId !== selectedAgencyId) {
+        if (profileId) clearLocalDraftIfFingerprint(profileId, targetAgencyId, fingerprint);
+        return true;
+      }
       draftVersionRef.current = Number(result?.version) || draftVersionRef.current + 1;
       draftGenerationRef.current = Number(result?.generation) || draftGenerationRef.current;
-      lastSavedFingerprintRef.current = fingerprint;
+      draftRevisionTokenRef.current = result?.revisionToken || null;
+      baseDraftDocumentRef.current = savedDocument;
+      lastSavedFingerprintRef.current = draftFingerprint(savedDocument);
       setDraftUpdatedAt(result?.updatedAt || new Date().toISOString());
-      setDraftStatus('saved');
+      draftRetryAttemptRef.current = 0;
+      if (draftRetryTimerRef.current) {
+        clearTimeout(draftRetryTimerRef.current);
+        draftRetryTimerRef.current = null;
+      }
+      const newestLocal = currentDraftRef.current || document;
+      const newestFingerprint = draftFingerprint(newestLocal);
+      const acknowledgementIsCurrent = newestFingerprint === draftFingerprint(savedDocument);
+      if (acknowledgementIsCurrent && !draftSaveQueueRef.current?.pendingDocument()) {
+        if (profileId) {
+          clearLocalDraftIfFingerprint(profileId, selectedAgencyId, newestFingerprint);
+        }
+        currentDraftRef.current = savedDocument;
+        if (draftFingerprint(document) !== draftFingerprint(savedDocument)) {
+          applyDraftDocument(savedDocument, {
+            restoreConsent: true,
+            restoreAttestations: true,
+          });
+        }
+        setDraftStatus('saved');
+      } else {
+        const reconciliation = reconcileDraftDocuments({
+          base: document || requestBase,
+          local: newestLocal,
+          remote: savedDocument,
+        });
+        if (reconciliation.status === 'conflict') {
+          setDraftIssue({
+            code: 'draft_conflict',
+            source: 'save-repair',
+            message: 'The saved package changed while newer edits were still on this device.',
+            latest: result,
+            localDocument: newestLocal,
+            conflictFields: reconciliation.conflictFields,
+            repairWarnings: result?.repairWarnings || [],
+          });
+          setDraftStatus('conflict');
+          return false;
+        }
+        const nextDocument = reconciliation.document || newestLocal;
+        currentDraftRef.current = nextDocument;
+        draftSaveQueueRef.current?.replacePending(nextDocument);
+        if (draftFingerprint(nextDocument) !== newestFingerprint) {
+          applyDraftDocument(nextDocument, {
+            restoreConsent: true,
+            restoreAttestations: true,
+          });
+        }
+        setDraftStatus('unsaved');
+      }
       return true;
     } catch (err) {
+      if (targetAgencyId !== selectedAgencyId) return false;
       const code = err?.data?.error;
+      if (err?.status === 409 && err?.data?.latest?.lifecycleState === 'active') {
+        const latest = err.data.latest;
+        const remoteDocument = clientDraftDocument(latest);
+        const newestLocal =
+          draftSaveQueueRef.current?.pendingDocument() || currentDraftRef.current || document;
+        const reconciliation = reconcileDraftDocuments({
+          base: baseDraftDocumentRef.current,
+          local: newestLocal,
+          remote: remoteDocument,
+        });
+        if (reconciliation.status !== 'conflict') {
+          draftVersionRef.current = Number(latest.version) || 0;
+          draftGenerationRef.current = Number(latest.generation) || 0;
+          draftRevisionTokenRef.current = latest.revisionToken || null;
+          baseDraftDocumentRef.current = remoteDocument;
+          lastSavedFingerprintRef.current = draftFingerprint(remoteDocument);
+          setDraftUpdatedAt(latest.updatedAt || null);
+          queryClient.setQueryData(['application-draft', selectedAgencyId], latest);
+          setDraftIssue(null);
+          if (reconciliation.status === 'converged') {
+            draftSaveQueueRef.current?.clearPending();
+            currentDraftRef.current = remoteDocument;
+            applyDraftDocument(remoteDocument);
+            if (profileId) clearLocalDraft(profileId, selectedAgencyId);
+            setDraftStatus('saved');
+          } else {
+            draftSaveQueueRef.current?.replacePending(reconciliation.document);
+            currentDraftRef.current = reconciliation.document;
+            applyDraftDocument(reconciliation.document);
+            setDraftStatus('unsaved');
+          }
+          return true;
+        }
+        const issue = {
+          ...draftIssueFromError(err, newestLocal, 'autosave'),
+          conflictFields: reconciliation.conflictFields,
+        };
+        setDraftIssue(issue);
+        setDraftStatus('conflict');
+        return false;
+      }
       if (
         err?.status === 409 ||
         code === 'unsupported_draft_schema' ||
@@ -1068,10 +1337,47 @@ export default function ApplyExperience() {
         );
         return false;
       }
+      draftStatusRef.current = 'error';
       setDraftStatus('error');
+      if (!draftRetryTimerRef.current) {
+        const delay = draftRetryDelay(draftRetryAttemptRef.current);
+        draftRetryAttemptRef.current += 1;
+        draftRetryTimerRef.current = window.setTimeout(() => {
+          draftRetryTimerRef.current = null;
+          requestDraftResyncRef.current?.();
+        }, delay);
+      }
       return false;
     }
-  }, [draftClientId, draftHydrated, selectedAgencyId]);
+  }, [applyDraftDocument, draftClientId, profileId, queryClient, selectedAgencyId]);
+
+  useEffect(() => {
+    saveOneDraftRef.current = saveOneDraft;
+    if (draftSaveQueueScopeRef.current !== selectedAgencyId) {
+      draftSaveQueueRef.current?.dispose();
+      if (draftRetryTimerRef.current) clearTimeout(draftRetryTimerRef.current);
+      draftRetryTimerRef.current = null;
+      draftRetryAttemptRef.current = 0;
+      draftSaveQueueScopeRef.current = selectedAgencyId;
+      draftSaveQueueRef.current = createLatestDraftSaveQueue(
+        (document) => saveOneDraftRef.current(document, selectedAgencyId),
+      );
+    }
+  }, [saveOneDraft, selectedAgencyId]);
+
+  useEffect(() => () => {
+    draftSaveQueueRef.current?.dispose();
+    if (draftRetryTimerRef.current) clearTimeout(draftRetryTimerRef.current);
+  }, []);
+
+  // One network writer per dossier. Calls made while a PUT is in flight replace
+  // the queued document, so rapid typing/navigation saves the newest state on
+  // top of the acknowledged revision instead of manufacturing sibling drafts.
+  const persistDraftDocument = useCallback((document = currentDraftRef.current) => {
+    if (!selectedAgencyId || !draftHydrated || !document) return Promise.resolve(false);
+    currentDraftRef.current = document;
+    return draftSaveQueueRef.current?.enqueue(document) || Promise.resolve(false);
+  }, [draftHydrated, selectedAgencyId]);
 
   // Keep the ref current after every render without a ref mutation during render.
   useEffect(() => { persistDraftRef.current = persistDraftDocument; });
@@ -1081,7 +1387,22 @@ export default function ApplyExperience() {
     currentDraftRef.current = draftDocument;
     if (!selectedAgencyId || !draftHydrated || draftIssue) return undefined;
     if (draftFingerprint(draftDocument) === lastSavedFingerprintRef.current) return undefined;
-    setDraftStatus((current) => (current === 'saving' ? current : 'unsaved'));
+    let locallyDurable = true;
+    if (profileId) {
+      locallyDurable = writeLocalDraft(profileId, selectedAgencyId, {
+        baseVersion: draftVersionRef.current,
+        baseGeneration: draftGenerationRef.current,
+        baseRevisionToken: draftRevisionTokenRef.current,
+        baseDocument: baseDraftDocumentRef.current,
+        dirty: true,
+        modifiedAt: new Date().toISOString(),
+        document: draftDocument,
+        fingerprint: draftFingerprint(draftDocument),
+      });
+    }
+    setDraftStatus((current) => (
+      current === 'saving' ? current : locallyDurable ? 'unsaved' : 'error'
+    ));
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = window.setTimeout(() => {
       persistDraftDocument(draftDocument);
@@ -1094,8 +1415,39 @@ export default function ApplyExperience() {
     draftHydrated,
     draftIssue,
     persistDraftDocument,
+    profileId,
     selectedAgencyId,
   ]);
+
+  useEffect(() => {
+    draftStatusRef.current = draftStatus;
+  }, [draftStatus]);
+
+  const resumeDraftSynchronization = useCallback(() => {
+    if (!selectedAgencyId) return;
+    hydratedFor.current = null;
+    offlineHydratedFor.current = null;
+    setDraftHydrated(false);
+    draftQuery.refetch();
+  }, [draftQuery, selectedAgencyId]);
+
+  useEffect(() => {
+    requestDraftResyncRef.current = resumeDraftSynchronization;
+  }, [resumeDraftSynchronization]);
+
+  useEffect(() => {
+    if (!selectedAgencyId) return undefined;
+    const resumeAfterConnectivity = () => {
+      if (draftStatusRef.current !== 'error') return;
+      resumeDraftSynchronization();
+    };
+    window.addEventListener('online', resumeAfterConnectivity);
+    window.addEventListener('focus', resumeAfterConnectivity);
+    return () => {
+      window.removeEventListener('online', resumeAfterConnectivity);
+      window.removeEventListener('focus', resumeAfterConnectivity);
+    };
+  }, [resumeDraftSynchronization, selectedAgencyId]);
 
   const handleUseLatestDraft = useCallback(() => {
     const latest = draftIssue?.latest;
@@ -1117,6 +1469,8 @@ export default function ApplyExperience() {
     if (!latest || latest.lifecycleState !== 'active' || !localDocument) return;
     draftVersionRef.current = Number(latest.version) || 0;
     draftGenerationRef.current = Number(latest.generation) || 0;
+    draftRevisionTokenRef.current = latest.revisionToken || null;
+    baseDraftDocumentRef.current = clientDraftDocument(latest);
     currentDraftRef.current = localDocument;
     lastSavedFingerprintRef.current = '';
     setDraftUpdatedAt(latest.updatedAt || null);
@@ -1132,6 +1486,7 @@ export default function ApplyExperience() {
       if (!fresh) {
         draftVersionRef.current = 0;
         draftGenerationRef.current = 0;
+        draftRevisionTokenRef.current = null;
         lastSavedFingerprintRef.current = '';
         setDraftUpdatedAt(null);
         setDraftIssue(null);
@@ -1296,6 +1651,22 @@ export default function ApplyExperience() {
     });
   }, [visibleImages, digitalSlotPicks]);
   const filledSlots = digitalSet.filter((slot) => slot.image).length;
+  /*
+    What an off-Pholio archive contains: the frames assigned to the agency's
+    published slots, and only those. The book and comp card have no destination
+    off Pholio, so sending the whole package would put files in the archive that
+    the agency never asked for and the talent never chose.
+  */
+  const digitalSetImageIds = useMemo(
+    () => digitalSet.filter((slot) => slot.image?.id).map((slot) => slot.image.id),
+    [digitalSet],
+  );
+  // The single seam for off-Pholio preparation (see ./offPholio). Inert — no
+  // queries, no state — whenever the workspace is targeting a Pholio agency.
+  const offPholio = useOffPholioTarget({
+    seriesId: isOffPholioTarget ? seriesFromUrl : null,
+    imageIds: digitalSetImageIds,
+  });
 
   const swapSlot = (slotKey) => {
     const slot = digitalSet.find((s) => s.key === slotKey);
@@ -1412,7 +1783,7 @@ export default function ApplyExperience() {
     selectedMediaSetId === 'current'
       ? 'Current book'
       : mediaSets.find((set) => set.id === selectedMediaSetId)?.name || 'Selected image set';
-  const selectedCompCardName = selectedCompCardPreset?.name || COMP_CARD_NAME;
+  const selectedCompCardName = selectedExternalCompCard?.name || selectedCompCardPreset?.name || COMP_CARD_NAME;
   // The agency's own open boards (real agency-managed data), and the talent's
   // selection narrowed to them — a draft can't carry a board the house dropped.
   const agencyOpenBoards = useMemo(
@@ -1427,6 +1798,7 @@ export default function ApplyExperience() {
       mediaSetId: selectedMediaSetId,
       digitalSlotPicks,
       compCardPresetId: selectedCompCardPreset?.id || null,
+      externalCompCardId: selectedExternalCompCard?.id || null,
       imageIds: packageImages.map((image) => image.id),
       note,
       // Null on a representation submission, and the mirror drops the keys
@@ -1442,6 +1814,7 @@ export default function ApplyExperience() {
       packageImages,
       selectedAgency?.id,
       selectedCompCardPreset?.id,
+      selectedExternalCompCard?.id,
       selectedMediaSetId,
     ],
   );
@@ -1628,6 +2001,7 @@ export default function ApplyExperience() {
         // Chosen saved comp-card variant (null = live default composed card).
         // The agency renders this exact take via the recorded seed.
         compCardPresetId: selectedCompCardPreset?.id || null,
+        externalCompCardId: selectedExternalCompCard?.id || null,
         compCardPresetName: selectedCompCardPreset?.name || null,
         compCardSeed: selectedCompCardPreset?.seed || null,
         digitalSlotPicks,
@@ -1653,7 +2027,52 @@ export default function ApplyExperience() {
 
   /* ── terminal & guard states ── */
 
-  if (applicationsQuery.isError || agenciesQuery.isError) {
+  /*
+    Off-Pholio has no agency row, no draft and no quota, so the guards below —
+    every one of which reasons about `selectedAgency` — do not apply to it. It
+    gets its own two: the route resolving, and the route failing to.
+  */
+  if (offPholio.isOffPholio && offPholio.isLoading) {
+    return (
+      <div className="applications-view-container apply-experience">
+        <ApplyHeader
+          selectedAgency={null}
+          onExit={exitToMarket}
+          onSaveAndExit={exitToMarket}
+          draftStatus="loading"
+          actionLabel="Exit"
+        />
+        <div className="apply-draft-loading" role="status">
+          <Loader2 size={17} className="app-spin" aria-hidden />
+          Opening their published requirements…
+        </div>
+      </div>
+    );
+  }
+
+  if (offPholio.isOffPholio && (offPholio.error || !offPholio.route)) {
+    return (
+      <div className="applications-view-container apply-experience">
+        <section className="app-error-state" role="alert">
+          <h1>Couldn’t open those requirements.</h1>
+          <p>
+            Pholio couldn’t load what this agency publishes. Their own submissions page is
+            the source of truth — try again, or go straight there from the market.
+          </p>
+          <div className="app-error-actions">
+            <PholioButton variant="secondary" onClick={() => offPholio.refetch()}>
+              Try again
+            </PholioButton>
+            <PholioButton variant="secondary" onClick={exitToMarket}>
+              <ArrowLeft size={14} aria-hidden /> Back to market
+            </PholioButton>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (!offPholio.isOffPholio && (applicationsQuery.isError || agenciesQuery.isError)) {
     return (
       <div className="applications-view-container apply-experience">
         <section className="app-error-state" role="alert">
@@ -1695,7 +2114,7 @@ export default function ApplyExperience() {
   const initialLoading =
     (applicationsQuery.isLoading || agenciesQuery.isLoading) && openAgencies.length === 0;
 
-  if (initialLoading) {
+  if (!offPholio.isOffPholio && initialLoading) {
     return (
       <div className="applications-view-container apply-experience">
         <ApplyHeader
@@ -1715,11 +2134,10 @@ export default function ApplyExperience() {
 
   // Only a chooser-mode empty state — a locked/deep-linked agency (and the
   // post-submit success overlay) must still reach the main return below.
-  if (!initialLoading && !selectedAgency && openAgencies.length === 0) {
+  if (!offPholio.isOffPholio && !initialLoading && !selectedAgency && openAgencies.length === 0) {
     return (
       <div className="applications-view-container apply-experience">
         <section className="app-application-empty">
-          <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
           <h3>Every house is already in your ledger.</h3>
           <p>Withdraw an active submission to reopen a slot, or return to follow the conversations you’ve started.</p>
           <PholioButton variant="secondary" onClick={exitToMarket}>
@@ -1732,7 +2150,7 @@ export default function ApplyExperience() {
 
   /* ── the house chooser (pre-dossier, when not deep-linked) ── */
 
-  if (!selectedAgency) {
+  if (!offPholio.isOffPholio && !selectedAgency) {
     return (
       <div className="applications-view-container apply-experience">
         <ApplyHeader
@@ -1773,8 +2191,10 @@ export default function ApplyExperience() {
             setDraftIssue(null);
             draftVersionRef.current = 0;
             draftGenerationRef.current = 0;
+            draftRevisionTokenRef.current = null;
             lastSavedFingerprintRef.current = '';
             hydratedFor.current = null;
+            offlineHydratedFor.current = null;
           }}
         />
       </div>
@@ -1783,7 +2203,7 @@ export default function ApplyExperience() {
 
   // A brief loader while the saved draft is checked. A draft is a convenience:
   // if the check fails, hydration still completes and the flow proceeds.
-  if (!draftHydrated) {
+  if (!offPholio.isOffPholio && !draftHydrated) {
     return (
       <div className="applications-view-container apply-experience apply-experience--dossier">
         <ApplyHeader
@@ -1909,6 +2329,9 @@ export default function ApplyExperience() {
     page.id === 'board'
       ? boardPageCopy(selectedAgency, agencyOpenBoards)
       : { title: page.title, standfirst: page.standfirst };
+  const workspaceName = offPholio.isOffPholio
+    ? offPholio.agencyName
+    : selectedAgency?.name;
 
   return (
     <div
@@ -1917,8 +2340,14 @@ export default function ApplyExperience() {
     >
       <ApplyHeader
         selectedAgency={selectedAgency}
-        onExit={handleSaveAndExit}
-        onSaveAndExit={handleSaveAndExit}
+        targetName={offPholio.isOffPholio ? offPholio.agencyName : selectedAgency?.name}
+        // Off Pholio the talent is preparing, not submitting — and there is no
+        // draft to report on, because there is nothing on a server to resume.
+        intentLabel={offPholio.isOffPholio ? 'Preparing for' : 'Submitting to'}
+        showDraftState={!offPholio.isOffPholio}
+        onExit={offPholio.isOffPholio ? exitToMarket : handleSaveAndExit}
+        onSaveAndExit={offPholio.isOffPholio ? exitToMarket : handleSaveAndExit}
+        actionLabel={offPholio.isOffPholio ? 'Exit' : null}
         draftStatus={draftStatus}
         draftUpdatedAt={draftUpdatedAt}
       />
@@ -1930,13 +2359,31 @@ export default function ApplyExperience() {
         />
       )}
 
-      {!gating.isCoreReady && (
+      {/* Only where Pholio is the one delivering. The banner's whole argument is
+          that an agency expects a credible profile before a submission lands in
+          their inbox — which says nothing about a talent preparing their own
+          files to send themselves, and would read as a gate that isn't there. */}
+      {!offPholio.isOffPholio && !gating.isCoreReady && (
         <ProfileGateBanner
           variant="compact"
           featureName={applicationGate.featureName}
           featureLabel={applicationGate.featureLabel}
           description={applicationGate.description}
           {...gating}
+        />
+      )}
+
+      {offPholio.handoffOpen && (
+        <HandoffScene
+          route={offPholio.route}
+          firstName={(profile?.first_name || '').trim()}
+          exportState={offPholio.exportState}
+          frameCount={filledSlots}
+          logSubmission={offPholio.logSubmission}
+          onOutboundClick={offPholio.recordOutboundClick}
+          onExit={exitToMarket}
+          onBack={offPholio.dismissHandoff}
+          portfolioSlug={profile?.slug || null}
         />
       )}
 
@@ -1966,7 +2413,8 @@ export default function ApplyExperience() {
                 slots={digitalSet}
                 intel={digitalsIntel}
                 agencyId={selectedAgency?.id}
-                agencyName={selectedAgency?.name}
+                seriesId={offPholio.seriesId}
+                agencyName={workspaceName}
                 specRegistryRevisionId={specRegistryRevisionId}
                 onSpecRegistryRevisionChange={setSpecRegistryRevisionId}
                 isMinor={minor}
@@ -2008,9 +2456,25 @@ export default function ApplyExperience() {
                 isMinor={minor}
                 guardianConsent={agencyConsentGranted}
                 selectedPresetId={selectedCompCardPreset?.id || null}
-                onSelectPreset={setSelectedCompCardPreset}
+                onSelectPreset={(preset) => { setSelectedExternalCompCard(null); setSelectedCompCardPreset(preset); }}
+                externalCards={externalCompCards}
+                selectedExternalCard={selectedExternalCompCard}
+                onSelectExternalCard={(card) => { setSelectedCompCardPreset(null); setSelectedExternalCompCard(card); }}
                 onOpenMedia={() => navigateFromDraft('/dashboard/talent/media')}
                 onOpenIdentity={() => navigateFromDraft('/dashboard/talent/profile?tab=identity')}
+              />
+            )}
+            {page.id === offPholio.pageId && (
+              <PrepareScene
+                route={offPholio.route}
+                slots={digitalSet}
+                stats={statsInfo}
+                frameCount={filledSlots}
+                gaps={offPholio.gaps}
+                exportState={offPholio.exportState}
+                onPrepare={offPholio.prepare}
+                onModify={(id) => goTo(pages.findIndex((p) => p.id === id))}
+                onOpenMedia={() => navigate('/dashboard/talent/media')}
               />
             )}
             {page.id === eventIntake.pageId && (
@@ -2314,6 +2778,11 @@ function ApplyHeader({
   localDurability = 'available',
   actionLabel = null,
   actionDisabled = false,
+  // Off Pholio there is no agency row, the errand is preparation rather than
+  // submission, and there is no server draft to report on.
+  targetName = undefined,
+  intentLabel = 'Submitting to',
+  showDraftState = undefined,
 }) {
   const savedAt = formatSavedAt(draftUpdatedAt);
   const defaultStatusText = {
@@ -2339,6 +2808,9 @@ function ApplyHeader({
   const buttonLabel = actionLabel || (isSaving ? 'Saving…' : 'Save and exit');
   const disabled = isSaving || actionDisabled;
 
+  const name = targetName === undefined ? selectedAgency?.name : targetName;
+  const showDraft = showDraftState === undefined ? Boolean(selectedAgency) : showDraftState;
+
   return (
     <header className="apply-workspace-top" aria-label="Submission workspace">
       <PholioButton type="button" variant="meta" tone="dark" className="apply-workspace-logo" onClick={onExit} aria-label="Back to applications">
@@ -2346,13 +2818,13 @@ function ApplyHeader({
       </PholioButton>
       <div
         className="apply-workspace-status"
-        aria-label={selectedAgency?.name ? `Submitting to ${selectedAgency.name}` : 'Submitting to'}
+        aria-label={name ? `${intentLabel} ${name}` : intentLabel}
       >
-        <span>Submitting to</span>
-        {selectedAgency?.name && <strong>{selectedAgency.name}</strong>}
+        <span>{intentLabel}</span>
+        {name && <strong>{name}</strong>}
       </div>
       <div className="apply-workspace-actions">
-        {selectedAgency && (
+        {showDraft && (
           <p className={`apply-workspace-save-state is-${draftStatus}`} aria-live="polite">
             <span>Draft</span>
             <strong>{statusText}</strong>
@@ -2528,9 +3000,11 @@ function AgencyDossier({ agency, site }) {
   return (
     <aside className="apply-dossier" aria-label="Agency detail">
       <header className="apply-dossier__hero">
-        <span className="apply-dossier__crest" aria-hidden>
-          {agency.profile_image ? <img src={agency.profile_image} alt="" /> : agencyInitial(agency.name)}
-        </span>
+        {agency.profile_image ? (
+          <span className="apply-dossier__crest" aria-hidden>
+            <img src={agency.profile_image} alt="" />
+          </span>
+        ) : null}
         <div className="apply-dossier__herocopy">
           <div className="apply-dossier__titleline">
             <h2 className="apply-dossier__name">{agency.name || 'Agency'}</h2>
@@ -2653,6 +3127,10 @@ function DigitalsPage({
   slots,
   intel,
   agencyId,
+  // Exactly one of these is set: a Pholio agency resolves its requirements by
+  // agency id, a researched route by series id. The preflight endpoint takes
+  // either and refuses both.
+  seriesId,
   agencyName,
   specRegistryRevisionId,
   onSpecRegistryRevisionChange,
@@ -2695,6 +3173,7 @@ function DigitalsPage({
     <div className="apply-digitals">
       <RegistryPreflight
         agencyId={agencyId}
+        seriesId={seriesId}
         agencyName={agencyName}
         selectedRevisionId={specRegistryRevisionId}
         onRevisionChange={onSpecRegistryRevisionChange}
@@ -3138,6 +3617,9 @@ function CompCardPage({
   guardianConsent = false,
   selectedPresetId = null,
   onSelectPreset,
+  externalCards = [],
+  selectedExternalCard = null,
+  onSelectExternalCard,
   onOpenMedia,
   onOpenIdentity,
 }) {
@@ -3205,6 +3687,7 @@ function CompCardPage({
   // The card previewed + sent: the chosen variant when a picker is shown,
   // otherwise the live default composed card.
   const previewPreset = hasPicker ? selectedPreset || defaultPreset : null;
+  const externalSelected = Boolean(selectedExternalCard);
 
   return (
     <div className="apply-compcard">
@@ -3221,10 +3704,10 @@ function CompCardPage({
           >
             <span className="apply-ccflip__inner">
               <span className="apply-ccflip__face apply-ccflip__face--front">
-                <CompCardFace slug={slug} side="front" preset={previewPreset} />
+                {externalSelected ? <ExternalCompCardFace card={selectedExternalCard} /> : <CompCardFace slug={slug} side="front" preset={previewPreset} />}
               </span>
               <span className="apply-ccflip__face apply-ccflip__face--back">
-                <CompCardFace slug={slug} side="back" preset={previewPreset} />
+                {externalSelected ? <ExternalCompCardFace card={selectedExternalCard} /> : <CompCardFace slug={slug} side="back" preset={previewPreset} />}
               </span>
             </span>
           </PholioButton>
@@ -3272,6 +3755,16 @@ function CompCardPage({
               })}
             </PholioToggleGroup>
           )}
+          {externalCards.length > 0 && (
+            <PholioToggleGroup className="apply-ccpicker" role="radiogroup" aria-label="Choose an external comp card">
+              {externalCards.map((card) => (
+                <PholioToggleButton key={card.id} type="button" role="radio" aria-checked={card.id === selectedExternalCard?.id} active={card.id === selectedExternalCard?.id} className={`apply-ccpicker__opt ${card.id === selectedExternalCard?.id ? 'is-active' : ''}`} onClick={() => onSelectExternalCard?.(card)}>
+                  <span className="apply-ccpicker__text"><span className="apply-ccpicker__name">{card.filename}</span><span className="apply-ccpicker__sub">External comp card</span></span>
+                  <span className="apply-ccpicker__check" aria-hidden>{card.id === selectedExternalCard?.id && <Check size={15} />}</span>
+                </PholioToggleButton>
+              ))}
+            </PholioToggleGroup>
+          )}
 
           <dl className="apply-compcard__facts">
             <div>
@@ -3291,7 +3784,7 @@ function CompCardPage({
             <p className="apply-compcard__confirm">
               {hasPicker
                 ? `${name} receives the ${previewPreset?.name || 'selected'} card. Keep more cards or change a design in media.`
-                : `This is the comp card ${name} receives — change its design in media.`}
+                : externalSelected ? `${name} receives ${selectedExternalCard.filename}. Manage external cards in media.` : `This is the comp card ${name} receives — change its design in media.`}
             </p>
             {onOpenMedia && (
               <PholioButton type="button" variant="meta" className="apply-compcard__media" onClick={onOpenMedia}>
@@ -3331,6 +3824,11 @@ function CompCardFace({ slug, side, preset = null }) {
       />
     </div>
   );
+}
+
+function ExternalCompCardFace({ card }) {
+  if (card?.mimeType?.startsWith('image/')) return <img src={card.url} alt="Selected external comp card" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />;
+  return <iframe src={card?.url} title="Selected external comp card" scrolling="no" tabIndex={-1} loading="lazy" />;
 }
 
 /* ════════════════════════════════════════════════════════════
@@ -4145,7 +4643,12 @@ function ApplySuccess({ applicationId = null, firstName, agencyName, submittedAt
         </motion.div>
 
         <motion.div className="apply-success__actions" variants={item}>
-          <PholioButton type="button" variant="primary" tone="dark" className="apply-success__action" onClick={onExit}>
+          {/* No `tone="dark"`: that tone means "this button sits on a dark
+              canvas" and paints the button cream (PholioButton.css — the
+              `--primary.--tone-dark` rule is `!important` cream-on-ink). This
+              ground is cream, so it rendered a cream button on a cream page and
+              the primary action read as plain text. */}
+          <PholioButton type="button" variant="primary" className="apply-success__action" onClick={onExit}>
             Track this submission <ArrowUpRight size={15} aria-hidden />
           </PholioButton>
         </motion.div>

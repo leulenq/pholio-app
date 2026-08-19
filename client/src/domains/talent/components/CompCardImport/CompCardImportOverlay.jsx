@@ -14,13 +14,11 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import CompCardImport from './CompCardImport';
 import styles from './CompCardImportOverlay.module.css';
 
 export default function CompCardImportOverlay({ open, onClose, onApplied }) {
-  const reduceMotion = useReducedMotion();
   const panelRef = useRef(null);
   const previouslyFocused = useRef(null);
 
@@ -66,22 +64,19 @@ export default function CompCardImportOverlay({ open, onClose, onApplied }) {
         if (event.target === event.currentTarget) onClose?.();
       }}
     >
-      <motion.div
+      <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Import an existing comp card"
         tabIndex={-1}
         className={styles.panel}
-        initial={{ opacity: 0, y: reduceMotion ? 0 : 18, scale: reduceMotion ? 1 : 0.985 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={reduceMotion ? { duration: 0.15 } : { type: 'spring', stiffness: 55, damping: 16 }}
       >
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close">
           <X size={18} strokeWidth={1.5} />
         </button>
         <CompCardImport onApplied={handleApplied} onDone={onClose} />
-      </motion.div>
+      </div>
     </div>,
     document.body,
   );

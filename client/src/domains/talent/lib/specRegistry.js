@@ -257,7 +257,33 @@ export function readRoute(route) {
     seriesId: route.seriesId,
     revisionId: route.revisionId ?? null,
     agencyName: route.agencyName || route.organization?.name || 'Agency route',
+    /*
+      The house this route belongs to. Elite publishes four routes — Paris,
+      Tokyo, Global, North America — and they are four ways into ONE house, not
+      four agencies. The market groups on this so a talent reads Elite once.
+    */
+    organizationId: route.organization?.id || null,
     marketLabel: route.marketLabel || null,
+    /*
+      The market as the registry actually types it, not just its label. `kind`
+      is one of city | country | region | global | selected_market, and a
+      selected-market route has no single label at all — Ford publishes one
+      route covering US, FR and ES. A directory that flattens all of this into
+      one location string says "Global" where the agency said nothing, so the
+      shape travels and the surface decides how to say it.
+    */
+    market: route.market
+      ? {
+          kind: route.market.kind || null,
+          city: route.market.city || null,
+          code: route.market.code || null,
+          countryCodes: Array.isArray(route.market.countryCodes)
+            ? route.market.countryCodes
+            : [],
+        }
+      : null,
+    /* The physical office that receives applications, when one is named. */
+    office: route.office?.name || null,
     sourceUrl: route.sourceUrl ?? null,
     // How this agency takes applications (`scope.channel.type`). The rail has
     // to say "by email" or "on their site" *before* the talent builds a set,
@@ -273,6 +299,10 @@ export function readRoute(route) {
     // must never build a package against a destination Pholio cannot send to
     // and only find out at the end.
     acceptsPholioSubmissions: route.acceptsPholioSubmissions === true,
+    // Which Pholio agency this route belongs to, when it belongs to one. The
+    // market directory joins on this so a house Pholio delivers to never draws
+    // twice — once as an agency and once as a researched route.
+    pholioAgencyId: route.pholioAgencyId ?? null,
     // Trust overlay. Both are positive-only: no registry match is null, and no
     // published open call is an empty list — neither states an absence.
     verification: readVerification(route.verification),
@@ -813,117 +843,5 @@ export function buildAgencyView({ route, evaluation, labels }) {
     coverage,
     summary,
     hasAnything: findings.length > 0,
-  };
-}
-
-/**
- * One canonical shot per row, across every agency in the market.
- *
- * This is the inverse of the per-agency reading and the only cross-agency view
- * on the page: shots are eight rows and agencies are a number, where the old
- * matrix made agencies twenty-five columns and pushed the whole thing off the
- * side of the screen. Rows merge on `matchKey`, so Elite's "Close up (hair
- * pulled back)" and Muse's "Close ups … hair up" stay separate — they are not
- * the same picture — while every agency's "full length" is one row.
- */
-export function buildMarketView({ routes, evaluationFor, labels }) {
-  const agencies = routes.map((route) => {
-    const evaluation = evaluationFor(route.seriesId);
-    const shots = shotFindings(readFindings(evaluation));
-    const covered = shots.filter((finding) => finding.outcome === OUTCOME.SATISFIED);
-    return {
-      route,
-      seriesId: route.seriesId,
-      agencyName: route.agencyName,
-      marketLabel: route.marketLabel,
-      acceptsPholioSubmissions: route.acceptsPholioSubmissions,
-      hasShotList: shots.length > 0,
-      published: shots.length,
-      covered: covered.length,
-      missing: shots.length - covered.length,
-      findings: shots,
-    };
-  });
-
-  const rows = new Map();
-  agencies.forEach((agency) => {
-    agency.findings.forEach((finding) => {
-      // `matchKey` is the cross-agency identity; `slotKey` is the fallback for
-      // a slot no other agency can be compared against. Never null, either way,
-      // so no published shot can fall out of this view unnoticed.
-      const key = finding.matchKey || finding.slotKey;
-      if (!rows.has(key)) {
-        rows.set(key, {
-          key,
-          label: canonicalShotLabel(finding, labels),
-          askedBy: [],
-          missingFor: [],
-          inSet: false,
-          imageId: null,
-        });
-      }
-      const row = rows.get(key);
-      row.askedBy.push(agency);
-      if (finding.outcome === OUTCOME.SATISFIED) {
-        row.inSet = true;
-        row.imageId =
-          row.imageId || finding.assignments.find((entry) => entry?.imageId)?.imageId || null;
-      } else {
-        row.missingFor.push(agency);
-      }
-    });
-  });
-
-  const shots = [...rows.values()]
-    .map((row) => ({
-      ...row,
-      state: row.inSet ? SLOT_STATE.IN_SET : SLOT_STATE.NEEDED,
-      askedByCount: row.askedBy.length,
-    }))
-    .sort(
-      (left, right) =>
-        Number(left.inSet) - Number(right.inSet) ||
-        right.askedByCount - left.askedByCount ||
-        left.label.localeCompare(right.label),
-    );
-
-  /*
-    The honest recommendation.
-
-    The old ledger counted every agency missing a shot and called them all
-    "unlocked", so a talent who went and shot it found that precisely zero
-    agencies had flipped — the other five were still missing something else.
-    Two different truths, said separately: which agencies this one shot would
-    *finish*, and how many more merely ask for it.
-  */
-  const candidates = shots
-    .filter((row) => !row.inSet)
-    .map((row) => {
-      const completes = row.missingFor.filter((agency) => agency.missing === 1);
-      return {
-        key: row.key,
-        label: row.label,
-        completes: completes.map((agency) => agency.agencyName),
-        alsoAsked: row.missingFor.length - completes.length,
-      };
-    })
-    .sort(
-      (left, right) =>
-        right.completes.length - left.completes.length ||
-        right.alsoAsked - left.alsoAsked ||
-        left.label.localeCompare(right.label),
-    );
-
-  const withShotLists = agencies.filter((agency) => agency.hasShotList);
-
-  return {
-    agencies,
-    shots,
-    recommendation: candidates[0] || null,
-    totals: {
-      covered: withShotLists.reduce((total, agency) => total + agency.covered, 0),
-      published: withShotLists.reduce((total, agency) => total + agency.published, 0),
-      agencies: withShotLists.length,
-    },
   };
 }

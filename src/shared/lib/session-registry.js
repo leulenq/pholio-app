@@ -346,6 +346,23 @@ async function revokeOtherSessions(knex, userId, currentSid) {
   return { revoked };
 }
 
+/**
+ * End every live session for a user. Provider deauthorization has no caller
+ * session to preserve, unlike the settings action above.
+ *
+ * @returns {Promise<{revoked: number}>}
+ */
+async function revokeAllSessions(knex, userId) {
+  if (!(await sessionsTableExists(knex))) return { revoked: 0 };
+
+  const rows = await selectUserSessionRows(knex, userId);
+  const sids = rows.map((row) => row.sid);
+  if (!sids.length) return { revoked: 0 };
+
+  const revoked = await knex(SESSIONS_TABLE).whereIn("sid", sids).del();
+  return { revoked };
+}
+
 module.exports = {
   SESSIONS_TABLE,
   deriveLastSeenAt,
@@ -354,6 +371,7 @@ module.exports = {
   pruneDuplicateDeviceSessions,
   purgeExpiredSessions,
   registerSession,
+  revokeAllSessions,
   revokeOtherSessions,
   revokeSession,
 };

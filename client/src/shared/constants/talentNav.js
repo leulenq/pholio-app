@@ -18,12 +18,10 @@ export const TALENT_NAV_SECTIONS = [
   },
   {
     items: [
-      {
-        label: 'Market',
-        to: '/dashboard/talent/applications',
-        pageKicker: 'Market',
-        requiresProfileGate: true,
-      },
+      // Not profile-gated: Market carries researched agencies a talent can
+      // prepare for before their profile is finished. The submission CTAs on
+      // the Pholio agencies inside it are gated individually.
+      { label: 'Market', to: '/dashboard/talent/applications', pageKicker: 'Market' },
     ],
   },
 ];

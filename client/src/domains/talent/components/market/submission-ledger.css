@@ -1,0 +1,458 @@
+/* ============================================================
+   SUBMISSION HISTORY
+
+   The record half of Market, and continuous with the board
+   above it: same gutter, same full-bleed bands, same warm ink
+   when something opens, same rule that gold means Pholio
+   carried it.
+
+   Where it differs is register. The board is a poster and its
+   houses are set at poster scale; a ledger is read down its
+   left edge, so the date is the spine and the names sit at
+   reading size. They rhyme without being the same surface.
+   ============================================================ */
+
+.sl {
+  --sl-cream: #faf7f2;
+  --sl-warm: #f4efe6;
+  --sl-ink: #1a1613;
+  --sl-text: #1a1815;
+  --sl-soft: rgba(26, 24, 21, 0.58);
+  --sl-faint: rgba(26, 24, 21, 0.4);
+  --sl-hair: rgba(26, 24, 21, 0.11);
+  --sl-gold: #c9a55a;
+  --sl-gold-text: #75501b;
+  --sl-on-ink: #f3efe8;
+  --sl-on-ink-soft: rgba(243, 239, 232, 0.64);
+  --sl-on-ink-hair: rgba(243, 239, 232, 0.16);
+  --sl-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sl-gutter: clamp(28px, 5.4vw, 104px);
+
+  margin-inline: calc(var(--sl-gutter) * -1);
+  /* The board ends and the record begins — one rule, and a lot of air. */
+  margin-top: clamp(64px, 9vw, 132px);
+  padding-top: clamp(30px, 4vw, 52px);
+  border-top: 1px solid var(--sl-hair);
+}
+
+.sl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px 32px;
+  padding: 0 var(--sl-gutter) clamp(20px, 2.6vw, 30px);
+}
+
+.sl-title {
+  margin: 0;
+  color: var(--sl-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+.sl-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; }
+
+.sl-filters { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+
+.sl-filter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  color: var(--sl-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s var(--sl-ease), border-color 0.2s var(--sl-ease);
+}
+
+.sl-filter:hover:not(:disabled) { color: var(--sl-text); }
+.sl-filter--on { border-bottom-color: var(--sl-gold); color: var(--sl-text); }
+.sl-filter:focus-visible { outline: 2px solid var(--sl-gold); outline-offset: 4px; }
+
+/* A filter with nothing behind it is not a place to go. */
+.sl-filter:disabled { opacity: 0.4; cursor: default; }
+
+.sl-filter__n { font-size: 9.5px; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; }
+
+.sl-log {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 0 3px;
+  border: 0;
+  border-bottom: 1px solid var(--sl-hair);
+  background: none;
+  color: var(--sl-soft);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s var(--sl-ease), border-color 0.2s var(--sl-ease);
+}
+
+.sl-log:hover { color: var(--sl-text); border-bottom-color: var(--sl-gold); }
+.sl-log:focus-visible { outline: 2px solid var(--sl-gold); outline-offset: 4px; }
+
+/* ── the month, and the rows under it ─────────────────────── */
+
+.sl-month + .sl-month { margin-top: clamp(22px, 2.8vw, 34px); }
+
+.sl-month__name {
+  margin: 0 0 2px;
+  padding: 0 var(--sl-gutter);
+  color: var(--sl-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+.sl-rows { margin: 0; padding: 0; list-style: none; }
+
+.sl-row { border-top: 1px solid var(--sl-hair); }
+
+.sl-row__face {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 14px 28px;
+  width: 100%;
+  padding: 16px var(--sl-gutter);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s var(--sl-ease);
+}
+
+.sl-row__face:hover { background: color-mix(in srgb, var(--sl-warm) 60%, transparent); }
+.sl-row__face:focus-visible { outline: 2px solid var(--sl-gold); outline-offset: -4px; }
+
+/* The spine: the day, in figures, holding the left edge of the whole ledger. */
+.sl-row__day {
+  color: var(--sl-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.sl-row__who { min-width: 0; }
+
+.sl-row__name {
+  display: block;
+  color: var(--sl-text);
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+}
+
+/*
+  The provenance line. Gold means Pholio carried it — the same rule as the board
+  above, so one accent means one thing across the whole surface. A logged
+  submission says outright that the talent sent it and Pholio only wrote it
+  down, because that is what decides whether the status beside it can be
+  trusted.
+*/
+.sl-row__route {
+  display: block;
+  margin-top: 5px;
+  color: var(--sl-faint);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.sl-row__route--carried { color: var(--sl-gold-text); font-weight: 600; }
+
+.sl-row__status {
+  color: var(--sl-soft);
+  font-size: 12.5px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Status earns weight only when it is asking for something. */
+.sl-row__status--accepted { color: var(--sl-text); font-weight: 600; }
+.sl-row__status--closed { color: var(--sl-faint); }
+
+.sl-row--open { background: var(--sl-ink); border-top-color: var(--sl-ink); }
+.sl-row--open .sl-row__face { background: var(--sl-ink); }
+.sl-row--open .sl-row__face:hover { background: #221d18; }
+.sl-row--open .sl-row__day { color: var(--sl-on-ink-soft); }
+.sl-row--open .sl-row__name { color: var(--sl-on-ink); }
+.sl-row--open .sl-row__route { color: rgba(243, 239, 232, 0.5); }
+.sl-row--open .sl-row__route--carried { color: var(--sl-gold); }
+.sl-row--open .sl-row__status { color: var(--sl-on-ink-soft); }
+.sl-row--open .sl-row__status--accepted { color: var(--sl-on-ink); }
+
+.sl-row__panel { overflow: hidden; background: var(--sl-ink); color: var(--sl-on-ink); }
+
+/* ── the open record ──────────────────────────────────────── */
+
+.sr { padding: 0 var(--sl-gutter) clamp(28px, 3.4vw, 40px); }
+
+.sr-waiting {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding-bottom: 26px;
+  color: var(--sl-on-ink-soft);
+  font-size: 13.5px;
+}
+
+.sr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: clamp(24px, 3vw, 46px);
+  padding-top: clamp(18px, 2.2vw, 26px);
+  border-top: 1px solid var(--sl-on-ink-hair);
+}
+
+.sr-col { min-width: 0; }
+
+.sr-label {
+  margin: 0 0 12px;
+  color: var(--sl-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.sr-lede { margin: 0 0 14px; color: var(--sl-on-ink); font-size: 15px; line-height: 1.45; }
+
+.sr-body { margin: 0; max-width: 40ch; color: var(--sl-on-ink-soft); font-size: 13.5px; line-height: 1.6; }
+
+.sr-note {
+  margin: 14px 0 0;
+  max-width: 40ch;
+  color: rgba(243, 239, 232, 0.46);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.sr-quote {
+  margin: 0;
+  max-width: 42ch;
+  color: var(--sl-on-ink-soft);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* The receipt's facts — a short definition list, not a metadata row. */
+.sr-facts { display: grid; gap: 9px; margin: 0; }
+
+.sr-facts > div { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; }
+
+.sr-facts dt {
+  color: rgba(243, 239, 232, 0.46);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1.9;
+}
+
+.sr-facts dd { margin: 0; color: var(--sl-on-ink); font-size: 13.5px; line-height: 1.5; }
+
+/* ── the chronology ───────────────────────────────────────── */
+
+.sr-time { margin: 0; padding: 0; list-style: none; display: grid; gap: 13px; }
+
+.sr-time__row {
+  display: grid;
+  grid-template-columns: 92px 9px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+}
+
+.sr-time__date {
+  color: rgba(243, 239, 232, 0.46);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A hairline stem with a node — a chronology, not a bulleted list. */
+.sr-time__mark {
+  position: relative;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--sl-gold);
+  transform: translateY(-2px);
+}
+
+.sr-time__row:not(:last-child) .sr-time__mark::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 1px;
+  height: 22px;
+  background: var(--sl-on-ink-hair);
+}
+
+.sr-time__what { color: var(--sl-on-ink); font-size: 13.5px; line-height: 1.45; }
+.sr-time__what b { font-weight: 600; }
+.sr-time__what span { display: block; margin-top: 3px; color: var(--sl-on-ink-soft); font-size: 12.5px; }
+
+/* ── actions ──────────────────────────────────────────────── */
+
+.sr-acts--offer { margin-top: clamp(20px, 2.4vw, 26px); }
+
+.sr-acts { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: clamp(22px, 2.8vw, 32px); }
+
+.sr-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 0 3px;
+  border: 0;
+  border-bottom: 1px solid var(--sl-gold);
+  background: none;
+  color: var(--sl-on-ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s var(--sl-ease), border-color 0.2s var(--sl-ease);
+}
+
+.sr-act:hover:not(:disabled) { color: var(--sl-gold); }
+.sr-act:focus-visible { outline: 2px solid var(--sl-gold); outline-offset: 4px; }
+
+.sr-act--quiet {
+  border-bottom-color: var(--sl-on-ink-hair);
+  color: var(--sl-on-ink-soft);
+  font-weight: 500;
+}
+
+.sr-act--quiet:hover { color: var(--sl-on-ink); border-bottom-color: var(--sl-on-ink-soft); }
+
+/* ── first run, empty view, loading ───────────────────────── */
+
+.sl-first { padding: 0 var(--sl-gutter) clamp(30px, 4vw, 46px); }
+
+.sl-first__line {
+  margin: 0 0 12px;
+  color: var(--sl-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.3rem, 2.2vw, 1.7rem);
+  font-weight: 300;
+}
+
+.sl-first__body { margin: 0 0 22px; max-width: 56ch; color: var(--sl-soft); font-size: 14px; line-height: 1.65; }
+
+.sl-first__act {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border: 1px solid var(--sl-text);
+  background: var(--sl-text);
+  color: var(--sl-cream);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s var(--sl-ease), border-color 0.2s var(--sl-ease);
+}
+
+.sl-first__act:hover { background: var(--sl-ink); border-color: var(--sl-ink); }
+.sl-first__act:focus-visible { outline: 2px solid var(--sl-gold); outline-offset: 3px; }
+
+.sl-none { margin: 0; padding: 30px var(--sl-gutter) 40px; color: var(--sl-soft); font-size: 13.5px; }
+
+.sl-loading { display: grid; gap: 1px; padding-top: 20px; }
+.sl-loading__row {
+  height: 66px;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--sl-warm) 70%, transparent) 50%, transparent 100%);
+  background-size: 220% 100%;
+  animation: sl-shimmer 1.5s var(--sl-ease) infinite;
+}
+
+@keyframes sl-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+@media (max-width: 720px) {
+  .sl-row__face { grid-template-columns: 32px minmax(0, 1fr); gap: 10px 14px; }
+  .sl-row__status { grid-column: 2; text-align: left; }
+  .sr-facts > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .sr-time__row { grid-template-columns: 78px 9px minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-loading__row { animation: none; }
+  .sl-row__face, .sr-act, .sl-filter { transition: none; }
+}
+
+/* ── recording a reply ────────────────────────────────────── */
+
+.sr-answer { margin-top: clamp(22px, 2.8vw, 32px); max-width: 46ch; }
+
+.sr-answer__label {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--sl-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/*
+  Overrides the canonical global.css textarea (white box, 8px radius, inset
+  shadow, 120px min-height) — this one sits on ink, and a white field would be
+  a hole in the record. global.css wraps its defaults in :where(), so no
+  !important is needed. `resize: none` is kept: banned pattern 11.
+*/
+.sr-answer__field {
+  width: 100%;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sl-on-ink-hair);
+  border-radius: 0;
+  background: rgba(243, 239, 232, 0.04);
+  box-shadow: none;
+  color: var(--sl-on-ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.5;
+  resize: none;
+  transition: border-color 0.2s var(--sl-ease);
+}
+
+.sr-answer__field::placeholder { color: rgba(243, 239, 232, 0.38); opacity: 1; }
+
+.sr-answer__field:focus {
+  border-color: var(--sl-gold);
+  background: rgba(243, 239, 232, 0.06);
+  box-shadow: none;
+  outline: none;
+}
+
+.sr-answer .sr-acts { margin-top: 14px; }

@@ -1,0 +1,386 @@
+/* ============================================================
+   PREPARE & SEND — the off-Pholio terminal step.
+
+   Built from the same parts as Review & send: a printed dossier
+   on the left, a rail on the right, the action in the rail's
+   foot. Same paper, same mono lockup, same roman sections —
+   because it is the same beat in the same flow.
+
+   What it never borrows is the confirmation. Nothing here is
+   submitted, and the rail says so before the button does.
+   ============================================================ */
+
+.apply-prepare {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(248px, 320px);
+  align-items: start;
+  gap: clamp(28px, 4vw, 60px);
+  width: 100%;
+}
+
+/* ── the manifest ────────────────────────────────────────── */
+
+.apply-manifest {
+  position: relative;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: clamp(34px, 4.4vw, 60px) clamp(26px, 4vw, 54px) clamp(38px, 4.4vw, 56px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 14%, #fff);
+  box-shadow:
+    0 1px 2px rgba(26, 26, 26, 0.04),
+    0 20px 50px rgba(26, 26, 26, 0.06);
+}
+
+/* Assembly, shown on the document being assembled rather than as a spinner
+   parked in the middle of the page. */
+.apply-manifest__sweep {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    color-mix(in srgb, var(--app-gold) 13%, transparent) 50%,
+    transparent 100%
+  );
+  animation: apply-manifest-sweep 1.5s var(--app-ease) infinite;
+}
+
+@keyframes apply-manifest-sweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+.apply-manifest[data-preparing='true'] {
+  border-color: var(--app-hair-gold, rgba(201, 165, 90, 0.24));
+}
+
+.apply-manifest__masthead {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: clamp(10px, 1.4vw, 15px);
+  padding-bottom: clamp(14px, 2vw, 24px);
+}
+
+.apply-manifest__lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: clamp(8px, 1.4vw, 14px);
+}
+
+.apply-manifest__pholio {
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+}
+
+.apply-manifest__lockup-div {
+  width: 1px;
+  height: 13px;
+  background: var(--app-hair-strong);
+}
+
+.apply-manifest__lockup-agency {
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.apply-manifest__kicker {
+  margin: 0;
+  color: var(--app-text-faint);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+}
+
+.apply-manifest__name {
+  margin: 0;
+  max-width: 20ch;
+  color: var(--app-text);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.9rem, 4vw, 3.1rem);
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  line-height: 1.02;
+  text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+.apply-manifest__rule {
+  width: 34px;
+  height: 1px;
+  background: var(--app-gold);
+  opacity: 0.5;
+}
+
+.apply-manifest__dest {
+  margin: 0;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* ── sections ────────────────────────────────────────────── */
+
+.apply-manifest__sec {
+  padding-top: clamp(18px, 2.4vw, 26px);
+  margin-top: clamp(18px, 2.4vw, 26px);
+  border-top: 1px solid var(--app-hair);
+}
+
+.apply-manifest__sec-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin-bottom: 14px;
+}
+
+.apply-manifest__sec-title {
+  /* Soft, not faint: --app-text-faint measures 2.41:1 on this paper, and these
+     are the labels a talent reads to find a file in the archive. */
+  color: var(--app-text-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.apply-manifest__sec-note {
+  margin-left: auto;
+  color: var(--app-text-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+
+.apply-manifest__modify {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--app-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-manifest__modify:hover {
+  color: var(--app-text);
+}
+
+.apply-manifest__frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.apply-manifest__frame {
+  width: clamp(84px, 12vw, 108px);
+}
+
+.apply-manifest__frame img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border: 1px solid var(--app-hair);
+  border-radius: 2px;
+  background: var(--app-cream-warm);
+}
+
+.apply-manifest__frame span {
+  display: block;
+  margin-top: 7px;
+  color: var(--app-text-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.apply-manifest__vitals {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.7;
+}
+
+.apply-manifest__note {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+/* ── the dispatch rail ───────────────────────────────────── */
+
+.apply-prepare__rail {
+  position: sticky;
+  top: clamp(18px, 3vw, 34px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.apply-dispatch {
+  box-sizing: border-box;
+  padding: clamp(20px, 2.4vw, 28px);
+  border: 1px solid var(--app-hair);
+  border-radius: var(--app-radius);
+  background: color-mix(in srgb, var(--app-cream-warm) 42%, #fff);
+}
+
+/* Pholio → You → them. The one fact the whole surface exists to make plain. */
+.apply-dispatch__flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  color: var(--app-text-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* "You" is the whole point of the line, so it is the deep gold that actually
+   reads (#c9a55a is 2.2:1 here), not the decorative accent. */
+.apply-dispatch__flow span:nth-child(2) {
+  color: #75501b;
+  font-weight: 600;
+}
+
+.apply-dispatch__flow span + span::before {
+  content: '→';
+  margin-right: 8px;
+  color: var(--app-hair-strong);
+}
+
+.apply-dispatch__handling {
+  margin: 0;
+  color: var(--app-text-soft);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.apply-dispatch__handling strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.apply-dispatch__gaps {
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--app-hair);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.apply-dispatch__gaps li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--app-text-soft);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.apply-dispatch__gaps svg {
+  flex: none;
+  color: var(--app-gold);
+  transform: translateY(2px);
+}
+
+.apply-dispatch__gaps strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.apply-dispatch__gaps button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--app-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--app-ease);
+}
+
+.apply-dispatch__gaps button:hover {
+  color: var(--app-gold);
+}
+
+.apply-dispatch__problem {
+  margin: 16px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--app-hair);
+  color: #8b4e3d;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.apply-dispatch__cta {
+  width: 100%;
+  justify-content: center;
+}
+
+@media (max-width: 1040px) {
+  .apply-prepare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .apply-prepare__rail {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apply-manifest__sweep {
+    animation: none;
+    opacity: 0.35;
+    width: 100%;
+  }
+}

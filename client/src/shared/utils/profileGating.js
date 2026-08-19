@@ -60,18 +60,21 @@ export const REQUIRED_FIELDS = REQUIRED_READINESS_ITEMS.map((item) => ({
   group: READINESS_GROUPS[item.key] || 'Profile',
 }));
 
-export const RESTRICTED_TALENT_ROUTES = [
-  '/dashboard/talent/applications',
-];
-
-const PROFILE_GATE_EXEMPT_ROUTES = [
-  '/dashboard/talent/applications/requirements',
-];
+/**
+ * Routes a blocked profile cannot open at all.
+ *
+ * Market used to be one of them, with the requirements page carved back out as
+ * an exemption — which meant the one surface that works before a profile is
+ * finished hung off a nav item that rendered locked, reachable only by typing
+ * the URL. The gate now sits on the action instead: Market opens, the banner
+ * still states what is missing, and every on-Pholio submission CTA stays
+ * disabled until `isCoreReady`. Preparing a package for an agency Pholio does
+ * not deliver to is never gated — those are the talent's own files, and the
+ * export route carries the same ruling (§1701; see `POST /spec-registry/export`).
+ */
+export const RESTRICTED_TALENT_ROUTES = [];
 
 export const isRestrictedTalentRoute = (pathname = '') =>
-  !PROFILE_GATE_EXEMPT_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  ) &&
   RESTRICTED_TALENT_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );

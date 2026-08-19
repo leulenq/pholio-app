@@ -51,9 +51,7 @@ export const PRIVACY_BOUNDARY =
   'Private to you. Shared only if you attach it to a specific submission.';
 
 /**
- * The three-line data story shown before any handoff to Stripe. It is rendered
- * as a numbered sequence, so the lines are written to read in order and none of
- * them ends in a full stop.
+ * The concise 3-point privacy breakdown shown before handoff to Stripe.
  */
 export const DATA_STORY = Object.freeze([
   'Stripe checks a government ID and a selfie — Pholio never sees them',

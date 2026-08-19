@@ -17,7 +17,6 @@ const OverviewPage = lazy(() => import('./domains/talent/pages/OverviewPage'));
 const ProfilePage = lazy(() => import('./domains/talent/pages/ProfilePage'));
 const MediaPage = lazy(() => import('./domains/talent/pages/MediaPage'));
 const ApplicationsPage = lazy(() => import('./domains/talent/pages/ApplicationsPage'));
-const RequirementsPage = lazy(() => import('./domains/talent/pages/RequirementsPage'));
 const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const MessagesPage = lazy(() => import('./domains/talent/pages/MessagesPage'));
 const ApplyPage = lazy(() => import('./domains/talent/pages/ApplyPage'));
@@ -122,9 +121,13 @@ function App() {
             <Route path="/dashboard/talent/analytics" element={<Navigate to="/dashboard/talent/intel" replace />} />
             <Route path="/dashboard/talent/intel" element={<IntelPage />} />
             <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
+            {/* The standalone requirements page is gone: published requirements
+                now read inside the apply workspace, against the same route the
+                talent is actually preparing for. Kept as a redirect so saved
+                links land on the market rather than a 404. */}
             <Route
               path="/dashboard/talent/applications/requirements"
-              element={<RequirementsPage />}
+              element={<Navigate to="/dashboard/talent/applications" replace />}
             />
             <Route path="/dashboard/talent/messages" element={<MessagesPage />} />
             <Route path="/dashboard/talent/settings" element={<SettingsPage />} />

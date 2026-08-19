@@ -204,6 +204,7 @@ a > .lucide:only-child {
    so this is safe to apply globally.
    ─────────────────────────────────────────────────────────────────────────── */
 :where(body) input[type="text"],
+:where(body) input[type="search"],
 :where(body) input[type="email"],
 :where(body) input[type="password"],
 :where(body) input[type="tel"],

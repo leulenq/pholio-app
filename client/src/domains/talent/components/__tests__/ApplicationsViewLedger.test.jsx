@@ -26,6 +26,7 @@ vi.mock('../../api/talent', () => ({
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import ApplicationsView from '../ApplicationsView';
+import SubmissionLedger from '../market/SubmissionLedger';
 import { useAuth } from '../../../auth/hooks/useAuth';
 import { talentApi } from '../../api/talent';
 
@@ -92,9 +93,16 @@ function renderView() {
 
 /** Agency names in the merged ledger, in the order they are rendered. */
 function ledgerNames() {
-  return [...document.querySelectorAll('.app-ledger-list .app-ledger-card__agency')].map(
+  return [...document.querySelectorAll('.sl-rows .sl-row__name')].map(
     (node) => node.textContent,
   );
+}
+
+/** The record that is currently open, which is where detail now lives. */
+function openRecord() {
+  const panel = document.querySelector('.sl-row--open .sl-row__panel');
+  if (!panel) throw new Error('No record is open');
+  return panel;
 }
 
 beforeEach(() => {
@@ -132,8 +140,10 @@ describe('the merged submission ledger', () => {
     renderView();
     await screen.findByText('Muse Management');
 
-    expect(screen.getByText('Submitted on their site')).toBeInTheDocument();
-    expect(screen.getByText('Submitted by email')).toBeInTheDocument();
+    // Provenance is structural now: the row says who carried it, and the open
+    // record says by what channel.
+    expect(screen.getAllByText('You sent it · recorded here').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Sent through Pholio').length).toBeGreaterThan(0);
   });
 
   test('the filter tabs bucket tracked rows alongside applications', async () => {
@@ -141,13 +151,13 @@ describe('the merged submission ledger', () => {
     renderView();
     await screen.findByText('Muse Management');
 
-    await user.click(screen.getByRole('tab', { name: 'In Review' }));
+    await user.click(screen.getByRole('tab', { name: /In review/ }));
     expect(ledgerNames()).toEqual(['Muse Management', 'Ridge & Bloom']);
 
-    await user.click(screen.getByRole('tab', { name: 'Closed' }));
+    await user.click(screen.getByRole('tab', { name: /Closed/ }));
     expect(ledgerNames()).toEqual(['Que Management']);
 
-    await user.click(screen.getByRole('tab', { name: 'Represented' }));
+    await user.click(screen.getByRole('tab', { name: /Represented/ }));
     expect(ledgerNames()).toEqual(['Northlight Talent']);
   });
 
@@ -158,8 +168,10 @@ describe('the merged submission ledger', () => {
 
     await user.click(screen.getByText('Que Management'));
 
-    const detail = screen.getByRole('complementary', { name: /application detail/i });
-    expect(within(detail).getByText('No response')).toBeInTheDocument();
+    const detail = openRecord();
+    // The status label lives on the row, which stays visible while its record
+    // is open; the record itself carries what the status *means*.
+    expect(screen.getByText('No response')).toBeInTheDocument();
     expect(
       within(detail).getByText(
         'Industry convention says treat this as a pass. Re-apply window opens Dec 1, 2026.',
@@ -175,7 +187,7 @@ describe('the merged submission ledger', () => {
 
     await user.click(screen.getByText('Muse Management'));
 
-    const detail = screen.getByRole('complementary', { name: /application detail/i });
+    const detail = openRecord();
     expect(within(detail).getByRole('button', { name: /heard back/i })).toBeInTheDocument();
     expect(within(detail).getByRole('button', { name: /close record/i })).toBeInTheDocument();
     expect(within(detail).getByRole('button', { name: /delete/i })).toBeInTheDocument();
@@ -190,7 +202,7 @@ describe('the merged submission ledger', () => {
     await screen.findByText('Muse Management');
 
     await user.click(screen.getByText('Muse Management'));
-    await user.click(screen.getByRole('button', { name: /close record/i }));
+    await user.click(within(openRecord()).getByRole('button', { name: /close record/i }));
 
     expect(talentApi.updateTrackedSubmission).toHaveBeenCalledWith('trk-await', {
       status: 'closed_by_talent',
@@ -204,7 +216,7 @@ describe('the merged submission ledger', () => {
     await screen.findByText('Muse Management');
 
     await user.click(screen.getByText('Muse Management'));
-    await user.click(screen.getByRole('button', { name: /heard back/i }));
+    await user.click(within(openRecord()).getByRole('button', { name: /heard back/i }));
     await user.type(screen.getByLabelText(/what they said/i), 'Asked for fresh digitals.');
     await user.click(screen.getByRole('button', { name: /record reply/i }));
 
@@ -238,5 +250,31 @@ describe('the merged submission ledger', () => {
 
     await user.click(screen.getByRole('button', { name: /log a submission/i }));
     expect(screen.getByRole('dialog', { name: /log a submission/i })).toBeInTheDocument();
+  });
+});
+
+describe('the ledger reads dates for what they are', () => {
+  test('a date-only submission is filed under the month it names', () => {
+    // `2026-07-01` names a day and nothing else. Read in a timezone west of
+    // Greenwich it becomes 30 June, which filed a July submission under June.
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SubmissionLedger
+          entries={[
+            {
+              kind: 'tracker',
+              key: 'tracker:t1',
+              id: 't1',
+              row: { id: 't1', agencyName: 'Storm', status: 'awaiting', submittedOn: '2026-07-01' },
+            },
+          ]}
+          isLoading={false}
+          onLogSubmission={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByText('July 2026')).toBeInTheDocument();
+    expect(screen.getByText('01')).toBeInTheDocument();
   });
 });

@@ -30,10 +30,6 @@ import { talentApi } from '../../api/talent';
 const MAX_NOTE = 500;
 const MAX_OUTCOME_NOTE = 300;
 
-function agencyInitial(name) {
-  return String(name || 'Agency').trim().charAt(0).toUpperCase() || 'A';
-}
-
 function linkLabel(url) {
   if (!url) return null;
   try {
@@ -113,10 +109,9 @@ export default function TrackerDetail({ row, onDeleted }) {
 
   return (
     <div className="app-detail">
+      {/* No mark: Pholio holds no branding for an off-platform agency, and a
+          generated initial would invent one. The name carries it. */}
       <div className="app-detail__mast">
-        <span className="app-detail__mark" aria-hidden>
-          <span>{agencyInitial(row.agencyName)}</span>
-        </span>
         <h2 className="app-detail__name">{row.agencyName}</h2>
       </div>
 

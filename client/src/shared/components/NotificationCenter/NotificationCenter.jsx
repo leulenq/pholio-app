@@ -63,8 +63,6 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
       markAllPending={markAllMutation.isPending}
       onMarkAllRead={() => markAllMutation.mutate()}
       onItemClick={handleItemClick}
-      footerLabel="Open applications"
-      onFooterClick={handleFooter}
     />
   );
 }

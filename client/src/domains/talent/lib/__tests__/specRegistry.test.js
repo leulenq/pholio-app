@@ -4,7 +4,6 @@ import {
   REGISTRY_LABEL,
   SLOT_STATE,
   buildAgencyView,
-  buildMarketView,
   canonicalShotLabel,
   formatRegistryMonth,
   labelFor,
@@ -487,88 +486,5 @@ describe('buildAgencyView', () => {
     expect(view.notPublished).toBe(
       'Elite Models doesn’t publish file limits or shoot guidance.',
     );
-  });
-});
-
-describe('buildMarketView', () => {
-  const routes = [
-    { seriesId: 'elite', agencyName: 'Elite Models', acceptsPholioSubmissions: false },
-    { seriesId: 'muse', agencyName: 'Muse', acceptsPholioSubmissions: true },
-    { seriesId: 'wilhelmina', agencyName: 'Wilhelmina', acceptsPholioSubmissions: true },
-  ];
-
-  const shot = (id, { matchKey, matchValues, outcome, assignments = [] }) =>
-    finding({ id, slotKey: `${id}`, matchKey, matchValues, matchValue: null, outcome, assignments });
-
-  const evaluations = {
-    elite: {
-      findings: [
-        shot('elite-full', {
-          matchKey: 'shot.frame:equals:full_length',
-          matchValues: [{ field: 'shot.frame', value: 'full_length' }],
-          outcome: 'satisfied',
-          assignments: [{ instance: 1, imageId: 'img-1' }],
-        }),
-        shot('elite-head', {
-          matchKey: 'shot.frame:equals:headshot',
-          matchValues: [{ field: 'shot.frame', value: 'headshot' }],
-          outcome: 'missing',
-        }),
-        shot('elite-close', {
-          matchKey: 'shot.frame:equals:close_up',
-          matchValues: [{ field: 'shot.frame', value: 'close_up' }],
-          outcome: 'missing',
-        }),
-      ],
-    },
-    muse: {
-      findings: [
-        shot('muse-full', {
-          matchKey: 'shot.frame:equals:full_length',
-          matchValues: [{ field: 'shot.frame', value: 'full_length' }],
-          outcome: 'satisfied',
-        }),
-        // Muse is one headshot away from complete.
-        shot('muse-head', {
-          matchKey: 'shot.frame:equals:headshot',
-          matchValues: [{ field: 'shot.frame', value: 'headshot' }],
-          outcome: 'missing',
-        }),
-      ],
-    },
-    wilhelmina: { findings: [] },
-  };
-
-  const market = buildMarketView({
-    routes,
-    evaluationFor: (seriesId) => evaluations[seriesId],
-    labels,
-  });
-
-  test('merges the same canonical shot across agencies, by matchKey', () => {
-    expect(market.shots.map((row) => row.label)).toEqual([
-      'Headshot',
-      'Close-up',
-      'Full length',
-    ]);
-    expect(market.shots.find((row) => row.label === 'Full length')).toMatchObject({
-      askedByCount: 2,
-      inSet: true,
-      imageId: 'img-1',
-    });
-  });
-
-  test('counts only agencies that published a shot list', () => {
-    expect(market.totals).toEqual({ covered: 2, published: 5, agencies: 2 });
-    expect(market.agencies.find((a) => a.seriesId === 'wilhelmina').hasShotList).toBe(false);
-  });
-
-  test('separates "would complete" from "also asks for" — the honest recommendation', () => {
-    // Elite is missing two shots, so a headshot completes nobody but Muse.
-    expect(market.recommendation).toMatchObject({
-      label: 'Headshot',
-      completes: ['Muse'],
-      alsoAsked: 1,
-    });
   });
 });

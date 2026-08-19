@@ -1,0 +1,543 @@
+/* ============================================================
+   THE SEASON BOARD
+
+   Market as a schedule, not a table. One house to a band, at
+   the scale a house deserves; opening a band turns it into ink
+   and states the whole brief in place.
+
+   The register is deliberately not the dashboard's: house names
+   are set in the sans at display size with tight tracking — the
+   modern fashion wordmark voice — and the serif appears exactly
+   once, in the masthead. Gold is punctuation, not surface.
+   ============================================================ */
+
+.mb {
+  --mb-cream: var(--app-cream, #faf7f2);
+  --mb-warm: #f4efe6;
+  --mb-ink: #0a0a0a;
+  --mb-ink-2: #141414;
+  --mb-text: #1a1815;
+  --mb-soft: rgba(26, 24, 21, 0.58);
+  --mb-faint: rgba(26, 24, 21, 0.4);
+  --mb-hair: rgba(26, 24, 21, 0.11);
+  --mb-gold: var(--app-gold, #c9a55a);
+  --mb-gold-text: #75501b;
+  --mb-on-ink: #f3efe8;
+  --mb-on-ink-soft: rgba(243, 239, 232, 0.66);
+  --mb-on-ink-hair: rgba(243, 239, 232, 0.15);
+  --mb-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --mb-gutter: clamp(28px, 5.4vw, 104px);
+
+  /*
+    Bands run the full width of the surface. The page container pads the rest
+    of Market, so the board reaches back out to the edge and pads itself —
+    without that, a poster-scale name sits in a column and stops being a poster.
+  */
+  margin-inline: calc(var(--mb-gutter) * -1);
+}
+
+/* ── the top ──────────────────────────────────────────────── */
+
+/*
+  One row. Search left, the scope switch pinned hard right, and no rule beneath
+  it — the board's first band is the rule, and three stacked hairlines were most
+  of what made this area feel tall.
+*/
+.mb-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 32px;
+  padding: 0 var(--mb-gutter) clamp(16px, 2vw, 24px);
+}
+
+.mb-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 240px;
+  min-width: 0;
+  max-width: 380px;
+}
+
+.mb-search__icon {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--mb-faint);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.mb-search__input {
+  width: 100%;
+  height: 38px;
+  padding: 0 0 0 36px !important;
+  border: 0 !important;
+  border-bottom: 1px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--mb-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14.5px;
+  outline: none !important;
+  transition: border-color 0.2s var(--mb-ease);
+}
+
+.mb-search__input:focus,
+.mb-search__input:focus-visible {
+  border: 0 !important;
+  border-bottom: 1px solid var(--mb-text, #1a1815) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.mb-search__input::placeholder {
+  color: rgba(26, 24, 21, 0.46);
+  opacity: 1;
+}
+
+.mb-search__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mb-scopes { display: flex; flex-wrap: wrap; gap: 4px 22px; margin-left: auto; }
+
+.mb-scope {
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: none;
+  color: var(--mb-faint);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s var(--mb-ease), border-color 0.2s var(--mb-ease);
+}
+
+.mb-scope:hover { color: var(--mb-text); }
+.mb-scope--on { border-bottom-color: var(--mb-gold); color: var(--mb-text); }
+.mb-scope:focus-visible { outline: 2px solid var(--mb-gold); outline-offset: 4px; }
+
+/* ── a band ───────────────────────────────────────────────── */
+
+.hbnd { border-top: 1px solid var(--mb-hair); }
+
+.hbnd__face {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px 40px;
+  width: 100%;
+  padding: clamp(20px, 2.4vw, 30px) var(--mb-gutter);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.25s var(--mb-ease);
+}
+
+.hbnd__face:hover { background: color-mix(in srgb, var(--mb-warm) 60%, transparent); }
+.hbnd__face:focus-visible { outline: 2px solid var(--mb-gold); outline-offset: -4px; }
+
+.hbnd__identity { min-width: 0; }
+
+/*
+  The dateline. Geography sits above the name, where it locates the entry before
+  you read it — the way a show listing or an auction lot is located — instead of
+  queueing up in a metadata row with everything else.
+*/
+.hbnd__dateline {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--mb-text);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+}
+
+/* A scope is not a place, so it is not set like one: lighter, tracked wider. */
+.hbnd__dateline--scope {
+  color: var(--mb-faint);
+  font-weight: 500;
+  letter-spacing: 0.34em;
+}
+
+/*
+  The poster voice: the sans, heavy, tracked tight, uppercase — the register a
+  fashion house sets its own name in, and deliberately not the dashboard's serif.
+*/
+.hbnd__name {
+  display: block;
+  color: var(--mb-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(1.5rem, 3.3vw, 2.65rem);
+  font-weight: 600;
+  letter-spacing: -0.042em;
+  line-height: 0.98;
+  text-transform: uppercase;
+  overflow-wrap: break-word;
+}
+
+.hbnd__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 30px;
+  margin-top: 13px;
+}
+
+/*
+  A roster is a taxonomy, not a sentence: set in small caps and separated by
+  space rather than punctuation, so it reads as a set of divisions rather than a
+  list of words joined by dots.
+*/
+.hbnd__boards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 17px;
+  color: var(--mb-soft);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/*
+  Territory. Names are for places; codes are for territories, and the two never
+  share a treatment — which is precisely what made a city and a market read as
+  the same kind of fact. Each code is underscored so a set of them reads as a
+  set rather than as a word.
+*/
+.hbnd__terr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  color: var(--mb-text);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.hbnd__terr span { padding-bottom: 2px; border-bottom: 1px solid var(--mb-hair); }
+
+/*
+  A named scope — "Global", "North America", "United Kingdom". A name, so it is
+  set as one: no underscore, no code treatment, and italic to separate it from
+  the roster beside it without adding another colour.
+*/
+.hbnd__scope {
+  color: var(--mb-soft);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1;
+}
+
+.hbnd__route { display: flex; justify-content: flex-end; }
+
+/*
+  The route language, entire: gold means Pholio carries it, and everything else
+  is quiet ink with a mark that you will be leaving. One accent, one meaning —
+  no rules, no terminals, no badges.
+*/
+.hbnd__way {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mb-soft);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.hbnd__way--carried {
+  color: var(--mb-gold-text);
+  font-weight: 600;
+}
+
+.hbnd__state { color: var(--mb-faint); font-size: 12.5px; font-style: italic; }
+
+/* Open: the entire open agency band becomes one unified solid black panel. */
+.hbnd--open {
+  border-top-color: var(--mb-ink);
+  background: var(--mb-ink);
+}
+.hbnd--open .hbnd__face { background: var(--mb-ink); }
+.hbnd--open .hbnd__face:hover { background: var(--mb-ink-2); }
+.hbnd--open .hbnd__name { color: var(--mb-on-ink); }
+.hbnd--open .hbnd__dateline { color: var(--mb-on-ink-soft); }
+.hbnd--open .hbnd__dateline--scope { color: rgba(243, 239, 232, 0.44); }
+.hbnd--open .hbnd__boards { color: var(--mb-on-ink-soft); }
+.hbnd--open .hbnd__terr { color: var(--mb-on-ink); }
+.hbnd--open .hbnd__terr span { border-bottom-color: var(--mb-on-ink-hair); }
+.hbnd--open .hbnd__scope { color: var(--mb-on-ink-soft); }
+.hbnd--open .hbnd__way { color: var(--mb-on-ink-soft); }
+.hbnd--open .hbnd__way--carried { color: var(--mb-gold); }
+.hbnd--open .hbnd__state { color: rgba(243, 239, 232, 0.44); }
+.hbnd--open .hbnd__face:focus-visible { outline-color: var(--mb-gold); }
+
+.hbnd__panel { overflow: hidden; background: var(--mb-ink); color: var(--mb-on-ink); }
+
+/* ── the brief ────────────────────────────────────────────── */
+
+/*
+  Calm by construction. One verdict at size, a bare frame list, the conditions
+  once, the action — and everything that is reference rather than instruction
+  behind a disclosure. The four equal columns are gone: they gave a twenty-item
+  form inventory the same weight as the shot list.
+*/
+.hb { padding: 4px var(--mb-gutter) clamp(28px, 3.2vw, 40px); max-width: 96ch; }
+
+.hb--waiting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--mb-gutter) clamp(30px, 3.4vw, 44px);
+  max-width: none;
+  color: var(--mb-on-ink-soft);
+  font-size: 13.5px;
+}
+
+/* The one thing read first, and often the only thing read. */
+.hb-verdict {
+  margin: 0;
+  padding-top: clamp(20px, 2.4vw, 28px);
+  border-top: 1px solid var(--mb-on-ink-hair);
+  color: var(--mb-on-ink);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.25rem, 2.1vw, 1.6rem);
+  font-weight: 300;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.hb-verdict em { font-style: normal; color: rgba(243, 239, 232, 0.52); }
+
+/* A published range the talent sits outside is the most consequential line the
+   registry can produce, so it is the only thing here allowed to be loud. */
+.hb-blocker {
+  margin: 14px 0 0;
+  color: var(--mb-gold);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.hb-body {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(22px, 3vw, 64px);
+  margin-top: clamp(22px, 2.6vw, 30px);
+}
+
+/* ── the frames ───────────────────────────────────────────── */
+
+.hb-frames { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+
+.hb-frame {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  color: var(--mb-on-ink-soft);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.hb-frame__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--mb-ink);
+  transform: translateY(2px);
+}
+
+/* Present reads as present; absent needs no mark and no label. */
+.hb-frame--have .hb-frame__mark { background: var(--mb-gold); border-radius: 1px; }
+.hb-frame--have .hb-frame__label { color: var(--mb-on-ink); }
+
+.hb-frames__none {
+  margin-top: 4px;
+  color: rgba(243, 239, 232, 0.44);
+  font-size: 12.5px;
+}
+
+.hb-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── the conditions ───────────────────────────────────────── */
+
+.hb-conds { display: grid; gap: 10px; align-content: start; }
+
+.hb-cond {
+  margin: 0;
+  color: var(--mb-on-ink-soft);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.hb-cond__key {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--mb-gold);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.hb-cond--avoid { color: rgba(243, 239, 232, 0.5); }
+
+/* ── actions ──────────────────────────────────────────────── */
+
+.hb-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-top: clamp(24px, 3vw, 34px);
+}
+
+.hb-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  border: 1px solid var(--mb-on-ink);
+  background: var(--mb-on-ink);
+  color: var(--mb-ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s var(--mb-ease), color 0.2s var(--mb-ease);
+}
+
+.hb-act:hover:not(:disabled) { background: var(--mb-gold); border-color: var(--mb-gold); }
+
+.hb-act:disabled {
+  border-color: var(--mb-on-ink-hair);
+  background: transparent;
+  color: var(--mb-on-ink-soft);
+  cursor: default;
+}
+
+.hb-act--ghost {
+  border-color: var(--mb-on-ink-hair);
+  background: transparent;
+  color: var(--mb-on-ink);
+  font-weight: 500;
+}
+
+.hb-act--ghost:hover { background: transparent; border-color: var(--mb-on-ink); }
+
+.hb-act:focus-visible,
+.hb-link:focus-visible,
+.hb-more:focus-visible { outline: 2px solid var(--mb-gold); outline-offset: 3px; }
+
+.hb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mb-on-ink-soft);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--mb-ease);
+}
+
+.hb-link:hover { color: var(--mb-on-ink); }
+
+.hb-more {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgba(243, 239, 232, 0.46);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s var(--mb-ease);
+}
+
+.hb-more:hover { color: var(--mb-on-ink); }
+
+/* ── the footnote ─────────────────────────────────────────── */
+
+.hb-detail {
+  display: grid;
+  gap: 9px;
+  margin: clamp(20px, 2.4vw, 26px) 0 0;
+  padding-top: clamp(16px, 2vw, 22px);
+  border-top: 1px solid var(--mb-on-ink-hair);
+}
+
+.hb-detail > div { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 16px; }
+
+.hb-detail dt {
+  color: rgba(243, 239, 232, 0.44);
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1.9;
+}
+
+.hb-detail dd {
+  margin: 0;
+  color: var(--mb-on-ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── narrow ───────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .hbnd__face {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .hbnd__route { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-loading__band { animation: none; }
+  .hbnd__face,
+  .hbnd__name,
+  .hb-act,
+  .mb-scope { transition: none; }
+}

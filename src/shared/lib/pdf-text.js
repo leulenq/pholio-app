@@ -25,11 +25,22 @@ const MIN_MEANINGFUL_CHARS = 24;
 
 const path = require("path");
 
-/** Bundled standard-font data, resolved off the installed package. */
-const STANDARD_FONT_DATA_URL = `${path.join(
-  path.dirname(require.resolve("pdfjs-dist/package.json")),
-  "standard_fonts",
-)}${path.sep}`;
+/**
+ * Resolve pdfjs' optional standard-font data without making API startup depend
+ * on package metadata being present in the serverless bundle. The Netlify
+ * function bundles pdfjs itself, but package.json and standard_fonts are not
+ * runtime dependencies of text extraction and may be omitted from the Lambda.
+ */
+function resolveStandardFontDataUrl(resolveModule = require.resolve) {
+  try {
+    return `${path.join(
+      path.dirname(resolveModule("pdfjs-dist/package.json")),
+      "standard_fonts",
+    )}${path.sep}`;
+  } catch {
+    return undefined;
+  }
+}
 
 let _pdfjs = null;
 
@@ -157,7 +168,8 @@ async function extractPdfText(buffer, { maxPages = 4 } = {}) {
 
   // Destroy is on the loading task, not the document proxy, and it is what
   // releases the worker — skipping it leaks a worker per upload.
-  const loadingTask = pdfjs.getDocument({
+  const standardFontDataUrl = resolveStandardFontDataUrl();
+  const documentOptions = {
     data,
     // A comp card is a document, not a program. Nothing in it should be able to
     // run script, pull a remote font, or reach the network from the server.
@@ -167,8 +179,9 @@ async function extractPdfText(buffer, { maxPages = 4 } = {}) {
     // The standard-font data ships with the package. Pointing at the local copy
     // keeps pdfjs off the network and silences the warning it logs per document
     // when the path is absent — we only read text, but it warns regardless.
-    standardFontDataUrl: STANDARD_FONT_DATA_URL,
-  });
+    ...(standardFontDataUrl ? { standardFontDataUrl } : {}),
+  };
+  const loadingTask = pdfjs.getDocument(documentOptions);
   const doc = await loadingTask.promise;
 
   try {
@@ -215,4 +228,5 @@ module.exports = {
   collapseLetterSpacing,
   extractPdfText,
   groupIntoLines,
+  resolveStandardFontDataUrl,
 };

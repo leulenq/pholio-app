@@ -1,76 +1,100 @@
-/*
- * The dialog shell for logging an off-platform submission.
- *
- * Ink scrim on warm paper, matching CompCardImportOverlay — the house treatment
- * for a talent overlay. `backdrop-filter` here is the one permitted use: a
- * full-screen scrim acting as a functional dimmer, not decoration on a card.
- */
+/* ============================================================
+   LOG A SUBMISSION OVERLAY — Talent Dashboard
+   Editorial talent ledger modal for recording external submissions.
+   ============================================================ */
 
 .scrim {
   position: fixed;
   inset: 0;
   z-index: 2147483000;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 48px 22px;
+  padding: clamp(24px, 4vw, 48px) 20px;
   overflow-y: auto;
-  background: rgba(5, 5, 5, 0.76);
-  backdrop-filter: blur(18px);
+  background: rgba(5, 5, 5, 0.72);
+}
+
+.scrim::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
 }
 
 .panel {
+  --lso-cream: #faf7f2;
+  --lso-cream-warm: #f5f0e8;
+  --lso-gold: #c9a55a;
+  --lso-gold-warm: #c8a96e;
+  --lso-text: #1a1a1a;
+  --lso-text-soft: rgba(26, 26, 26, 0.64);
+  --lso-text-faint: rgba(26, 26, 26, 0.4);
+  --lso-hair: rgba(26, 26, 26, 0.09);
+  --lso-hair-strong: rgba(26, 26, 26, 0.16);
+  --lso-hair-gold: rgba(201, 165, 90, 0.25);
+  --lso-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --lso-ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+
   position: relative;
   width: 100%;
-  max-width: 560px;
-  padding: 38px 40px 34px;
-  border: 1px solid rgba(26, 24, 21, 0.08);
-  border-radius: 16px;
-  background: #fffdfa;
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.28);
+  max-width: 580px;
+  margin: auto;
+  padding: clamp(32px, 4vw, 44px) clamp(28px, 4.2vw, 42px) 36px;
+  background: var(--lso-cream);
+  border: 1px solid var(--lso-hair);
+  border-top-color: var(--lso-hair-gold);
+  border-radius: 12px;
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.35);
   outline: none;
+  color: var(--lso-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* ─── Exit button: Standard talent studio close button ─── */
 .close {
   position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 1;
+  top: 22px;
+  right: 22px;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* A global button rule injects `padding: 12px 28px`; both box metrics are
-     pinned here so the control is really the size it says. */
   box-sizing: border-box;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 2px;
-  background: transparent;
-  color: rgba(26, 26, 26, 0.42);
+  border: 1px solid var(--lso-hair);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--lso-text-soft);
   cursor: pointer;
   transition:
-    color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    color 0.2s var(--lso-ease-std),
+    border-color 0.2s var(--lso-ease-std),
+    background 0.2s var(--lso-ease-std);
 }
 
 .close:hover {
-  color: #1a1a1a;
-  border-color: rgba(26, 26, 26, 0.16);
+  color: var(--lso-text);
+  border-color: var(--lso-hair-gold);
+  background: #ffffff;
 }
 
 .close:focus-visible {
-  outline: 2px solid #c9a55a;
+  outline: 2px solid var(--lso-gold);
   outline-offset: 2px;
 }
 
 .title {
   margin: 0 0 10px;
-  padding-right: 36px;
-  color: #1a1815;
+  padding-right: 40px;
+  color: var(--lso-text);
   font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-size: clamp(1.75rem, 3.2vw, 2.15rem);
   font-weight: 300;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -78,50 +102,146 @@
 
 .title em {
   font-style: italic;
-  color: #b08d45;
+  color: var(--lso-gold-warm);
+  font-weight: 300;
 }
 
 .standfirst {
   margin: 0 0 26px;
-  max-width: 46ch;
-  color: rgba(26, 24, 21, 0.62);
-  font-size: 13px;
+  max-width: 48ch;
+  color: var(--lso-text-soft);
+  font-size: 13.5px;
   font-weight: 300;
   line-height: 1.6;
 }
 
 .form {
   display: grid;
-  gap: 4px;
+  gap: 22px;
 }
 
 .row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0 18px;
+  gap: 20px;
+}
+
+/* ─── Profile & Talent Studio Inputs (Strict Editorial Spec) ─── */
+.form :global(.pholio-form-group) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.form :global(.pholio-label) {
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lso-text-faint);
+  margin-bottom: 10px;
+}
+
+.form :global(.pholio-input),
+.form :global(.pholio-select),
+.form :global(.pholio-textarea) {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--lso-text);
+  background: #ffffff;
+  border: 1px solid var(--lso-hair-strong);
+  border-radius: 2px !important;
+  box-shadow: none !important;
+  transition:
+    border-color 0.2s var(--lso-ease-std),
+    box-shadow 0.2s var(--lso-ease-std),
+    background 0.2s var(--lso-ease-std);
+  transform: none;
+}
+
+.form :global(.pholio-input) {
+  height: 48px;
+  padding: 12px 16px;
+}
+
+.form :global(.pholio-select) {
+  height: 56px;
+  padding: 14px 18px;
+}
+
+.form :global(.pholio-textarea) {
+  padding: 16px 18px;
+  min-height: 110px;
+  line-height: 1.6;
+  resize: none;
+}
+
+.form :global(.pholio-input::placeholder),
+.form :global(.pholio-textarea::placeholder) {
+  color: var(--lso-text-faint);
+  font-style: normal;
+  font-weight: 300;
+}
+
+.form :global(.pholio-input:hover:not(:focus)),
+.form :global(.pholio-select:hover:not(:focus)),
+.form :global(.pholio-textarea:hover:not(:focus)) {
+  border-color: rgba(26, 26, 26, 0.35);
+  background: #ffffff;
+}
+
+.form :global(.pholio-input:focus),
+.form :global(.pholio-select:focus),
+.form :global(.pholio-textarea:focus) {
+  border-color: rgba(201, 165, 90, 0.6) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.18) !important;
+  outline: none !important;
+}
+
+.form :global(.pholio-input.has-error),
+.form :global(.pholio-select.has-error),
+.form :global(.pholio-textarea.has-error) {
+  border-color: rgba(176, 72, 72, 0.45) !important;
+}
+
+.form :global(.pholio-error-message) {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  margin-top: 8px;
+  color: #b04848;
 }
 
 .formError {
-  margin: 4px 0 0;
-  color: #b3261e;
-  font-size: 13px;
+  margin: 0;
+  color: #b04848;
+  font-size: 12.5px;
   line-height: 1.5;
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 12px;
-  margin-top: 18px;
+  margin-top: 14px;
+  padding-top: 22px;
+  border-top: 1px solid var(--lso-hair);
 }
 
 @media (max-width: 640px) {
   .scrim {
     padding: 16px 12px 32px;
+    align-items: flex-start;
   }
 
   .panel {
-    padding: 30px 22px 26px;
+    padding: 30px 20px 24px;
   }
 
   .row {
@@ -129,8 +249,8 @@
   }
 
   .close {
-    top: 14px;
-    right: 14px;
+    top: 16px;
+    right: 16px;
   }
 }
 

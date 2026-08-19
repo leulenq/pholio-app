@@ -51,8 +51,6 @@
   overflow: hidden;
   background: var(--cci-cream);
   border: 1px solid var(--cci-hair);
-  /* The gold top edge is the house marker for a working panel. */
-  border-top-color: var(--cci-hair-gold);
   border-radius: var(--cci-radius);
 }
 
@@ -96,10 +94,7 @@
 }
 
 .sweep {
-  width: 120px;
-  height: 1px;
-  margin: 18px 32px 0;
-  background: linear-gradient(to right, var(--cci-gold-warm), transparent);
+  display: none;
 }
 
 .standfirst {

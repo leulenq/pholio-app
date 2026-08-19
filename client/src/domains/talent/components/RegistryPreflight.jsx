@@ -28,7 +28,6 @@ async function defaultRegistryPreflightQuery(payload) {
 }
 
 const EASE = [0.4, 0, 0.2, 1];
-const REQUIREMENTS_HREF = '/dashboard/talent/applications/requirements';
 
 function asObject(value) {
   return value && typeof value === 'object' ? value : {};
@@ -256,13 +255,10 @@ export default function RegistryPreflight({
       <div className={styles.note}>
         <p className={styles.noteLine}>
           {resolution === 'choice_required'
-            ? `${resolvedAgencyName} publishes more than one route — pick the one you plan to use in Agency requirements.`
+            ? `${resolvedAgencyName} publishes more than one route, and Pholio can’t tell which one applies to you. Their submission page is the source of truth.`
             : `Pholio has no published requirements for ${possessive(resolvedAgencyName)} selected route yet. Check their submission page before sending.`}
         </p>
         <span className={styles.noteLinks}>
-          <a className={styles.link} href={REQUIREMENTS_HREF}>
-            Agency requirements
-          </a>
           {resolvedSourceUrl ? (
             <a
               className={styles.link}

@@ -11,12 +11,11 @@
   inset: 0;
   z-index: 2147483000;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   padding: 48px 22px;
   overflow-y: auto;
   background: rgba(5, 5, 5, 0.76);
-  backdrop-filter: blur(18px);
 }
 
 /* The paper grain the talent overlays carry, at the same weight. */
@@ -34,6 +33,7 @@
   position: relative;
   width: 100%;
   max-width: 760px;
+  margin: auto;
   outline: none;
 }
 

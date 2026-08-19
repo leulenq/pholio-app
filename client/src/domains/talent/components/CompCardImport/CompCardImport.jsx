@@ -185,12 +185,9 @@ export default function CompCardImport({ onApplied, onDone }) {
   return (
     <div className={styles.wrap}>
       {stage === 'idle' && (
-        <motion.section
+        <section
           key="idle"
           className={styles.panel}
-          initial={{ opacity: 0, y: reduceMotion ? 0 : 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={transition}
         >
           <header className={styles.head}>
             <h2 className={styles.title}>
@@ -223,7 +220,7 @@ export default function CompCardImport({ onApplied, onDone }) {
             Your card is read and not stored, and only the text on it is used. Nothing about the
             photographs on the card is analysed.
           </p>
-        </motion.section>
+        </section>
       )}
 
       {stage === 'reading' && (

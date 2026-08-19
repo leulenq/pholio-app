@@ -49,6 +49,8 @@ function normalizeCompCard(value) {
       : [],
     board: boundedString(value.board, 120),
     market: boundedString(value.market, 120),
+    external: value.external === true,
+    externalUrl: boundedString(value.externalUrl, 1500),
   };
 }
 
@@ -89,6 +91,7 @@ function orderedImages(images, digitalSlotPicks = {}) {
 
 function compCardViewUrl(slug, compCard) {
   if (!slug || !compCard) return null;
+  if (compCard.externalUrl) return compCard.externalUrl;
   const params = new URLSearchParams();
   if (compCard.seed) params.set("seed", compCard.seed);
   if (compCard.layoutFamily) {

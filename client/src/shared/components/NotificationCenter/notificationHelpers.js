@@ -11,14 +11,15 @@ import {
 
 const TALENT_FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'agency', label: 'Agency' },
   { id: 'applications', label: 'Applications' },
-  { id: 'alerts', label: 'Alerts' },
+  { id: 'messages', label: 'Messages' },
+  { id: 'profile', label: 'Profile' },
 ];
 
 const AGENCY_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'submissions', label: 'Submissions' },
+  { id: 'messages', label: 'Messages' },
 ];
 
 const TYPE_AVATAR_TONE = {
@@ -108,20 +109,23 @@ export function filterNotifications(items, filterId, variant = 'talent') {
     if (filterId === 'submissions') {
       return items.filter((item) => item.type === 'application_received');
     }
+    if (filterId === 'messages') {
+      return items.filter((item) => item.type === 'message_received');
+    }
     return items;
   }
 
-  if (filterId === 'agency') {
-    return items.filter((item) => item.type === 'agency_profile_view');
-  }
   if (filterId === 'applications') {
     return items.filter((item) =>
-      ['application_submitted', 'application_status', 'message_received'].includes(
+      ['application_submitted', 'application_status', 'agency_profile_view'].includes(
         item.type,
       ),
     );
   }
-  if (filterId === 'alerts') {
+  if (filterId === 'messages') {
+    return items.filter((item) => item.type === 'message_received');
+  }
+  if (filterId === 'profile') {
     return items.filter((item) =>
       ['profile_not_submission_ready', 'confirmation'].includes(item.type),
     );

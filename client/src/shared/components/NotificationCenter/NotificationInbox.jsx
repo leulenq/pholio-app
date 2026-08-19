@@ -60,10 +60,7 @@ export default function NotificationInbox({
     >
       <header className="ni__head">
         <div className="ni__title-row">
-          <h2 id={titleId} className="ni__title">Notifications</h2>
-          {unreadCount > 0 ? (
-            <span className="ni__unread">{unreadCount} unread</span>
-          ) : null}
+          <h2 id={titleId} className="ni__title">Activity</h2>
           {unreadCount > 0 ? (
             <button
               type="button"
@@ -126,15 +123,11 @@ export default function NotificationInbox({
                 <li key={item.id}>
                   <button
                     type="button"
-                    className="ni__item"
+                    className={`ni__item${item.isRead ? '' : ' is-unread'}`}
                     onClick={() => onItemClick?.(item)}
                     aria-label={label}
                   >
-                    <span
-                      className={`ni__dot${item.isRead ? ' ni__dot--read' : ''}`}
-                      aria-hidden="true"
-                    />
-                    <span>
+                    <span className="ni__item-main">
                       <span className="ni__text">
                         {headline.before || headline.after ? (
                           <>
@@ -147,7 +140,12 @@ export default function NotificationInbox({
                         )}
                       </span>
                       {detail ? <span className="ni__meta">{detail}</span> : null}
+                    </span>
+                    <span className="ni__item-sub">
                       <span className="ni__time">{item.timeAgo || 'Recently'}</span>
+                      {item.routeTarget && (
+                        <span className="ni__action-link">View</span>
+                      )}
                     </span>
                   </button>
                 </li>

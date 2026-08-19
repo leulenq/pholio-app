@@ -1,6 +1,7 @@
 "use strict";
 
 const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
 const {
   isDigitalSlot,
   hasShotType,
@@ -297,6 +298,7 @@ async function normalizeDraftPayloadWithRepairs(
   }
 
   let compCardPreset = null;
+  let externalCompCard = null;
   const requestedPresetId =
     typeof source.compCardPresetId === "string"
       ? source.compCardPresetId
@@ -319,6 +321,22 @@ async function normalizeDraftPayloadWithRepairs(
           "The selected comp card is no longer available.",
         ),
       );
+    }
+  }
+
+  const requestedExternalCardId = typeof source.externalCompCardId === "string"
+    ? source.externalCompCardId
+    : source.externalCompCard?.id;
+  if (requestedExternalCardId) {
+    const card = await db("external_comp_cards")
+      .where({ id: requestedExternalCardId, profile_id: profileId })
+      .whereNull("deleted_at")
+      .first("id", "filename", "mime_type", "public_url");
+    if (card) {
+      externalCompCard = { id: card.id, name: card.filename, mimeType: card.mime_type, url: card.public_url };
+      compCardPreset = null;
+    } else {
+      repairs.push(repairWarning("external_comp_card_unavailable", "externalCompCard", "The selected external comp card is no longer available."));
     }
   }
 
@@ -400,6 +418,7 @@ async function normalizeDraftPayloadWithRepairs(
       excludedImageIds,
       digitalSlotPicks,
       compCardPreset,
+      externalCompCard,
       specRegistryRevisionId,
       note,
       openCallLinkId,
@@ -421,6 +440,53 @@ async function normalizeDraftPayload(db, options) {
 function parseDraftPayload(raw) {
   const parsed = parseJson(raw, {});
   return parsed && typeof parsed === "object" ? parsed : {};
+}
+
+function sortedObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).sort(([left], [right]) => left.localeCompare(right)),
+  );
+}
+
+/**
+ * The application package itself. Workflow position and legal confirmations
+ * are intentionally excluded: they may be safely rebased and must never make
+ * an applicant choose between two otherwise identical dossiers.
+ */
+function draftMaterialFingerprint(payload) {
+  const source = payload && typeof payload === "object" ? payload : {};
+  return JSON.stringify({
+    boards: uniqueStrings(source.boards).sort(),
+    mediaSetId: source.mediaSetId || "current",
+    excludedImageIds: uniqueStrings(source.excludedImageIds, 200).sort(),
+    digitalSlotPicks: sortedObject(source.digitalSlotPicks),
+    compCardPresetId: source.compCardPreset?.id || source.compCardPresetId || null,
+    externalCompCardId: source.externalCompCard?.id || source.externalCompCardId || null,
+    specRegistryRevisionId: source.specRegistryRevisionId || null,
+    note: typeof source.note === "string" ? source.note : "",
+    openCallLinkId: source.openCallLinkId || null,
+    availability: source.availability || null,
+    walkVideoUrl: source.walkVideoUrl || null,
+  });
+}
+
+function draftDocumentFingerprint(payload, currentStepId) {
+  return JSON.stringify({
+    material: draftMaterialFingerprint(payload),
+    currentStepId: normalizeStepId(currentStepId),
+    measurementsConfirmed: payload?.measurementsConfirmed === true,
+    consent: payload?.consent === true,
+    accuracyConfirmed: payload?.accuracyConfirmed === true,
+    adultAuthorityConfirmed: payload?.adultAuthorityConfirmed === true,
+  });
+}
+
+function draftRevisionToken(payload, currentStepId) {
+  return crypto
+    .createHash("sha256")
+    .update(draftDocumentFingerprint(payload, currentStepId))
+    .digest("hex");
 }
 
 function toIsoTimestamp(value) {
@@ -500,6 +566,7 @@ function mapDraftRow(row, payload, now = Date.now(), options = {}) {
     schemaVersion: Number(row.schema_version) || DRAFT_SCHEMA_VERSION,
     currentStepId: normalizeStepId(row.current_step_id),
     version: Number(row.version) || 1,
+    revisionToken: draftRevisionToken(payload, row.current_step_id),
     generation: Number(row.generation) || 1,
     lastSavedByClientId: row.last_saved_by_client_id || null,
     clientUpdatedAt: toIsoTimestamp(row.client_updated_at),
@@ -613,18 +680,23 @@ function safeEventMetadata(metadata = {}) {
 async function recordDraftEvent(db, event) {
   if (!ALLOWED_EVENT_TYPES.has(event.eventType)) return;
   try {
-    await db("application_draft_events").insert({
-      id: uuidv4(),
-      draft_id: event.id || event.draftId || null,
-      profile_id: event.profile_id || event.profileId,
-      agency_id: event.agency_id || event.agencyId,
-      event_type: event.eventType,
-      version: Number.isInteger(Number(event.version)) ? Number(event.version) : null,
-      generation: Number.isInteger(Number(event.generation))
-        ? Number(event.generation)
-        : null,
-      lifecycle_state: event.lifecycleState || event.lifecycle_state || null,
-      metadata: JSON.stringify(safeEventMetadata(event.metadata)),
+    // When `db` is already a PostgreSQL transaction this nested transaction is
+    // a savepoint. Rolling back the savepoint keeps an optional telemetry
+    // failure from poisoning the surrounding domain transaction.
+    await db.transaction(async (eventTrx) => {
+      await eventTrx("application_draft_events").insert({
+        id: uuidv4(),
+        draft_id: event.id || event.draftId || null,
+        profile_id: event.profile_id || event.profileId,
+        agency_id: event.agency_id || event.agencyId,
+        event_type: event.eventType,
+        version: Number.isInteger(Number(event.version)) ? Number(event.version) : null,
+        generation: Number.isInteger(Number(event.generation))
+          ? Number(event.generation)
+          : null,
+        lifecycle_state: event.lifecycleState || event.lifecycle_state || null,
+        metadata: JSON.stringify(safeEventMetadata(event.metadata)),
+      });
     });
   } catch (error) {
     // Telemetry must never change draft behavior. During rolling deploys the
@@ -653,6 +725,9 @@ module.exports = {
   DRAFT_SCHEMA_VERSION,
   DRAFT_STALE_AFTER_MS,
   DRAFT_STEP_IDS,
+  draftDocumentFingerprint,
+  draftMaterialFingerprint,
+  draftRevisionToken,
   NON_MATERIAL_REPAIR_CODES,
   WALK_VIDEO_URL_MAX_LENGTH,
   isMaterialRepairWarning,

@@ -279,7 +279,7 @@ describe('RegistryPreflight', () => {
     );
   });
 
-  test('sends an unavailable route to the requirements page and the agency', async () => {
+  test('sends an unavailable route to the agency itself', async () => {
     renderPreflight({
       sourceUrl: 'https://example.com/apply',
       queryFn: () => Promise.resolve({ available: false }),
@@ -290,24 +290,28 @@ describe('RegistryPreflight', () => {
     ).toBeInTheDocument();
     // No heading claiming a check that never happened.
     expect(screen.queryByRole('heading')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Agency requirements' })).toHaveAttribute(
-      'href',
-      '/dashboard/talent/applications/requirements',
-    );
+    // The standalone requirements page is gone; the agency's own page is the
+    // only destination left, and the only one that was ever authoritative.
+    expect(screen.queryByRole('link', { name: 'Agency requirements' })).toBeNull();
     const source = screen.getByRole('link', { name: 'Their submission page' });
     expect(source).toHaveAttribute('href', 'https://example.com/apply');
     expect(source).toHaveAttribute('target', '_blank');
   });
 
-  test('points a multi-route agency at the page that can resolve the choice', async () => {
+  test('says plainly that a multi-route agency cannot be resolved for you', async () => {
     renderPreflight({
+      sourceUrl: 'https://example.com/apply',
       queryFn: () => Promise.resolve({ available: false, resolution: 'choice_required' }),
     });
 
     expect(
       await screen.findByText(/Elite Models publishes more than one route/),
     ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Agency requirements' })).toBeInTheDocument();
+    // Never a guess dressed as an answer: the agency's own page is the only
+    // place the choice can actually be resolved.
+    expect(
+      screen.getByRole('link', { name: 'Their submission page' }),
+    ).toHaveAttribute('href', 'https://example.com/apply');
   });
 
   test('renders a controlled batched result without running the query function', async () => {

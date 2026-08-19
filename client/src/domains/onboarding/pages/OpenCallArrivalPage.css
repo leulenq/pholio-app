@@ -89,20 +89,6 @@
   box-shadow: 0 0 20px rgba(201, 165, 90, 0.1);
 }
 
-.opencall__monogram {
-  width: 72px;
-  height: 72px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--app-radius);
-  background: #ffffff;
-  border: 1px solid var(--app-hair);
-  box-shadow: 0 0 20px rgba(201, 165, 90, 0.1);
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 32px;
-  color: var(--app-gold-warm);
-}
-
 .opencall__agency-name {
   font-family: 'Noto Serif Display', Georgia, serif;
   font-size: clamp(18px, 2.4vw, 22px);

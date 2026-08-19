@@ -7,6 +7,7 @@ const {
   pruneDuplicateDeviceSessions,
   purgeExpiredSessions,
   registerSession,
+  revokeAllSessions,
   revokeOtherSessions,
   revokeSession,
 } = require("../../src/shared/lib/session-registry");
@@ -323,5 +324,18 @@ describe("revokeOtherSessions", () => {
     await expect(revokeOtherSessions(knex, userId, current)).resolves.toEqual({
       revoked: 0,
     });
+  });
+});
+
+describe("revokeAllSessions", () => {
+  test("ends every live session for only the provider-deauthorized user", async () => {
+    await seedSession({ owner: userId, userAgent: IPHONE });
+    await seedSession({ owner: userId, userAgent: MAC });
+    const theirs = await seedSession({ owner: otherUserId });
+
+    await expect(revokeAllSessions(knex, userId)).resolves.toEqual({ revoked: 2 });
+
+    const sids = (await ownRows().select("sid")).map((row) => row.sid);
+    expect(sids).toEqual([theirs]);
   });
 });

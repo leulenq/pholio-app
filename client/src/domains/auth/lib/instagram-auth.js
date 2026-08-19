@@ -4,25 +4,24 @@
 
 let configuredCache = null;
 
-export async function isInstagramAuthConfigured() {
-  if (configuredCache !== null) return configuredCache;
+export async function isInstagramAuthConfigured({ refresh = false } = {}) {
+  if (!refresh && configuredCache === true) return true;
 
-  try {
-    const response = await fetch('/api/auth/instagram/status', {
-      credentials: 'include',
-      headers: { Accept: 'application/json' },
-    });
-    if (!response.ok) {
-      configuredCache = false;
-      return false;
-    }
-    const data = await response.json();
-    configuredCache = Boolean(data.configured);
-    return configuredCache;
-  } catch {
-    configuredCache = false;
-    return false;
+  const response = await fetch('/api/auth/instagram/status', {
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  if (!response.ok) {
+    throw new Error('Instagram sign-in status is temporarily unavailable.');
   }
+
+  const data = await response.json();
+  const configured = Boolean(data.configured);
+  // Cache only the affirmative capability result. A missing configuration can
+  // be fixed while the login page is open, and a transient API failure must
+  // never become a session-long false negative.
+  configuredCache = configured ? true : null;
+  return configured;
 }
 
 export async function startInstagramAuth({ flow = 'login', next = null, dateOfBirth = null } = {}) {

@@ -294,40 +294,47 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
               ) : null}
 
               {state.id === AGE_VERIFICATION_STATES.DOB_MISSING ? (
-                <p className={styles.fix}>
-                  <button
-                    type="button"
-                    className={styles.inlineLink}
-                    onClick={handleEditDateOfBirth}
-                  >
-                    Add your date of birth
-                  </button>{' '}
-                  in Identity, then come back here.
-                </p>
+                <div className={styles.fixBox}>
+                  <p className={styles.fix}>
+                    <button
+                      type="button"
+                      className={styles.inlineLink}
+                      onClick={handleEditDateOfBirth}
+                    >
+                      Add your date of birth
+                    </button>{' '}
+                    in Identity, then come back here.
+                  </p>
+                </div>
               ) : null}
 
+              {/* Data Story: Clean 3-item bulleted security cards */}
               {state.showExplainer ? (
-                <ol className={styles.story}>
-                  {DATA_STORY.map((line) => (
-                    <li key={line} className={styles.storyItem}>
-                      {line}
-                    </li>
-                  ))}
-                </ol>
+                <div className={styles.storyWrap}>
+                  <ol className={styles.story}>
+                    {DATA_STORY.map((line) => (
+                      <li key={line} className={styles.storyItem}>
+                        {line}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
               ) : null}
 
               {state.showDobFix && state.id === AGE_VERIFICATION_STATES.DOB_MISMATCH ? (
-                <p className={styles.fix}>
-                  Two ways forward:{' '}
-                  <button
-                    type="button"
-                    className={styles.inlineLink}
-                    onClick={handleEditDateOfBirth}
-                  >
-                    correct the date of birth on your profile
-                  </button>
-                  , or run the check again with the ID that matches it.
-                </p>
+                <div className={styles.fixBox}>
+                  <p className={styles.fix}>
+                    Two ways forward:{' '}
+                    <button
+                      type="button"
+                      className={styles.inlineLink}
+                      onClick={handleEditDateOfBirth}
+                    >
+                      correct the date of birth on your profile
+                    </button>
+                    , or run the check again with the ID that matches it.
+                  </p>
+                </div>
               ) : null}
 
               {state.id === AGE_VERIFICATION_STATES.PROCESSING ? (
@@ -357,8 +364,10 @@ export function VerifiedAdultSection({ dateOfBirth, onEditDateOfBirth }) {
                       {state.actionLabel}
                     </PholioButton>
                   </div>
-                  <p className={styles.consent}>{CONSENT_NOTE}</p>
-                  <p className={styles.fineprint}>{DOB_INVALIDATION_NOTE}</p>
+                  <div className={styles.disclaimerStack}>
+                    <p className={styles.consent}>{CONSENT_NOTE}</p>
+                    <p className={styles.fineprint}>{DOB_INVALIDATION_NOTE}</p>
+                  </div>
                 </div>
               ) : null}
 

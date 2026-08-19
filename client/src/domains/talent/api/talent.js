@@ -72,6 +72,9 @@ export const talentApi = {
     apiClient.post(`/comp-card-import/${encodeURIComponent(id)}/confirm`, { accepted }),
   discardCompCardImport: (id) =>
     apiClient.post(`/comp-card-import/${encodeURIComponent(id)}/discard`),
+  listExternalCompCards: () => apiClient.get('/external-comp-cards'),
+  uploadExternalCompCard: (formData) => apiClient.post('/external-comp-cards', formData),
+  deleteExternalCompCard: (id) => apiClient.delete(`/external-comp-cards/${encodeURIComponent(id)}`),
 
   // Media
   uploadMedia: (formData) => apiClient.post('/media', formData),
@@ -124,6 +127,11 @@ export const talentApi = {
   getApplications: () => apiClient.get('/applications'),
   getApplicationQuota: () => apiClient.get('/applications/quota'),
   getApplicationActivity: (id) => apiClient.get(`/applications/${id}/activity`),
+  /**
+   * One submission's receipt: what left, and what has happened since. Fetched
+   * when a record is opened, never for the whole ledger.
+   */
+  getApplicationRecord: (id) => apiClient.get(`/applications/${id}/record`),
   getApplicationPromptContext: () => apiClient.get('/applications/prompt-context'),
   getAgencies: () => apiClient.get('/agencies'),
   getAgencyPrivacyDirectory: () => apiClient.get('/agencies?includeBlocked=1'),

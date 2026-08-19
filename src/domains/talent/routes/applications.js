@@ -46,6 +46,9 @@ const {
 const {
   DRAFT_LIFECYCLE_STATES,
   DRAFT_SCHEMA_VERSION,
+  draftDocumentFingerprint,
+  draftMaterialFingerprint,
+  draftRevisionToken,
   expiryTimestamp,
   expireInactiveDrafts,
   isEligibleAgencyImage,
@@ -1152,6 +1155,7 @@ router.post(
           mediaSetId: submissionPackage?.mediaSetId,
           digitalSlotPicks: submissionPackage?.digitalSlotPicks,
           compCardPresetId: submissionPackage?.compCardPresetId,
+          externalCompCardId: submissionPackage?.externalCompCardId,
           specRegistryRevisionId:
             submissionPackage?.specRegistryRevisionId,
           note,
@@ -1603,6 +1607,7 @@ router.post(
           submissionPackage &&
           typeof submissionPackage === "object"
         ) {
+          const selectedExternalCard = normalizedSubmissionReferences.externalCompCard;
           const selectedPresetId =
             normalizedSubmissionReferences.compCardPreset?.id || null;
           const selectedPreset = selectedPresetId
@@ -1622,7 +1627,9 @@ router.post(
                   })
                   .first("id", "name")
               : null;
-          const compCard = selectedPreset
+          const compCard = selectedExternalCard
+            ? { id: selectedExternalCard.id, name: selectedExternalCard.name, mimeType: selectedExternalCard.mimeType, externalUrl: selectedExternalCard.url, external: true }
+            : selectedPreset
             ? {
                 id: selectedPreset.id,
                 ...toPresetPayload(selectedPreset),
@@ -1689,6 +1696,7 @@ router.post(
               compCardPresetName:
                 normalizedSubmissionReferences.compCardPreset?.name || null,
               compCardSeed: compCard.seed,
+              externalCompCardId: selectedExternalCard?.id || null,
               compCard,
               digitalSlotPicks:
                 normalizedSubmissionReferences.digitalSlotPicks,
@@ -2104,7 +2112,9 @@ router.get(
       })
       .whereRaw("UPPER(agency.status) = ?", ["ACTIVE"])
       .select("draft.*")
-      .orderBy("draft.updated_at", "desc");
+      .orderBy("draft.updated_at", "desc")
+      .orderBy("draft.created_at", "desc")
+      .orderBy("draft.id", "desc");
     if (blockedAgencyIds.size > 0) {
       latestQuery.whereNotIn("draft.agency_id", [...blockedAgencyIds]);
     }
@@ -2240,6 +2250,9 @@ router.put(
       });
     }
     const { expectedVersion, expectedGeneration } = preconditions;
+    const expectedRevisionToken = typeof req.body?.expectedRevisionToken === "string"
+      ? req.body.expectedRevisionToken.trim().toLowerCase()
+      : null;
 
     let normalized;
     try {
@@ -2314,18 +2327,49 @@ router.put(
           inactiveRow = existing;
           return;
         }
-        if (
-          Number(existing.version) !== expectedVersion ||
-          Number(existing.generation || 1) !== expectedGeneration
-        ) {
+        const existingGeneration = Number(existing.generation || 1);
+        if (existingGeneration !== expectedGeneration) {
           return;
         }
-        const nextVersion = expectedVersion + 1;
+        const existingNormalized = await normalizeDraftPayloadWithRepairs(trx, {
+          profileId: profile.id,
+          agency,
+          payload: parseDraftPayload(existing.payload),
+        });
+        const sameDocument =
+          draftDocumentFingerprint(existingNormalized.payload, existing.current_step_id) ===
+          draftDocumentFingerprint(normalizedPayload, currentStepId);
+        if (sameDocument) {
+          savedRow = existing;
+          return;
+        }
+        const versionMatches =
+          Number(existing.version) === expectedVersion &&
+          (
+            !expectedRevisionToken ||
+            expectedRevisionToken === draftRevisionToken(
+              existingNormalized.payload,
+              existing.current_step_id,
+            )
+          );
+        const sameMaterial =
+          draftMaterialFingerprint(existingNormalized.payload) ===
+          draftMaterialFingerprint(normalizedPayload);
+        if (!versionMatches) {
+          if (!sameMaterial) return;
+          // A delayed same-material request is not allowed to roll cursor or
+          // confirmation state backward. Return the authoritative row; the
+          // client can rebase any still-current volatile state and retry it on
+          // this revision.
+          savedRow = existing;
+          return;
+        }
+        const nextVersion = Number(existing.version) + 1;
         const updated = await trx("application_drafts")
           .where({
             id: existing.id,
-            version: expectedVersion,
-            generation: expectedGeneration,
+            version: existing.version,
+            generation: existingGeneration,
             lifecycle_state: DRAFT_LIFECYCLE_STATES.ACTIVE,
           })
           .update({
@@ -2370,6 +2414,25 @@ router.put(
         profile.id,
         agency,
       );
+      // Covers a duplicate create that lost the unique-key race, and a retry
+      // after the client never received the successful response. Identical
+      // normalized documents converge on the saved revision without creating
+      // another version or presenting a false conflict.
+      if (
+        latest?.lifecycleState === DRAFT_LIFECYCLE_STATES.ACTIVE &&
+        (
+          draftDocumentFingerprint(latest.payload, latest.currentStepId) ===
+            draftDocumentFingerprint(normalizedPayload, currentStepId) ||
+          (
+            expectedVersion === 0 &&
+            expectedGeneration === 0 &&
+            draftMaterialFingerprint(latest.payload) ===
+              draftMaterialFingerprint(normalizedPayload)
+          )
+        )
+      ) {
+        return res.json({ success: true, data: latest });
+      }
       await recordDraftEvent(knex, {
         ...(latestRow || {}),
         profileId: profile.id,
@@ -3003,6 +3066,110 @@ router.get(
     });
 
     res.json({ success: true, data });
+  }),
+);
+
+/**
+ * GET /api/talent/applications/:id/record
+ *
+ * The talent's own receipt for one submission: exactly what left, and
+ * everything that has happened to it since.
+ *
+ * Both halves already existed and neither was reachable. The frozen package in
+ * `talent_submission_packages` is the only truthful answer to "what did they
+ * get" — the history panel had been linking to the talent's *current* book and
+ * comp card instead, which shows what they have now, not what was sent. And
+ * `application_activities` has carried the chronology all along.
+ *
+ * Only a summary of the package crosses the wire. The payload holds a full
+ * profile snapshot and contact details, and a receipt needs counts and names,
+ * not a second copy of the talent's personal data on another surface.
+ */
+router.get(
+  "/:id/record",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const profile = await getProfileBySessionUserId(req.session.userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: "Profile not found",
+        message: "Profile not found",
+      });
+    }
+
+    const application = await knex("applications")
+      .where({ id, profile_id: profile.id })
+      .first("id", "created_at");
+    if (!application) {
+      return res.status(404).json({
+        success: false,
+        error: "Application not found",
+        message: "Application not found",
+      });
+    }
+
+    const packageRow = await knex("talent_submission_packages")
+      .where({ application_id: id, profile_id: profile.id })
+      .orderBy("created_at", "desc")
+      .first();
+
+    let sent = null;
+    if (packageRow) {
+      // A package can be revoked or redacted — by retention, by a withdrawal,
+      // or by a guardian consent lapse. Saying so is the honest answer; the
+      // alternative is a receipt that quietly under-reports what was sent.
+      const withheld = Boolean(packageRow.revoked_at || packageRow.redacted_at);
+      let payload = packageRow.payload;
+      if (typeof payload === "string") {
+        try {
+          payload = JSON.parse(payload);
+        } catch {
+          payload = null;
+        }
+      }
+      sent = withheld
+        ? {
+            available: false,
+            reason: packageRow.redacted_at ? "redacted" : "revoked",
+            at: packageRow.created_at,
+          }
+        : {
+            available: true,
+            at: packageRow.created_at,
+            frameCount: Array.isArray(payload?.images)
+              ? payload.images.length
+              : Array.isArray(payload?.imageIds)
+                ? payload.imageIds.length
+                : null,
+            mediaSetName: payload?.mediaSetName || null,
+            compCardName: payload?.compCardName || null,
+            boards: Array.isArray(payload?.boardLabels) ? payload.boardLabels : [],
+            specRevisionId: payload?.specRegistryRevisionId || null,
+          };
+    }
+
+    const rows = await knex("application_activities")
+      .where({ application_id: id })
+      .orderBy("created_at", "asc")
+      .select("id", "activity_type", "description", "created_at");
+
+    res.json({
+      success: true,
+      data: {
+        sent,
+        // The note is not a column — the list endpoint composes it from the
+        // talent's first message. The row already carries it, so this does not
+        // fetch it a second time.
+        timeline: rows.map((row) => ({
+          id: row.id,
+          type: row.activity_type,
+          description: row.description,
+          at: row.created_at,
+        })),
+      },
+    });
   }),
 );
 

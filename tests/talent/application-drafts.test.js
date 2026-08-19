@@ -58,6 +58,7 @@ describe("application drafts", () => {
   const agencyId = uuidv4();
   const expiryAgencyId = uuidv4();
   const consentAgencyId = uuidv4();
+  const convergenceAgencyId = uuidv4();
   const minorAgencyId = uuidv4();
   const editorialBoardId = uuidv4();
   const imageId = uuidv4();
@@ -132,6 +133,13 @@ describe("application drafts", () => {
         id: consentAgencyId,
         name: "Consent House",
         slug: `consent-house-${consentAgencyId}`,
+        status: "ACTIVE",
+        open_boards: JSON.stringify(["editorial"]),
+      },
+      {
+        id: convergenceAgencyId,
+        name: "Convergence House",
+        slug: `convergence-house-${convergenceAgencyId}`,
         status: "ACTIVE",
         open_boards: JSON.stringify(["editorial"]),
       },
@@ -286,7 +294,7 @@ describe("application drafts", () => {
     await knex("images").where({ profile_id: profileId }).delete();
     await knex("image_sets").where({ profile_id: profileId }).delete();
     await knex("agencies")
-      .whereIn("id", [agencyId, expiryAgencyId, consentAgencyId, minorAgencyId])
+      .whereIn("id", [agencyId, expiryAgencyId, consentAgencyId, convergenceAgencyId, minorAgencyId])
       .delete();
     await knex("profiles").where({ id: profileId }).delete();
     await knex("users").whereIn("id", [userId, agencyId, minorAgencyId]).delete();
@@ -456,6 +464,264 @@ describe("application drafts", () => {
       currentStepId: "review",
       payload: expect.objectContaining({ note: "newer server copy" }),
     });
+  });
+
+  it("converges duplicate and nonmaterial stale autosaves without a conflict", async () => {
+    const auth = await withSession();
+    const payload = {
+      boards: ["editorial"],
+      note: "one authoritative dossier",
+      consent: false,
+      accuracyConfirmed: false,
+      adultAuthorityConfirmed: false,
+    };
+    const created = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 0,
+          expectedGeneration: 0,
+          currentStepId: "message",
+          clientId: "browser:first-tab",
+          payload,
+        }),
+    );
+    expect(created.status).toBe(200);
+    expect(created.body.data).toMatchObject({
+      version: 1,
+      generation: 1,
+      revisionToken: expect.stringMatching(/^[a-f0-9]{64}$/),
+    });
+
+    // Lost response / stale cached null: identical create retry converges on v1.
+    const duplicate = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 0,
+          expectedGeneration: 0,
+          currentStepId: "message",
+          clientId: "browser:first-tab",
+          payload,
+        }),
+    );
+    expect(duplicate.status).toBe(200);
+    expect(duplicate.body.data).toMatchObject({ version: 1, generation: 1 });
+
+    // A second fresh tab may only differ in cursor/confirmation state. That is
+    // still the same application content and must not produce a chooser.
+    const secondTab = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 0,
+          expectedGeneration: 0,
+          currentStepId: "review",
+          clientId: "browser:second-tab",
+          payload: { ...payload, consent: true },
+        }),
+    );
+    expect(secondTab.status).toBe(200);
+    expect(secondTab.body.data).toMatchObject({ version: 1, generation: 1 });
+
+    const divergent = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 0,
+          expectedGeneration: 0,
+          currentStepId: "message",
+          clientId: "browser:other-device",
+          payload: { ...payload, note: "genuinely different content" },
+        }),
+    );
+    expect(divergent.status).toBe(409);
+    expect(divergent.body).toMatchObject({
+      error: "draft_conflict",
+      latest: { version: 1, generation: 1 },
+    });
+    await knex("application_drafts")
+      .where({ profile_id: profileId, agency_id: convergenceAgencyId })
+      .delete();
+  });
+
+  it("serializes adversarial concurrent writes without loss or false conflicts", async () => {
+    const auth = await withSession();
+    const create = () => auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 0,
+          expectedGeneration: 0,
+          currentStepId: "message",
+          payload: { boards: ["editorial"], note: "base" },
+        }),
+    );
+    const created = await create();
+    const revisionToken = created.body.data.revisionToken;
+
+    const duplicateRequest = {
+      expectedVersion: 1,
+      expectedGeneration: 1,
+      expectedRevisionToken: revisionToken,
+      currentStepId: "review",
+      payload: { boards: ["editorial"], note: "same successor" },
+    };
+    const identical = await Promise.all([
+      auth(request(app).put(`/api/talent/applications/drafts/${convergenceAgencyId}`).send(duplicateRequest)),
+      auth(request(app).put(`/api/talent/applications/drafts/${convergenceAgencyId}`).send(duplicateRequest)),
+    ]);
+    expect(identical.map((response) => response.status)).toEqual([200, 200]);
+    const afterDuplicate = await knex("application_drafts")
+      .where({ profile_id: profileId, agency_id: convergenceAgencyId })
+      .first();
+    expect(Number(afterDuplicate.version)).toBe(2);
+
+    const authoritative = await auth(
+      request(app)
+        .get(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json"),
+    );
+    const divergent = await Promise.all([
+      auth(request(app).put(`/api/talent/applications/drafts/${convergenceAgencyId}`).send({
+        expectedVersion: 2,
+        expectedGeneration: 1,
+        expectedRevisionToken: authoritative.body.data.revisionToken,
+        payload: { boards: ["editorial"], note: "device A" },
+      })),
+      auth(request(app).put(`/api/talent/applications/drafts/${convergenceAgencyId}`).send({
+        expectedVersion: 2,
+        expectedGeneration: 1,
+        expectedRevisionToken: authoritative.body.data.revisionToken,
+        payload: { boards: ["editorial"], note: "device B" },
+      })),
+    ]);
+    expect(divergent.map((response) => response.status).sort()).toEqual([200, 409]);
+    const winner = divergent.find((response) => response.status === 200).body.data;
+    const loser = divergent.find((response) => response.status === 409).body.latest;
+    expect(loser).toMatchObject({
+      version: winner.version,
+      generation: winner.generation,
+      revisionToken: winner.revisionToken,
+      payload: expect.objectContaining({ note: winner.payload.note }),
+    });
+
+    await knex("application_drafts")
+      .where({ profile_id: profileId, agency_id: convergenceAgencyId })
+      .delete();
+  });
+
+  it("changes the representation token when live repair changes content at the same version", async () => {
+    const auth = await withSession();
+    const created = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 0,
+          expectedGeneration: 0,
+          currentStepId: "message",
+          payload: { boards: ["editorial"], note: "before board closes" },
+        }),
+    );
+    await knex("agencies")
+      .where({ id: convergenceAgencyId })
+      .update({ open_boards: JSON.stringify([]) });
+
+    const repaired = await auth(
+      request(app)
+        .get(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json"),
+    );
+    expect(repaired.body.data).toMatchObject({ version: 1, generation: 1 });
+    expect(repaired.body.data.payload.boards).toEqual([]);
+    expect(repaired.body.data.revisionToken).not.toBe(created.body.data.revisionToken);
+
+    const staleRepresentation = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 1,
+          expectedGeneration: 1,
+          expectedRevisionToken: created.body.data.revisionToken,
+          currentStepId: "message",
+          payload: { boards: ["editorial"], note: "edited offline" },
+        }),
+    );
+    expect(staleRepresentation.status).toBe(409);
+    expect(staleRepresentation.body.latest).toMatchObject({
+      version: 1,
+      revisionToken: repaired.body.data.revisionToken,
+    });
+
+    await knex("agencies")
+      .where({ id: convergenceAgencyId })
+      .update({ open_boards: JSON.stringify(["editorial"]) });
+    await knex("application_drafts")
+      .where({ profile_id: profileId, agency_id: convergenceAgencyId })
+      .delete();
+  });
+
+  it("does not let a delayed same-material request roll volatile state backward", async () => {
+    const auth = await withSession();
+    const created = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 0,
+          expectedGeneration: 0,
+          currentStepId: "message",
+          payload: { boards: ["editorial"], note: "same package", consent: false },
+        }),
+    );
+    const current = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 1,
+          expectedGeneration: 1,
+          expectedRevisionToken: created.body.data.revisionToken,
+          currentStepId: "review",
+          payload: { boards: ["editorial"], note: "same package", consent: true },
+        }),
+    );
+    expect(current.body.data).toMatchObject({
+      version: 2,
+      currentStepId: "review",
+      payload: expect.objectContaining({ consent: true }),
+    });
+
+    const delayed = await auth(
+      request(app)
+        .put(`/api/talent/applications/drafts/${convergenceAgencyId}`)
+        .set("Accept", "application/json")
+        .send({
+          expectedVersion: 1,
+          expectedGeneration: 1,
+          expectedRevisionToken: created.body.data.revisionToken,
+          currentStepId: "board",
+          payload: { boards: ["editorial"], note: "same package", consent: false },
+        }),
+    );
+    expect(delayed.status).toBe(200);
+    expect(delayed.body.data).toMatchObject({
+      version: 2,
+      currentStepId: "review",
+      revisionToken: current.body.data.revisionToken,
+      payload: expect.objectContaining({ consent: true }),
+    });
+
+    await knex("application_drafts")
+      .where({ profile_id: profileId, agency_id: convergenceAgencyId })
+      .delete();
   });
 
   it("soft-deletes with a precondition and recovers as a new generation", async () => {

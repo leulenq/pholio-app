@@ -216,17 +216,13 @@
   background: rgba(201, 165, 90, 0.12);
 }
 
-.tl-action-icon.has-unread .tl-action-badge {
-  box-shadow: 0 0 0 2px var(--tl-ink);
-}
-
 .tl-action-icon.has-unread::after {
   content: '';
   position: absolute;
-  bottom: 4px;
-  right: 4px;
-  width: 7px;
-  height: 7px;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--tl-gold);
   box-shadow: 0 0 0 2px var(--tl-ink);

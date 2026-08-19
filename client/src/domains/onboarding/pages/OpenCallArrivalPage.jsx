@@ -74,10 +74,6 @@ function intakeLine(intake) {
   return `Alongside your digitals and stats, this call asks for ${listed}.`;
 }
 
-function agencyInitial(name) {
-  return String(name || 'A').trim().charAt(0).toUpperCase() || 'A';
-}
-
 async function fetchOpenCall(code) {
   const res = await fetch(`/api/public/open-call/${encodeURIComponent(code)}`, {
     credentials: 'include',
@@ -299,13 +295,12 @@ export default function OpenCallArrivalPage() {
                 transition: { ...SPRING, delay: 0.15 },
               })}
         >
+          {/* Their real mark, or nothing. This is a talent's first sight of the
+              agency, and a generated monogram is a fake logo at exactly the
+              moment trust is being established. */}
           {agency.logo ? (
             <img src={agency.logo} alt="" className="opencall__logo" />
-          ) : (
-            <span className="opencall__monogram" aria-hidden>
-              {agencyInitial(name)}
-            </span>
-          )}
+          ) : null}
           <span className="opencall__agency-name">{name}</span>
           {agency.location && (
             <span className="opencall__agency-loc">{agency.location}</span>

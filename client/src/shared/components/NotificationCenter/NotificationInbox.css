@@ -15,21 +15,21 @@
   --ni-ink: #1a1815;
   --ni-soft: rgba(26, 24, 21, 0.62);
   --ni-faint: rgba(26, 24, 21, 0.42);
-  --ni-hair: rgba(26, 24, 21, 0.1);
+  --ni-hair: rgba(26, 24, 21, 0.08);
   --ni-gold: #c9a55a;
   --ni-gold-deep: #a8894e;
   --ni-paper: #ffffff;
-  --ni-cream: #faf7f2;
+  --ni-cream: #faf8f5;
   --ni-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  width: min(380px, calc(100vw - 24px));
+  width: min(340px, calc(100vw - 24px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--ni-hair);
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--ni-paper);
-  box-shadow: 0 26px 60px -22px rgba(16, 15, 14, 0.55);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.18);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: var(--ni-ink);
   text-align: left;
@@ -39,7 +39,7 @@
 
 .ni__head {
   flex: none;
-  padding: 16px 18px 0;
+  padding: 12px 14px 0;
   background: var(--ni-cream);
   border-bottom: 1px solid var(--ni-hair);
 }
@@ -53,58 +53,42 @@
 
 .ni__title {
   margin: 0;
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 17px;
-  font-weight: 400;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.2;
   color: var(--ni-ink);
 }
 
-.ni__unread {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ni-gold-deep);
-  white-space: nowrap;
-}
-
 .ni__markall {
   margin: 0;
-  padding: 0 0 1px;
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid var(--ni-hair);
-  border-radius: 0;
   background: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
   color: var(--ni-soft);
-  transition: color 0.2s var(--ni-ease), border-color 0.2s var(--ni-ease);
+  transition: color 0.15s var(--ni-ease);
 }
 
 .ni__markall:hover:not(:disabled) {
   color: var(--ni-gold-deep);
-  border-bottom-color: var(--ni-gold);
 }
 
 .ni__markall:focus-visible {
   outline: 2px solid var(--ni-gold);
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
 .ni__markall:disabled { opacity: 0.45; cursor: default; }
 
-/* Filters — plain text, gold rule marks the active one. Fully declared so the
-   global button reset cannot reach them. */
 .ni__filters {
   display: flex;
-  gap: 18px;
-  margin-top: 14px;
+  gap: 14px;
+  margin-top: 8px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -114,20 +98,18 @@
 .ni__filter {
   flex: 0 0 auto;
   margin: 0;
-  padding: 0 0 9px;
+  padding: 0 0 6px;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 400;
-  letter-spacing: 0.01em;
-  text-transform: none;
   white-space: nowrap;
   color: var(--ni-soft);
-  transition: color 0.2s var(--ni-ease), border-color 0.2s var(--ni-ease);
+  transition: color 0.15s var(--ni-ease), border-color 0.15s var(--ni-ease);
 }
 
 .ni__filter:hover { color: var(--ni-ink); }
@@ -149,7 +131,7 @@
 .ni__body {
   flex: 1 1 auto;
   min-height: 0;
-  max-height: min(420px, 56vh);
+  max-height: 340px;
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--ni-paper);
@@ -159,73 +141,76 @@
 
 .ni__item {
   position: relative;
-  display: grid;
-  grid-template-columns: 8px minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   width: 100%;
   margin: 0;
-  padding: 14px 18px;
+  padding: 12px 14px;
   border: 0;
   border-bottom: 1px solid var(--ni-hair);
+  border-left: 2px solid transparent;
   border-radius: 0;
   background: none;
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  letter-spacing: 0;
-  text-transform: none;
-  transition: background-color 0.18s var(--ni-ease);
+  transition: background-color 0.15s var(--ni-ease);
 }
 
 .ni__item:last-child { border-bottom: 0; }
 .ni__item:hover { background: var(--ni-cream); }
+
+.ni__item.is-unread {
+  border-left-color: var(--ni-gold);
+  background: rgba(250, 248, 245, 0.6);
+}
 
 .ni__item:focus-visible {
   outline: 2px solid var(--ni-gold);
   outline-offset: -2px;
 }
 
-/* Unread is a single gold dot on the reading edge — no pill, no chip, no
-   tinted row. It aligns with the first line of the headline. */
-.ni__dot {
-  width: 6px;
-  height: 6px;
-  margin-top: 6px;
-  border-radius: 50%;
-  background: var(--ni-gold);
+.ni__item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
-
-.ni__dot--read { background: transparent; }
 
 .ni__text {
   margin: 0;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.4;
   color: var(--ni-ink);
-  text-wrap: pretty;
 }
 
 .ni__text strong { font-weight: 600; }
 
 .ni__meta {
   display: block;
-  margin-top: 3px;
-  font-size: 12px;
-  font-weight: 300;
-  line-height: 1.45;
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.4;
   color: var(--ni-soft);
 }
 
+.ni__item-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
 .ni__time {
-  display: block;
-  margin-top: 5px;
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 10.5px;
   color: var(--ni-faint);
+}
+
+.ni__action-link {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ni-gold-deep);
 }
 
 /* ── States ── */
