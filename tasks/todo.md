@@ -20,13 +20,13 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
 - [x] **W1-B (Sonnet)** Intake vocabulary constants, server + client mirror + parity test:
       field keys, stages, requirements, identity policies, default specs per call kind,
       normalize/validate helpers.
-- [ ] **W2-C1 (Opus)** Identity + token services: `applicant-identities`, claim/disown/materials
+- [x] **W2-C1 (Opus)** Identity + token services: `applicant-identities`, claim/disown/materials
       tokens (hashed, message-reply-tokens idiom), claim transaction (users+profiles projection,
       media promotion, application re-pointing, email_verified=true), disown flow. Tests.
 - [ ] **W2-C2 (Opus)** Anonymous draft + submit: draft cookie service, public endpoints
       (spec fetch, draft CRUD, media upload gated behind email, submit → applications row +
       frozen snapshot + consent event + receipt email), moderation wiring, funnel events. Tests.
-- [ ] **W3-D (Opus)** `resolveApplicantIdentity` resolver + enforcement test; the 8 agency
+- [x] **W3-D (Opus)** `resolveApplicantIdentity` resolver + enforcement test; the 8 agency
       `profiles`-join sites; unclaimed rows in inbox + CSV; verified-email/completeness as plain
       text; Request-materials endpoint + chase email. Tests.
 - [ ] **W4-E (Opus)** Client applicant flow at `/opencall/:code`: screen-1-with-first-question,
@@ -46,3 +46,9 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
   Runbook note: PG ACCESS EXCLUSIVE locks on applications + snapshot/consent tables.
 - W2-C1 (identity/tokens/claim) and W3-D (resolver/organizer) launched in parallel, disjoint files;
   snapshot payload.identity contract fixed by lead and written into both specs.
+- W2-C1 landed: identity/tokens/claim (46 tests); lead fixed the funnel-vocabulary pin in
+  event-casting-schema.test.js (8 -> 12 types). Committed 1112431.
+- W3-D landed: resolver + 10 join sites (2 explicit excludes in messaging), CSV identity columns,
+  request-materials endpoint riding requested_more; full suite green under the lane (3035).
+  Committed f884781. Flagged: talent-dossier 404 for identity rows (W3-D2 lane dispatched);
+  agency SPA needs a null path for profile.id/slug on identity rows (folded into Wave 4 scope).
