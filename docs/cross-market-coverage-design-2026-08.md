@@ -324,3 +324,32 @@ No new fetch, no server change. Houses, not routes, remain the counting unit.
     "your set", or any satisfied/missing state.
 15. The equal-counts sentence renders iff all published counts collapse to
     one number.
+
+---
+
+# Amendment 1a — the guardian ruling (2026-08-19)
+
+Amendment 1 contradicted itself: its example sentence showed the guardian
+cluster at (4), and its threshold rule (>= half the forms; here 5) excludes it.
+Implementation followed the rule, which silently folds the one field class
+whose omission has real cost — a minor's parent preparing an application —
+into "each form's own remaining fields."
+
+**Ruling: `guardian.*` is exempt from the threshold, and never appears in the
+in-list items.** When any form asks for guardian details, the block carries a
+second, self-scoping sentence after the main one:
+
+> `For minors, {n} of the {formsPublished} forms also ask for a parent or
+> guardian's details.`
+
+Why a sentence of its own rather than a list item: the fact is conditional on
+who is applying, and the condition belongs in the same breath as the fact.
+"Minors" stays unnumbered — houses draw the line at different ages, and each
+house's own brief is where its line lives. The count stays honest ("4 of the
+10"), the threshold keeps doing its readability job for everything else, and
+the closing clause still owns the true tail.
+
+The §5 denylist applies. Test additions: the minors sentence renders exactly
+when guardian fields exist (above or below threshold), guardian never appears
+as an in-list item, and the block-scoped no-verdict assertion covers the new
+sentence.
