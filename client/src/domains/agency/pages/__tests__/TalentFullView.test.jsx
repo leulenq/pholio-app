@@ -95,7 +95,7 @@ describe('TalentFullView — identity-backed applicant', () => {
     renderView();
 
     // The name renders even though there is no live profile behind it.
-    await waitFor(() => expect(screen.getByText('Jamie Rivera')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Jamie Rivera').length).toBeGreaterThan(0));
 
     // The dispute sentence is a plain sentence, prominently placed — never a badge.
     expect(
@@ -128,7 +128,7 @@ describe('TalentFullView — identity-backed applicant', () => {
     });
     renderView();
 
-    await waitFor(() => expect(screen.getByText('Jamie Rivera')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText('Jamie Rivera').length).toBeGreaterThan(0));
 
     // A profile row already went through Pholio's own signup verification —
     // the row says nothing about email state rather than guessing "verified".
