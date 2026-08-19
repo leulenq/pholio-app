@@ -14,23 +14,40 @@
  * here originates a string; every label is a canonical taxonomy label and every
  * name is the house's own.
  *
- * Two things it deliberately does not do:
+ * Amendment 1 widened it past the shot list. The same evaluations already carry
+ * each house's published image count and the fields its application form asks
+ * for, and measured across the ten published specs the forms overlap harder
+ * than the shot lists do — an email address on 9 of 10, a date of birth on 8.
+ * Both are read here, and both are read the same way the frames are: as facts
+ * about documents.
+ *
+ * Three things it deliberately does not do:
  *
  *  - It does not recommend. The recovered engine returned a `recommendation`
  *    field naming the shot to take next. The sort carries the identical
  *    information as fact, and a field with that name is how a reading surface
  *    acquires an advice-voice.
- *  - It does not aggregate anything but shots. `missing` counts uncovered shot
- *    frames and nothing else, which is why every sentence built on it is scoped
- *    to a *shot list* and never to a house's requirements: a house also
- *    publishes measurements, form fields and eligibility that this model has
- *    deliberately never looked at, and "Ford is one away" would be false of all
- *    of them.
+ *  - It does not let a personal verdict into the form facts. A form field is
+ *    something a talent *supplies*, not something they are measured against, so
+ *    nothing in `formFacts` carries an outcome and nothing counts what the
+ *    talent already holds. That is the amendment's ruling and it is also why
+ *    the form findings are read whatever their outcome: an outcome is a fact
+ *    about the talent, and a `guardian.name` field that reads `not_applicable`
+ *    because this reader is 25 is still a field four of these forms ask for.
+ *  - It does not read a count out of prose. `shotCountSpan` is built from
+ *    structured `minimum` / `maximum` values only. Wilhelmina publishes a count
+ *    whose bounds are both null — the sentence exists, the numbers do not — and
+ *    turning that sentence into a number is the "never invents" line.
+ *
+ * `missing` stays shot frames and nothing else, which is why every sentence
+ * built on it is scoped to a *shot list* and never to a house's requirements.
  */
 
 import {
+  CATEGORY,
   OUTCOME,
   canonicalShotLabel,
+  fieldLabel,
   readFindings,
   shotFindings,
 } from './specRegistry';
@@ -78,6 +95,58 @@ function assignedImageId(finding) {
 }
 
 /**
+ * The lowest published floor and the highest published ceiling, over any set of
+ * counts. Applied once to fold a house's routes and once to fold the market's
+ * houses — the same fold at both levels is what keeps the counting unit houses
+ * rather than routes without the two ever being able to drift apart.
+ *
+ * A bound nothing published stays null rather than borrowing the other one.
+ */
+function spanOf(counts) {
+  const minimums = counts.map((count) => count.min).filter((value) => value != null);
+  const maximums = counts.map((count) => count.max).filter((value) => value != null);
+  return {
+    min: minimums.length ? Math.min(...minimums) : null,
+    max: maximums.length ? Math.max(...maximums) : null,
+  };
+}
+
+/**
+ * A published image count, when the house published numbers rather than a
+ * sentence about numbers.
+ *
+ * `rules.shots.count` carries `minimum` and `maximum` independently, and either
+ * may be null on its own: Elite Japan publishes a floor of 5 and no ceiling,
+ * Elite Global a ceiling of 3 and no floor, Wilhelmina neither. A count with
+ * neither is a house that wrote its ask in prose, and prose is not parsed here
+ * — it contributes nothing rather than contributing a guess.
+ */
+function publishedCount(findings) {
+  const bounds = findings.filter(
+    (finding) =>
+      finding.categoryKey === CATEGORY.SHOT_COUNT &&
+      (finding.minimum != null || finding.maximum != null),
+  );
+  return bounds.length
+    ? spanOf(bounds.map((finding) => ({ min: finding.minimum, max: finding.maximum })))
+    : null;
+}
+
+/**
+ * The fields a house's application form asks for.
+ *
+ * Read whatever the outcome says. Every other reading in this file is a fact
+ * about the talent's photographs; this one is a fact about a form, and a form
+ * asks what it asks whether or not the reader can answer it. Filtering by
+ * outcome would quietly delete the guardian cluster from every adult's screen —
+ * `guardian.name` is `appliesWhen age < 18` on four of the ten specs — and the
+ * amendment's sentence names it explicitly.
+ */
+function formFindings(findings) {
+  return findings.filter((finding) => finding.categoryKey === CATEGORY.APPLICATION_FIELDS);
+}
+
+/**
  * One house's list, folded out of however many routes it has.
  *
  * Elite Paris and Elite Tokyo are one house to a talent (`foldBrands` in
@@ -95,9 +164,26 @@ function assignedImageId(finding) {
 function readHouse(house, evaluationFor, labels) {
   const seriesIds = seriesIdsOf(house);
   const detail = new Map();
+  const counts = [];
+  // Deduped per house by field key, so a brand whose two offices both ask for an
+  // email address is one form asking for an email address.
+  const formFields = new Set();
+  let publishesForm = false;
 
   for (const seriesId of seriesIds) {
-    for (const finding of shotFindings(readFindings(evaluationFor(seriesId)))) {
+    const findings = readFindings(evaluationFor(seriesId));
+
+    const count = publishedCount(findings);
+    if (count) counts.push(count);
+
+    for (const finding of formFindings(findings)) {
+      publishesForm = true;
+      // A field the registry could not name is still a form Pholio has read;
+      // it just cannot be listed, so it counts the house and nothing more.
+      if (finding.field) formFields.add(finding.field);
+    }
+
+    for (const finding of shotFindings(findings)) {
       const key = frameKeyOf(finding);
       if (!detail.has(key)) {
         detail.set(key, {
@@ -119,6 +205,11 @@ function readHouse(house, evaluationFor, labels) {
 
   return {
     detail,
+    // Folded to one span per house before anything is compared across houses:
+    // a brand with three offices publishing a count is one house publishing a
+    // count, the same way it is one house asking for a full length.
+    count: counts.length ? spanOf(counts) : null,
+    form: { publishesForm, fields: formFields },
     house: {
       houseKey: house?.key ?? null,
       name: house?.name || '',
@@ -136,7 +227,72 @@ function readHouse(house, evaluationFor, labels) {
 }
 
 /**
- * The union list: every distinct frame the market publishes, once.
+ * The span the published counts run across.
+ *
+ * One house's count is that house's brief, not a fact about the market, so the
+ * line does not exist below two — the same threshold, for the same reason, as
+ * the strip's own render condition. Above it the span is the plainest possible
+ * reading of the documents: the lowest floor anybody published and the highest
+ * ceiling anybody published, with no average, no typical, and no house named.
+ */
+function readCountSpan(read) {
+  const published = read.map((entry) => entry.count).filter(Boolean);
+  if (published.length < 2) return null;
+  return { ...spanOf(published), houses: published.length };
+}
+
+/**
+ * What the application forms ask for, tallied by house.
+ *
+ * The overlap is the information here — nine of ten forms ask for an email
+ * address — and it is the same "prepare once" proposition as the union shot
+ * list, arrived at from a different pile of documents. Every field is reported,
+ * including the long tail: `shownThreshold` is the cutoff the surface applies
+ * when it collapses the tail into a closing clause, computed here so the
+ * sentence and the number it is drawn from cannot disagree, but the engine
+ * hands over the whole tally and lets the surface decide what to say.
+ *
+ * Nothing in here is measured against the talent. There is no outcome, no
+ * count of what they hold, and no field ordered by whether they hold it.
+ *
+ * Unlike the count span this is not gated at two houses. The amendment gates
+ * the count line explicitly and leaves this one alone, and the strip's own
+ * render condition is already the market-size gate; null here means no house
+ * published a form at all, not that too few did.
+ */
+function readFormFacts(read, labels) {
+  const withForms = read.filter((entry) => entry.form.publishesForm);
+  if (!withForms.length) return null;
+
+  const tally = new Map();
+  for (const entry of withForms) {
+    for (const field of entry.form.fields) {
+      if (!tally.has(field)) {
+        tally.set(field, { field, label: fieldLabel(labels, field), houses: 0 });
+      }
+      tally.get(field).houses += 1;
+    }
+  }
+
+  return {
+    fields: [...tally.values()].sort(
+      (left, right) => right.houses - left.houses || left.label.localeCompare(right.label),
+    ),
+    formsPublished: withForms.length,
+    // Half, rounded up: with 9 forms the cutoff is 5, so a field on 5 forms is
+    // named and a field on 4 falls into the tail.
+    shownThreshold: Math.ceil(withForms.length / 2),
+  };
+}
+
+/**
+ * Everything these houses publish, read as one.
+ *
+ * The union list of frames, and — since Amendment 1 — the span their published
+ * image counts run across and the fields their forms ask for. All three come
+ * out of the same evaluations, which is to say out of the one preflight request
+ * the strip already makes: no second fetch, and nothing derived that the
+ * documents do not already say.
  *
  * @param {object}   input
  * @param {object[]} input.houses         `buildHouses` output, in board order
@@ -219,6 +375,8 @@ export function buildCoverage({ houses = [], evaluationFor = () => null, labels 
   return {
     houses: read.map(({ house }) => house),
     frames,
+    shotCountSpan: readCountSpan(read),
+    formFacts: readFormFacts(read, labels),
     totals: {
       // The denominator in "On 6 of 9 lists" and the subject of the verdict:
       // houses that actually publish a list, not houses on the board.

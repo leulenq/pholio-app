@@ -31,6 +31,21 @@ const labels = {
     label: 'Hair state',
     values: { pulled_back: { label: 'Pulled back' }, up: { label: 'Hair up' } },
   },
+  // Form fields, at the wording `data/spec-registry/v1/taxonomy.json` publishes
+  // for them — including "Height field", which is the pack's own label and not
+  // this file's to improve.
+  'contact.email': { label: 'Email', values: {} },
+  'contact.phone': { label: 'Phone', values: {} },
+  'contact.city': { label: 'City', values: {} },
+  'applicant.first_name': { label: 'First name', values: {} },
+  'applicant.last_name': { label: 'Last name', values: {} },
+  'applicant.date_of_birth': { label: 'Date of birth', values: {} },
+  'social.instagram': { label: 'Instagram', values: {} },
+  'social.tiktok': { label: 'TikTok', values: {} },
+  'measurements.height': { label: 'Height field', values: {} },
+  'guardian.name': { label: 'Guardian name', values: {} },
+  'applicant.full_name': { label: 'Full name', values: {} },
+  'contact.location': { label: 'Location', values: {} },
 };
 
 /**
@@ -81,6 +96,53 @@ const measurement = {
   outcome: OUTCOME.MISSING,
   assignments: [],
 };
+
+/**
+ * A published image count, as `evaluateShotCount` emits it.
+ *
+ * `minimum` and `maximum` are independent and either may be null on its own.
+ * Both null is the real Wilhelmina case: the house published a sentence about
+ * how many images to send and no numbers at all.
+ */
+function imageCount(minimum, maximum, options = {}) {
+  const structured = minimum != null || maximum != null;
+  return {
+    id: 'shotCount:shot-count',
+    slotKey: 'shotCount:shot-count',
+    categoryKey: 'shotCount',
+    category: 'Shot count',
+    matchKey: null,
+    matchValue: null,
+    matchValues: [],
+    field: null,
+    modality: 'requested',
+    outcome: options.outcome || (structured ? OUTCOME.SATISFIED : OUTCOME.UNKNOWN),
+    sourceLabel: options.sourceLabel || 'Image count',
+    minimum: minimum ?? null,
+    maximum: maximum ?? null,
+    actual: options.actual ?? null,
+    assignments: [],
+  };
+}
+
+/** One field on a house's application form, as `evaluateApplicationFields` emits it. */
+function formField(field, options = {}) {
+  const { outcome = OUTCOME.MISSING, id = field } = options;
+  return {
+    id: `applicationFields:${id}`,
+    slotKey: `applicationFields:${id}`,
+    categoryKey: 'applicationFields',
+    category: 'Application fields',
+    matchKey: null,
+    matchValue: null,
+    matchValues: [],
+    field,
+    modality: 'required',
+    outcome,
+    sourceLabel: options.sourceLabel || null,
+    assignments: [],
+  };
+}
 
 const slug = (name) => name.toLowerCase().replace(/\s+/g, '-');
 
@@ -475,9 +537,13 @@ describe('the totals the verdict is written from', () => {
   });
 
   test('nothing at all builds an empty market rather than throwing', () => {
+    // Exact shape on purpose: this is the whole return contract, and a new key
+    // arriving without a ruling behind it should fail here first.
     expect(buildCoverage()).toEqual({
       houses: [],
       frames: [],
+      shotCountSpan: null,
+      formFacts: null,
       totals: { housesWithLists: 0, frames: 0, inSet: 0 },
     });
   });
@@ -538,5 +604,253 @@ describe('order', () => {
       'Close-up',
     ]);
     expect(view.frames.map((frame) => frame.listCount)).toEqual([3, 3, 2]);
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════
+   Amendment 1 — past the shot list.
+
+   Two more piles of published documents, read the same way: what the
+   houses say about how many images to send, and what their forms ask
+   for. Neither is a fact about the talent, and these tests are mostly
+   about keeping it that way.
+   ══════════════════════════════════════════════════════════════════ */
+
+describe('the published counts', () => {
+  test('the span is the lowest published floor to the highest published ceiling', () => {
+    // The four structured counts among the real ten specs, in miniature:
+    // a floor with no ceiling, a ceiling with no floor, and two exact counts.
+    const view = buildCoverage(
+      marketOf([
+        { name: 'Elite Japan', lists: [[shot('full_length'), imageCount(5, null)]] },
+        { name: 'Elite Global', lists: [[shot('full_length'), imageCount(null, 3)]] },
+        { name: 'Elite NA', lists: [[shot('full_length'), imageCount(6, 6)]] },
+        { name: 'IMG', lists: [[shot('full_length'), imageCount(3, 3)]] },
+      ]),
+    );
+
+    expect(view.shotCountSpan).toEqual({ min: 3, max: 6, houses: 4 });
+  });
+
+  test('a count published only as prose contributes nothing', () => {
+    // Wilhelmina publishes the sentence and neither number. Reading a number
+    // out of the sentence is the line this engine does not cross.
+    const view = buildCoverage(
+      marketOf([
+        { name: 'Ford', lists: [[imageCount(3, 4)]] },
+        { name: 'Muse', lists: [[imageCount(4, 5)]] },
+        {
+          name: 'Wilhelmina',
+          lists: [[imageCount(null, null, { sourceLabel: 'A few digitals, no more than a handful' })]],
+        },
+      ]),
+    );
+
+    // Three houses on the board, two published numbers, one published prose.
+    expect(view.shotCountSpan).toEqual({ min: 3, max: 5, houses: 2 });
+  });
+
+  test('one publishing house is that house’s brief, not a span', () => {
+    const single = buildCoverage(
+      marketOf([
+        { name: 'Ford', lists: [[imageCount(3, 4)]] },
+        { name: 'Muse', lists: [[shot('full_length')]] },
+      ]),
+    );
+    expect(single.shotCountSpan).toBeNull();
+
+    const none = buildCoverage(marketOf([{ name: 'Ford', lists: [[shot('full_length')]] }]));
+    expect(none.shotCountSpan).toBeNull();
+  });
+
+  test('two offices of one house publishing a count are one publishing house', () => {
+    // Houses, not routes — here too, or Elite alone would look like a market.
+    const view = buildCoverage(
+      marketOf([{ name: 'Elite', lists: [[imageCount(4, 4)], [imageCount(6, 6)]] }]),
+    );
+
+    expect(view.shotCountSpan).toBeNull();
+  });
+
+  test('a bound nothing published stays null instead of borrowing the other', () => {
+    const view = buildCoverage(
+      marketOf([
+        { name: 'Ford', lists: [[imageCount(3, null)]] },
+        { name: 'Muse', lists: [[imageCount(4, null)]] },
+      ]),
+    );
+
+    expect(view.shotCountSpan).toEqual({ min: 3, max: null, houses: 2 });
+  });
+
+  test('counts that agree collapse to one number', () => {
+    // The surface reads "Every published count is 3 images." off min === max,
+    // and it must not be able to say that of a market that spans.
+    const agreed = buildCoverage(
+      marketOf([
+        { name: 'IMG', lists: [[imageCount(3, 3)]] },
+        { name: 'Models 1', lists: [[imageCount(3, 3)]] },
+        { name: 'Storm', lists: [[imageCount(3, 3)]] },
+      ]),
+    );
+    expect(agreed.shotCountSpan).toEqual({ min: 3, max: 3, houses: 3 });
+    expect(agreed.shotCountSpan.min).toBe(agreed.shotCountSpan.max);
+
+    const spanning = buildCoverage(
+      marketOf([
+        { name: 'IMG', lists: [[imageCount(3, 3)]] },
+        { name: 'Elite NA', lists: [[imageCount(3, 6)]] },
+      ]),
+    );
+    expect(spanning.shotCountSpan).toEqual({ min: 3, max: 6, houses: 2 });
+    expect(spanning.shotCountSpan.min).not.toBe(spanning.shotCountSpan.max);
+  });
+});
+
+describe('what the forms ask for', () => {
+  /**
+   * The overlap measured across the ten published specs, exactly as Amendment 1
+   * records it: an email address on 9 of 10, a date of birth on 8, and so down
+   * to the guardian cluster on 4. House `i` publishes a field when `i` is below
+   * its count, which reproduces those tallies without hard-coding an answer.
+   */
+  const FORM_OVERLAP = [
+    ['contact.email', 9],
+    ['applicant.date_of_birth', 8],
+    ['applicant.first_name', 7],
+    ['applicant.last_name', 7],
+    ['contact.phone', 7],
+    ['social.instagram', 7],
+    ['measurements.height', 6],
+    ['contact.city', 6],
+    ['social.tiktok', 5],
+    ['guardian.name', 4],
+  ];
+
+  /**
+   * The tenth form is Muse's, which is an email channel and shares almost none
+   * of that vocabulary: it asks for a full name and a location where the others
+   * ask for first name, last name and city. That is the real shape of the tail
+   * the surface collapses into "each form's own remaining fields", so the
+   * fixture carries it rather than a tenth copy of the same form.
+   */
+  const OWN_FIELDS = ['applicant.full_name', 'contact.location'];
+
+  const tenForms = () =>
+    marketOf(
+      Array.from({ length: 10 }, (unused, index) => ({
+        name: `House ${index + 1}`,
+        lists: [
+          [
+            ...FORM_OVERLAP.filter(([, houses]) => index < houses).map(([field]) =>
+              formField(field, {
+                // The guardian cluster is `appliesWhen age < 18`, so for an
+                // adult reader the registry answers `not_applicable`. The form
+                // still asks for it.
+                outcome: field.startsWith('guardian.')
+                  ? OUTCOME.NOT_APPLICABLE
+                  : OUTCOME.MISSING,
+              }),
+            ),
+            ...(index === 9 ? OWN_FIELDS.map((field) => formField(field)) : []),
+          ],
+        ],
+      })),
+    );
+
+  test('the tally is the published overlap, most-asked first then a to z', () => {
+    const { formFacts } = buildCoverage(tenForms());
+
+    expect(formFacts.formsPublished).toBe(10);
+    expect(formFacts.fields.map((entry) => [entry.label, entry.houses])).toEqual([
+      ['Email', 9],
+      ['Date of birth', 8],
+      ['First name', 7],
+      ['Instagram', 7],
+      ['Last name', 7],
+      ['Phone', 7],
+      ['City', 6],
+      ['Height field', 6],
+      ['TikTok', 5],
+      ['Guardian name', 4],
+      // The tenth form's own two fields, alphabetical at the bottom.
+      ['Full name', 1],
+      ['Location', 1],
+    ]);
+  });
+
+  test('the long tail is reported, and the cutoff is reported beside it', () => {
+    // The surface collapses the tail into one closing clause; the engine hands
+    // over every field and the number the clause is drawn at.
+    const { formFacts } = buildCoverage(tenForms());
+
+    expect(formFacts.shownThreshold).toBe(5);
+    const named = formFacts.fields.filter((entry) => entry.houses >= formFacts.shownThreshold);
+    const tail = formFacts.fields.filter((entry) => entry.houses < formFacts.shownThreshold);
+    expect(named.map((entry) => entry.label)).toContain('TikTok');
+    expect(tail.map((entry) => entry.label)).toEqual(['Guardian name', 'Full name', 'Location']);
+    // Reported all the same — collapsing is the surface's decision, not a loss.
+    expect(formFacts.fields).toHaveLength(FORM_OVERLAP.length + OWN_FIELDS.length);
+  });
+
+  test('a field the reader cannot answer is still a field the form asks for', () => {
+    // Four forms ask for a guardian's name. An adult reading the market does
+    // not make those forms stop asking.
+    const { formFacts } = buildCoverage(tenForms());
+    const guardian = formFacts.fields.find((entry) => entry.field === 'guardian.name');
+    expect(guardian).toEqual({ field: 'guardian.name', label: 'Guardian name', houses: 4 });
+  });
+
+  test('two routes of one house asking for an email address count once', () => {
+    const { formFacts } = buildCoverage(
+      marketOf([
+        {
+          name: 'Elite',
+          lists: [
+            [formField('contact.email'), formField('contact.phone')],
+            [formField('contact.email')],
+          ],
+        },
+        { name: 'Muse', lists: [[formField('contact.email')]] },
+      ]),
+    );
+
+    expect(formFacts.formsPublished).toBe(2);
+    expect(formFacts.fields).toEqual([
+      { field: 'contact.email', label: 'Email', houses: 2 },
+      { field: 'contact.phone', label: 'Phone', houses: 1 },
+    ]);
+  });
+
+  test('nothing about the talent gets into the block', () => {
+    /*
+      The amendment's ruling: a form field is supplied, not measured. No
+      outcome, no state, no count of what the reader holds — a match would add
+      tone for zero information, and the words below are the §5 denylist's.
+    */
+    const { formFacts } = buildCoverage(tenForms());
+
+    formFacts.fields.forEach((entry) => {
+      expect(Object.keys(entry).sort()).toEqual(['field', 'houses', 'label']);
+    });
+    expect(Object.keys(formFacts).sort()).toEqual([
+      'fields',
+      'formsPublished',
+      'shownThreshold',
+    ]);
+    expect(JSON.stringify(formFacts)).not.toMatch(
+      /you|your set|satisfied|missing|outcome|inSet|ready|score/i,
+    );
+  });
+
+  test('a market whose houses publish no form has no block at all', () => {
+    const { formFacts } = buildCoverage(
+      marketOf([
+        { name: 'Ford', lists: [[shot('full_length')]] },
+        { name: 'Muse', lists: [[shot('full_length'), measurement]] },
+      ]),
+    );
+
+    expect(formFacts).toBeNull();
   });
 });
