@@ -35,10 +35,15 @@ function frame(over = {}) {
   };
 }
 
-function coverageOf(frames, { housesWithLists = 9, houses = [] } = {}) {
+function coverageOf(
+  frames,
+  { housesWithLists = 9, houses = [], shotCountSpan = null, formFacts = null } = {},
+) {
   return {
     houses,
     frames,
+    shotCountSpan,
+    formFacts,
     totals: {
       housesWithLists,
       frames: frames.length,
@@ -54,6 +59,46 @@ const IMAGES = [
 
 const HOUSES = [{ key: 'ford', name: 'Ford' }, { key: 'muse', name: 'Muse' }];
 
+/**
+ * The ten published specs, as the engine tallies them: an email address on 9 of
+ * the 10 forms, a first and a last name and a date of birth on 8, and so on
+ * down to the guardian cluster on 4 — which is exempt from the threshold and
+ * gets a sentence of its own (Amendment 1a).
+ */
+const FORM_FACTS = {
+  fields: [
+    { field: 'contact.email', label: 'Email', houses: 9 },
+    { field: 'applicant.date_of_birth', label: 'Date of birth', houses: 8 },
+    { field: 'applicant.first_name', label: 'First name', houses: 8 },
+    { field: 'applicant.last_name', label: 'Last name', houses: 8 },
+    { field: 'social.instagram', label: 'Instagram', houses: 7 },
+    { field: 'contact.phone', label: 'Phone', houses: 7 },
+    { field: 'contact.city', label: 'City', houses: 6 },
+    { field: 'measurements.height', label: 'Height', houses: 6 },
+    { field: 'social.tiktok', label: 'TikTok', houses: 5 },
+    { field: 'guardian.approval', label: 'Guardian approval', houses: 4 },
+    { field: 'guardian.email', label: 'Guardian email', houses: 4 },
+    { field: 'guardian.name', label: 'Guardian name', houses: 4 },
+    { field: 'guardian.phone', label: 'Guardian phone', houses: 4 },
+  ],
+  formsPublished: 10,
+  shownThreshold: 5,
+};
+
+/** The amendment's own example, verbatim. */
+const FORM_SENTENCE =
+  'The application forms ask for the same few facts: an email address (9 of 10), ' +
+  'name and date of birth (8), a phone number and Instagram (7), height and city (6), ' +
+  'TikTok (5), along with each form\u2019s own remaining fields — open a house for its list.';
+
+/** The guardian cluster's own sentence, for the same ten forms. */
+const MINORS_SENTENCE =
+  'For minors, 4 of the 10 forms also ask for a parent or guardian\u2019s details.';
+
+function formFactsOf(fields, over = {}) {
+  return { fields, formsPublished: 10, shownThreshold: 5, ...over };
+}
+
 /** The standard state: some shot, some not, one frame finishing one list. */
 const PARTIAL = coverageOf(
   [
@@ -67,7 +112,11 @@ const PARTIAL = coverageOf(
     frame({ key: 'full-length', label: 'Full length', inSet: true, imageId: 'img-1', listCount: 9 }),
     frame({ key: 'waist-up', label: 'Waist up', inSet: true, imageId: 'img-2', listCount: 6 }),
   ],
-  { housesWithLists: 9 },
+  {
+    housesWithLists: 9,
+    shotCountSpan: { min: 3, max: 6, houses: 9 },
+    formFacts: FORM_FACTS,
+  },
 );
 
 function open(ui = <MarketCoverage houses={HOUSES} images={IMAGES} />) {
@@ -87,7 +136,7 @@ describe('MarketCoverage — closed', () => {
     render(<MarketCoverage houses={HOUSES} images={IMAGES} />);
 
     expect(
-      screen.getByRole('heading', { name: 'The market’s shot lists, read as one.' }),
+      screen.getByRole('heading', { name: 'What these houses publish, read as one.' }),
     ).toBeInTheDocument();
     const toggle = screen.getByRole('button', { name: 'Read' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -103,7 +152,7 @@ describe('MarketCoverage — closed', () => {
     const section = container.querySelector('section');
     expect(section).toHaveAttribute('aria-labelledby', 'mcov-title');
     expect(document.getElementById('mcov-title')).toHaveTextContent(
-      'The market’s shot lists, read as one.',
+      'What these houses publish, read as one.',
     );
   });
 });
@@ -315,6 +364,267 @@ describe('MarketCoverage — the list', () => {
   });
 });
 
+describe('MarketCoverage — the published counts', () => {
+  it('runs the span between the lowest floor and the highest ceiling', () => {
+    hook.result = state({ coverage: PARTIAL });
+    open();
+    expect(screen.getByText('The published counts run 3 to 6 images.')).toBeInTheDocument();
+  });
+
+  it('collapses to one number when every published count is the same', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        shotCountSpan: { min: 4, max: 4, houses: 7 },
+      }),
+    });
+    open();
+    expect(screen.getByText('Every published count is 4 images.')).toBeInTheDocument();
+  });
+
+  it('says nothing when no house published a structured count', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], { housesWithLists: 9, shotCountSpan: null }),
+    });
+    const { container } = open();
+    expect(container.querySelector('.mcov-span')).toBeNull();
+    expect(document.body.textContent).not.toContain('published count');
+  });
+
+  it('says nothing when only one house published a count', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        shotCountSpan: { min: 3, max: 6, houses: 1 },
+      }),
+    });
+    const { container } = open();
+    expect(container.querySelector('.mcov-span')).toBeNull();
+    expect(document.body.textContent).not.toContain('published count');
+  });
+
+  // A market that published floors and no ceilings is real, and has no ruled
+  // sentence: it is omitted rather than improvised into one.
+  it.each([
+    ['no ceiling', { min: 3, max: null, houses: 9 }],
+    ['no floor', { min: null, max: 6, houses: 9 }],
+  ])('says nothing for a single-sided span — %s', (_name, shotCountSpan) => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], { housesWithLists: 9, shotCountSpan }),
+    });
+    const { container } = open();
+    expect(container.querySelector('.mcov-span')).toBeNull();
+    expect(document.body.textContent).not.toContain('published count');
+    cleanup();
+  });
+});
+
+describe('MarketCoverage — their forms', () => {
+  it('reads the ten published forms as the amendment reads them', () => {
+    hook.result = state({ coverage: PARTIAL });
+    const { container } = open();
+
+    expect(screen.getByRole('heading', { name: 'Their forms', level: 3 })).toBeInTheDocument();
+
+    const lines = [...container.querySelectorAll('.mcov-forms__line')].map((p) => p.textContent);
+    expect(lines).toEqual([FORM_SENTENCE, MINORS_SENTENCE]);
+  });
+
+  it('sits after the frames and before the footnote', () => {
+    hook.result = state({ coverage: PARTIAL });
+    const { container } = open();
+
+    const order = [...container.querySelectorAll('.mcov-list, .mcov-forms, .mcov-note')].map(
+      (node) => node.className,
+    );
+    expect(order).toEqual(['mcov-list', 'mcov-forms', 'mcov-note']);
+  });
+
+  it('folds a first and a last name into one name when the counts agree', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([
+          { field: 'contact.email', label: 'Email', houses: 9 },
+          { field: 'applicant.first_name', label: 'First name', houses: 8 },
+          { field: 'applicant.last_name', label: 'Last name', houses: 8 },
+        ]),
+      }),
+    });
+    const { container } = open();
+
+    expect(container.querySelector('.mcov-forms__line')).toHaveTextContent(
+      'The application forms ask for the same few facts: an email address (9 of 10), name (8), ' +
+        'along with each form’s own remaining fields — open a house for its list.',
+    );
+  });
+
+  it('keeps them apart when the forms disagree about which they ask for', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([
+          { field: 'applicant.first_name', label: 'First name', houses: 8 },
+          { field: 'applicant.last_name', label: 'Last name', houses: 6 },
+        ]),
+      }),
+    });
+    const { container } = open();
+
+    expect(container.querySelector('.mcov-forms__line')).toHaveTextContent(
+      'The application forms ask for the same few facts: first name (8 of 10), last name (6), ' +
+        'along with each form’s own remaining fields — open a house for its list.',
+    );
+  });
+
+  /**
+   * Amendment 1a. The cluster is conditional on who is applying, so it is a
+   * sentence and never a bare count in a run of unconditional facts — whichever
+   * side of the threshold its count happens to fall.
+   */
+  it('gives the guardian cluster its own sentence at the highest count', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([
+          { field: 'contact.email', label: 'Email', houses: 9 },
+          { field: 'guardian.name', label: 'Guardian name', houses: 4 },
+          { field: 'guardian.phone', label: 'Guardian phone', houses: 3 },
+          { field: 'guardian.email', label: 'Guardian email', houses: 3 },
+        ]),
+      }),
+    });
+    const { container } = open();
+
+    const lines = [...container.querySelectorAll('.mcov-forms__line')].map((node) => node.textContent);
+    expect(lines).toEqual([
+      'The application forms ask for the same few facts: an email address (9 of 10), ' +
+        'along with each form\u2019s own remaining fields — open a house for its list.',
+      'For minors, 4 of the 10 forms also ask for a parent or guardian\u2019s details.',
+    ]);
+  });
+
+  it('keeps it out of the items even when its count clears the threshold', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([
+          { field: 'contact.email', label: 'Email', houses: 9 },
+          { field: 'guardian.name', label: 'Guardian name', houses: 8 },
+          { field: 'guardian.phone', label: 'Guardian phone', houses: 7 },
+        ]),
+      }),
+    });
+    const { container } = open();
+
+    const lines = [...container.querySelectorAll('.mcov-forms__line')].map((node) => node.textContent);
+    expect(lines).toEqual([
+      'The application forms ask for the same few facts: an email address (9 of 10), ' +
+        'along with each form\u2019s own remaining fields — open a house for its list.',
+      'For minors, 8 of the 10 forms also ask for a parent or guardian\u2019s details.',
+    ]);
+    // Never an in-list item, at any count.
+    expect(lines[0]).not.toContain('guardian');
+  });
+
+  it('says nothing about minors when no form asks for a guardian', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([{ field: 'contact.email', label: 'Email', houses: 9 }]),
+      }),
+    });
+    const { container } = open();
+
+    expect(container.querySelectorAll('.mcov-forms__line')).toHaveLength(1);
+    expect(document.body.textContent).not.toContain('For minors');
+  });
+
+  it('opens the block for the guardian sentence alone', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([{ field: 'guardian.name', label: 'Guardian name', houses: 4 }]),
+      }),
+    });
+    const { container } = open();
+
+    const lines = [...container.querySelectorAll('.mcov-forms__line')].map((node) => node.textContent);
+    expect(lines).toEqual([
+      'For minors, 4 of the 10 forms also ask for a parent or guardian\u2019s details.',
+    ]);
+  });
+
+  it('leaves the tail unnamed but says it is there', () => {
+    hook.result = state({ coverage: PARTIAL });
+    const { container } = open();
+    const line = container.querySelector('.mcov-forms__line');
+
+    // The guardian cluster is never an item — it has its own sentence below.
+    expect(line.textContent).not.toContain('guardian');
+    expect(line).toHaveTextContent(
+      'along with each form’s own remaining fields — open a house for its list.',
+    );
+  });
+
+  it('names a field the vocabulary has never met by its published label', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([
+          { field: 'contact.portfolio_url', label: 'Portfolio Link', houses: 9 },
+          { field: 'measurements.waist', label: 'Waist', houses: 8 },
+        ]),
+      }),
+    });
+    const { container } = open();
+
+    // The proper noun keeps its capitals; the plain noun does not shout.
+    expect(container.querySelector('.mcov-forms__line')).toHaveTextContent(
+      'The application forms ask for the same few facts: Portfolio Link (9 of 10), waist (8), ' +
+        'along with each form’s own remaining fields — open a house for its list.',
+    );
+  });
+
+  it('is absent when no house published a form', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], { housesWithLists: 9, formFacts: null }),
+    });
+    const { container } = open();
+    expect(container.querySelector('.mcov-forms')).toBeNull();
+    expect(screen.queryByText('Their forms')).toBeNull();
+  });
+
+  it('is absent when nothing reaches the threshold', () => {
+    hook.result = state({
+      coverage: coverageOf([frame({ listCount: 9 })], {
+        housesWithLists: 9,
+        formFacts: formFactsOf([{ field: 'contact.email', label: 'Email', houses: 2 }]),
+      }),
+    });
+    const { container } = open();
+    expect(container.querySelector('.mcov-forms')).toBeNull();
+    expect(screen.queryByText('Their forms')).toBeNull();
+  });
+
+  /**
+   * A form field is supplied, not satisfied. The block reports what ten
+   * documents ask for and says nothing whatever about the reader — no second
+   * person, and none of the verbs that would turn an ask into a demand.
+   */
+  it('never addresses the reader and never says a house demands anything', () => {
+    hook.result = state({ coverage: PARTIAL });
+    const { container } = open();
+    const text = container.querySelector('.mcov-forms').textContent || '';
+
+    expect(text).not.toMatch(/you/i);
+    expect(text).not.toMatch(/your set/i);
+    for (const verb of ['require', 'want', 'need']) {
+      expect(text).not.toMatch(new RegExp(verb, 'i'));
+    }
+  });
+});
+
 /**
  * The words this surface is not allowed to say. Every one of them turns a
  * reading of published documents into advice, a score, or a gate — which is
@@ -359,6 +669,24 @@ describe('MarketCoverage — the copy denylist', () => {
         [frame({ key: 'a', inSet: true, imageId: 'img-1', listCount: 9 })],
         { housesWithLists: 9 },
       ),
+    }),
+    // The amendment's own additions, both on: the count line and Their forms.
+    'counts and forms': state({
+      coverage: coverageOf([frame({ key: 'a', listCount: 9 })], {
+        housesWithLists: 9,
+        shotCountSpan: { min: 3, max: 6, houses: 9 },
+        formFacts: FORM_FACTS,
+      }),
+    }),
+    'one published count': state({
+      coverage: coverageOf([frame({ key: 'a', listCount: 9 })], {
+        housesWithLists: 9,
+        shotCountSpan: { min: 4, max: 4, houses: 6 },
+        formFacts: formFactsOf([
+          { field: 'guardian.name', label: 'Guardian name', houses: 9 },
+          { field: 'applicant.gender', label: 'Gender', houses: 6 },
+        ]),
+      }),
     }),
   };
 
