@@ -533,7 +533,7 @@ describe("event casting constants", () => {
     ]);
   });
 
-  test("all eight funnel event types from design (g)", () => {
+  test("the eight funnel event types from design (g), plus the four claim-flow types", () => {
     expect(Object.values(FUNNEL_EVENT_TYPES)).toEqual([
       "call_viewed",
       "application_started",
@@ -543,6 +543,12 @@ describe("event casting constants", () => {
       "payoff_viewed",
       "second_recipient_submitted",
       "returned_d30",
+      // Applicant-flow additions (open-call design 8 step 7): the receipt/claim
+      // funnel that stitches an anonymous submission to a claimed profile.
+      "claim_sent",
+      "claimed",
+      "materials_requested",
+      "materials_fulfilled",
     ]);
   });
 
