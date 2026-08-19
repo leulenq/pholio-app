@@ -1,6 +1,6 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import ReviewRoom from '../ReviewRoom';
@@ -112,7 +112,11 @@ describe('ReviewRoom — identity-backed applicant', () => {
     getApplicationDetails.mockResolvedValue(identityDetails);
     renderRoom();
 
-    await waitFor(() => expect(screen.getAllByText('Jamie Rivera').length).toBeGreaterThan(0));
+    // `name`/`city` fall back to the row prop while the fetch is in flight
+    // (so the drawer shows something instantly), so wait on the one thing
+    // that only appears once loading has actually finished: the initials
+    // plate only prints its letters post-load (blank while `isLoading`).
+    await screen.findByText('JR');
 
     // The dispute sentence, prominent and plain — never a badge.
     expect(
@@ -144,7 +148,8 @@ describe('ReviewRoom — identity-backed applicant', () => {
     });
     renderRoom();
 
-    await waitFor(() => expect(screen.getAllByText('Jamie Rivera').length).toBeGreaterThan(0));
+    // Same reasoning as the first test.
+    await screen.findByText('JR');
 
     expect(screen.queryByText('Unverified')).not.toBeInTheDocument();
     expect(screen.queryByText('Verified')).not.toBeInTheDocument();
