@@ -1,10 +1,15 @@
 /* ============================================================
-   REGISTRY PREFLIGHT — advisory panel inside the apply wizard
+   REGISTRY PREFLIGHT — the agency's ask, as a preparation list
 
    A well, not a card. This sits beside the talent's actual work
    in the digitals step and must stay subordinate to it: the
    step's content is the subject, this is the margin note that
    says whether the subject will pass.
+
+   One row per published shot: mark, canonical name, state word.
+   The agency's own wording appears under a name only when it
+   changes the instruction; every phrase stays reachable in the
+   disclosure. No second scoreboard — the summary is a sentence.
 
    Secondary text is #5A6472 rather than DESIGN.md's #64748B —
    on the #F8F8F7 well that slate measures 4.48:1, just under
@@ -34,6 +39,7 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   align-items: baseline;
+  justify-content: space-between;
 }
 
 .title {
@@ -44,16 +50,6 @@
   font-weight: 600;
   line-height: 1.45;
   overflow-wrap: anywhere;
-}
-
-.coverage {
-  margin: 0 0 0 auto;
-  color: var(--pf-text-2);
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.45;
-  text-align: right;
-  white-space: nowrap;
 }
 
 .route {
@@ -75,78 +71,81 @@
   color: var(--pf-text-2);
 }
 
-/* ── coverage schematic ───────────────────────────────────── */
+/* ── the one sentence of arithmetic ───────────────────────── */
 
-.slots {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 14px 0 0;
-  padding: 0;
-  list-style: none;
+.summary {
+  margin: 6px 0 0;
+  max-width: 68ch;
+  color: var(--pf-text-2);
+  font-size: 0.85rem;
+  line-height: 1.55;
 }
 
-.slot {
-  display: inline-flex;
-}
+/* ── their set, one row per shot ──────────────────────────── */
 
-/* ── findings ─────────────────────────────────────────────── */
-
-.rows {
+.list {
   display: grid;
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.row {
+.item {
   display: flex;
-  flex-wrap: wrap;
   gap: 2px 10px;
   align-items: baseline;
+  flex-wrap: wrap;
   min-width: 0;
-  padding: 8px 0;
+  padding: 9px 0;
   border-bottom: 1px solid var(--pf-border);
 }
 
-.row:last-child {
+.item:last-child {
   border-bottom: 0;
 }
 
-.rowMark {
+.itemMark {
   position: relative;
   top: 1px;
+  flex: none;
 }
 
-.rowLabel {
+.itemBody {
+  display: grid;
+  gap: 1px;
   min-width: 0;
+  flex: 1 1 12ch;
+}
+
+.itemLabel {
   color: var(--pf-ink);
   font-size: 0.85rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.rowGuidance {
-  min-width: 0;
+/* The wording that changes the instruction — a second line under the name,
+   in the panel's own voice size, never a second label beside it. */
+.itemNote {
   color: var(--pf-text-2);
-  font-size: 0.8rem;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-
-/* The agency's own wording beside our canonical name — quoted, quiet, never
-   spoken in Pholio's voice (ruling R-E). Mono sets it apart as a excerpt
-   rather than a second label, the "Intel idiom" the redesign spec asks for. */
-.rowMarginalia {
-  min-width: 0;
-  color: var(--pf-text-2);
-  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
   font-size: 0.78rem;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
-.rowAction,
+.itemState {
+  flex: none;
+  color: var(--pf-text-2);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.itemState[data-needed] {
+  color: var(--pf-ink);
+}
+
+.itemAction,
 .link {
   color: var(--pf-gold-text);
   font-size: 0.8rem;
@@ -156,17 +155,27 @@
   transition: color 0.2s var(--pf-ease), border-color 0.2s var(--pf-ease);
 }
 
-.rowAction {
-  margin-left: auto;
+.itemAction {
+  flex: none;
   white-space: nowrap;
 }
 
-.rowAction:hover,
-.rowAction:focus-visible,
+.itemAction:hover,
+.itemAction:focus-visible,
 .link:hover,
 .link:focus-visible {
   color: var(--pf-ink);
   border-bottom-color: var(--pf-ink);
+}
+
+/* ── the one file fact that matters right now ─────────────── */
+
+.filesLine {
+  margin: 12px 0 0;
+  max-width: 68ch;
+  color: var(--pf-text-2);
+  font-size: 0.8rem;
+  line-height: 1.55;
 }
 
 /* ── details disclosure ───────────────────────────────────── */
@@ -223,6 +232,47 @@
   line-height: 1.4;
 }
 
+.detailRows {
+  display: grid;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.detailRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: baseline;
+  padding: 5px 0;
+}
+
+.detailText {
+  min-width: 0;
+  color: var(--pf-text-2);
+  font-size: 0.8rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.detailAside {
+  flex: none;
+  color: var(--pf-text-2);
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+/* The agency's exact phrase, attributed in the disclosure — quoted, quiet,
+   never spoken in Pholio's voice (ruling R-E). */
+.detailWording {
+  min-width: 0;
+  color: var(--pf-text-2);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
 /* ── quiet states ─────────────────────────────────────────── */
 
 .note {
@@ -263,18 +313,14 @@
 }
 
 @media (max-width: 640px) {
-  .coverage {
-    margin-left: 0;
-    text-align: left;
-  }
-
-  .rowAction {
-    margin-left: 0;
+  .itemState,
+  .itemAction {
+    flex: initial;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rowAction,
+  .itemAction,
   .link,
   .detailsToggle,
   .detailsChevron {

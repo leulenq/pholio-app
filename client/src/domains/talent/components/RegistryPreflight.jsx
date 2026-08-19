@@ -11,6 +11,7 @@ import {
   buildAgencyView,
   formatRegistryDate,
   joinPhrases,
+  marginaliaAddsInformation,
   readFreshnessNotice,
   readLabels,
   sourceNeedsReview,
@@ -72,10 +73,33 @@ function possessive(name) {
   return /s$/i.test(value) ? `${value}’` : `${value}’s`;
 }
 
-/** The one figure the talent came for, as a sentence rather than a scoreboard. */
-function coverageSentence(view) {
-  if (!view?.published) return null;
-  return `${view.covered} of ${view.published} shots in your set`;
+const COUNT_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+
+function countWord(n) {
+  return n >= 0 && n < COUNT_WORDS.length ? COUNT_WORDS[n] : String(n);
+}
+
+/**
+ * The whole scoreboard as one sentence. This panel sits above a slot grid that
+ * already counts things — a second running total ("2 of 5", "0 of 3") turns
+ * the step into arithmetic. One line of prose says what their set is and how
+ * far along this one already is, and the rows below carry the rest.
+ */
+function setSentence(view) {
+  const total = view?.published || 0;
+  if (!total) return 'They publish form details, not a shot list.';
+  const covered = Math.min(view.covered || 0, total);
+  const opening =
+    total === 1 ? 'One shot makes their set' : `${countWord(total)} shots make their set`;
+  const sentence =
+    covered === 0
+      ? `${opening} — none are in yours yet.`
+      : covered >= total
+        ? total === 1
+          ? `${opening} — and it’s in yours.`
+          : `${opening} — all of them in yours already.`
+        : `${opening} — ${countWord(covered)} of them in yours already.`;
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
 }
 
 /** The first destination a group of items points at, if any. */
@@ -115,10 +139,12 @@ function DetailBlock({ title, children }) {
  * beside the talent's actual work, and advisory furniture that carries card
  * weight starts competing with the thing it is advising about.
  *
- * It reads the same three states, the same canonical shot names and the same
- * section vocabulary as the Agency requirements page, through the same library
- * (ruling R-D/R-E). A talent who studied that page an hour ago should recognise
- * the answer here without translating it.
+ * The panel is a preparation list, not a registry report: one row per
+ * published shot, named canonically, with the agency's own wording appearing
+ * inline only when it changes the instruction (`marginaliaAddsInformation`).
+ * Every source phrase stays reachable — behind the one disclosure, attributed —
+ * so provenance survives without sitting beside the instruction as a
+ * duplicate requirement.
  */
 export default function RegistryPreflight({
   seriesId,
@@ -211,20 +237,39 @@ export default function RegistryPreflight({
     onRevisionChange?.(next);
   };
 
-  const stillNeeded = view
-    ? view.shots.filter((shot) => shot.state === SLOT_STATE.NEEDED)
+  /*
+    One row per published shot. The wording rides under the canonical label
+    only when it genuinely changes the instruction; everything else the agency
+    wrote waits in the disclosure, attributed. `sourceWording` is the
+    unfiltered phrase — `marginalia` pre-drops anything the canonical name
+    subsumes, which would also drop wording that adds to it.
+  */
+  const flat = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const shotRows = view
+    ? view.shots.map((shot) => ({
+        ...shot,
+        note:
+          shot.sourceWording && marginaliaAddsInformation(shot.sourceWording, shot.label)
+            ? shot.sourceWording
+            : null,
+      }))
+    : [];
+  const sourceWording = view
+    ? view.shots
+        .filter((shot) => shot.sourceWording && flat(shot.sourceWording) !== flat(shot.label))
+        .map((shot) => ({ key: shot.key, label: shot.label, wording: shot.sourceWording }))
     : [];
   const detailBlocks = view
     ? [
         view.setRules.length > 0,
-        Boolean(view.files),
         view.eligibility.length > 0,
         Boolean(view.formFields),
+        sourceWording.length > 0,
         Boolean(view.notPublished),
       ].filter(Boolean).length
     : 0;
   const formTarget = view ? firstTarget(view.eligibility) : null;
-  const coverage = ready ? coverageSentence(view) : null;
+  const filesLine = ready ? filesSentence(view.files) : null;
   const checkedOn = ready ? formatRegistryDate(evaluation.sourceCheckedOn) : null;
   const freshnessNotice = ready ? readFreshnessNotice(evaluation) : null;
 
@@ -288,39 +333,28 @@ export default function RegistryPreflight({
   } else {
     body = (
       <>
-        {view.shots.length ? (
-          <ul className={styles.slots} aria-label="Published shots">
-            {view.shots.map((shot) => (
-              <li key={shot.key} className={styles.slot}>
-                <SpecMark state={shot.state} subject={shot.label} size={12} />
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        <p className={styles.summary}>{setSentence(view)}</p>
 
-        {stillNeeded.length ? (
-          <ul className={styles.rows}>
-            {stillNeeded.map((shot) => {
-              const action = shot.target;
+        {shotRows.length ? (
+          <ul className={styles.list} aria-label="Their set">
+            {shotRows.map((shot) => {
+              const needed = shot.state === SLOT_STATE.NEEDED;
+              const action = needed ? shot.target : null;
               return (
-                <li key={shot.key} className={styles.row}>
-                  <SpecMark
-                    state={SLOT_STATE.NEEDED}
-                    size={12}
-                    className={styles.rowMark}
-                  />
-                  <span className={styles.rowLabel}>{shot.label}</span>
-                  {shot.marginalia ? (
-                    <span className={styles.rowMarginalia}>“{shot.marginalia}”</span>
-                  ) : null}
-                  <span className={styles.rowGuidance}>
-                    {SLOT_STATE_WORD[SLOT_STATE.NEEDED]}
+                <li key={shot.key} className={styles.item}>
+                  <SpecMark state={shot.state} size={12} className={styles.itemMark} />
+                  <span className={styles.itemBody}>
+                    <span className={styles.itemLabel}>{shot.label}</span>
+                    {shot.note ? <span className={styles.itemNote}>{shot.note}</span> : null}
+                  </span>
+                  <span className={styles.itemState} data-needed={needed || undefined}>
+                    {SLOT_STATE_WORD[shot.state]}
                   </span>
                   {action ? (
                     <a
                       href={action.href}
                       {...externalLinkProps(action.href)}
-                      className={styles.rowAction}
+                      className={styles.itemAction}
                       onClick={() => onAction?.(shot)}
                     >
                       {action.label}
@@ -330,13 +364,9 @@ export default function RegistryPreflight({
               );
             })}
           </ul>
-        ) : (
-          <p className={styles.noteLine}>
-            {view.shots.length
-              ? 'Every shot they publish is in your set.'
-              : 'They publish no shot list — form details only.'}
-          </p>
-        )}
+        ) : null}
+
+        {filesLine ? <p className={styles.filesLine}>{filesLine}</p> : null}
 
         {detailBlocks > 0 ? (
           <div className={styles.details}>
@@ -346,7 +376,7 @@ export default function RegistryPreflight({
               aria-expanded={detailsOpen}
               onClick={() => setDetailsOpen((value) => !value)}
             >
-              What else they published ({detailBlocks})
+              Everything they publish
               <ChevronDown
                 size={13}
                 aria-hidden="true"
@@ -366,12 +396,12 @@ export default function RegistryPreflight({
                 >
                   {view.setRules.length ? (
                     <DetailBlock title="Set rules">
-                      <ul className={styles.rows}>
+                      <ul className={styles.detailRows}>
                         {view.setRules.map((rule) => (
-                          <li key={rule.key} className={styles.row}>
-                            <span className={styles.rowLabel}>{rule.text}</span>
+                          <li key={rule.key} className={styles.detailRow}>
+                            <span className={styles.detailText}>{rule.text}</span>
                             {rule.modality ? (
-                              <span className={styles.rowGuidance}>{rule.modality}</span>
+                              <span className={styles.detailAside}>{rule.modality}</span>
                             ) : null}
                           </li>
                         ))}
@@ -379,18 +409,12 @@ export default function RegistryPreflight({
                     </DetailBlock>
                   ) : null}
 
-                  {view.files ? (
-                    <DetailBlock title="Files">
-                      <p className={styles.noteLine}>{filesSentence(view.files)}</p>
-                    </DetailBlock>
-                  ) : null}
-
                   {view.eligibility.length ? (
                     <DetailBlock title="Eligibility">
-                      <ul className={styles.rows}>
+                      <ul className={styles.detailRows}>
                         {view.eligibility.map((item) => (
-                          <li key={item.key} className={styles.row}>
-                            <span className={styles.rowLabel}>{item.sentence}</span>
+                          <li key={item.key} className={styles.detailRow}>
+                            <span className={styles.detailText}>{item.sentence}</span>
                           </li>
                         ))}
                       </ul>
@@ -417,6 +441,19 @@ export default function RegistryPreflight({
                           {formTarget.label}
                         </a>
                       ) : null}
+                    </DetailBlock>
+                  ) : null}
+
+                  {sourceWording.length ? (
+                    <DetailBlock title="In their words">
+                      <ul className={styles.detailRows}>
+                        {sourceWording.map((entry) => (
+                          <li key={entry.key} className={styles.detailRow}>
+                            <span className={styles.detailText}>{entry.label}</span>
+                            <span className={styles.detailWording}>“{entry.wording}”</span>
+                          </li>
+                        ))}
+                      </ul>
                     </DetailBlock>
                   ) : null}
 
@@ -466,9 +503,7 @@ export default function RegistryPreflight({
     >
       {available ? (
         <div className={styles.head}>
-          <h2 className={styles.title}>
-            Checked against {possessive(resolvedAgencyName)} published route
-          </h2>
+          <h2 className={styles.title}>For {resolvedAgencyName}</h2>
           {routeOptions.length > 1 ? (
             <div className={styles.route}>
               <PholioCustomSelect
@@ -483,21 +518,18 @@ export default function RegistryPreflight({
               />
             </div>
           ) : null}
-          {coverage ? <p className={styles.coverage}>{coverage}</p> : null}
         </div>
       ) : null}
 
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={viewKey}
-          initial={reduceMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.15, ease: EASE }}
-        >
-          {body}
-        </motion.div>
-      </AnimatePresence>
+      {/* Keyed remount, single entrance fade — never an exit/enter double-fade. */}
+      <motion.div
+        key={viewKey}
+        initial={reduceMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: reduceMotion ? 0 : 0.15, ease: EASE }}
+      >
+        {body}
+      </motion.div>
     </section>
   );
 }

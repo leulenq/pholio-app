@@ -2,21 +2,9 @@
   "$schema": "./schemas/manifest.schema.json",
   "schemaVersion": "1.0.0",
   "taxonomyVersion": "1.0.0",
-  "datasetVersion": "2026.08.09.2",
-  "publishedOn": "2026-08-09",
+  "datasetVersion": "2026.08.19.1",
+  "publishedOn": "2026-08-19",
   "records": [
-    {
-      "seriesId": "elite-japan-tokyo:online",
-      "currentRevisionId": "elite-japan-tokyo:online@1",
-      "path": "specs/elite-japan-tokyo-online--r1.json",
-      "status": "verified"
-    },
-    {
-      "seriesId": "elite-model-management-global:online",
-      "currentRevisionId": "elite-model-management-global:online@1",
-      "path": "specs/elite-model-management-global-online--r1.json",
-      "status": "verified"
-    },
     {
       "seriesId": "elite-models-na:online-general",
       "currentRevisionId": "elite-models-na:online-general@1",
@@ -36,22 +24,10 @@
       "status": "provisional"
     },
     {
-      "seriesId": "models1-uk:online",
-      "currentRevisionId": "models1-uk:online@1",
-      "path": "specs/models1-uk-online--r1.json",
-      "status": "verified"
-    },
-    {
       "seriesId": "muse-model-management-nyc:email",
       "currentRevisionId": "muse-model-management-nyc:email@1",
       "path": "specs/muse-model-management-nyc-email--r1.json",
       "status": "verified"
-    },
-    {
-      "seriesId": "storm-management-uk:online",
-      "currentRevisionId": "storm-management-uk:online@1",
-      "path": "specs/storm-management-uk-online--r1.json",
-      "status": "conflicting"
     },
     {
       "seriesId": "the-society-management-nyc:online",

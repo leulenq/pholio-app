@@ -17,12 +17,11 @@ function renderPreflight(props = {}) {
   );
 }
 
-/** The geometric state of the mark carrying a given description. */
-function markState(description) {
-  return screen
-    .getByTitle(description)
-    .closest('[data-mark-state]')
-    ?.getAttribute('data-mark-state');
+/** The mark states of the set list, in row order. */
+function markStates(list) {
+  return Array.from(list.querySelectorAll('[data-mark-state]')).map((mark) =>
+    mark.getAttribute('data-mark-state'),
+  );
 }
 
 /** A slice of `registryTaxonomyLabels()` — the vocabulary the panel speaks in. */
@@ -112,6 +111,18 @@ const result = {
       outcome: 'unknown',
     }),
     finding({
+      id: 'shots:daylight',
+      slotKey: 'elite#shots:daylight',
+      matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'close_up' }],
+      matchKey: 'shot.frame:equals:close_up',
+      // Wording that genuinely changes the instruction — daylight is nowhere
+      // in the canonical name, so it earns the inline note.
+      sourceLabel: 'Close up in natural daylight',
+      outcome: 'missing',
+      severity: 'attention',
+      requiresAttention: true,
+    }),
+    finding({
       id: 'shots:skip',
       slotKey: 'elite#shots:skip',
       matchValues: [{ field: 'shot.frame', operator: 'equals', value: 'close_up' }],
@@ -171,16 +182,20 @@ const result = {
 };
 
 describe('RegistryPreflight', () => {
-  test('reads as a check against the agency, not as a score', async () => {
+  test('reads as a preparation list, not as a score or a registry report', async () => {
     const queryFn = vi.fn().mockResolvedValue(result);
     renderPreflight({ imageIds: ['b', 'a'], queryFn });
 
-    expect(await screen.findByText('1 of 3 shots in your set')).toBeInTheDocument();
+    // The arithmetic lives in one sentence of prose — never a second
+    // scoreboard above the slot grid that already counts things.
     expect(
-      screen.getByRole('heading', {
-        name: 'Checked against Elite Models’ published route',
-      }),
+      await screen.findByText('Four shots make their set — one of them in yours already.'),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'For Elite Models' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/checked against/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d+ of \d+ shots/)).not.toBeInTheDocument();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     expect(screen.queryByText(/score|%|out of/i)).not.toBeInTheDocument();
     expect(queryFn).toHaveBeenCalledWith({
@@ -193,14 +208,19 @@ describe('RegistryPreflight', () => {
   test('speaks the same three words the requirements page speaks (ruling R-D)', async () => {
     renderPreflight({ queryFn: () => Promise.resolve(result) });
 
-    await screen.findByRole('list', { name: 'Published shots' });
-    expect(markState('Headshot — in your set')).toBe('in_set');
-    expect(markState('Profile shot — still needed')).toBe('needed');
+    const list = await screen.findByRole('list', { name: 'Their set' });
+    // One row per published shot — the set renders once, never as a mark
+    // strip above a second list of the same shots.
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    expect(markStates(list)).toEqual(['needed', 'in_set', 'needed', 'needed']);
+    expect(within(list).getByText('In your set')).toBeInTheDocument();
+    expect(within(list).getAllByText('Still needed')).toHaveLength(3);
     // A published slot Pholio can't verify is still asked for — it reads as
     // "still needed", never "not asked for" (live-verification correction).
-    expect(markState('Close-up, hair pulled back — still needed')).toBe('needed');
+    expect(within(list).queryByText('Not asked for')).not.toBeInTheDocument();
     // A requirement that does not apply is noise, not a slot.
-    expect(screen.queryByTitle(/Not applicable/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Not applicable/)).not.toBeInTheDocument();
   });
 
   test('names shots canonically — never the agency’s own form wording', async () => {
@@ -211,24 +231,30 @@ describe('RegistryPreflight', () => {
     expect(screen.queryByText('Headshot *')).not.toBeInTheDocument();
   });
 
-  test('keeps what is still needed open and everything else behind one toggle', async () => {
+  test('keeps the set and the file rule open, everything else behind one toggle', async () => {
     const user = userEvent.setup();
     renderPreflight({ queryFn: () => Promise.resolve(result) });
 
     await screen.findByText('Profile shot');
+    // The file rule bears on the uploads happening on this exact step, so it
+    // reads without opening anything — as one sentence with their figure.
+    expect(
+      screen.getByText(
+        'Their form publishes limits on file size (Max. 5mb each) — we convert and resize on export.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Wear no make-up')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Their form publishes limits/)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /What else they published \(5\)/ }));
+    await user.click(screen.getByRole('button', { name: /Everything they publish/ }));
 
     const blocks = screen
       .getAllByRole('heading', { level: 3 })
       .map((heading) => heading.textContent);
     expect(blocks).toEqual([
       'Set rules',
-      'Files',
       'Eligibility',
       'Their form asks for',
+      'In their words',
       'Not published',
     ]);
     expect(await screen.findByText('Wear no make-up')).toBeInTheDocument();
@@ -238,26 +264,29 @@ describe('RegistryPreflight', () => {
     expect(
       screen.getByText('Elite Models doesn’t publish file limits.'),
     ).toBeInTheDocument();
-    // Files reads as one sentence carrying the agency's own figure, not a
-    // generic "limits on file size" with the number left out.
-    expect(
-      screen.getByText(
-        'Their form publishes limits on file size (Max. 5mb each) — we convert and resize on export.',
-      ),
-    ).toBeInTheDocument();
   });
 
-  test('quotes the agency’s own wording beside a shot only when it says something ours does not (ruling R-E)', async () => {
+  test('quotes the agency’s wording with the shot only when it changes the instruction', async () => {
+    const user = userEvent.setup();
     renderPreflight({ queryFn: () => Promise.resolve(result) });
 
     await screen.findByText('Profile shot');
-    // IMG's button says "upload profile" — genuinely different from the
-    // canonical name, so it is kept as marginalia.
-    expect(screen.getByText('“Upload profile”')).toBeInTheDocument();
-    // The hair-state shot's own wording is the same fact as its canonical
-    // name once punctuation is stripped — nothing to quote beside it.
-    expect(screen.getByText('Close-up, hair pulled back')).toBeInTheDocument();
+    // "Upload profile" names the same instruction as the canonical label —
+    // printing both would read as duplicate requirements, so it waits behind
+    // the disclosure with the rest of the source wording.
+    expect(screen.queryByText(/Upload profile/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Close up \(hair pulled back\)/)).not.toBeInTheDocument();
+    // Daylight is nowhere in the canonical name — that wording changes what
+    // the talent must actually shoot, so it rides under the label.
+    expect(screen.getByText('Close up in natural daylight')).toBeInTheDocument();
+
+    // Provenance survives underneath: source phrases that differ in any way
+    // sit in the disclosure, attributed. Wording that is the same fact as the
+    // canonical name ("Close up (hair pulled back)") appears nowhere twice.
+    await user.click(screen.getByRole('button', { name: /Everything they publish/ }));
+    const wording = screen.getByRole('heading', { name: 'In their words' }).parentElement;
+    expect(within(wording).getByText('“Upload profile”')).toBeInTheDocument();
+    expect(within(wording).getByText('“Close up in natural daylight”')).toBeInTheDocument();
   });
 
   test('formats the source date rather than printing the raw calendar value', async () => {
@@ -286,7 +315,7 @@ describe('RegistryPreflight', () => {
 
     await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(3));
     expect(
-      await screen.findByText('They publish no shot list — form details only.'),
+      await screen.findByText('They publish form details, not a shot list.'),
     ).toBeInTheDocument();
   });
 
