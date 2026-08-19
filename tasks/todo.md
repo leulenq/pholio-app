@@ -23,7 +23,7 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
 - [x] **W2-C1 (Opus)** Identity + token services: `applicant-identities`, claim/disown/materials
       tokens (hashed, message-reply-tokens idiom), claim transaction (users+profiles projection,
       media promotion, application re-pointing, email_verified=true), disown flow. Tests.
-- [ ] **W2-C2 (Opus)** Anonymous draft + submit: draft cookie service, public endpoints
+- [x] **W2-C2 (Opus)** Anonymous draft + submit: draft cookie service, public endpoints
       (spec fetch, draft CRUD, media upload gated behind email, submit → applications row +
       frozen snapshot + consent event + receipt email), moderation wiring, funnel events. Tests.
 - [x] **W3-D (Opus)** `resolveApplicantIdentity` resolver + enforcement test; the 8 agency
@@ -52,3 +52,13 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
   request-materials endpoint riding requested_more; full suite green under the lane (3035).
   Committed f884781. Flagged: talent-dossier 404 for identity rows (W3-D2 lane dispatched);
   agency SPA needs a null path for profile.id/slug on identity rows (folded into Wave 4 scope).
+- W3-D2 landed: dossier identity branch (18 tests + key-parity with the profile branch);
+  truth fields added to both branches so account-backed rows never read as unclaimed. Committed.
+- W2-C2 landed after a session-limit interruption + resume: draft cookie, spec validation,
+  email-gated uploads, submit transaction writing applications/snapshot/consent, no-oracle email
+  step, fail-closed anonymous moderation (7.1 gate named open in the module header). Lead applied
+  its rate-limiter recommendation in app.js (claim/disown strict, form on onboarding ceiling).
+  Committed 3c20c8c. NOTE: HEIC uploads not accepted (uploader-wide decision, deferred).
+- W4 launched (3 parallel): E applicant flow client (Opus), E2 materials fulfilment server+client
+  (Opus — also closes the missing /materials/:token endpoints), E3 agency SPA identity null-path
+  (Sonnet).
