@@ -64,6 +64,11 @@
   background: transparent;
   color: inherit;
   cursor: pointer;
+  /* Row type used to come from the global bare-<button> reset, which no longer
+     applies inside the SPA. (Its 999px radius also curled this bottom rule.) */
+  font-family: inherit;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
 }
 .internal-review__queue > button:hover,
 .internal-review__queue > button:focus-visible { background: #f7f3ed; }
@@ -93,6 +98,11 @@
   border-radius: 8px;
   background: #fff;
   cursor: pointer;
+  /* Label type used to come from the global bare-<button> reset, which no
+     longer applies inside the SPA. */
+  font-family: inherit;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
 }
 .internal-review__actions button.is-primary { color: #fff; background: #1a1815; border-color: #1a1815; }
 .internal-review__actions button:disabled { cursor: not-allowed; opacity: 0.45; }

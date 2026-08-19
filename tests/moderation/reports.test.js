@@ -11,7 +11,10 @@ const {
   migrate,
   dropIsolatedDatabase,
 } = require('../setup/isolated-db');
-const { isModerator } = require('../../src/shared/lib/moderation');
+const {
+  isModerator,
+  isSelfTargetReport,
+} = require('../../src/shared/lib/moderation');
 
 /* Own database, resolved before src/shared/db/knex is required anywhere.
  *
@@ -95,6 +98,53 @@ describe('report validation constants', () => {
     unexpected.forEach((t) => {
       expect(VALID_TARGET_TYPES).not.toContain(t);
     });
+  });
+});
+
+describe('safety report targets', () => {
+  it('rejects a report that targets the reporting user', () => {
+    expect(isSelfTargetReport({
+      reporterUserId: 'talent-1',
+      targetType: 'user',
+      targetId: 'talent-1',
+    })).toBe(true);
+  });
+
+  it('allows the same identifier for a non-user entity', () => {
+    expect(isSelfTargetReport({
+      reporterUserId: 'talent-1',
+      targetType: 'agency',
+      targetId: 'talent-1',
+    })).toBe(false);
+  });
+
+  /*
+   * The route 422s a self-target report, which would hard-break reporting if a
+   * client ever sent the reporter's own id as the target. It does not — these
+   * are the only two shapes the UI produces, and both are pinned here so a
+   * future change to either dialog has to break a test to break reporting.
+   *
+   *   client/src/domains/talent/components/ApplicationMessages.jsx
+   *     targets the offending message by id.
+   *   client/src/shared/components/ReportDialog.jsx, opened from
+   *   client/src/domains/talent/pages/SettingsPage — the general safety report
+   *     passes no target props at all; the reporter picks the type and enters
+   *     the identifier, so the target is never derived from their session.
+   */
+  it('accepts the message-scoped report the messages thread sends', () => {
+    expect(isSelfTargetReport({
+      reporterUserId: 'talent-1',
+      targetType: 'message',
+      targetId: 'message-42',
+    })).toBe(false);
+  });
+
+  it('accepts a general safety report naming another account', () => {
+    expect(isSelfTargetReport({
+      reporterUserId: 'talent-1',
+      targetType: 'user',
+      targetId: 'talent-2',
+    })).toBe(false);
   });
 });
 

@@ -1,7 +1,6 @@
 import {
   AlertCircle,
   Bell,
-  Calendar,
   CheckCircle2,
   Eye,
   FileCheck,
@@ -20,7 +19,6 @@ const TALENT_FILTERS = [
 const AGENCY_FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'submissions', label: 'Submissions' },
-  { id: 'scheduling', label: 'Scheduling' },
 ];
 
 const TYPE_AVATAR_TONE = {
@@ -29,8 +27,6 @@ const TYPE_AVATAR_TONE = {
   application_status: 'ink',
   application_received: 'gold',
   application_withdrawn: 'neutral',
-  interview_scheduled: 'neutral',
-  interview_response: 'gold',
   message_received: 'ink',
   profile_not_submission_ready: 'warn',
   confirmation: 'success',
@@ -42,8 +38,6 @@ const TYPE_VISUAL = {
   application_status: { accent: 'sky', icon: FileCheck },
   application_received: { accent: 'gold', icon: Inbox },
   application_withdrawn: { accent: 'neutral', icon: AlertCircle },
-  interview_scheduled: { accent: 'violet', icon: Calendar },
-  interview_response: { accent: 'violet', icon: Calendar },
   message_received: { accent: 'sky', icon: MessageSquare },
   profile_not_submission_ready: { accent: 'amber', icon: AlertCircle },
   confirmation: { accent: 'mint', icon: CheckCircle2 },
@@ -60,8 +54,6 @@ export function getNotificationCategory(type) {
     application_status: 'Application update',
     application_received: 'New submission',
     application_withdrawn: 'Application update',
-    interview_scheduled: 'Interview',
-    interview_response: 'Interview',
     message_received: 'Message',
     profile_not_submission_ready: 'Profile alert',
     confirmation: 'Confirmation',
@@ -94,8 +86,6 @@ export function getAvatarLabel(item) {
     application_status: 'AP',
     application_received: 'IN',
     application_withdrawn: 'AP',
-    interview_scheduled: 'IV',
-    interview_response: 'IV',
     message_received: 'MS',
     profile_not_submission_ready: 'PR',
     confirmation: 'OK',
@@ -117,9 +107,6 @@ export function filterNotifications(items, filterId, variant = 'talent') {
   if (variant === 'agency') {
     if (filterId === 'submissions') {
       return items.filter((item) => item.type === 'application_received');
-    }
-    if (filterId === 'scheduling') {
-      return items.filter((item) => item.type === 'interview_scheduled');
     }
     return items;
   }

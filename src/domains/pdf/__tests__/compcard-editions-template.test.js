@@ -142,7 +142,6 @@ function legacyLocals(withFrontProgram) {
       "img-2": { public_url: "/uploads/2.jpg" },
       "img-3": { public_url: "/uploads/3.jpg" },
     },
-    watermark: true,
     baseUrl: "http://localhost:3000",
     printBleed: false,
     fontsCss: null,
@@ -256,7 +255,6 @@ function editionLocals() {
       "img-2": { public_url: "/uploads/2.jpg" },
       "img-3": { public_url: "/uploads/3.jpg" },
     },
-    watermark: true,
     baseUrl: "http://localhost:3000",
     printBleed: false,
     fontsCss: null,
@@ -362,8 +360,8 @@ describe("edition program renders the additive vocabulary", () => {
     expect(html).toContain("Playfair Display"); // same display family as the front
   });
 
-  test("dark paper — watermark + empty cells derive light ink at low alpha", () => {
-    expect(html).toContain("rgba(244,241,236,0.08)");
+  test("dark paper — empty cells derive light ink at low alpha", () => {
+    expect(html).toContain(".cell-empty { background:");
   });
 
   test("footline stats style renders a single foot row when selected", () => {

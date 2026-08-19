@@ -1,6 +1,10 @@
 const bcrypt = require("bcrypt");
 const { v4: uuidv4 } = require("uuid");
 const { seedAgencyDemo } = require("../scripts/seed-agency-demo");
+const { validateRegistry } = require("../scripts/validate-spec-registry");
+const {
+  publishRegistry,
+} = require("../src/domains/spec-registry/store/publisher");
 
 /* Legal acceptance must track the live constant. This file used to hardcode
    "2026-06-25"; CURRENT_LEGAL_VERSION has since moved to a later date, so every
@@ -18,58 +22,50 @@ async function seedDemoData(knex, talentId, profileId) {
   const daysAgo = (n) => new Date(now.getTime() - n * 86400000).toISOString();
 
   // ─── Agencies ────────────────────────────────────────────────────────────
+  // Invented houses, and they have to stay invented.
+  //
+  // This file used to seed Wilhelmina, IMG, Elite, Ford, DNA, The Society, Next
+  // and Marilyn as live `ACTIVE` agencies and wire five of them into
+  // `spec_registry_agency_routes`. Deliverability is derived from exactly that
+  // pair (`preflight-service.js` `deliverableSeriesIds()`), so every developer
+  // database, every screenshot and every demo said Pholio could deliver an
+  // application to IMG. It cannot. Ruling R5 (design §9.2 "Remove") makes those
+  // eight reference entries; migration 20260815103000 converts any database
+  // that already has them.
+  //
+  // Real agencies now live in exactly two places — the Spec Registry pack, as
+  // researched published requirements, and the Trust Registry pack, as
+  // registry-verified reference entries. Neither is an inbox. With no seeded
+  // route mapping, every pack agency correctly renders as a reference entry in
+  // development, which is the same thing production shows.
   const agencyList = [
     {
-      name: "Wilhelmina Models",
+      name: "Meridian Talent Collective",
       location: "New York, NY",
-      website: "https://wilhelmina.com",
-      openBoards: ["Women", "Men", "Curve", "New Faces"],
-    },
-    {
-      name: "IMG Models",
-      location: "New York, NY",
-      website: "https://imgmodels.com",
-      openBoards: ["Women", "Men", "New Faces"],
-    },
-    {
-      name: "Elite Model Management",
-      location: "Paris, France",
-      website: "https://elitemodel.com",
-      openBoards: ["Women", "Men", "Development"],
-    },
-    {
-      name: "Ford Models",
-      location: "New York, NY",
-      website: "https://fordmodels.com",
-      openBoards: ["Women", "Men", "Commercial", "Petite"],
-    },
-    {
-      name: "DNA Model Management",
-      location: "Los Angeles, CA",
-      website: "https://dnamodels.com",
-      openBoards: ["Women", "Men", "Development"],
-    },
-    {
-      name: "The Society Management",
-      location: "Los Angeles, CA",
-      website: "https://thesocietymanagement.com",
-      openBoards: ["Women", "Men"],
-    },
-    {
-      name: "Next Management",
-      location: "New York, NY",
-      website: "https://nextmanagement.com",
-      openBoards: ["Women", "Men", "Development", "Curve"],
-    },
-    {
-      name: "Marilyn Agency",
-      location: "Paris, France",
-      website: "https://marilynagency.com",
+      website: "https://example.com/meridian-talent-collective",
       description:
-        "Founded in Paris in 1985, Marilyn Agency represents women, men, celebrities, and new faces across editorial, runway, and luxury fashion. The house is known for developing internationally visible talent and maintaining a Paris-led point of view with New York reach.",
-      logoPath: "/agency-logos/marilyn-agency.svg",
-      brandColor: "#050505",
-      openBoards: ["Women", "Men", "Celebrities", "New Faces"],
+        "A fictional agency used only for Pholio demo data. Meridian stands in for a mid-size New York house running women's, men's and new-faces boards.",
+      openBoards: ["Women", "Men", "New Faces"],
+      minHeightFemale: 173,
+      maxHeightFemale: 183,
+      minHeightMale: 183,
+      maxHeightMale: 193,
+      minAge: 16,
+      maxAge: 30,
+    },
+    {
+      name: "Harbor Model Management",
+      location: "Los Angeles, CA",
+      website: "https://example.com/harbor-model-management",
+      description:
+        "A fictional agency used only for Pholio demo data. Harbor stands in for a West Coast commercial and development board.",
+      openBoards: ["Women", "Men", "Commercial", "Development"],
+      minHeightFemale: 168,
+      maxHeightFemale: 180,
+      minHeightMale: 178,
+      maxHeightMale: 190,
+      minAge: 18,
+      maxAge: 35,
     },
   ];
 
@@ -87,19 +83,27 @@ async function seedDemoData(knex, talentId, profileId) {
       brand_color: ag.brandColor || null,
       open_boards: JSON.stringify(ag.openBoards),
       status: "ACTIVE",
+      // Set here rather than left to 20260701110000's backfill: that migration
+      // matches on the old real names and, on a fresh database, runs before this
+      // seed exists to be backfilled.
+      min_height_female: ag.minHeightFemale,
+      max_height_female: ag.maxHeightFemale,
+      min_height_male: ag.minHeightMale,
+      max_height_male: ag.maxHeightMale,
+      min_age: ag.minAge,
+      max_age: ag.maxAge,
     });
   }
 
   // ─── Applications ─────────────────────────────────────────────────────────
   // Valid statuses: submitted, shortlisted, booked, passed, accepted, declined, archived
+  // One per agency: `applications` is unique on (profile_id, agency_id) for
+  // direct applications, so the demo ledger is as long as the demo directory.
+  // One live lane and one closed lane, which is the whole shape the merged
+  // submission ledger has to render.
   const apps = [
-    { agencyIdx: 0, status: "shortlisted", days: 3 }, // Wilhelmina
-    { agencyIdx: 6, status: "submitted", days: 5 }, // Next Management
-    { agencyIdx: 1, status: "accepted", days: 14 }, // IMG Models
-    { agencyIdx: 2, status: "submitted", days: 21 }, // Elite
-    { agencyIdx: 3, status: "represented", days: 28 }, // Ford
-    { agencyIdx: 4, status: "declined", days: 45 }, // DNA
-    { agencyIdx: 5, status: "submitted", days: 7 }, // Society
+    { agencyIdx: 0, status: "shortlisted", days: 3 }, // Meridian
+    { agencyIdx: 1, status: "declined", days: 45 }, // Harbor
   ];
 
   for (const app of apps) {
@@ -347,6 +351,10 @@ exports.seed = async function seed(knex) {
   await knex("profiles").del();
   await knex("users").del();
 
+  if (await knex.schema.hasTable("spec_registry_datasets")) {
+    await publishRegistry(knex, validateRegistry());
+  }
+
   const passwordHash = await bcrypt.hash("password123", 10);
 
   // Create agency account
@@ -355,6 +363,8 @@ exports.seed = async function seed(knex) {
     id: agencyId,
     email: "agency@example.com",
     password_hash: passwordHash,
+    // Demo accounts must be usable in a browser — the dashboard gates on this.
+    email_verified: true,
     terms_accepted_at: new Date(),
     terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
@@ -384,6 +394,8 @@ exports.seed = async function seed(knex) {
     id: talentId,
     email: "talent@example.com",
     password_hash: passwordHash,
+    // Demo accounts must be usable in a browser — the dashboard gates on this.
+    email_verified: true,
     terms_accepted_at: new Date(),
     terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),
@@ -504,6 +516,8 @@ exports.seed = async function seed(knex) {
     id: elaraUserId,
     email: "elara@example.com",
     password_hash: passwordHash,
+    // Demo accounts must be usable in a browser — the dashboard gates on this.
+    email_verified: true,
     terms_accepted_at: new Date(),
     terms_accepted_version: CURRENT_TERMS_VERSION,
     privacy_accepted_at: new Date(),

@@ -68,6 +68,12 @@
   color: #c0392b;
 }
 
+.alertWarning {
+  background: rgba(194, 133, 14, 0.07);
+  border: 1px solid rgba(194, 133, 14, 0.2);
+  color: #76520b;
+}
+
 /* ── Form ───────────────────────────────────────────── */
 
 .form {
@@ -228,6 +234,10 @@
   color: #ffffff;
   font-weight: 600;
   font-size: 15px;
+  /* Label tracking and side padding used to come from the global bare-<button>
+     reset, which no longer applies inside the SPA. */
+  letter-spacing: 0.02em;
+  padding: 0 28px;
   font-family: var(--ag-font-sans, 'Inter', sans-serif);
   border: none;
   border-radius: 8px;

@@ -37,7 +37,7 @@ export default function SecurityPanel({ profile, canManage }) {
           <div className="st-sec-row">
             <div className="st-sec-text">
               <span className="st-sec-label"><AlertTriangle size={14} /> Deactivate organization</span>
-              <span className="st-sec-desc">Permanently removes the agency, its roster, and all members. Handled by support to prevent mistakes.</span>
+              <span className="st-sec-desc">Permanently removes the agency workspace, submissions, and all members. Handled by support to prevent mistakes.</span>
             </div>
             <a className="st-textlink st-textlink--danger" href="mailto:support@pholio.studio?subject=Deactivate%20agency">Request</a>
           </div>

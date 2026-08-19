@@ -155,6 +155,34 @@
   to = "/dashboard-app/index.html"
   status = 200
 
+##
+# Token-authenticated public SPA pages (ruling R9).
+#
+# All three of these are real React routes (client/src/App.jsx) and all three
+# are in the Express SPA allowlist (src/app.js), but neither of those runs in
+# production unless a redirect sends the request somewhere. With no rule here,
+# `/reply/abc` and `/opencall/xyz` were resolved against the publish directory,
+# found nothing, and returned Netlify's generic 404 — the magic-link reply page
+# and the open-call arrival page have never loaded on the deployed site. The
+# API halves (`/api/reply/*`, `/api/picks/*`) were always fine: `/api/*` above
+# catches them, and it is matched first.
+##
+
+[[redirects]]
+  from = "/picks/*"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/reply/*"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/opencall/*"
+  to = "/dashboard-app/index.html"
+  status = 200
+
 # Casting SPA pages (client-side steps live under /onboarding only)
 [[redirects]]
   from = "/onboarding/test"

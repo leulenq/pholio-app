@@ -6,7 +6,7 @@
  *
  *   MARK      a bounded entity you hold standing in → DivisionMark
  *             (../status — boards only; it is the one tier with a container)
- *   FIGURE    a measured value → Figure, FigureGroup, MatchFigure
+ *   FIGURE    a measured value → Figure, FigureGroup
  *   NOTATION  quiet context → Place, Moment, Freshness, Notation, FieldKey
  *
  * MetaLine joins any of them into the canonical secondary line.
@@ -16,7 +16,6 @@
  * which is how five different `timeAgo` implementations happened.
  */
 export { Figure, FigureGroup } from './Figure';
-export { MatchFigure } from './MatchFigure';
 export { Place } from './Place';
 export { Moment, Freshness } from './Moment';
 export { Notation, FieldKey } from './Notation';
@@ -32,9 +31,6 @@ export {
   heightFigure,
   measurementFigure,
   ageFigure,
-  scoreFigure,
-  scoreTier,
   freshness,
   countLabel,
-  SCORE_TIER_LABELS,
 } from './metaFormat';

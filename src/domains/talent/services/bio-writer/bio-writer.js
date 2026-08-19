@@ -1,7 +1,6 @@
 "use strict";
 
-const Groq = require("groq-sdk");
-const config = require("../../../../config");
+const { createChatCompletion } = require("../writer-shared/groq-client");
 const {
   SYSTEM_PROMPT,
   buildSystemPrompt,
@@ -11,59 +10,107 @@ const {
   normalizeBioOptions,
 } = require("./prompt-builder");
 const { validateBioOutput } = require("./output-validator");
+const { HARD_FAILURE_ISSUES } = require("./quality-rubric");
 
-const BIO_MODEL = "llama-3.3-70b-versatile";
-const MAX_ATTEMPTS = 2;
+// The model comes from config.groq.textModel via writer-shared/groq-client —
+// never hardcoded here. BIO_ANSWER_TOKENS is the expected ANSWER length (a bio
+// is <= 80 words); the shared client adds the reasoning allowance on top when
+// the configured model is a reasoning model, so this stays a plain answer
+// budget rather than a number that has to be re-tuned per model.
+const BIO_ANSWER_TOKENS = 200;
+const MAX_ATTEMPTS = 3;
+const MIN_BEST_EFFORT_WORDS = 12;
 
-let _groq = null;
-
-function getGroq() {
-  if (!_groq) {
-    const apiKey = process.env.GROQ_API_KEY || config.groq?.apiKey;
-    if (!apiKey) {
-      throw new Error("GROQ_API_KEY not configured");
-    }
-    _groq = new Groq({ apiKey });
-  }
-  return _groq;
-}
-
+/**
+ * Strip the wrapper a chat model puts around a one-paragraph answer: a
+ * "Here's the bio:" preamble, markdown emphasis, surrounding quotes, and any
+ * trailing offer to revise. What is left is the bio itself.
+ */
 function stripBioResponse(text) {
   if (!text) return "";
-  let out = text.trim();
+  let out = String(text).trim();
+
+  out = out
+    .replace(/^```[a-z]*\s*/i, "")
+    .replace(/```$/, "")
+    .trim();
+
+  // "Here is the bio:" / "Sure! Here's a refined version:" preambles.
+  // \b matters: without it "Herefordshire-based model: ..." would be eaten.
+  out = out
+    .replace(/^(?:sure|certainly|absolutely|of course)\b[!,.]?\s*/i, "")
+    .replace(/^here(?:'s|’s| is| are)?\b[^\n:]{0,80}:\s*/i, "")
+    .replace(/^(?:bio|refined bio|revised bio|final bio|draft)\s*:\s*/i, "")
+    .trim();
+
+  // Trailing meta-commentary the model tacks on after the paragraph.
+  out = out
+    .replace(
+      /\n+\s*(?:let me know|i hope this|feel free|would you like|note:)[\s\S]*$/i,
+      "",
+    )
+    .trim();
+
+  out = out.replace(/\*\*/g, "").replace(/(^|\s)_([^_]+)_(?=\s|$)/g, "$1$2");
+
   if (
     (out.startsWith('"') && out.endsWith('"')) ||
-    (out.startsWith("'") && out.endsWith("'"))
+    (out.startsWith("'") && out.endsWith("'")) ||
+    (out.startsWith("“") && out.endsWith("”"))
   ) {
     out = out.slice(1, -1).trim();
   }
+
   return out
     .replace(/^bio:\s*/i, "")
-    .replace(/\n+/g, " ")
+    .replace(/\s*\n+\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
 }
 
 function countWords(text) {
-  return text.split(/\s+/).filter(Boolean).length;
+  return String(text || "")
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+function hasHardFailure(issues = []) {
+  return issues.some((issue) => HARD_FAILURE_ISSUES.has(issue));
 }
 
 async function callModel(systemPrompt, userPrompt, { temperature = 0.45 } = {}) {
-  const completion = await getGroq().chat.completions.create({
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    model: BIO_MODEL,
+  const raw = await createChatCompletion({
+    system: systemPrompt,
+    user: userPrompt,
     temperature,
-    max_completion_tokens: 200,
-    top_p: 0.85,
+    maxTokens: BIO_ANSWER_TOKENS,
   });
 
-  return stripBioResponse(completion.choices[0]?.message?.content);
+  return stripBioResponse(raw);
+}
+
+function buildResult(bio, { mode, options, validation, attempts, qualityWarning }) {
+  return {
+    bio,
+    wordCount: countWords(bio),
+    mode,
+    length: options.length,
+    person: options.person,
+    qualityScore: validation.rubric.score,
+    attempts,
+    ...(qualityWarning ? { qualityWarning: true } : {}),
+  };
 }
 
 /**
- * Generate with validation + single retry on weak output.
+ * Generate with validation and bounded retries.
+ *
+ * A draft that fabricates a fact, slips into AI-slop register, or drops a fact
+ * the talent wrote is never returned — the writer retries with a nudge naming
+ * the exact offence, and throws if it cannot produce a clean draft. Only soft
+ * defects (a little short, a little long) fall through as best-effort.
+ *
+ * @param {{ generate?: Function }} params - `generate` is injectable for tests.
  */
 async function runWithValidation({
   context,
@@ -72,23 +119,26 @@ async function runWithValidation({
   mode,
   existingBio,
   options,
+  generate = callModel,
 }) {
-  const { length, person } = options;
   let lastIssues = [];
   let lastBio = "";
+  let lastValidation = null;
+  let lastDetails = {};
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
     const prompt =
       attempt === 0
         ? userPrompt
-        : `${userPrompt}\n\n${buildRetryNudge(lastIssues, options)}`;
+        : `${userPrompt}\n\n${buildRetryNudge(lastIssues, options, lastDetails)}`;
 
-    const raw = await callModel(systemPrompt, prompt, {
-      temperature: attempt === 0 ? 0.45 : 0.35,
+    const raw = await generate(systemPrompt, prompt, {
+      temperature: attempt === 0 ? 0.45 : 0.3,
     });
 
     if (!raw) {
       lastIssues = ["empty"];
+      lastDetails = {};
       continue;
     }
 
@@ -96,55 +146,56 @@ async function runWithValidation({
     const validation = validateBioOutput(raw, context, {
       existingBio,
       mode,
-      length,
-      person,
+      length: options.length,
+      person: options.person,
     });
+    lastValidation = validation;
 
     if (validation.valid) {
-      return {
-        bio: raw,
-        wordCount: countWords(raw),
+      return buildResult(raw, {
         mode,
-        length,
-        person,
-        qualityScore: validation.rubric.score,
+        options,
+        validation,
         attempts: attempt + 1,
-      };
+      });
     }
 
     lastIssues = validation.rubric.issues;
+    lastDetails = {
+      fabrications: validation.fabrications,
+      banned: validation.rubric.banned,
+      droppedUserFacts: validation.droppedUserFacts,
+    };
     console.warn(
       `[Bio Writer] ${mode} attempt ${attempt + 1} below quality bar:`,
       validation.rubric.issues,
     );
   }
 
-  if (lastBio && countWords(lastBio) >= 18) {
+  const softFailureOnly =
+    lastValidation && !hasHardFailure(lastValidation.rubric.issues);
+
+  if (lastBio && softFailureOnly && countWords(lastBio) >= MIN_BEST_EFFORT_WORDS) {
     console.warn(
       `[Bio Writer] ${mode} returning best-effort after ${MAX_ATTEMPTS} attempts`,
     );
-    const validation = validateBioOutput(lastBio, context, {
-      existingBio,
+    return buildResult(lastBio, {
       mode,
-      length,
-      person,
-    });
-    return {
-      bio: lastBio,
-      wordCount: countWords(lastBio),
-      mode,
-      length,
-      person,
-      qualityScore: validation.rubric.score,
+      options,
+      validation: lastValidation,
       attempts: MAX_ATTEMPTS,
       qualityWarning: true,
-    };
+    });
   }
 
+  console.warn(
+    `[Bio Writer] ${mode} rejected after ${MAX_ATTEMPTS} attempts:`,
+    lastIssues,
+  );
   throw new Error("Bio output failed quality validation");
 }
 
-async function refineBio({ context, bio, options = {} }) {
+async function refineBio({ context, bio, options = {}, generate }) {
   const normalized = normalizeBioOptions(options);
   const userPrompt = buildRefinePrompt(context, bio, normalized);
   return runWithValidation({
@@ -154,10 +205,11 @@ async function refineBio({ context, bio, options = {} }) {
     mode: "refine",
     existingBio: bio,
     options: normalized,
+    ...(generate ? { generate } : {}),
   });
 }
 
-async function generateBio({ context, options = {} }) {
+async function generateBio({ context, options = {}, generate }) {
   const normalized = normalizeBioOptions(options);
   const userPrompt = buildGeneratePrompt(context, normalized);
   return runWithValidation({
@@ -166,13 +218,15 @@ async function generateBio({ context, options = {} }) {
     userPrompt,
     mode: "generate",
     options: normalized,
+    ...(generate ? { generate } : {}),
   });
 }
 
 module.exports = {
   refineBio,
   generateBio,
-  BIO_MODEL,
+  BIO_ANSWER_TOKENS,
+  MAX_ATTEMPTS,
   SYSTEM_PROMPT,
   stripBioResponse,
   runWithValidation,

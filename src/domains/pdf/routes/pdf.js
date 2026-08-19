@@ -41,9 +41,7 @@ const {
   validateLayout,
 } = require("../layouts");
 const { requireRole } = require("../../auth/middleware/require-auth");
-const {
-  recordProfileEvent,
-} = require("../../talent/services/intel/capture");
+const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const knex = require("../../../shared/db/knex");
 const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
 const { buildCanonicalStats } = require("../../../shared/lib/stats-formatter");
@@ -319,6 +317,21 @@ function getDemoProfile(slug) {
 function normalizeQueryValue(value) {
   if (Array.isArray(value)) return value[0] ?? undefined;
   return value;
+}
+
+/**
+ * Parse the stored `profiles.pdf_customizations` blob, tier-blind.
+ * Callers decide which parts of it they are allowed to use: theme customization
+ * is Studio+, the agency logo is free.
+ */
+function parseStoredCustomizations(stored) {
+  if (!stored) return null;
+  try {
+    return typeof stored === "string" ? JSON.parse(stored) : stored;
+  } catch (error) {
+    console.error("Error parsing PDF customizations:", error);
+    return null;
+  }
 }
 
 function normalizeCompCardSeed(value) {
@@ -1184,7 +1197,6 @@ async function renderComposedView(req, res, data, isDemo) {
           plan,
           statsBlock,
           imagesById,
-          watermark: !profile.is_pro,
           baseUrl,
           printBleed,
           fontsCss,
@@ -1305,9 +1317,10 @@ async function renderStandardView(req, res, data, isDemo) {
   // Load archetype
   const archetype = await loadArchetype(profile.id);
 
-  // QR code (Pro + non-demo)
+  // QR code (free for every talent — plan §9.5 lists QR in the free comp card).
+  // Demo cards still skip it: the demo slug has no real portfolio to point at.
   let qrCode = null;
-  if (!isDemo && profile.is_pro) {
+  if (!isDemo) {
     try {
       const portfolioUrl = `${req.protocol}://${req.get("host")}/portfolio/${profile.slug}`;
       qrCode = await QRCode.toDataURL(portfolioUrl, { width: 128, margin: 1 });
@@ -1354,7 +1367,6 @@ async function renderStandardView(req, res, data, isDemo) {
       // profile.bust/waist/hips columns (audit P1-6).
       stats: buildCanonicalStats(profile),
       baseUrl,
-      watermark: !profile.is_pro,
     });
   } catch (renderError) {
     console.error("[renderStandardView] ERROR:", renderError.message);
@@ -1368,7 +1380,7 @@ async function renderStandardView(req, res, data, isDemo) {
 }
 
 // Helper function to render PDF view with profile data
-function renderPdfView(req, res, data, isDemo) {
+async function renderPdfView(req, res, data, isDemo) {
   const { profile, images } = data;
   const hero = profile.hero_image_path;
   const gallery = hero ? images.filter((img) => img.path !== hero) : images;
@@ -1482,19 +1494,20 @@ function renderPdfView(req, res, data, isDemo) {
   // Build base URL for images
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  // Generate QR code for Studio+ users linking to portfolio - skip for demo (not studio+)
-  // Note: QR code generation is async, but we'll handle it synchronously for now
-  // If it fails, we'll just skip it
+  // QR code linking to the portfolio — free for every talent (plan §9.5).
+  // Demo cards skip it: the demo slug has no real portfolio to point at.
+  // If generation fails we simply render without it.
   let qrCodeDataUrl = null;
-  if (!isDemo && profile.is_pro) {
+  if (!isDemo) {
     try {
-      // Generate QR code synchronously (this might block, but it's fast)
       const portfolioUrl = `${baseUrl}/portfolio/${profile.slug}`;
-      // QRCode.toDataURL is async, but we'll skip it for now to avoid blocking
-      // We can make this async later if needed
-      qrCodeDataUrl = null; // Skip QR code for now to ensure fast rendering
+      qrCodeDataUrl = await QRCode.toDataURL(portfolioUrl, {
+        width: 128,
+        margin: 1,
+      });
     } catch (error) {
       console.error("QR code generation failed:", error);
+      qrCodeDataUrl = null;
     }
   }
 
@@ -1512,15 +1525,19 @@ function renderPdfView(req, res, data, isDemo) {
   const layoutClasses = generateLayoutClasses(mergedTheme.layout);
   const imageGridCSS = getImageGridCSS(mergedTheme.layout);
 
-  // Get agency logo (Studio+ users only) - skip for demo
+  // Agency logo — free for every talent (plan §9.5 lists logo in the free comp
+  // card, and the logo upload/set/delete routes are already un-gated). Read it
+  // from the stored record directly rather than from `customizations` above,
+  // which stays Studio+ because theme customization is the paid surface.
+  // Skip for demo.
   let agencyLogo = null;
-  if (
-    !isDemo &&
-    profile.is_pro &&
-    customizations &&
-    customizations.agencyLogo
-  ) {
-    agencyLogo = customizations.agencyLogo;
+  if (!isDemo) {
+    const storedCustomizations = parseStoredCustomizations(
+      profile.pdf_customizations,
+    );
+    if (storedCustomizations && storedCustomizations.agencyLogo) {
+      agencyLogo = storedCustomizations.agencyLogo;
+    }
   }
 
   // Disable layout for PDF view - it's a standalone HTML document
@@ -1573,7 +1590,6 @@ function renderPdfView(req, res, data, isDemo) {
       images: gallery,
       hero,
       heightFeet: toFeetInches(profile.height_cm),
-      watermark: !profile.is_pro,
       theme: mergedTheme,
       themeKey: themeKey,
       baseUrl,
@@ -1817,7 +1833,7 @@ router.get("/pdf/view/:slug", async (req, res, next) => {
 
     // Default: new 2-page standard template.  Add ?legacy=true for old 1-page layout.
     if (req.query.legacy === "true") {
-      renderPdfView(req, res, data, isDemo);
+      await renderPdfView(req, res, data, isDemo);
     } else {
       await renderStandardView(req, res, data, isDemo);
     }
@@ -1853,7 +1869,7 @@ router.get("/pdf/view/:slug", async (req, res, next) => {
         );
         try {
           if (req.query.legacy === "true") {
-            renderPdfView(req, res, demoData, true);
+            await renderPdfView(req, res, demoData, true);
           } else {
             await renderStandardView(req, res, demoData, true);
           }
@@ -1879,7 +1895,7 @@ router.get("/pdf/view/:slug", async (req, res, next) => {
             slug,
           );
           try {
-            renderPdfView(req, res, demoData, true);
+            await renderPdfView(req, res, demoData, true);
             return; // Response is sent by res.render()
           } catch (renderError) {
             console.error(
@@ -2359,9 +2375,6 @@ router.get("/pdf/:slug", async (req, res, next) => {
         console.error("[PDF Download] Error logging download analytics:", err);
         // Don't block response - analytics is non-critical
       });
-
-      // Intel Capture v2 — a card pull is a Tier-3 intent event. Self pulls
-      // (the talent generating their own card) are dropped inside capture.
       recordProfileEvent({
         profile,
         action: "card_pull",
@@ -3359,10 +3372,6 @@ router.post(
         return res.status(403).json({ error: error || "Not authorized" });
       }
 
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
-      }
-
       if (!req.file) {
         return res.status(400).json({ error: "Logo file required" });
       }
@@ -3457,10 +3466,6 @@ router.post(
         return res.status(403).json({ error: error || "Not authorized" });
       }
 
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
-      }
-
       const { url, position, size } = req.body;
 
       if (!url || typeof url !== "string") {
@@ -3548,10 +3553,6 @@ router.delete(
 
       if (!authorized) {
         return res.status(403).json({ error: error || "Not authorized" });
-      }
-
-      if (!profile.is_pro) {
-        return res.status(403).json({ error: "Studio+ account required" });
       }
 
       // Load customizations
@@ -3659,14 +3660,12 @@ router.get("/p/:slug", async (req, res) => {
     } catch {
       /* analytics is observability, not behavior */
     }
-    // Intel Capture v2 — physical card tap/scan is a Tier-3 link open.
     recordProfileEvent({
       profile,
       action: "link_open",
       req,
       metadata: { via: "card_short_link" },
     });
-
     return res.redirect(302, `/portfolio/${encodeURIComponent(profile.slug)}`);
   } catch (error) {
     console.warn("[compcard-link] lookup failed:", error.message);

@@ -1,0 +1,271 @@
+/* ============================================================
+   REGISTRY PREFLIGHT — advisory panel inside the apply wizard
+
+   A well, not a card. This sits beside the talent's actual work
+   in the digitals step and must stay subordinate to it: the
+   step's content is the subject, this is the margin note that
+   says whether the subject will pass.
+
+   Secondary text is #5A6472 rather than DESIGN.md's #64748B —
+   on the #F8F8F7 well that slate measures 4.48:1, just under
+   the 4.5:1 the spec's acceptance asks for.
+   ============================================================ */
+
+.panel {
+  --pf-ink: #0f172a;
+  --pf-text-2: #5a6472;
+  --pf-well: #f8f8f7;
+  --pf-border: #e2e8f0;
+  --pf-gold-text: #75501b;
+  --pf-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --pf-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  box-sizing: border-box;
+  margin: 0 0 24px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--pf-well);
+  color: var(--pf-ink);
+  font-family: var(--pf-sans);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+}
+
+.title {
+  margin: 0;
+  min-width: 0;
+  color: var(--pf-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.coverage {
+  margin: 0 0 0 auto;
+  color: var(--pf-text-2);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.route {
+  width: min(280px, 100%);
+}
+
+/* The select's own well background vanishes on a well panel. */
+.route :global(.pholio-custom-select-trigger) {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-color: var(--pf-border);
+  background: #ffffff;
+  font-size: 0.85rem;
+}
+
+.route :global(.pholio-label) {
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  color: var(--pf-text-2);
+}
+
+/* ── coverage schematic ───────────────────────────────────── */
+
+.slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slot {
+  display: inline-flex;
+}
+
+/* ── findings ─────────────────────────────────────────────── */
+
+.rows {
+  display: grid;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--pf-border);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowMark {
+  position: relative;
+  top: 1px;
+}
+
+.rowLabel {
+  min-width: 0;
+  color: var(--pf-ink);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.rowGuidance {
+  min-width: 0;
+  color: var(--pf-text-2);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.rowAction,
+.link {
+  color: var(--pf-gold-text);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.45);
+  transition: color 0.2s var(--pf-ease), border-color 0.2s var(--pf-ease);
+}
+
+.rowAction {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.rowAction:hover,
+.rowAction:focus-visible,
+.link:hover,
+.link:focus-visible {
+  color: var(--pf-ink);
+  border-bottom-color: var(--pf-ink);
+}
+
+/* ── details disclosure ───────────────────────────────────── */
+
+.details {
+  margin-top: 12px;
+}
+
+.detailsToggle {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pf-text-2);
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 0.2s var(--pf-ease);
+}
+
+.detailsToggle:hover {
+  color: var(--pf-ink);
+}
+
+.detailsToggle:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.72);
+  outline-offset: 3px;
+}
+
+.detailsChevron {
+  transition: transform 0.2s var(--pf-ease);
+}
+
+.detailsChevronOpen {
+  transform: rotate(180deg);
+}
+
+.detailsBody {
+  overflow: hidden;
+}
+
+.detailGroup {
+  padding-top: 12px;
+}
+
+.detailTitle {
+  margin: 0;
+  color: var(--pf-ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ── quiet states ─────────────────────────────────────────── */
+
+.note {
+  margin: 12px 0 0;
+}
+
+.noteLine {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--pf-text-2);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.noteLinks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 8px;
+}
+
+.retry:global(.pholio-btn) {
+  margin-top: 12px;
+}
+
+.provenance,
+.caution {
+  margin: 14px 0 0;
+  max-width: 76ch;
+  color: var(--pf-text-2);
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+
+.caution {
+  margin-top: 6px;
+  color: #8a3f2c;
+}
+
+@media (max-width: 640px) {
+  .coverage {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .rowAction {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowAction,
+  .link,
+  .detailsToggle,
+  .detailsChevron {
+    transition: none;
+  }
+}

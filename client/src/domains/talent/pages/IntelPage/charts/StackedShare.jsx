@@ -10,7 +10,7 @@ const GAP = 2; // surface gap between segments — never a stroke
 /**
  * Part-to-whole across an ordered set, as one horizontal stacked bar.
  *
- * Used for submission outcomes (signed → withdrawn) and for the signal
+ * Used for submission outcomes (represented → withdrawn) and for the signal
  * composition (agency attention → passing reach). Both are ordinal, so the
  * segments run dark-to-light along the one validated ramp and the reader sees
  * the order in the colour. Segments are separated by a 2px surface gap rather

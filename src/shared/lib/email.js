@@ -22,6 +22,8 @@ const {
   buildCardDeclinedEmailHtml,
   buildMaterialsRequestedEmailHtml,
   buildGuardianConsentEmailHtml,
+  buildTrialEndingEmailHtml,
+  buildEventSlotEmailHtml,
 } = require("./pholio-email");
 
 /**
@@ -182,7 +184,10 @@ async function sendApplicationStatusEmail({
 }) {
   const messages = {
     accepted: {
-      subject: `Representation update from ${agencyName}`,
+      subject: `Representation offer from ${agencyName}`,
+    },
+    represented: {
+      subject: `Representation confirmed by ${agencyName}`,
     },
     declined: {
       subject: `Application update from ${agencyName}`,
@@ -453,9 +458,82 @@ async function sendMaterialsRequestedEmail({ to, agencyName, items }) {
   });
 }
 
+/**
+ * Studio+ pre-charge notice (trial about to convert).
+ *
+ * Deliberately NOT gated by notification preferences: the two opt-out-able
+ * categories in `shared/services/notifications.js` are profile views and
+ * application updates. A notice that money is about to leave someone's card is
+ * not a product update — suppressing it would be the exact dark pattern ROSCA
+ * exists to prevent — so it is sent like the security emails above.
+ */
+async function sendTrialEndingEmail({
+  to,
+  firstName,
+  trialEndLabel,
+  priceLabel,
+  manageUrl,
+}) {
+  const subject = `Your Studio+ trial ends ${trialEndLabel || "soon"} — then ${priceLabel || "$9.99/month"}`;
+  const html = buildTrialEndingEmailHtml({
+    firstName,
+    trialEndLabel,
+    priceLabel,
+    manageUrl,
+  });
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: emailText.trialEnding({ firstName, trialEndLabel, priceLabel, manageUrl }),
+  });
+}
+
+async function sendEventSlotConfirmedEmail({
+  to,
+  recipientName,
+  talentName,
+  eventName,
+  applicationId,
+}) {
+  return sendEmail({
+    to,
+    subject: `${talentName || "An applicant"} confirmed their slot${eventName ? ` — ${eventName}` : ""}`,
+    html: buildEventSlotEmailHtml({
+      recipientName,
+      talentName,
+      eventName,
+      applicationId,
+      confirmed: true,
+    }),
+  });
+}
+
+async function sendEventSlotDeclinedEmail({
+  to,
+  recipientName,
+  talentName,
+  eventName,
+  applicationId,
+}) {
+  return sendEmail({
+    to,
+    subject: `${talentName || "An applicant"} declined their slot${eventName ? ` — ${eventName}` : ""}`,
+    html: buildEventSlotEmailHtml({
+      recipientName,
+      talentName,
+      eventName,
+      applicationId,
+      confirmed: false,
+    }),
+  });
+}
+
 module.exports = {
   sendEmail,
   sendApplicationStatusEmail,
+  sendEventSlotConfirmedEmail,
+  sendEventSlotDeclinedEmail,
   sendNewMessageEmail,
   sendAgencyInviteEmail,
   sendWelcomeTalentEmail,
@@ -470,4 +548,5 @@ module.exports = {
   sendNewDeviceSignInEmail,
   sendCardDeclinedEmail,
   sendMaterialsRequestedEmail,
+  sendTrialEndingEmail,
 };

@@ -64,7 +64,14 @@ export const RESTRICTED_TALENT_ROUTES = [
   '/dashboard/talent/applications',
 ];
 
+const PROFILE_GATE_EXEMPT_ROUTES = [
+  '/dashboard/talent/applications/requirements',
+];
+
 export const isRestrictedTalentRoute = (pathname = '') =>
+  !PROFILE_GATE_EXEMPT_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  ) &&
   RESTRICTED_TALENT_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );

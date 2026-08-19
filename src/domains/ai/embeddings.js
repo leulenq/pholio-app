@@ -523,7 +523,7 @@ function buildProfileText(profile) {
 }
 
 /**
- * Build image embedding source text from a groq-casting Scout result.
+ * Build image embedding source text from an image analysis result.
  *
  * @param {Object} scout — {face_structure, body_impression, vibe_tags}
  * @returns {string}

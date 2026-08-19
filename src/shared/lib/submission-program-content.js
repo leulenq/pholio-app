@@ -19,7 +19,7 @@ const SUBMISSION_PROGRAM_CONTENT = {
     },
     {
       heading: "Monthly submissions and agency open calls",
-      body: "Free accounts include 5 discovery submissions per calendar month (UTC); this limit keeps agency inboxes high-quality. When an agency invites you through its own open call link, your submission to that agency does not use your monthly allowance. Invited submissions are limited to 3 per month; Studio+ removes the discovery limit.",
+      body: "Every account gets 5 discovery submissions per calendar month (UTC). This is an anti-spam limit, it is the same on every plan, and no payment lifts it. Submissions you make through an agency's own open call link never use that allowance and are unlimited.",
     },
     {
       heading: "What Pholio delivers",

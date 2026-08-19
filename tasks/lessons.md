@@ -756,3 +756,110 @@
 - Tests that assert on flat solid-colour fixtures can encode the bug. Three
   suites asserted a *uniform* skin-toned PNG flags for review — i.e. exactly the
   wall case. Synthesise texture when standing in for a photograph.
+## 2026-08-09 — A tier flag near a submission pipeline is a statutory question
+
+- Implementing the 2026-08 plan's compliance phase, `is_pro` turned out to gate
+  more than the plan's eleven listed sites. The plan predicted this ("assume
+  there are more") and was right: `pool-status.js` derived `DISCOVERABLE` from
+  `profile.is_pro && profile.is_discoverable`, making agency-side visibility a
+  purchased state — the one thing invariant 2 forbids outright. It had zero
+  callers, which is exactly why it was easy to miss and would have been easy to
+  re-wire later. Grep the flag, not the plan's line numbers.
+- The comp card gated far more than the plan's list. `isPro` also hid the whole
+  extended-content block: languages, nationality, union, physical
+  characteristics, specializations, notable work, representation. A free card
+  reaching an agency was missing seven sections and carried a watermark reading
+  **"ZipSite"**. When a payment flag sits on a template, read the whole template
+  — the listed violations were the visible half.
+- Copy is part of the fix. Removing the mechanic while leaving "Unlimited
+  discovery submissions" in the upsell, `upgradeRequired: true` in the 403, and
+  "this limit keeps agency inboxes high-quality" in the disclosure would have
+  left the product still *saying* the thing the code no longer does. Under FTC
+  §5 the claim is the violation.
+- Establish the test baseline against your own HEAD, not the local `main` ref.
+  `main` was 5 commits stale here, so a baseline worktree made three pre-existing
+  failures look like fresh regressions and cost a real detour. `git stash` on the
+  working tree is the honest comparison.
+## 2026-08-09 — Removing a feature means removing what it claimed
+
+- The removal phase kept turning up copy that outlived the code. The agency
+  onboarding email promised "schedule interviews"; the talent notification
+  settings listed interview times as an always-on category; the data-export
+  description claimed interview records. Deleting a router does not retract a
+  promise made in an email template. Grep the feature's *vocabulary*, not just
+  its identifiers.
+- Delete-by-index-range is how you remove the wrong function. Cutting
+  `agency-notifications.js` from the first interview helper to
+  `notifyAgencyNewMessage` also took `notifyAgencyApplicationWithdrawn`, which
+  sat between them — caught only because a whole suite failed to load. When
+  slicing a file between two anchors, list what is actually in the span first.
+- Order the removals so each one shrinks the next. `casting_briefs` was read
+  only by the matching engine; `season.queries.js` was the last reader of the
+  retired interviews and reminders tables. Removing the reader first turns a
+  delicate surgical edit into a plain deletion. When a slice would mean editing
+  a file the next slice deletes, do them in the other order.
+- Drop a table only when the plan says dormant *and* the code agrees.
+  `casting_briefs` had zero writers and no rows, so a drop with a rebuilding
+  `down()` is honest. `interviews` and `reminders` hold real history and stay —
+  application erasure still deletes from them, so retiring the feature does not
+  quietly weaken a talent's erasure request.
+- A "remove X" instruction can still be blocked on a product decision. The plan
+  removes all AI ranking but keeps Discover, and Discover orders by the score
+  being removed. That is not an effort problem, and guessing the replacement
+  ordering would have been inventing product. Ship what is unambiguous, and put
+  the open decision in front of the user with the house precedent attached.
+- Natural-language search and AI ranking are separate product capabilities.
+  When removing match scores and ranking from Discover, preserve the written
+  brief as an input method: parse it into declared factual constraints, apply
+  those constraints strictly, and use a stable directory order for survivors.
+  Do not silently collapse a natural-language workflow into name-only search.
+- A plan item that says to remove misleading claims does not necessarily authorize
+  deleting the product surface. For Intel/analytics, preserve the user-facing
+  capability and replace unsupported intent/attention conclusions with true,
+  attributable data. For "verified adult," build the missing verification layer
+  instead of deleting the state the product needs.
+
+## 2026-08-09 — Honor the requested research method before loading domain guidance
+
+- When the user explicitly asks for web research, treat that as a method constraint:
+  ground the work in current primary web sources and the real repository. Do not
+  pre-empt it with a local domain skill, even when that skill would normally match
+  the topic. Keep source-backed findings separate from implementation judgment.
+
+## 2026-08-10 — “Implement” means inventory the whole product path
+
+- A durable dataset is not a complete product slice when the stated outcome includes live
+  comparisons inside Pholio. Before declaring implementation complete, inventory the full path:
+  authored source, publication, database model, runtime API, matching semantics, user surface,
+  send-time audit, and release verification. If a layer is intentionally deferred, name it before
+  building rather than silently narrowing the request to the most foundational artifact.
+
+## 2026-08-11 — Independent editors inside a page form are not forms
+
+- Before adding a focused editor to an existing page, inspect its ancestor semantics. A local
+  `<form>` inside the profile's page-wide `<form>` is invalid HTML and can turn a harmless Enter
+  key into the wrong submit action. Use a labelled group with an explicit button, intercept Enter
+  only for the local single-line fields, and add a `form form` regression assertion.
+- A new database-backed UI is not locally complete until migrations and publication have been
+  applied to the database serving the dev process. Treat an advisory API's missing-table 503 as a
+  release-state defect to diagnose, not as a frontend retry problem.
+
+## 2026-08-15 — New surfaces must clear the bar of the strongest live pages, verified visually
+
+- Shipping a feature's data plumbing with a first-pass presentation is a regression, not a
+  milestone. Owner review of the FE wave (readiness numeral, requirements ledger, age
+  verification, import overlay) found raw backend vocabulary leaking into copy ("profile",
+  "close-up" as db values), malformed shared border/selector treatments, weak hierarchy, and
+  an overlay positioned wrong. Rules going forward:
+  1. Presentation-layer formatting is mandatory: never render an enum, slug, series id, or
+     backend field name to a user. Every label goes through a copy map.
+  2. Before calling FE work done, run the app and LOOK at it (Playwright screenshots) —
+     compare side-by-side against /media, /profile, Apply Workspace, Settings on origin/main.
+  3. When a component looks malformed, trace the shared component/global.css root cause and
+     fix it everywhere; never patch one instance.
+  4. Redesigns must preserve the strong parts of what they replace; "new" is not a license
+     to be visually weaker. When an owner correction and a plan line conflict (numeral:
+     correction #4 says keep), the dated owner correction governs — re-read it before
+     rebuilding a surface it names.
+  5. Overlay/popup components must use the established portal/positioning pattern; verify
+     placement at common viewport sizes.

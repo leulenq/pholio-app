@@ -22,7 +22,7 @@ export const PRESET_ROLE_LABELS = {
 
 export const ASSIGNABLE_ROLES = [
   { value: 'ADMIN', label: 'Managing Agent', hint: 'Full ops, team & permissions (Principal only)' },
-  { value: 'AGENT', label: 'Agent · Booker', hint: 'Pipeline, casting, roster & messaging.' },
+  { value: 'AGENT', label: 'Agent · Booker', hint: 'Submissions, casting & messaging.' },
   { value: 'SCOUT', label: 'Scout · Junior', hint: 'Discover, review & shortlist — cannot sign talent.' },
   { value: 'VIEWER', label: 'Observer', hint: 'Read-only access across the dashboard.' },
 ];

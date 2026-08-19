@@ -41,8 +41,10 @@ const GENERIC_EXPORT_KEYS = [
   "moderation_queue",
   "image_model_releases",
   "application_submission_boards",
+  "application_spec_snapshots",
   "application_submission_consent_events",
   "talent_submission_packages",
+  "spec_registry_engagement_events",
   "social_accounts",
   "talent_representations",
   "profile_booking_lanes",
@@ -51,6 +53,7 @@ const GENERIC_EXPORT_KEYS = [
   "minor_permits",
   "confirmed_job_safety",
   "adult_context",
+  "age_verifications",
   "profile_field_visibility",
   "csam_escalations",
   "reports_filed",
@@ -60,8 +63,11 @@ const GENERIC_EXPORT_KEYS = [
   "message_reply_tokens",
   "message_reply_session_tokens",
   "comp_card_presets",
+  "comp_card_imports",
   "notifications",
   "onboarding_analytics",
+  "profile_events",
+  "share_tokens",
 ];
 
 // Drift guard: every inventory entry must be accounted for exactly once.

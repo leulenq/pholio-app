@@ -80,7 +80,7 @@ export function DecisionConfirmation({
                 You are about to offer representation to <strong>{talentName}</strong>.
               </p>
               <p className="dc-note">
-                This sends a notification to the talent and moves them onto your roster.
+                This sends the representation decision to the talent. Continue the relationship in your agency system.
               </p>
             </>
           ),

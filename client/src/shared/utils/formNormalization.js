@@ -324,7 +324,7 @@ export function normalizeProfileForSave(formData, measurementsLocked = false) {
     payload.shoe_region = 'US';
   }
 
-  ['ethnicity', 'comfort_levels', 'modeling_categories', 'booking_secondary_lanes', 'union_membership'].forEach(field => {
+  ['ethnicity', 'modeling_categories', 'booking_secondary_lanes', 'union_membership'].forEach(field => {
     if (typeof payload[field] === 'string') {
       try {
         payload[field] = JSON.parse(payload[field]);
@@ -336,6 +336,9 @@ export function normalizeProfileForSave(formData, measurementsLocked = false) {
       }
     }
   });
+  // Adult-only creator context is saved through its own verified, private API.
+  delete payload.comfort_levels;
+  delete payload.onlyfans_url;
 
   payload.booking_primary_lane = normalizeBookingLaneSlug(payload.booking_primary_lane);
   payload.booking_secondary_lanes = normalizeBookingLaneList(payload.booking_secondary_lanes)

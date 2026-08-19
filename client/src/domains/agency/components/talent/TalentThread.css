@@ -140,20 +140,19 @@
 .tt-composer-input::placeholder { color: var(--ag-text-3, #756E68); font-style: normal; font-weight: 400; }
 .tt-composer-send {
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border: none;
-  border-radius: 2px;
-  background: var(--ag-gold, #C9A55A);
-  color: #16130D;
+  background: transparent;
+  color: var(--ag-gold, #C9A55A);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: filter 0.15s, opacity 0.15s, background 0.15s;
+  transition: color 0.15s, opacity 0.15s;
 }
-.tt-composer-send:hover { filter: brightness(1.07); }
-.tt-composer-send:disabled { background: #ece4d4; color: #b3a89a; cursor: default; }
+.tt-composer-send:hover:not(:disabled) { color: #16130D; }
+.tt-composer-send:disabled { background: transparent; color: rgba(26, 24, 21, 0.2); cursor: default; }
 
 /* ---------- NOTES ---------- */
 .tt-log { display: flex; flex-direction: column; margin-top: 16px; }

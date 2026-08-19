@@ -177,7 +177,7 @@ export function boardIdentityStyle(identity) {
 }
 
 /**
- * A board is either a division signing board (roster intake — talent get
+ * A board is either a division intake board (applications get
  * SIGNED) or a client package (talent get CONFIRMED for a client's brief).
  * The stored board_type wins; otherwise a client name or slot target marks
  * it as a package.
@@ -192,11 +192,11 @@ export function resolveBoardType(board) {
 /** Vocabulary per board type — signing language vs packaging language. */
 export const BOARD_VOCAB = {
   division: {
-    decided: 'Signed',
-    decidedLower: 'signed',
-    column: 'Signed',
-    action: 'Sign',
-    toast: 'Signed to the board',
+    decided: 'Represented',
+    decidedLower: 'represented',
+    column: 'Represented',
+    action: 'Offer',
+    toast: 'Marked represented',
   },
   package: {
     decided: 'Confirmed',

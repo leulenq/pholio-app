@@ -33,6 +33,31 @@ function normalizeDigitalSlotPicks(value) {
   );
 }
 
+// `YYYY-MM-DD` or ''. Mirrors normalizeDateOnly on the server.
+function normalizeDateOnly(value) {
+  const text = normalizeString(value).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : '';
+}
+
+function normalizeAvailabilityRange(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const from = normalizeDateOnly(value.from);
+  const to = normalizeDateOnly(value.to);
+  if (!from && !to) return null;
+  return { from: from || null, to: to || null };
+}
+
+/**
+ * BROWSER MIRROR of `canonicalSubmissionPackage` in
+ * `src/domains/talent/services/submission-disclosure-consent.js`. The server
+ * rejects a submission whose consent fingerprint does not match the package it
+ * recomputes, so any divergence here is not a cosmetic bug — it is a submit
+ * button that never works.
+ *
+ * The event keys are spread CONDITIONALLY on `openCallLinkId` for the reason
+ * spelled out on the server: unconditional keys would rewrite the hash of every
+ * representation package and invalidate live drafts.
+ */
 export function canonicalSubmissionPackage({
   agencyId,
   boards = [],
@@ -41,7 +66,11 @@ export function canonicalSubmissionPackage({
   compCardPresetId = null,
   imageIds = [],
   note = '',
+  openCallLinkId = null,
+  availability = null,
+  walkVideoUrl = null,
 } = {}) {
+  const linkId = normalizeString(openCallLinkId);
   return {
     agencyId: normalizeString(agencyId) || null,
     boards: normalizeStringList(boards),
@@ -50,6 +79,13 @@ export function canonicalSubmissionPackage({
     compCardPresetId: normalizeString(compCardPresetId) || null,
     imageIds: normalizeStringList(imageIds),
     note: normalizeString(note).slice(0, 1200),
+    ...(linkId
+      ? {
+          openCallLinkId: linkId,
+          availability: normalizeAvailabilityRange(availability),
+          walkVideoUrl: normalizeString(walkVideoUrl) || null,
+        }
+      : {}),
   };
 }
 

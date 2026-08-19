@@ -22,6 +22,10 @@ const {
 const {
   buildSubmissionPackageFingerprint,
 } = require("../../src/domains/talent/services/submission-disclosure-consent");
+const { validateRegistry } = require("../../scripts/validate-spec-registry");
+const {
+  publishRegistry,
+} = require("../../src/domains/spec-registry/store/publisher");
 
 const SESSION_SECRET = require("../../src/config").sessionSecret;
 
@@ -65,6 +69,7 @@ describe("application drafts", () => {
 
   beforeAll(async () => {
     await knex.migrate.latest();
+    await publishRegistry(knex, validateRegistry());
     await knex("users").insert({
       id: userId,
       email: `application-draft-${userId}@example.com`,
@@ -136,6 +141,18 @@ describe("application drafts", () => {
         slug: `minor-consent-house-${minorAgencyId}`,
         status: "ACTIVE",
         open_boards: JSON.stringify(["editorial"]),
+      },
+    ]);
+    await knex("spec_registry_agency_routes").insert([
+      {
+        agency_id: agencyId,
+        series_id: "models1-uk:online",
+        priority: 10,
+      },
+      {
+        agency_id: agencyId,
+        series_id: "elite-models-na:online-general",
+        priority: 20,
       },
     ]);
     await knex("boards").insert({
@@ -232,7 +249,7 @@ describe("application drafts", () => {
       lock_hero_id: imageId,
       lock_grid_ids: JSON.stringify([fullLengthImageId]),
     });
-  });
+  }, 120000);
 
   afterAll(async () => {
     if (sessionIds.length) {
@@ -336,6 +353,7 @@ describe("application drafts", () => {
               invented: imageId,
             },
             compCardPresetId: presetId,
+            specRegistryRevisionId: "models1-uk:online@1",
             note: "x".repeat(1300),
             consent: true,
             accuracyConfirmed: true,
@@ -362,6 +380,9 @@ describe("application drafts", () => {
       name: "Agency edit",
       seed: "draft-seed",
     });
+    expect(res.body.data.payload.specRegistryRevisionId).toBe(
+      "models1-uk:online@1",
+    );
     expect(res.body.data.payload.note).toHaveLength(1200);
     expect(res.body.data.payload.consent).toBe(true);
     expect(res.headers["cache-control"]).toContain("private");
@@ -674,7 +695,9 @@ describe("application drafts", () => {
     expect(futureSchema.status).toBe(422);
     expect(futureSchema.body).toMatchObject({
       error: "unsupported_draft_schema",
-      supportedSchemaVersion: 1,
+      // The supported version is whatever the shared schema file says today —
+      // pinning the literal made a routine version bump look like a regression.
+      supportedSchemaVersion: DRAFT_SCHEMA_VERSION,
     });
 
     await knex("agencies")
@@ -762,6 +785,16 @@ describe("application drafts", () => {
     ).toBe(false);
     expect(
       agencyDiscovery.body.data.some((agency) => agency.id === agencyId),
+    ).toBe(true);
+
+    const privacyDirectory = await auth(
+      request(app)
+        .get("/api/talent/agencies?includeBlocked=1")
+        .set("Accept", "application/json"),
+    );
+    expect(privacyDirectory.status).toBe(200);
+    expect(
+      privacyDirectory.body.data.some((agency) => agency.id === expiryAgencyId),
     ).toBe(true);
   });
 
@@ -862,6 +895,7 @@ describe("application drafts", () => {
           headshot: imageId,
           full_length: fullLengthImageId,
         },
+        specRegistryRevisionId: "models1-uk:online@1",
         imageIds: [imageId, fullLengthImageId],
         consentConfirmed: true,
       },
@@ -920,9 +954,15 @@ describe("application drafts", () => {
     expect(
       await knex("application_drafts").where({ profile_id: profileId, agency_id: agencyId }).first(),
     ).toBeUndefined();
-    expect(
-      await knex("applications").where({ profile_id: profileId, agency_id: agencyId }).first(),
-    ).toBeTruthy();
+    const applicationRow = await knex("applications")
+      .where({ profile_id: profileId, agency_id: agencyId })
+      .first();
+    expect(applicationRow).toBeTruthy();
+    // The agency's review window is anchored at the send. Without this column
+    // auto-close falls back to `updated_at`, which any later talent-side write
+    // bumps — silently restarting a clock the agency never touched.
+    expect(applicationRow.status_changed_at).toBeTruthy();
+
     const consentEvent = await knex("application_submission_consent_events")
       .where({ application_id: submitted.body.id })
       .orderBy("created_at", "desc")
@@ -964,6 +1004,14 @@ describe("application drafts", () => {
     );
     expect(packagePayload.imageIds).toEqual([imageId, fullLengthImageId]);
     expect(packagePayload.packageSchemaVersion).toBe(2);
+    expect(packagePayload.specRegistryRevisionId).toBe("models1-uk:online@1");
+    const registrySnapshot = await knex("application_spec_snapshots")
+      .where({ application_id: submitted.body.id })
+      .first();
+    expect(registrySnapshot).toMatchObject({
+      revision_id: "models1-uk:online@1",
+      dataset_version: "2026.08.09.2",
+    });
     expect(packagePayload.mediaSetName).toBe("Draft set");
     expect(packagePayload.images.map((image) => image.id)).toEqual([
       imageId,
@@ -1109,10 +1157,48 @@ describe("application drafts", () => {
       "seed=draft-seed",
     );
     await knex("profiles").where({ id: profileId }).update({
+      city: "Live profile changed",
+      nationality: "American",
+      languages: JSON.stringify(["Spanish"]),
+    });
+    const profileDetail = await agencyAuth(
+      request(app)
+        .get(`/api/agency/profiles/${profileId}/details`)
+        .set("Accept", "application/json"),
+    );
+    expect(profileDetail.status).toBe(200);
+    expect(profileDetail.body.profile).toMatchObject({
       city: "Test",
       nationality: "Canadian",
-      languages: JSON.stringify(["English", "French"]),
+      languages: ["English", "French"],
     });
+    expect(profileDetail.body.profile.images.map((image) => image.id)).toEqual([
+      imageId,
+      fullLengthImageId,
+    ]);
+    expect(profileDetail.body.submissionPackage.id).toBeTruthy();
+
+    // The same guarantee for the sibling endpoint. A submission is a frozen
+    // record of what the agency was sent; a talent editing their profile
+    // afterwards must not retroactively rewrite it. This endpoint was only ever
+    // asserted before the live edit above, so the property was untested here.
+    const detailAfterLiveEdit = await agencyAuth(
+      request(app)
+        .get(`/api/agency/applications/${submitted.body.id}/details`)
+        .set("Accept", "application/json"),
+    );
+    expect(detailAfterLiveEdit.status).toBe(200);
+    expect(detailAfterLiveEdit.body.profile).toMatchObject({
+      city: "Test",
+      nationality: "Canadian",
+      languages: ["English", "French"],
+    });
+    expect(detailAfterLiveEdit.body.profile.city).not.toBe("Live profile changed");
+    expect(detailAfterLiveEdit.body.submissionPackage.profile).toMatchObject({
+      city: "Test",
+      nationality: "Canadian",
+    });
+
     expect(agencyDetail.body.submissionPackage.compCard.viewUrl).toContain(
       "layoutFamily=editorial-grid",
     );
@@ -1142,7 +1228,6 @@ describe("application drafts", () => {
       used: 1,
       limit: 5,
       remaining: 4,
-      unlimited: false,
     });
 
     const reusedKey = await auth(
@@ -1248,7 +1333,6 @@ describe("application drafts", () => {
       used: 2,
       limit: 5,
       remaining: 3,
-      unlimited: false,
     });
   });
 
@@ -1304,9 +1388,8 @@ describe("application drafts", () => {
       );
       expect(blocked.status).toBe(403);
       expect(blocked.body).toMatchObject({
-        error: "Monthly application limit reached",
+        error: "monthly_discovery_limit_reached",
         limit: 5,
-        upgradeRequired: true,
       });
       expect(blocked.body.current).toBeGreaterThanOrEqual(5);
       expect(

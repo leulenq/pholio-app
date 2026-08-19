@@ -246,6 +246,48 @@ function buildCardDeclinedEmailHtml({ reason, attempted, nextAttempt, pausesOn, 
   });
 }
 
+/**
+ * The pre-charge notice for a Studio+ trial about to convert.
+ *
+ * A compliance document, not marketing. ROSCA (15 U.S.C. §8403) and the FTC's
+ * negative-option rule expect a clear statement, before the first charge, of
+ * WHEN it lands, HOW MUCH it is and HOW to stop it. So those three facts lead
+ * and sit in a fact list — reference data the reader scans for correctness —
+ * rather than being narrated. No countdown, no benefit re-sell, no "don't miss
+ * out". Ink wordmark, no gold: money is not a celebration.
+ */
+function buildTrialEndingEmailHtml({ firstName, trialEndLabel, priceLabel, manageUrl } = {}) {
+  const amount = priceLabel || "$9.99/month";
+  const when = trialEndLabel || null;
+
+  return render({
+    title: "Your Studio+ trial ends soon",
+    preheader: `${when ? `Ends ${esc(when)}` : "Ending soon"} \u2014 then ${esc(amount)}. Cancel any time before then.`,
+    rows: [
+      space(44), B.wordmark({ tone: "ink" }), space(20), hairline(), space(38),
+      B.statement(when ? `Your trial ends ${esc(when)}.` : "Your Studio+ trial ends soon.", { size: 27 }),
+      space(18),
+      B.lede(`${firstName ? `${esc(firstName)}, o` : "O"}n that date your card is charged ${strong(amount)}, and again each period until you cancel.`),
+      space(32),
+      B.factList([
+        { label: "Trial ends", value: when || "Soon" },
+        { label: "Then", value: amount },
+        { label: "Cancel in", value: "Settings \u2192 Membership" },
+      ]),
+      space(30),
+      B.prose("Cancelling before that date costs nothing. You keep Studio+ until the trial runs out, and the card is never charged.", { size: 15 }),
+      space(32),
+      B.act("Open billing settings", manageUrl || `${app()}/dashboard/talent/settings/subscription`),
+      space(34), hairline(), space(20),
+      B.prose("Everything you have made stays yours either way. Ending Studio+ does not delete your book, your photos or your cards.", { size: 14 }),
+      footer("secure", {
+        reason: "You're getting this because a paid trial on your account is about to convert. It's a billing notice, so it goes out regardless of your notification preferences.",
+        extra: { label: "Billing", href: `${app()}/dashboard/talent/settings/subscription` },
+      }),
+    ],
+  });
+}
+
 module.exports = {
   buildEmailVerificationHtml,
   buildPasswordResetEmailHtml,
@@ -254,4 +296,5 @@ module.exports = {
   buildNewDeviceSignInHtml,
   buildWelcomeTalentEmailHtml,
   buildCardDeclinedEmailHtml,
+  buildTrialEndingEmailHtml,
 };

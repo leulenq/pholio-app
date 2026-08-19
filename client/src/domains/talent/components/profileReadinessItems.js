@@ -161,7 +161,7 @@ const SENSITIVE_READINESS_KEYS = new Set(['measurements', 'photo_full_body', 'we
  */
 const SENSITIVE_IMPROVE_KEYS = new Set(['weight', 'photo_back']);
 
-/** Map profile strength field keys → ProfileNav section ids for gap dots. */
+/** Map readiness field keys → ProfileNav section ids for gap markers. */
 export const READINESS_KEY_TO_NAV_ID = {
   name: 'identity',
   city: 'identity',

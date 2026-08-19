@@ -10,11 +10,11 @@ weighted — the decision stack leads.
 | Block | Question | Instrument |
 |---|---|---|
 | `DecisionStack` | What do I do next? | ranked acts, each with its trigger number |
-| `SubmissionsBlock` | Where do my submissions die? | `ConversionLadder`, `StackedShare`, `ReadClock` |
+| `SubmissionsBlock` | What happened after I submitted? | `ConversionLadder`, `StackedShare`, `ReadClock` |
 | `MaterialsBlock` | Can I send this package today? | `CurrencyAxis`, `RangeMatrix` |
-| `AttentionBlock` | Is anyone with intent looking? | `IntentTrend`, `StackedShare`, `MarketBars`, `RankedBars` |
-| `BookBlock` | Am I leading with my strongest frame? | photo grid + open-rate bars |
-| `MomentumBlock` | Am I gaining ground? | `WeeklyBars` small multiples |
+| `AttentionBlock` | What happened around my profile? | `IntentTrend`, `StackedShare`, `MarketBars`, `RankedBars` |
+| `BookBlock` | Which frames are viewers opening? | photo grid + observed open-rate bars |
+| `MomentumBlock` | How has my activity changed? | `WeeklyBars` small multiples |
 
 ## Structure
 

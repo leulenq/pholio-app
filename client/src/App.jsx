@@ -16,8 +16,9 @@ const InstagramCallbackPage = lazy(() => import('./domains/auth/pages/InstagramC
 const OverviewPage = lazy(() => import('./domains/talent/pages/OverviewPage'));
 const ProfilePage = lazy(() => import('./domains/talent/pages/ProfilePage'));
 const MediaPage = lazy(() => import('./domains/talent/pages/MediaPage'));
-const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const ApplicationsPage = lazy(() => import('./domains/talent/pages/ApplicationsPage'));
+const RequirementsPage = lazy(() => import('./domains/talent/pages/RequirementsPage'));
+const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const MessagesPage = lazy(() => import('./domains/talent/pages/MessagesPage'));
 const ApplyPage = lazy(() => import('./domains/talent/pages/ApplyPage'));
 
@@ -30,20 +31,18 @@ const OpenCallArrivalPage = lazy(() => import('./domains/onboarding/pages/OpenCa
 const AgencyOverview = lazy(() => import('./domains/agency/pages/OverviewPage'));
 const AgencyApplicants = lazy(() => import('./domains/agency/pages/ApplicantsPage'));
 const AgencyDiscover = lazy(() => import('./domains/agency/pages/DiscoverPage'));
+const AgencyEvents = lazy(() => import('./domains/agency/pages/EventsPage'));
+const AgencyEventCall = lazy(() => import('./domains/agency/pages/EventCallPage'));
 const AgencySettings = lazy(() => import('./domains/agency/pages/SettingsPage'));
 const AgencyCasting = lazy(() => import('./domains/agency/pages/CastingPage'));
 const AgencyCastingDetail = lazy(() => import('./domains/agency/pages/CastingDetailPage'));
 const AgencyMessages = lazy(() => import('./domains/agency/pages/MessagesPage'));
 const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'));
-const AgencyInterviews = lazy(() => import('./domains/agency/pages/InterviewsPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
-const AgencyReminders = lazy(() => import('./domains/agency/pages/RemindersPage'));
-const AgencyAnalytics = lazy(() => import('./domains/agency/pages/AnalyticsPage'));
-const AgencyRoster = lazy(() => import('./domains/agency/pages/RosterPage'));
-const AgencyCalendar = lazy(() => import('./domains/agency/pages/BookingDeskPage'));
 const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
 const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
+const PickListPage = lazy(() => import('./domains/events/pages/PickListPage'));
 const AuthEntrySplashPreview = lazy(() => import('./domains/auth/pages/AuthEntrySplashPreview'));
 const ModerationQueuePage = lazy(() => import('./domains/moderation/pages/ModerationQueuePage'));
 const MockConsentPage = lazy(() => import('./domains/talent/pages/ProfilePage/MockConsentPage'));
@@ -95,6 +94,9 @@ function App() {
           {/* Magic-link message reply (standalone, no login wall) */}
           <Route path="/reply/:token" element={<ReplyPage />} />
 
+          {/* Designer pick list (standalone, token only — designers have no account) */}
+          <Route path="/picks/:token" element={<PickListPage />} />
+
           {/* The post-onboarding reveal is gone; old links land on the dashboard. */}
           <Route path="/reveal" element={<Navigate to="/dashboard/talent" replace />} />
           <Route
@@ -117,9 +119,13 @@ function App() {
             <Route path="/dashboard/talent" element={<OverviewPage />} />
             <Route path="/dashboard/talent/profile" element={<ProfilePage />} />
             <Route path="/dashboard/talent/media" element={<MediaPage />} />
-            <Route path="/dashboard/talent/analytics" element={<IntelPage />} />
+            <Route path="/dashboard/talent/analytics" element={<Navigate to="/dashboard/talent/intel" replace />} />
             <Route path="/dashboard/talent/intel" element={<IntelPage />} />
             <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
+            <Route
+              path="/dashboard/talent/applications/requirements"
+              element={<RequirementsPage />}
+            />
             <Route path="/dashboard/talent/messages" element={<MessagesPage />} />
             <Route path="/dashboard/talent/settings" element={<SettingsPage />} />
             <Route path="/dashboard/talent/settings/:section" element={<SettingsPage />} />
@@ -143,11 +149,9 @@ function App() {
               <Route path="/dashboard/agency/casting" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/casting/:boardId" element={<LegacyAgencySigningRedirect />} />
               <Route path="/dashboard/agency/discover" element={<AgencyDiscover />} />
-              <Route path="/dashboard/agency/roster" element={<AgencyRoster />} />
-              <Route path="/dashboard/agency/calendar" element={<AgencyCalendar />} />
-              <Route path="/dashboard/agency/interviews" element={<AgencyInterviews />} />
-              <Route path="/dashboard/agency/reminders" element={<AgencyReminders />} />
-              <Route path="/dashboard/agency/analytics" element={<AgencyAnalytics />} />
+              <Route path="/dashboard/agency/events" element={<AgencyEvents />} />
+              <Route path="/dashboard/agency/events/:linkId" element={<AgencyEventCall />} />
+              <Route path="/dashboard/agency/roster" element={<Navigate to="/dashboard/agency/submissions" replace />} />
               <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
               <Route path="/dashboard/agency/team" element={<AgencyTeam />} />
               <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />

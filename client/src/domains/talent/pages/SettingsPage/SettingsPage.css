@@ -205,6 +205,10 @@
   background: none;
   text-align: left;
   cursor: pointer;
+  /* The rail's label/summary pair inherits its tracking from this box. Stated
+     here now that global.css no longer resets bare <button> inside the SPA. */
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
   color: var(--set-text-soft);
   transition: color 0.25s var(--set-ease);
 }
@@ -980,6 +984,22 @@
   line-height: 1.55;
   color: var(--set-text-soft);
 }
+
+/* Post-portal status and the jurisdiction refusal. Both are statements of fact,
+   so they read as prose on the card — not an alert, not a badge, not a stripe.
+   A hairline above separates them from the plan line without adding a box. */
+.set-plan__status {
+  max-width: 60ch;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--set-hair);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--set-text);
+}
+
+.set-plan__status--blocked { color: var(--set-text-soft); }
 
 .set-plan__method {
   display: flex;

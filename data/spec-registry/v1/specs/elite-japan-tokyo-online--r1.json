@@ -1,0 +1,545 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "elite-japan-tokyo:online",
+  "revisionId": "elite-japan-tokyo:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": {
+      "id": "elite-model-japan",
+      "name": "Elite Model Japan",
+      "legalName": null,
+      "officialDomains": [
+        "elite.co.jp"
+      ]
+    },
+    "office": {
+      "id": "elite-japan-tokyo",
+      "name": "Tokyo"
+    },
+    "market": {
+      "kind": "city",
+      "code": "jp-tokyo",
+      "countryCodes": [
+        "JP"
+      ],
+      "city": "Tokyo"
+    },
+    "channel": {
+      "id": "elite-japan-online-application",
+      "type": "official_web_form",
+      "url": "https://www.elite.co.jp/en/application/"
+    },
+    "divisions": {
+      "mode": "unspecified",
+      "values": []
+    },
+    "applicantTracks": {
+      "mode": "unspecified",
+      "values": []
+    },
+    "evidenceIds": [
+      "elite-japan-en-application-heights",
+      "elite-japan-en-application-images",
+      "elite-japan-ja-application-file-size"
+    ]
+  },
+  "lifecycle": {
+    "observedOn": "2026-08-09",
+    "effectiveFrom": null,
+    "effectiveUntil": null,
+    "reviewedOn": "2026-08-09",
+    "nextReviewOn": "2026-11-07"
+  },
+  "rules": {
+    "shots": {
+      "count": {
+        "minimum": 5,
+        "maximum": null,
+        "basis": "explicit_text",
+        "evidenceIds": [
+          "elite-japan-en-application-images"
+        ]
+      },
+      "allowImageReuseAcrossSlots": null,
+      "slots": []
+    },
+    "setWide": [],
+    "files": [
+      {
+        "id": "image-file-size-maximum",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "file.size_bytes",
+          "operator": "lte",
+          "value": 5000000,
+          "unit": "byte"
+        },
+        "appliesWhen": null,
+        "sourceLabel": "（1ファイルあたり5MBまで）",
+        "evidenceIds": [
+          "elite-japan-ja-application-file-size"
+        ],
+        "matchability": "automatic",
+        "scope": "per_file",
+        "sourceValue": {
+          "value": 5,
+          "unit": "MB",
+          "normalization": "decimal_conservative"
+        }
+      }
+    ],
+    "eligibility": [
+      {
+        "id": "male-minimum-height",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "applicant.height_cm",
+          "operator": "gte",
+          "value": 183,
+          "unit": "cm"
+        },
+        "appliesWhen": {
+          "field": "applicant.gender",
+          "operator": "equals",
+          "value": "male",
+          "unit": null
+        },
+        "sourceLabel": "Male: Minimum Height 183cm",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ],
+        "matchability": "automatic"
+      },
+      {
+        "id": "female-minimum-height",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "applicant.height_cm",
+          "operator": "gte",
+          "value": 173,
+          "unit": "cm"
+        },
+        "appliesWhen": {
+          "field": "applicant.gender",
+          "operator": "equals",
+          "value": "female",
+          "unit": null
+        },
+        "sourceLabel": "Female: Minimum Height 173cm",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ],
+        "matchability": "automatic"
+      }
+    ],
+    "applicationFields": [
+      {
+        "id": "gender",
+        "field": "applicant.gender",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Gender",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "first-name",
+        "field": "applicant.first_name",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "First Name",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "last-name",
+        "field": "applicant.last_name",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Family Name",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "email-address",
+        "field": "contact.email",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Email Address",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "address",
+        "field": "contact.address",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Address",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "natural-hair-color",
+        "field": "appearance.natural_hair_color",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Natural Hair Color",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "natural-eye-color",
+        "field": "appearance.natural_eye_color",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Natural Eye Color",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "height",
+        "field": "measurements.height",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Height(Cm)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "weight",
+        "field": "measurements.weight",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Weight(Kg)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "chest",
+        "field": "measurements.chest",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Chest(Cm)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "waist",
+        "field": "measurements.waist",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Waist(Cm)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "hips",
+        "field": "measurements.hips",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Hips(Cm)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "clothing-size",
+        "field": "measurements.clothing_size",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Clothing Size(S/M/L)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "shoe-size",
+        "field": "measurements.shoe_size",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Shoe Size(Cm)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      },
+      {
+        "id": "instagram",
+        "field": "social.account",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "Social Media Account(e.g. Instagram)",
+        "evidenceIds": [
+          "elite-japan-en-application-heights"
+        ]
+      }
+    ]
+  },
+  "unknowns": [
+    {
+      "fact": "shots.count.maximum",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The English application page says at least five images but does not publish a maximum.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "shots.types",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The published route does not name image types, views, or presentation slots.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "shots.image_reuse",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The route does not define named slots or say whether one image may satisfy more than one target.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.clothing",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No clothing guidance is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.hair",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No hair-presentation guidance is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.makeup",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No makeup guidance is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.background",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No background guidance is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.lighting",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No lighting guidance is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.color_mode",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No colour-mode guidance is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.filters",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No filter policy is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.effects",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No effects policy is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.retouching",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No retouching policy is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "presentation.image_quality",
+      "appliesWhen": null,
+      "reason": "ambiguous",
+      "note": "The English route asks for quality pictures but publishes no quality criteria.",
+      "evidenceIds": [
+        "elite-japan-en-application-images"
+      ]
+    },
+    {
+      "fact": "files.mime_types",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The form names an image upload but does not publish accepted file types.",
+      "evidenceIds": [
+        "elite-japan-ja-application-file-size"
+      ]
+    },
+    {
+      "fact": "files.dimensions",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No image-dimension limit is published.",
+      "evidenceIds": [
+        "elite-japan-ja-application-file-size"
+      ]
+    },
+    {
+      "fact": "files.total_size",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No total upload-size limit is published.",
+      "evidenceIds": [
+        "elite-japan-ja-application-file-size"
+      ]
+    },
+    {
+      "fact": "eligibility.age",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No age floor or range is published on this route.",
+      "evidenceIds": [
+        "elite-japan-en-application-heights"
+      ]
+    },
+    {
+      "fact": "eligibility.height",
+      "appliesWhen": {
+        "field": "applicant.gender",
+        "operator": "equals",
+        "value": "non_binary",
+        "unit": null
+      },
+      "reason": "not_published",
+      "note": "The form offers Non Binary, but published height floors cover only Male and Female.",
+      "evidenceIds": [
+        "elite-japan-en-application-heights"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "elite-japan-en-application-heights",
+      "authority": "first_party_published",
+      "publisher": "Elite Model Japan",
+      "url": "https://www.elite.co.jp/en/application/",
+      "title": "APPLICATION ｜ elite model Japan",
+      "locale": "en",
+      "retrievedOn": "2026-08-09",
+      "locator": {
+        "kind": "text_fragment",
+        "value": "Male: Minimum Height 183cm"
+      },
+      "excerpt": "Male: Minimum Height 183cm; Female: Minimum Height 173cm.",
+      "archivedUrl": null,
+      "contentHash": null
+    },
+    {
+      "id": "elite-japan-en-application-images",
+      "authority": "first_party_published",
+      "publisher": "Elite Model Japan",
+      "url": "https://www.elite.co.jp/en/application/",
+      "title": "APPLICATION ｜ elite model Japan",
+      "locale": "en",
+      "retrievedOn": "2026-08-09",
+      "locator": {
+        "kind": "text_fragment",
+        "value": "attach at least 5 quality pictures"
+      },
+      "excerpt": "Attach at least 5 quality pictures for examination.",
+      "archivedUrl": null,
+      "contentHash": null
+    },
+    {
+      "id": "elite-japan-ja-application-file-size",
+      "authority": "first_party_published",
+      "publisher": "Elite Model Japan",
+      "url": "https://www.elite.co.jp/application/",
+      "title": "APPLICATION ｜ elite model Japan",
+      "locale": "ja-JP",
+      "retrievedOn": "2026-08-09",
+      "locator": {
+        "kind": "text_fragment",
+        "value": "1ファイルあたり5MBまで"
+      },
+      "excerpt": "（1ファイルあたり5MBまで）",
+      "archivedUrl": null,
+      "contentHash": null
+    }
+  ],
+  "review": {
+    "authority": "first_party_published",
+    "method": "dual_reviewer",
+    "reviewers": [
+      {
+        "id": "pholio-research-reviewer-1",
+        "reviewedOn": "2026-08-09"
+      },
+      {
+        "id": "normalization-review-20260809",
+        "reviewedOn": "2026-08-09"
+      }
+    ],
+    "notes": "Verified and normalization-reviewed against the English and Japanese first-party application routes. The 5 MB limit is normalized to 5,000,000 bytes using the package's conservative decimal convention."
+  }
+}

@@ -110,6 +110,64 @@ The URL fallback is already active and verified.
 - Brand color: `#C9A55A`
 - Accent: `#050505`
 
+### 5. Re-provision the live product description — ⚠️ REQUIRED BEFORE NEXT RELEASE
+
+The Studio+ description was rewritten in code (`scripts/setup-stripe-billing.js`,
+`PRODUCT_DESCRIPTION`) to craft-only copy. **The live Stripe product
+`prod_UlvSm7FpMYpAfE` still carries the old description** — Stripe objects are
+not managed by this repo, and `ensureProduct()` reuses an existing product
+without rewriting it, so no deploy will ever change it. This is a runbook step,
+not a code effect.
+
+| | Copy |
+|---|---|
+| **Live now (wrong)** | `Premium talent portfolio tools — analytics, comp cards, and unlimited agency applications. Includes a 14-day free trial.` |
+| **Must become** | `Premium comp-card themes and customization, print-ready exports, and extended portfolio analytics. Includes a 14-day free trial.` |
+
+Why it matters: "unlimited agency applications" is a **false claim on a billing
+surface**. The application quota is flat and tier-blind
+(`src/domains/talent/services/application-quota.js`), and payment changes
+nothing an agency sees or receives. That sentence appears on live Checkout,
+invoices, and receipts.
+
+Do it in **either** place (both are one action, no deploy needed):
+
+```bash
+# Live mode — requires the sk_live_... key
+stripe products update prod_UlvSm7FpMYpAfE \
+  --description "Premium comp-card themes and customization, print-ready exports, and extended portfolio analytics. Includes a 14-day free trial."
+```
+
+…or Dashboard → [Studio+ product (live)](https://dashboard.stripe.com/products/prod_UlvSm7FpMYpAfE)
+→ **Edit product** → Description.
+
+Also apply the same edit to the **sandbox** product `prod_Ulux53KHpmbtqh`, so
+test-mode checkout screenshots match production.
+
+Verification: re-run `node scripts/setup-stripe-billing.js` (read-only without
+`--write`). It now prints a loud drift warning whenever Stripe's description
+differs from `PRODUCT_DESCRIPTION`; a clean run means the re-provision landed.
+
+### 6. Register the checkout geofence env var (optional)
+
+`POST /stripe/create-checkout-session` refuses paid checkout from blocked US
+states (see `src/shared/lib/checkout-jurisdiction.js`). Default is
+`STUDIO_BLOCKED_REGIONS=CA` (US-California, pending counsel on Cal. Lab. Code
+§1702.1 / §1701) and needs **no** Netlify variable — the default is compiled in,
+which matters given the 4KB env ceiling documented above. Set the variable only
+to change the list (comma-separated USPS state codes) or to disable the fence
+entirely with an empty value:
+
+```bash
+STUDIO_BLOCKED_REGIONS=            # fence off — checkout open everywhere
+STUDIO_BLOCKED_REGIONS=CA,NJ       # block California and New Jersey
+```
+
+The fence is **US-state scoped and fails open**: a geolocation timeout, error,
+or unknown IP always allows checkout. It never affects the free tier, and it
+never blocks Canada (`CA` here is a US state code matched only when the
+country is `US`).
+
 ## Verify
 
 1. Deploy Netlify with live env vars

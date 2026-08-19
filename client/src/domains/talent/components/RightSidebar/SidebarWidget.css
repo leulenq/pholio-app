@@ -1,24 +1,5 @@
 /* Shared Widget Styles - Final Polish */
 
-/* Momentum Widget Enhanced */
-.momentum-widget .momentum-headline {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.momentum-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #C9A55A;
-}
-
-.momentum-label {
-  font-size: 0.875rem;
-  color: #64748B;
-}
-
 .sidebar-widget {
   background: white;
   border-radius: 12px;

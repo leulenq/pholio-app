@@ -13,11 +13,9 @@ import {
 } from '@dnd-kit/core';
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
-import FitBriefsPanel from '../components/FitBriefs/FitBriefsPanel';
 import BoardIdentityEditor from '../components/BoardIdentityEditor';
-import { StatusText, MatchScore } from '../components/ui';
+import { StatusText } from '../components/ui';
 import { DivisionMark } from '../components/status';
-import { normalizeScore, resolveTier, MATCH_TIER_LABELS } from '../lib/matchTier';
 import {
   resolveBoardIdentity, boardIdentityStyle, resolveBoardType, BOARD_VOCAB,
 } from '../lib/board-identity';
@@ -25,14 +23,15 @@ import { useCardButton } from '../hooks/useCardButton';
 import './CastingPage.css';
 
 /* ---- Pipeline classification -------------------------------------------
-   Three working columns carry the signing ladder; the two soft outcomes
+   Four working columns carry the signing ladder; the two soft outcomes
    (kept on file, passed) live on a quiet shelf below the rail. Anything the
    backend sends that we don't recognize lands in New so nothing is lost. */
 const classify = (s) => {
   // The middle rungs of the ladder — more digitals requested, meeting
   // scheduled — are shortlist work-in-progress, not new submissions.
   if (['shortlisted', 'requested_more', 'meeting_requested'].includes(s)) return 'shortlist';
-  if (['represented', 'booked', 'accepted', 'signed', 'development'].includes(s)) return 'signed';
+  if (['accepted', 'development'].includes(s)) return 'offered';
+  if (s === 'represented') return 'represented';
   if (s === 'kept_on_file') return 'file';
   if (['declined', 'passed'].includes(s)) return 'passed';
   return 'new';
@@ -41,7 +40,8 @@ const classify = (s) => {
 const COLUMNS = [
   { key: 'new', title: 'New submissions', empty: 'New submissions land here for first review.' },
   { key: 'shortlist', title: 'Shortlisted', empty: 'Shortlist promising faces to line them up for a meeting.' },
-  { key: 'signed', title: null, empty: null }, // title + empty copy come from the board vocabulary
+  { key: 'offered', title: 'Offered', empty: 'Representation offers waiting on an agreement appear here.' },
+  { key: 'represented', title: null, empty: null }, // title + empty copy come from the board vocabulary
 ];
 
 const SHELVES = [
@@ -69,43 +69,17 @@ function toTalent(c) {
     type: c.archetype || 'editorial',
     status: c.backendStatus || 'submitted',
     location: c.location || null,
-    match: c.score ?? null,
   };
 }
 
-/* ---- Fit readout (page-scoped) ------------------------------------------
-   The board fit for THIS surface only: a hairline meter under the photo plus
-   plain inline text. Tier logic is the shared matchTier resolver; only the
-   presentation is local. The global MatchScore chip is untouched elsewhere. */
-function FitLine({ score }) {
-  if (score == null) return null;
-  const n = normalizeScore(score);
-  const tier = resolveTier(n);
-  return (
-    <span className={`fit-line fit-line--${tier}`} aria-label={`Board fit ${n}, ${MATCH_TIER_LABELS[tier]}`}>
-      Fit <span className="fit-num">{n}</span>
-      <span className="fit-tier"> — {MATCH_TIER_LABELS[tier]}</span>
-    </span>
-  );
-}
-
-function FitMeter({ score }) {
-  if (score == null) return <span className="fit-meter fit-meter--none" aria-hidden="true" />;
-  const n = normalizeScore(score);
-  return (
-    <span className={`fit-meter fit-meter--${resolveTier(n)}`} aria-hidden="true">
-      <i style={{ width: `${n}%` }} />
-    </span>
-  );
-}
-
-function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, onPass, busy }) {
+function RailCard({ c, column, vocab, onOpen, onShortlist, onOffer, onRepresent, onNewFace, onPass, busy }) {
   const reduceMotion = useReducedMotion();
   const status = c.backendStatus || 'submitted';
   const cardButtonProps = useCardButton(() => onOpen(c), { disabled: busy });
-  const showActions = column !== 'signed';
+  const showActions = column !== 'represented';
   // Shortlist cards mid-conversation carry their sub-state as plain text.
-  const showSubState = (column === 'signed') || (column === 'shortlist' && status !== 'shortlisted');
+  const showSubState = ['offered', 'represented'].includes(column)
+    || (column === 'shortlist' && status !== 'shortlisted');
   // Drag is a pointer affordance only (8px activation keeps clicks working);
   // keyboard users move cards with the explicit labeled actions.
   const { setNodeRef, listeners, transform, isDragging } = useDraggable({
@@ -134,13 +108,16 @@ function RailCard({ c, column, vocab, onOpen, onShortlist, onSign, onNewFace, on
       transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="rr-photo" style={{ backgroundImage: c.avatar ? `url(${c.avatar})` : 'none' }}>
-        <MatchScore score={c.score} size="xs" tone="overlay" className="rr-card-match" />
         {showActions && (
           <div className="rr-acts" onClick={(e) => e.stopPropagation()}>
             {column === 'new' && (
               <button className="rr-act" disabled={busy} onClick={() => onShortlist(c)}>Shortlist</button>
             )}
-            <button className="rr-act rr-act--sign" disabled={busy} onClick={() => onSign(c)}>{vocab.action}</button>
+            {column === 'offered' ? (
+              <button className="rr-act rr-act--sign" disabled={busy} onClick={() => onRepresent(c)}>Mark represented</button>
+            ) : (
+              <button className="rr-act rr-act--sign" disabled={busy} onClick={() => onOffer(c)}>{vocab.action}</button>
+            )}
             {column === 'shortlist' && (
               <button className="rr-act" disabled={busy} onClick={() => onNewFace(c)}>New Face</button>
             )}
@@ -234,7 +211,6 @@ function Shelf({ title, items, onOpen }) {
                   />
                   <span className="rr-shelf-name">{c.name}</span>
                   <DivisionMark division={c.archetype || 'editorial'} size="sm" />
-                  {c.score != null && <MatchScore score={c.score} size="xs" tone="overlay" />}
                 </button>
               </li>
             ))}
@@ -249,7 +225,6 @@ function CastingDetailPage() {
   const { boardId } = useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [view, setView] = useState('board');
   const [selected, setSelected] = useState(null);
   const [identityOpen, setIdentityOpen] = useState(false);
 
@@ -299,23 +274,25 @@ function CastingDetailPage() {
   });
 
   const shortlist = useMutation({ mutationFn: (id) => shortlistApplication(id), onSuccess: () => { refresh(); toast.success('Shortlisted'); }, onError: () => toast.error('Action failed') });
-  const sign = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success(vocab.toast); }, onError: () => toast.error('Action failed') });
+  const offer = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Representation offered'); }, onError: () => toast.error('Action failed') });
+  const represent = useMutation({ mutationFn: (id) => updateCastingApplicationStage(id, { status: 'represented' }), onSuccess: () => { refresh(); toast.success(vocab.toast); }, onError: () => toast.error('Action failed') });
   const newFace = useMutation({ mutationFn: (id) => updateCastingApplicationStage(id, { status: 'development' }), onSuccess: () => { refresh(); toast.success('Development offer — New Face'); }, onError: () => toast.error('Action failed') });
   const pass = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
-  const busyId = (shortlist.isPending && shortlist.variables) || (sign.isPending && sign.variables)
+  const busyId = (shortlist.isPending && shortlist.variables) || (offer.isPending && offer.variables)
+    || (represent.isPending && represent.variables)
     || (newFace.isPending && newFace.variables) || (pass.isPending && pass.variables)
     || (stageMove.isPending && stageMove.variables?.applicationId) || null;
 
-  // Bucket every candidate once; columns keep the backend's score ordering.
+  // Bucket every candidate once; the backend supplies a stable chronology.
   const buckets = useMemo(() => {
-    const b = { new: [], shortlist: [], signed: [], file: [], passed: [] };
+    const b = { new: [], shortlist: [], offered: [], represented: [], file: [], passed: [] };
     candidates.forEach((c) => b[classify(c.backendStatus)].push(c));
     return b;
   }, [candidates]);
 
   const wrapped = board?.is_active === false;
   const target = board?.target_slots || 0;
-  const signedCount = buckets.signed.length;
+  const representedCount = buckets.represented.length;
   const closes = closeText(board?.closes_at, wrapped);
 
   // The plate carries the time signal; the docket carries the working counts.
@@ -328,7 +305,7 @@ function CastingDetailPage() {
         : null;
 
   const docket = [
-    target > 0 && { label: 'Slots', value: `${signedCount} of ${target} ${vocab.decidedLower}` },
+    target > 0 && { label: 'Slots', value: `${representedCount} of ${target} ${vocab.decidedLower}` },
     { label: 'In consideration', value: candidates.length },
     buckets.new.length > 0 && { label: 'Awaiting review', value: buckets.new.length, gold: true },
     buckets.shortlist.length > 0 && { label: 'Shortlisted', value: buckets.shortlist.length },
@@ -337,7 +314,8 @@ function CastingDetailPage() {
   const cardHandlers = {
     onOpen: (c) => setSelected(toTalent(c)),
     onShortlist: (c) => shortlist.mutate(c.applicationId ?? c.id),
-    onSign: (c) => sign.mutate(c.applicationId ?? c.id),
+    onOffer: (c) => offer.mutate(c.applicationId ?? c.id),
+    onRepresent: (c) => represent.mutate(c.applicationId ?? c.id),
     onNewFace: (c) => newFace.mutate(c.applicationId ?? c.id),
     onPass: (c) => pass.mutate(c.applicationId ?? c.id),
   };
@@ -347,7 +325,8 @@ function CastingDetailPage() {
   const DROP_TARGETS = {
     new: { status: 'submitted', label: 'New submissions' },
     shortlist: { status: 'shortlisted', label: 'Shortlisted' },
-    signed: { status: 'represented', label: vocab.column },
+    offered: { status: 'accepted', label: 'Offered' },
+    represented: { status: 'represented', label: vocab.column },
   };
   const onDragEnd = ({ active, over }) => {
     if (!over) return;
@@ -400,21 +379,7 @@ function CastingDetailPage() {
         </div>
       </header>
 
-      <div className="rr-viewswitch" role="tablist" aria-label="Board view">
-        {[['board', 'Pipeline'], ['briefs', 'Fit Briefs']].map(([key, label]) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={view === key}
-            className={`rr-viewtab${view === key ? ' rr-viewtab--on' : ''}`}
-            onClick={() => setView(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {view === 'board' && (
+      {(
         <>
           {isLoading && (
             <div className="rr-rail" aria-hidden="true">
@@ -449,7 +414,7 @@ function CastingDetailPage() {
                       title={col.title || vocab.column}
                       empty={col.empty
                         || `No one ${vocab.decidedLower} ${vocab === BOARD_VOCAB.package ? 'for this package' : 'to this board'} yet.`}
-                      note={col.key === 'signed' && target > 0 ? `${signedCount} of ${target} slots filled` : null}
+                      note={col.key === 'represented' && target > 0 ? `${representedCount} of ${target} slots filled` : null}
                       items={buckets[col.key]}
                       vocab={vocab}
                       busyId={busyId}
@@ -475,8 +440,6 @@ function CastingDetailPage() {
           )}
         </>
       )}
-
-      {view === 'briefs' && <FitBriefsPanel boardId={boardId} />}
 
       {board && (
         <BoardIdentityEditor board={board} open={identityOpen} onClose={() => setIdentityOpen(false)} />

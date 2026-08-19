@@ -1,0 +1,181 @@
+/*
+ * Digitals freshness — the state of the set, in the Book's own voice.
+ *
+ * Mono for the state word and the label, Inter 300 for the guidance sentence,
+ * 2px editorial fields, one gold accent. The state is set as coloured *text*,
+ * never a badge or a pill, and never a coloured dot — both are banned patterns.
+ */
+
+.mw-fresh {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.mw-fresh__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.mw-fresh__state {
+  font-family: var(--mw-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+/* Four states, four readings. `undated` is deliberately not styled as an error:
+   it is an unanswered question, not a failure. */
+.mw-fresh__state--current {
+  color: var(--mw-gold, #c9a55a);
+}
+
+.mw-fresh__state--aging {
+  color: rgba(26, 26, 26, 0.62);
+}
+
+.mw-fresh__state--stale {
+  color: #9a3412;
+}
+
+.mw-fresh__state--undated {
+  color: rgba(26, 26, 26, 0.42);
+}
+
+.mw-fresh__guidance {
+  flex: 1 1 22ch;
+  min-width: 0;
+  font-family: var(--mw-sans, Inter, sans-serif);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--mw-text-soft, rgba(26, 26, 26, 0.62));
+}
+
+.mw-fresh__action {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  /* The global button reset injects border-radius: 999px, which curls this
+     underline-only treatment into arcs — the "malformed border" defect. */
+  border-radius: 0;
+  border-bottom: 1px solid var(--mw-hair-gold, rgba(201, 165, 90, 0.4));
+  background: none;
+  font-family: var(--mw-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mw-gold, #c9a55a);
+  cursor: pointer;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mw-fresh__action:hover {
+  color: var(--mw-text, #1a1a1a);
+  border-bottom-color: var(--mw-text, #1a1a1a);
+}
+
+.mw-fresh__action:focus-visible {
+  outline: 2px solid var(--mw-gold, #c9a55a);
+  outline-offset: 3px;
+}
+
+.mw-fresh__form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mw-fresh__label {
+  font-family: var(--mw-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mw-text-faint, rgba(26, 26, 26, 0.42));
+}
+
+.mw-fresh__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mw-fresh__input {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 9px 12px;
+  font-family: var(--mw-sans, Inter, sans-serif);
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--mw-text, #1a1a1a);
+  background: #fff;
+  border: 1px solid var(--mw-hair, rgba(26, 26, 26, 0.08));
+  border-radius: 2px;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mw-fresh__input:focus {
+  outline: none;
+  border-color: rgba(201, 165, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+}
+
+.mw-fresh__submit,
+.mw-fresh__cancel {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 9px 16px;
+  font-family: var(--mw-sans, Inter, sans-serif);
+  font-size: 14px;
+  font-weight: 400;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mw-fresh__submit {
+  color: #faf9f7;
+  background: #1a1815;
+  border: 1px solid #1a1815;
+}
+
+.mw-fresh__submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mw-fresh__cancel {
+  color: var(--mw-text-soft, rgba(26, 26, 26, 0.62));
+  background: transparent;
+  border: 1px solid var(--mw-hair, rgba(26, 26, 26, 0.08));
+}
+
+.mw-fresh__cancel:hover {
+  border-color: var(--mw-hair-strong, rgba(26, 26, 26, 0.16));
+  color: var(--mw-text, #1a1a1a);
+}
+
+.mw-fresh__submit:focus-visible,
+.mw-fresh__cancel:focus-visible,
+.mw-fresh__input:focus-visible {
+  outline: 2px solid var(--mw-gold, #c9a55a);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-fresh__action,
+  .mw-fresh__input,
+  .mw-fresh__submit,
+  .mw-fresh__cancel {
+    transition: none;
+  }
+}

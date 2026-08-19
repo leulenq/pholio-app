@@ -88,14 +88,9 @@
   mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
 }
 
-/* ── Score + name ── */
+/* ── Identity ── */
 .dd-identity {
   margin-bottom: 28px;
-}
-
-.dd-score {
-  display: block;
-  margin-bottom: 18px;
 }
 
 .dd-sep {
@@ -119,12 +114,6 @@
   margin: 0;
   min-width: 0;
 }
-/* typography lives in MatchScore; layout only */
-.dd-score-num {
-  align-self: flex-end;
-  padding-bottom: 4px;
-}
-
 /* ── Vitals strip ── */
 .dd-vitals {
   display: flex;

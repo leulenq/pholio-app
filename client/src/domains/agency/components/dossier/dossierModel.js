@@ -154,7 +154,7 @@ export function representationRead(representation) {
           placements.length ? ` · ${placements.length} market placement${placements.length > 1 ? 's' : ''}` : ''
         }`
       : who
-        ? `Signed with ${who}`
+        ? `Represented by ${who}`
         : 'Agency undisclosed by the talent';
   } else if (status === 'seeking') {
     detail = 'Open to signing — no active representation on record.';
@@ -179,32 +179,22 @@ export function representationLineText(line) {
 
 /**
  * Measurement provenance. The industry rule is that stats go stale — a booker
- * must know whether these were self-reported months ago or measured in the
- * agency's own office.
+ * must know how old these numbers are before casting off them.
+ *
+ * Every measurement Pholio holds is self-reported. This used to also read
+ * `measured_in_person_at` / `measured_by_us` and render a "measured in person"
+ * line, but the roster endpoint that wrote those columns was removed, so the
+ * branch could only ever be dead: it promised a verified reading the product
+ * has no way to produce. Stating "self-reported" plainly is the honest answer.
  */
 export function measurementProvenance(talent) {
   const stats = talent?.stats || {};
-  if (talent?.measured_by_us && talent?.measured_in_person_at) {
-    return {
-      text: `Measured in person ${fmtAgo(talent.measured_in_person_at)}`,
-      stale: false,
-      verified: true,
-    };
-  }
-  if (talent?.measured_in_person_at) {
-    return {
-      text: `Measured in person ${fmtAgo(talent.measured_in_person_at)} by another agency`,
-      stale: false,
-      verified: true,
-    };
-  }
   if (!stats.measurements_updated_at) {
-    return { text: 'Self-reported · never confirmed', stale: true, verified: false };
+    return { text: 'Self-reported · never confirmed', stale: true };
   }
   return {
     text: `Self-reported · updated ${fmtAgo(stats.measurements_updated_at)}`,
     stale: Boolean(stats.is_stale),
-    verified: false,
   };
 }
 
@@ -357,39 +347,6 @@ const ACTIVITY_VERBS = {
 };
 
 export const activityVerb = (type) => ACTIVITY_VERBS[type] || titleCase(type);
-
-/** Open follow-ups, split so overdue work reads first. */
-export function followUps(standing) {
-  const reminders = (standing?.reminders || []).filter((r) => r.status !== 'completed');
-  const now = Date.now();
-  const overdue = reminders.filter((r) => new Date(r.reminder_date).getTime() < now);
-  const upcoming = reminders.filter((r) => new Date(r.reminder_date).getTime() >= now);
-  const interviews = (standing?.interviews || []).filter(
-    (i) => !['cancelled', 'declined'].includes(String(i.status)),
-  );
-  const nextInterview = interviews
-    .filter((i) => new Date(i.proposed_datetime).getTime() >= now)
-    .sort((a, b) => new Date(a.proposed_datetime) - new Date(b.proposed_datetime))[0] || null;
-  return { overdue, upcoming, interviews, nextInterview };
-}
-
-/* -------------------------------------------------------------- position */
-
-/**
- * Market position, expressed against this agency's own book — the only
- * comparison a booker can act on.
- */
-export function positionRead(position, talent) {
-  if (!position || !position.roster_size) return null;
-  // One plain-English line only — the ledger beneath it carries the numbers, so
-  // repeating market and board counts here would just be the same fact twice.
-  if (position.height_percentile == null || position.track_peers < 2) return null;
-  return [
-    `Taller than ${position.height_percentile}% of your ${position.track_peers} active ${
-      TRACK_LABELS[talent?.stats_track]?.toLowerCase() || 'roster'
-    } talent`,
-  ];
-}
 
 /* ------------------------------------------------------------ asset guard */
 

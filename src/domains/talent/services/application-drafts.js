@@ -100,6 +100,67 @@ function isEligibleAgencyImage(image) {
   return status === "active" && !Boolean(image.exclude_from_agency);
 }
 
+/* ── Event-call intake (schema v2) ───────────────────────────────────────────
+   Three fields an event cast asks for that a representation submission never
+   does. They live on the draft payload rather than in their own table because
+   they are part of one submission package and die with it. */
+
+/** `YYYY-MM-DD` or "" — the same shape the consent fingerprint hashes. */
+function normalizeDateOnly(value) {
+  const text = typeof value === "string" ? value.trim().slice(0, 10) : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+/**
+ * Ruling R1: the walk video is a pasted URL, not an upload. Only http(s) is
+ * accepted — a `javascript:` or `data:` value would be rendered as a link on
+ * the organizer's dossier and the designer's pick page.
+ */
+const WALK_VIDEO_URL_MAX_LENGTH = 500;
+function normalizeWalkVideoUrl(value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text || text.length > WALK_VIDEO_URL_MAX_LENGTH) return "";
+  let parsed;
+  try {
+    parsed = new URL(text);
+  } catch {
+    return "";
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:" ? text : "";
+}
+
+/**
+ * An availability range is only meaningful with both ends, and `to` before
+ * `from` is a typo rather than a statement. Either way the draft keeps nothing
+ * it cannot honestly show back to the applicant.
+ */
+function normalizeAvailabilityRange(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const from = normalizeDateOnly(value.from);
+  const to = normalizeDateOnly(value.to);
+  if (!from || !to || to < from) return null;
+  return { from, to };
+}
+
+/**
+ * The open call this draft belongs to, when it is still one the talent may
+ * submit through. A paused, revoked or reassigned link drops to null so the
+ * submission cannot silently attach itself to a call that closed.
+ */
+async function resolveDraftOpenCallLink(db, agencyId, requestedLinkId) {
+  const linkId = typeof requestedLinkId === "string" ? requestedLinkId.trim() : "";
+  if (!linkId || !agencyId) return null;
+  try {
+    const link = await db("agency_open_call_links")
+      .where({ id: linkId, agency_id: agencyId, status: "active" })
+      .first("id");
+    return link?.id || null;
+  } catch {
+    // Deploy-before-migrate / missing table: an unresolvable link is no link.
+    return null;
+  }
+}
+
 function isEligibleDigitalForSlot(image, slot) {
   return (
     isEligibleAgencyImage(image) &&
@@ -273,6 +334,64 @@ async function normalizeDraftPayloadWithRepairs(
     );
   }
 
+  const rawSpecRegistryRevisionId =
+    typeof source.specRegistryRevisionId === "string"
+      ? source.specRegistryRevisionId.trim()
+      : "";
+  const specRegistryRevisionId =
+    /^[a-z0-9][a-z0-9:_@-]{0,199}$/.test(rawSpecRegistryRevisionId)
+      ? rawSpecRegistryRevisionId
+      : null;
+  if (rawSpecRegistryRevisionId && !specRegistryRevisionId) {
+    repairs.push(
+      repairWarning(
+        "spec_registry_revision_invalid",
+        "specRegistryRevisionId",
+        "The saved agency-requirements route is no longer valid; choose it again.",
+      ),
+    );
+  }
+
+  // Schema v2. A draft saved before event casting existed simply has none of
+  // these, which normalizes to the representation shape — the upgrade is the
+  // absence of a value, not a rewrite of one.
+  const openCallLinkId = await resolveDraftOpenCallLink(
+    db,
+    agency?.id,
+    source.openCallLinkId,
+  );
+  if (source.openCallLinkId && !openCallLinkId) {
+    repairs.push(
+      repairWarning(
+        "open_call_unavailable",
+        "openCallLinkId",
+        "The open call this submission was started from is no longer accepting applications.",
+      ),
+    );
+  }
+
+  const availability = normalizeAvailabilityRange(source.availability);
+  if (source.availability && !availability) {
+    repairs.push(
+      repairWarning(
+        "availability_invalid",
+        "availability",
+        "The saved availability dates are not a valid range; choose them again.",
+      ),
+    );
+  }
+
+  const walkVideoUrl = normalizeWalkVideoUrl(source.walkVideoUrl);
+  if (source.walkVideoUrl && !walkVideoUrl) {
+    repairs.push(
+      repairWarning(
+        "walk_video_url_invalid",
+        "walkVideoUrl",
+        "The saved walk video link is not a valid web address; paste it again.",
+      ),
+    );
+  }
+
   return {
     payload: {
       schemaVersion: DRAFT_SCHEMA_VERSION,
@@ -281,7 +400,12 @@ async function normalizeDraftPayloadWithRepairs(
       excludedImageIds,
       digitalSlotPicks,
       compCardPreset,
+      specRegistryRevisionId,
       note,
+      openCallLinkId,
+      availability,
+      walkVideoUrl: walkVideoUrl || null,
+      measurementsConfirmed: source.measurementsConfirmed === true,
       consent: source.consent === true,
       accuracyConfirmed: source.accuracyConfirmed === true,
       adultAuthorityConfirmed: source.adultAuthorityConfirmed === true,
@@ -509,6 +633,19 @@ async function recordDraftEvent(db, event) {
   }
 }
 
+/**
+ * Repairs that describe the format of the draft rather than its contents.
+ * Submitting is blocked when a saved *selection* silently changed under the
+ * applicant — but a schema upgrade changed nothing they chose, so treating it
+ * as a package change would make every in-flight draft demand a pointless
+ * second consent the moment the version is bumped.
+ */
+const NON_MATERIAL_REPAIR_CODES = new Set(["schema_upgraded"]);
+
+function isMaterialRepairWarning(warning) {
+  return !NON_MATERIAL_REPAIR_CODES.has(warning?.code);
+}
+
 module.exports = {
   DRAFT_EXPIRES_AFTER_MS,
   DRAFT_LIFECYCLE_STATES,
@@ -516,6 +653,11 @@ module.exports = {
   DRAFT_SCHEMA_VERSION,
   DRAFT_STALE_AFTER_MS,
   DRAFT_STEP_IDS,
+  NON_MATERIAL_REPAIR_CODES,
+  WALK_VIDEO_URL_MAX_LENGTH,
+  isMaterialRepairWarning,
+  normalizeAvailabilityRange,
+  normalizeWalkVideoUrl,
   expiryTimestamp,
   expireInactiveDrafts,
   isEligibleAgencyImage,

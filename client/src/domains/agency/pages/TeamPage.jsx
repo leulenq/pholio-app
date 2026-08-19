@@ -10,6 +10,7 @@ import TeamRolesGuide from '../components/TeamRolesGuide';
 import { useCanManageTeam } from '../hooks/useAgencyPermissions';
 import { foundingYear, normalizeRole } from '../components/team-presence';
 import { EmptyErrorState } from '../../../shared/components/states';
+import PholioButton from '../../../shared/components/ui/PholioButton';
 import './TeamPage.css';
 
 const ROLE_RANK = { OWNER: 0, ADMIN: 1, AGENT: 2, SCOUT: 3, VIEWER: 4, MEMBER: 3 };
@@ -83,9 +84,9 @@ export default function TeamPage() {
             </p>
           </div>
           {canManage && (
-            <button className="tm-add" onClick={() => setAdding(true)}>
-              <UserPlus size={16} /> Add member
-            </button>
+            <PholioButton variant="primary" icon={<UserPlus size={16} />} onClick={() => setAdding(true)}>
+              Add member
+            </PholioButton>
           )}
         </div>
       </motion.header>
@@ -101,7 +102,7 @@ export default function TeamPage() {
         <EmptyErrorState
           variant="compact"
           title="Could not load your team"
-          body="The team roster did not load. Try again to refresh."
+          body="The team list did not load. Try again to refresh."
           retry={{ label: 'Try again', onClick: () => refetch() }}
         />
       ) : activeCount === 0 && pending.length === 0 ? (
@@ -110,9 +111,9 @@ export default function TeamPage() {
           <p className="tm-empty-title">No teammates yet</p>
           <p className="tm-empty-sub">Add the people you work with to make this your agency’s home.</p>
           {canManage && (
-            <button className="tm-add tm-empty-add" onClick={() => setAdding(true)}>
-              <UserPlus size={16} /> Add member
-            </button>
+            <PholioButton variant="primary" icon={<UserPlus size={16} />} onClick={() => setAdding(true)}>
+              Add member
+            </PholioButton>
           )}
         </div>
       ) : (

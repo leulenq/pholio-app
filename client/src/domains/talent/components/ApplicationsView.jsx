@@ -11,6 +11,7 @@ import {
   Lock,
   MapPin,
   MessageSquare,
+  Plus,
   RotateCcw,
   Send,
   Trash2,
@@ -28,16 +29,27 @@ import { checkGatingStatus, getProfileGateFeature } from '../../../shared/utils/
 import { sendBlockerLabel, sendBlockerTarget } from '../../../shared/utils/sendReadiness';
 import { calculateProfileStrength } from '../../../shared/utils/profileScoring';
 import { talentApi } from '../api/talent';
-import { canWithdrawApplication, statusConfig } from '../utils/applicationStatus';
-import ApplicationInterviews from './ApplicationInterviews';
+import {
+  canAnswerSlotOffer,
+  canWithdrawApplication,
+  isEventApplication,
+  statusConfig,
+} from '../utils/applicationStatus';
+import {
+  trackerChannelLine,
+  trackerMatchesFilter,
+  trackerStatusConfig,
+} from '../utils/submissionTracker';
 import ApplicationMessages from './ApplicationMessages';
+import LogSubmissionOverlay from './tracker/LogSubmissionOverlay';
+import TrackerDetail from './tracker/TrackerDetail';
 import './ApplicationsView.css';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'inReview', label: 'In Review' },
   { id: 'advancing', label: 'Advancing' },
-  { id: 'signed', label: 'Signed' },
+  { id: 'represented', label: 'Represented' },
   { id: 'closed', label: 'Closed' },
 ];
 
@@ -111,9 +123,53 @@ function firstBoard(value) {
 
 function applicationMatchesFilter(app, filter) {
   if (filter === 'all') return true;
-  // Filter ids align 1:1 with the standing groups (inReview / advancing / signed / closed),
+  // Filter ids align 1:1 with the standing groups (inReview / advancing / represented / closed),
   // so the filter row exposes the same tiers the activity legend shows.
-  return statusConfig(app.status).group === filter;
+  return statusConfig(app.status, { purpose: app.call_purpose }).group === filter;
+}
+
+// The ledger is one chronology (ruling R7): submissions made on Pholio and
+// submissions the talent logged themselves, interleaved by the date they went
+// out, because that is the order the talent actually lived them. Each entry
+// carries its own kind so the row and the detail panel can speak the right
+// language without the list having to.
+function ledgerEntry(record, kind) {
+  return kind === 'tracker'
+    ? {
+        kind,
+        id: record.id,
+        key: `tracker:${record.id}`,
+        sortDate: record.submittedOn || record.createdAt || null,
+        row: record,
+      }
+    : {
+        kind,
+        id: record.id,
+        key: `application:${record.id}`,
+        sortDate: record.created_at || null,
+        app: record,
+      };
+}
+
+function entryConfig(entry) {
+  return entry.kind === 'tracker'
+    ? trackerStatusConfig(entry.row)
+    : statusConfig(entry.app.status, { purpose: entry.app.call_purpose });
+}
+
+function entryMatchesFilter(entry, filter) {
+  return entry.kind === 'tracker'
+    ? trackerMatchesFilter(entry.row, filter)
+    : applicationMatchesFilter(entry.app, filter);
+}
+
+// An event row is about the event, not the organizer's city.
+function eventDateRange(event) {
+  if (!event?.startsOn) return null;
+  const from = dateLabel(event.startsOn, { year: false });
+  const to = event.endsOn ? dateLabel(event.endsOn) : null;
+  if (!to || to === from) return dateLabel(event.startsOn);
+  return `${from} – ${to}`;
 }
 
 function agencyInitial(name) {
@@ -137,20 +193,23 @@ function canResumeDraft(draft) {
 export default function ApplicationsView() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { profile, subscription, images } = useAuth();
+  const { profile, images } = useAuth();
   const [activeFilter, setActiveFilter] = useState('all');
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedKey, setSelectedKey] = useState(null);
+  const [loggingSubmission, setLoggingSubmission] = useState(false);
   const [withdrawingApplication, setWithdrawingApplication] = useState(null);
+  // { application, confirmed } — the slot answer awaiting its confirm dialog.
+  const [slotAnswer, setSlotAnswer] = useState(null);
   const detailPanelRef = useRef(null);
 
   // On mobile the ledger collapses to a single column and the detail panel sits
   // beneath the full submission list, so a tap silently swaps content far below
   // the viewport. When the layout is stacked (≤1180px), bring the detail into
-  // view on an explicit selection. `selectedId` is null on first mount, so the
+  // view on an explicit selection. `selectedKey` is null on first mount, so the
   // default parked selection never triggers a scroll — desktop side-by-side is
   // untouched because the media query never matches there.
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedKey) return;
     if (typeof window === 'undefined' || !window.matchMedia) return;
     if (!window.matchMedia('(max-width: 1180px)').matches) return;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -158,11 +217,20 @@ export default function ApplicationsView() {
       behavior: prefersReduced ? 'auto' : 'smooth',
       block: 'start',
     });
-  }, [selectedId]);
+  }, [selectedKey]);
 
   const applicationsQuery = useQuery({
     queryKey: ['applications'],
     queryFn: talentApi.getApplications,
+    staleTime: 1000 * 60,
+    retry: 1,
+  });
+
+  // ['tracker'] exactly — the post-export prompt on the requirements page
+  // invalidates this key after logging a submission from there.
+  const trackerQuery = useQuery({
+    queryKey: ['tracker'],
+    queryFn: talentApi.listTrackedSubmissions,
     staleTime: 1000 * 60,
     retry: 1,
   });
@@ -191,6 +259,27 @@ export default function ApplicationsView() {
     },
     onError: (err) => {
       toast.error(err?.message || 'Failed to withdraw application');
+    },
+  });
+
+  // Confirming or declining a slot is the only status a talent ever writes, and
+  // it is final — hence the dialog in front of it and the refetch behind it.
+  const slotAnswerMutation = useMutation({
+    mutationFn: ({ application, confirmed }) =>
+      confirmed
+        ? talentApi.confirmApplicationSlot(application.id)
+        : talentApi.declineApplicationSlot(application.id),
+    onSuccess: (_data, variables) => {
+      setSlotAnswer(null);
+      queryClient.invalidateQueries({ queryKey: ['applications'] });
+      toast.success(
+        variables.confirmed
+          ? 'Slot confirmed — the organizer has been told.'
+          : 'Slot declined — the organizer can offer it to someone else.',
+      );
+    },
+    onError: (err) => {
+      toast.error(err?.message || 'Could not record your answer. Try again.');
     },
   });
 
@@ -266,12 +355,26 @@ export default function ApplicationsView() {
     };
   }, [gating.isSendReady, gating.sendBlockers, profile, images]);
 
-  const selectedApplication =
-    applications.find((app) => app.id === selectedId) ||
-    (deepLinkId ? applications.find((app) => app.id === deepLinkId) : null) ||
-    applications[0] ||
+  const trackedSubmissions = useMemo(() => asArray(trackerQuery.data), [trackerQuery.data]);
+
+  const ledgerEntries = useMemo(
+    () =>
+      [
+        ...applications.map((app) => ledgerEntry(app, 'application')),
+        ...trackedSubmissions.map((row) => ledgerEntry(row, 'tracker')),
+      ].sort((a, b) => new Date(b.sortDate || 0) - new Date(a.sortDate || 0)),
+    [applications, trackedSubmissions],
+  );
+
+  const selectedEntry =
+    ledgerEntries.find((entry) => entry.key === selectedKey) ||
+    (deepLinkId
+      ? ledgerEntries.find((entry) => entry.kind === 'application' && entry.id === deepLinkId)
+      : null) ||
+    ledgerEntries[0] ||
     null;
-  const filteredApplications = applications.filter((app) => applicationMatchesFilter(app, activeFilter));
+  const selectedApplication = selectedEntry?.kind === 'application' ? selectedEntry.app : null;
+  const filteredEntries = ledgerEntries.filter((entry) => entryMatchesFilter(entry, activeFilter));
   const appliedAgencyIds = new Set(
     applications
       .filter((app) => app.status !== 'withdrawn')
@@ -286,16 +389,22 @@ export default function ApplicationsView() {
     )
     .slice(0, 6);
 
-  const activeCount = applications.filter((app) => ['inReview', 'advancing'].includes(statusConfig(app.status).group)).length;
-  const acceptedCount = applications.filter((app) => statusConfig(app.status).group === 'signed').length;
+  const activeCount = applications.filter((app) =>
+    ['inReview', 'advancing'].includes(
+      statusConfig(app.status, { purpose: app.call_purpose }).group,
+    ),
+  ).length;
+  const representedCount = applications.filter(
+    (app) => statusConfig(app.status, { purpose: app.call_purpose }).group === 'represented',
+  ).length;
   const monthCount = applications.filter((app) => {
     if (!app.created_at) return false;
     const created = new Date(app.created_at);
     const now = new Date();
     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
   }).length;
-  const isPro = !!subscription?.isPro;
-  const monthlyLimitLabel = isPro ? 'Unlimited' : `${monthCount}/5`;
+  // The discovery allowance is identical on every plan — no tier lifts it.
+  const monthlyLimitLabel = `${monthCount}/5`;
 
   const openApplyFlow = (agency = null) => {
     const params = agency?.id ? `?agency=${encodeURIComponent(agency.id)}` : '?new=1';
@@ -305,6 +414,11 @@ export default function ApplicationsView() {
   const confirmWithdraw = () => {
     if (!withdrawingApplication) return;
     withdrawMutation.mutate(withdrawingApplication.id);
+  };
+
+  const confirmSlotAnswer = () => {
+    if (!slotAnswer) return;
+    slotAnswerMutation.mutate(slotAnswer);
   };
 
   if (applicationsQuery.isError) {
@@ -353,6 +467,13 @@ export default function ApplicationsView() {
           <p className="app-standfirst">
             Open agencies, work in progress, and every submission on record.
           </p>
+          <Link
+            className="app-requirements-link"
+            to="/dashboard/talent/applications/requirements"
+          >
+            Compare published agency requirements
+            <ArrowUpRight size={14} aria-hidden />
+          </Link>
         </div>
 
         <dl className="app-market-index" aria-label="Application summary">
@@ -365,8 +486,8 @@ export default function ApplicationsView() {
             <dd>{applicationsQuery.isLoading ? '-' : activeCount}</dd>
           </div>
           <div>
-            <dt>Signed</dt>
-            <dd>{applicationsQuery.isLoading ? '-' : acceptedCount}</dd>
+            <dt>Represented</dt>
+            <dd>{applicationsQuery.isLoading ? '-' : representedCount}</dd>
           </div>
           <div>
             <dt>This Month</dt>
@@ -507,25 +628,38 @@ export default function ApplicationsView() {
         <section className="app-ledger" aria-labelledby="application-ledger-title">
           <div className="app-section-head" data-tour="app-ledger">
             <h2 id="application-ledger-title">Submission history</h2>
-            <PholioToggleGroup
-              className="app-filter-row"
-              role="tablist"
-              aria-label="Filter applications"
-            >
-              {FILTERS.map((filter) => (
-                <PholioToggleButton
-                  key={filter.id}
-                  type="button"
-                  role="tab"
-                  active={activeFilter === filter.id}
-                  aria-selected={activeFilter === filter.id}
-                  className={`app-filter ${activeFilter === filter.id ? 'app-filter--active' : ''}`}
-                  onClick={() => setActiveFilter(filter.id)}
-                >
-                  {filter.label}
-                </PholioToggleButton>
-              ))}
-            </PholioToggleGroup>
+            <div className="app-ledger-tools">
+              <PholioToggleGroup
+                className="app-filter-row"
+                role="tablist"
+                aria-label="Filter applications"
+              >
+                {FILTERS.map((filter) => (
+                  <PholioToggleButton
+                    key={filter.id}
+                    type="button"
+                    role="tab"
+                    active={activeFilter === filter.id}
+                    aria-selected={activeFilter === filter.id}
+                    className={`app-filter ${activeFilter === filter.id ? 'app-filter--active' : ''}`}
+                    onClick={() => setActiveFilter(filter.id)}
+                  >
+                    {filter.label}
+                  </PholioToggleButton>
+                ))}
+              </PholioToggleGroup>
+              {/* Most submissions a model makes never touch Pholio. This is how
+                  they join the same chronology. */}
+              <PholioButton
+                type="button"
+                variant="meta"
+                className="app-ledger-log"
+                onClick={() => setLoggingSubmission(true)}
+              >
+                <Plus size={14} aria-hidden />
+                Log a submission
+              </PholioButton>
+            </div>
           </div>
 
           {applicationsQuery.isLoading ? (
@@ -534,45 +668,68 @@ export default function ApplicationsView() {
                 <div key={item} className="app-ledger-card app-ledger-card--skeleton" />
               ))}
             </div>
-          ) : filteredApplications.length > 0 ? (
+          ) : filteredEntries.length > 0 ? (
             <ol className="app-ledger-list">
-              {filteredApplications.map((app, index) => {
-                const config = statusConfig(app.status);
+              {filteredEntries.map((entry, index) => {
+                const config = entryConfig(entry);
                 const StatusIcon = config.icon;
-                const isSelected = selectedApplication?.id === app.id;
+                const isSelected = selectedEntry?.key === entry.key;
+                const app = entry.kind === 'application' ? entry.app : null;
+                const row = entry.kind === 'tracker' ? entry.row : null;
                 return (
-                  <li key={app.id} className={`app-ledger-item app-ledger-item--${config.tone}`}>
+                  <li key={entry.key} className={`app-ledger-item app-ledger-item--${config.tone}`}>
                     <button
                       type="button"
                       data-button-exception="submission-history-agency"
                       aria-pressed={isSelected}
                       className={`app-ledger-card ${isSelected ? 'app-ledger-card--selected' : ''}`}
-                      onClick={() => setSelectedId(app.id)}
+                      onClick={() => setSelectedKey(entry.key)}
                     >
                       <span className="app-ledger-card__index">{String(index + 1).padStart(2, '0')}</span>
                       <span className="app-ledger-card__main">
-                        <span className="app-ledger-card__agency">{app.agency_name || 'Unknown Agency'}</span>
+                        <span className="app-ledger-card__agency">
+                          {app ? app.agency_name || 'Unknown Agency' : row.agencyName}
+                        </span>
                         <span className="app-ledger-card__meta">
-                          <MapPin size={13} aria-hidden />
-                          {app.agency_location || 'Location pending'}
-                          {app.source === 'open_call' ? ' · Open call' : ''}
+                          {app ? (
+                            <>
+                              <MapPin size={13} aria-hidden />
+                              {(isEventApplication(app) ? app.event?.location : null) ||
+                                app.agency_location ||
+                                'Location pending'}
+                              {isEventApplication(app)
+                                ? ` · ${app.event?.name || 'Event casting'}`
+                                : app.source === 'open_call'
+                                  ? ' · Open call'
+                                  : ''}
+                            </>
+                          ) : (
+                            // Plain line, never a chip: where it went is a fact
+                            // about the submission, not a label on it.
+                            trackerChannelLine(row.channel)
+                          )}
                         </span>
                       </span>
                       <span className={`app-status app-status--${config.tone}`}>
                         <StatusIcon size={13} aria-hidden />
                         {config.short}
                       </span>
-                      <span className="app-ledger-card__date">{relativeDate(app.created_at)}</span>
+                      <span className="app-ledger-card__date">
+                        {relativeDate(app ? app.created_at : row.submittedOn)}
+                      </span>
                     </button>
                   </li>
                 );
               })}
             </ol>
-          ) : applications.length === 0 ? (
+          ) : ledgerEntries.length === 0 ? (
             <div className="app-empty-state">
               <CircleDashed size={28} strokeWidth={1.4} aria-hidden />
               <h3>You haven&apos;t applied yet</h3>
-              <p>Browse agencies below and send your first submission.</p>
+              <p>
+                Browse agencies below and send your first submission — or log one you already made
+                somewhere else.
+              </p>
             </div>
           ) : (
             <div className="app-empty-state">
@@ -588,6 +745,19 @@ export default function ApplicationsView() {
               app={selectedApplication}
               onWithdraw={() => setWithdrawingApplication(selectedApplication)}
               isWithdrawing={withdrawMutation.isPending && withdrawingApplication?.id === selectedApplication.id}
+              onAnswerSlot={(confirmed) =>
+                setSlotAnswer({ application: selectedApplication, confirmed })
+              }
+              isAnsweringSlot={
+                slotAnswerMutation.isPending &&
+                slotAnswer?.application?.id === selectedApplication.id
+              }
+            />
+          ) : selectedEntry?.kind === 'tracker' ? (
+            <TrackerDetail
+              key={selectedEntry.key}
+              row={selectedEntry.row}
+              onDeleted={() => setSelectedKey(null)}
             />
           ) : (
             <div className="app-detail-empty">
@@ -596,6 +766,40 @@ export default function ApplicationsView() {
           )}
         </aside>
       </div>
+
+      {/* Mounted only while open, so the form is blank every time. */}
+      {loggingSubmission && (
+        <LogSubmissionOverlay
+          open
+          onClose={() => setLoggingSubmission(false)}
+          onLogged={(submission) => {
+            if (submission?.id) setSelectedKey(`tracker:${submission.id}`);
+          }}
+        />
+      )}
+
+      <ConfirmationDialog
+        isOpen={slotAnswer !== null}
+        title={slotAnswer?.confirmed ? 'Confirm this slot?' : 'Decline this slot?'}
+        message={
+          slotAnswer?.confirmed
+            ? `Confirm the slot ${slotAnswer?.application?.agency_name || 'the organizer'} offered you${
+                slotAnswer?.application?.event?.name
+                  ? ` for ${slotAnswer.application.event.name}`
+                  : ''
+              }. They will build the line-up around you, so only confirm dates you can genuinely work.`
+            : `Decline the slot ${slotAnswer?.application?.agency_name || 'the organizer'} offered you${
+                slotAnswer?.application?.event?.name
+                  ? ` for ${slotAnswer.application.event.name}`
+                  : ''
+              }. The slot is released immediately and cannot be taken back.`
+        }
+        confirmLabel={slotAnswer?.confirmed ? 'Confirm slot' : 'Decline slot'}
+        cancelLabel="Not yet"
+        variant={slotAnswer?.confirmed ? 'info' : 'warning'}
+        onConfirm={confirmSlotAnswer}
+        onCancel={() => setSlotAnswer(null)}
+      />
 
       <ConfirmationDialog
         isOpen={withdrawingApplication !== null}
@@ -611,14 +815,23 @@ export default function ApplicationsView() {
   );
 }
 
-function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
-  const config = statusConfig(app.status);
+function ApplicationDetail({
+  app,
+  onWithdraw,
+  isWithdrawing,
+  onAnswerSlot,
+  isAnsweringSlot,
+}) {
+  const isEvent = isEventApplication(app);
+  const config = statusConfig(app.status, { purpose: app.call_purpose });
   const StatusIcon = config.icon;
   const site = websiteUrl(app.agency_website);
   const domain = domainLabel(site);
   const board = firstBoard(app.agency_open_boards);
   const canWithdraw = canWithdrawApplication(app.status);
+  const canAnswer = canAnswerSlotOffer(app);
   const age = daysSince(app.created_at);
+  const eventDates = isEvent ? eventDateRange(app.event) : null;
 
   // No scheduler exists to auto-expire stale applications, so surface a calm,
   // truthful cue when an active submission has gone quiet for a while.
@@ -650,9 +863,23 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
       )}
 
       <dl className="app-detail__facts">
+        {isEvent && app.event?.name && (
+          <div>
+            <dt>Event</dt>
+            <dd>{app.event.name}</dd>
+          </div>
+        )}
+        {eventDates && (
+          <div>
+            <dt>Dates</dt>
+            <dd>{eventDates}</dd>
+          </div>
+        )}
         <div>
-          <dt>Market</dt>
-          <dd>{app.agency_location || 'Global'}</dd>
+          <dt>{isEvent ? 'Location' : 'Market'}</dt>
+          <dd>
+            {(isEvent ? app.event?.location : null) || app.agency_location || 'Global'}
+          </dd>
         </div>
         {board && (
           <div>
@@ -667,9 +894,11 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         <div>
           <dt>Source</dt>
           <dd>
-            {app.source === 'open_call'
-              ? 'Open call — invited'
-              : 'Pholio discovery'}
+            {isEvent
+              ? 'Event casting call'
+              : app.source === 'open_call'
+                ? 'Open call — invited'
+                : 'Pholio discovery'}
           </dd>
         </div>
         <div>
@@ -695,7 +924,32 @@ function ApplicationDetail({ app, onWithdraw, isWithdrawing }) {
         </div>
       )}
 
-      <ApplicationInterviews applicationId={app.id} />
+      {/* A live slot offer is the one thing on this panel with a deadline, so
+          it sits above the standing actions rather than beside them. */}
+      {canAnswer && (
+        <div className="app-detail__actions app-detail__actions--offer">
+          <PholioButton
+            type="button"
+            variant="primary"
+            className="app-detail__act"
+            onClick={() => onAnswerSlot?.(true)}
+            disabled={isAnsweringSlot}
+          >
+            <Check size={14} aria-hidden />
+            {isAnsweringSlot ? 'Sending…' : 'Confirm slot'}
+          </PholioButton>
+          <PholioButton
+            type="button"
+            variant="secondary"
+            className="app-detail__act"
+            onClick={() => onAnswerSlot?.(false)}
+            disabled={isAnsweringSlot}
+          >
+            <X size={14} aria-hidden />
+            Decline slot
+          </PholioButton>
+        </div>
+      )}
 
       <div className="app-detail__actions">
         <PholioButton

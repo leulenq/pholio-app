@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import PholioButton, {
   PholioToggleButton,
   PholioToggleGroup,
@@ -12,7 +11,6 @@ import MaterialsBlock from './blocks/MaterialsBlock';
 import AttentionBlock from './blocks/AttentionBlock';
 import BookBlock from './blocks/BookBlock';
 import MomentumBlock from './blocks/MomentumBlock';
-import { Block } from './Chrome';
 import './IntelPage.css';
 
 const RANGES = [
@@ -63,8 +61,8 @@ function IntelError({ onRetry }) {
  * Intel — the talent-facing intelligence hub.
  *
  * The page is a short sequence of questions, in the order a working model asks
- * them: what do I do now, where are my submissions dying, can I send today, is
- * anyone real looking, am I leading with the right frame, am I gaining ground.
+ * them: what needs attention, what happened after submitting, whether the
+ * package is current, how the profile was used, and which frames were opened.
  * Each block states its finding in one line and puts the chart underneath as
  * the evidence for it. Blocks are deliberately not equally weighted — the
  * decision stack leads, and the rest support it.
@@ -129,23 +127,6 @@ export default function IntelPage() {
 
           {!minor && <MomentumBlock momentum={data.momentum} tier={tier} />}
 
-          {!minor && Array.isArray(data.demand?.nudges) && data.demand.nudges.length > 0 && (
-            <Block
-              id="iv-demand"
-              question="What are agencies searching for that I haven't filled in?"
-            >
-              <ul className="iv-demand">
-                {data.demand.nudges.map((nudge) => (
-                  <li key={nudge.field}>
-                    {nudge.text}{' '}
-                    <Link to={nudge.to} className="iv-inline-link">
-                      Fill it in
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Block>
-          )}
         </>
       )}
     </div>

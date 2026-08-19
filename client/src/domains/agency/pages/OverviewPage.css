@@ -179,9 +179,9 @@
 .ov-agenda-row {
   display: flex; align-items: center; gap: 14px; padding: 12px 4px;
   border-bottom: 1px solid #ece4d4; text-decoration: none;
-  transition: background .15s var(--ag-ease, ease), padding .15s var(--ag-ease, ease);
+  transition: background .15s var(--ag-ease, ease);
 }
-.ov-agenda-row:hover { background: rgba(201,165,90,.06); padding-left: 8px; padding-right: 0; }
+.ov-agenda-row:hover { background: rgba(201,165,90,.06); }
 .ov-agenda-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ag-gold); border-radius: 4px; }
 .ov-agenda-fig {
   flex: none; min-width: 58px; text-align: left;

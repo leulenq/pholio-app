@@ -63,6 +63,15 @@ const DECISIONS = {
     closing: "Take your time over the contract, and don't sign anything you don't understand. A real agency will wait.",
     standing: "Signed",
   },
+  represented: {
+    preheader: "The agreement is done. Here's what changes.",
+    headline: (a) => `You're represented by ${esc(a)}.`,
+    rule: "The agreement is complete.",
+    body: () =>
+      "They'll be in touch about onboarding \u2014 your book with them, how they want to be reached, and what they need from you first.",
+    closing: "Keep your measurements and digitals current here too. Agencies check them more often than they ask for them.",
+    standing: "Represented",
+  },
   declined: {
     headline: (a) => `${esc(a)} passed on your submission.`,
     rule: "",
@@ -104,7 +113,7 @@ function buildApplicationStatusEmailHtml({ talentName, agencyName, status, board
       space(18),
       B.act("Update your digitals", `${app()}/dashboard/talent/media`),
     );
-  } else if (status === "accepted" || status === "development") {
+  } else if (status === "accepted" || status === "development" || status === "represented") {
     rows.push(space(30), B.act("Read their message", `${app()}/dashboard/talent/messages`));
     if (d.closing) rows.push(space(24), B.advisory(d.closing));
   } else if (status === "declined" || status === "passed") {

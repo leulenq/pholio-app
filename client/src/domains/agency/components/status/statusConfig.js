@@ -43,7 +43,8 @@ export const PIPELINE = [
   { key: 'submitted',   label: 'Submitted',   c: 'var(--ss-hold)' },
   { key: 'reviewing',   label: 'Reviewing',   c: 'var(--ss-motion)' },
   { key: 'shortlisted', label: 'Shortlisted', c: 'var(--ss-select)' },
-  { key: 'signed',      label: 'Signed',      c: 'var(--ss-live)' },
+  { key: 'accepted',    label: 'Offered',     c: 'var(--ss-select)' },
+  { key: 'represented', label: 'Represented', c: 'var(--ss-live)' },
 ];
 
 // Raw backend status → position on (or off) the ladder.
@@ -55,10 +56,8 @@ const STAGE_MAP = {
   reviewing:   { idx: 1, label: 'Reviewing' },
   review:      { idx: 1, label: 'Reviewing' },
   shortlisted: { idx: 2, label: 'Shortlisted' },
-  accepted:    { idx: 3, label: 'Signed' },
-  signed:      { idx: 3, label: 'Signed' },
-  represented: { idx: 3, label: 'Represented' },
-  booked:      { idx: 3, label: 'Represented' },
+  accepted:    { idx: 3, label: 'Offered' },
+  represented: { idx: 4, label: 'Represented' },
   development: { idx: 3, label: 'New Face', c: 'var(--ss-p-dev)' },
   // Off-track terminals — the submission left the ladder.
   declined:    { off: true, label: 'Passed',   c: 'var(--ss-pass)' },

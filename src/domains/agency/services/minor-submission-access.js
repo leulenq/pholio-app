@@ -10,7 +10,8 @@ const MINOR_ACCESS_ERROR = "MINOR_SUBMISSION_ACCESS_DENIED";
 // Audited agency surfaces that can expose or mutate a submitted minor's data.
 // `application_guard` paths carry an application id and are blocked centrally;
 // `filtered_collection` paths apply applyMinorSubmissionFilter at query time;
-// roster paths additionally bind through source_application_id.
+// Historical representation records are purged separately below when a
+// guardian revokes access.
 const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
   ["GET", "/api/agency/applications", "filtered_collection"],
   ["GET", "/api/agency/applications/:applicationId/details", "application_guard"],
@@ -26,21 +27,14 @@ const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
   ["POST", "/api/agency/applications/:applicationId/notes", "application_guard"],
   ["GET", "/api/agency/applications/:applicationId/tags", "application_guard"],
   ["POST", "/api/agency/applications/:applicationId/tags", "application_guard"],
-  ["GET", "/api/agency/applications/:applicationId/interviews", "application_guard"],
-  ["POST", "/api/agency/applications/:applicationId/interviews", "application_guard"],
-  ["GET", "/api/agency/applications/:applicationId/reminders", "application_guard"],
-  ["POST", "/api/agency/applications/:applicationId/reminders", "application_guard"],
   ["POST", "/api/agency/applications/:applicationId/assign-board", "application_guard"],
   ["GET", "/api/agency/messages/threads", "filtered_collection"],
   ["GET", "/api/agency/messages/unread-count", "filtered_collection"],
   ["GET", "/api/agency/activity", "filtered_collection"],
-  ["GET", "/api/agency/analytics/season", "filtered_collection"],
   ["GET", "/api/agency/boards", "filtered_collection"],
   ["GET", "/api/agency/boards/:boardId/candidates", "filtered_collection"],
   ["POST", "/api/agency/boards/:boardId/rank", "filtered_collection"],
   ["POST", "/api/agency/boards/:boardId/candidates/:profileId/decision", "source_application_guard"],
-  ["GET", "/api/agency/roster", "source_application_guard"],
-  ["GET", "/api/agency/roster/:membershipId", "source_application_guard"],
   ["GET", "/api/agency/export", "admin_permission_and_filter"],
   ["POST", "/dashboard/agency/applications/:applicationId/:action", "application_guard"],
 ]);
@@ -185,6 +179,10 @@ async function purgeApplicationDisclosure(
         redaction_reason: reason,
       });
   }
+  // `roster_memberships` has had no active writers since roster-as-system-of-
+  // record was removed, so this delete is dormant. It stays because the table
+  // still holds pre-removal rows and this is a minor-redaction path: dormant is
+  // the right state for a cleanup that must not miss legacy data if it exists.
   if (await trx.schema.hasTable("roster_memberships")) {
     await trx("roster_memberships")
       .where({ source_application_id: applicationId })

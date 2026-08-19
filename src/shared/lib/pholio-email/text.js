@@ -148,6 +148,30 @@ const cardDeclined = ({ reason, attempted, nextAttempt, pausesOn, amount }) =>
     }),
   );
 
+const trialEnding = ({ firstName, trialEndLabel, priceLabel, manageUrl }) => {
+  const amount = priceLabel || "$9.99/month";
+  const when = trialEndLabel || null;
+  return j(
+    when ? `Your trial ends ${when}.` : "Your Studio+ trial ends soon.",
+    "",
+    `${firstName ? `${firstName}, o` : "O"}n that date your card is charged ${amount}, and again each period until you cancel.`,
+    "",
+    `  Trial ends   ${when || "Soon"}`,
+    `  Then         ${amount}`,
+    "  Cancel in    Settings \u2192 Membership",
+    "",
+    "Cancelling before that date costs nothing. You keep Studio+ until the trial runs out, and the card is never charged.",
+    "",
+    `Open billing settings: ${manageUrl || `${app()}/dashboard/talent/settings/subscription`}`,
+    "",
+    "Everything you have made stays yours either way. Ending Studio+ does not delete your book, your photos or your cards.",
+    tail("secure", {
+      reason: "You're getting this because a paid trial on your account is about to convert. It's a billing notice, so it goes out regardless of your notification preferences.",
+      extra: { label: "Billing", href: `${app()}/dashboard/talent/settings/subscription` },
+    }),
+  );
+};
+
 /* ------------------------------------------------------------- submissions */
 
 const applicationStatus = ({ agencyName, status, board, staleDigitals, submittedOn }) => {
@@ -157,6 +181,7 @@ const applicationStatus = ({ agencyName, status, board, staleDigitals, submitted
     shortlisted: [`${agency} shortlisted you.`, "You're through the first read.", `They've put you on a shorter list${board ? ` for ${board}` : ""} and will look again before deciding.`],
     development: [`${agency} wants to develop you.`, "This is a new-face offer, not a signing.", "It means they'd work with you before full representation. Read anything they send carefully, and take your time."],
     accepted: [`${agency} wants to sign you.`, "", "They'll contact you directly about next steps. Nothing's agreed until you've spoken to them and read whatever they send you.\n\nTake your time over the contract, and don't sign anything you don't understand. A real agency will wait."],
+    represented: [`You're represented by ${agency}.`, "The agreement is complete.", "They'll be in touch about onboarding \u2014 your book with them, how they want to be reached, and what they need from you first.\n\nKeep your measurements and digitals current here too. Agencies check them more often than they ask for them."],
     declined: [`${agency} passed on your submission.`, "", "They don't give a reason, and there isn't one to read into it. Agencies pass on board space, market and timing far more often than on the work itself."],
   };
   const [head, rule, body] = copy[status] || copy.declined;
@@ -246,6 +271,6 @@ const guardianConsent = ({ guardianName, talentName, agencyName, consentUrl, exp
 
 module.exports = {
   emailVerification, passwordReset, signInMethodNotice, passwordChanged, newDeviceSignIn,
-  welcomeTalent, cardDeclined,
+  welcomeTalent, cardDeclined, trialEnding,
   applicationStatus, materialsRequested, newMessage, agencyInvite, guardianConsent,
 };

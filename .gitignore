@@ -30,3 +30,6 @@ gallery/
 dev.sqlite3-journal
 *.sqlite3-journal
 PERSISTENCE_REPORT.md
+
+# local dev/test sqlite artifacts
+data/*.sqlite3

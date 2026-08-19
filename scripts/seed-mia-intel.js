@@ -322,7 +322,7 @@ async function seedActivities() {
     { type: 'pdf_downloaded',           meta: () => ({ theme: randomFrom(THEMES) }) },
     { type: 'portfolio_viewed',         meta: () => ({ source: randomFrom(['direct', 'instagram', 'google']) }) },
     { type: 'submission_package_created', meta: () => ({ imageCount: 4 + Math.floor(Math.random() * 3) }) },
-    { type: 'application_submitted',    meta: () => ({ agencyName: randomFrom(['IMG Models', 'Wilhelmina', 'Next Management']) }) },
+    { type: 'application_submitted',    meta: () => ({ agencyName: randomFrom(['Lumen Model Management', 'Meridian Talent Collective', 'Harbor Model Management']) }) },
   ];
 
   const rows = [];

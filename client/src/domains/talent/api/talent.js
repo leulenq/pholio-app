@@ -1,7 +1,8 @@
 /**
  * Talent API Functions
  */
-import { apiClient } from '../../../shared/lib/api-client';
+import { apiClient, ApiError } from '../../../shared/lib/api-client';
+import { sameOriginMutationHeaders } from '../../../shared/lib/same-origin-request';
 
 export const talentApi = {
   // Profile
@@ -42,6 +43,10 @@ export const talentApi = {
   deleteBookout: (id) => apiClient.delete(`/bookouts/${encodeURIComponent(id)}`),
   // Stats-currency one-tap nudge — touches measurements_updated_at only.
   confirmMeasurementsCurrent: () => apiClient.post('/measurements/still-accurate', {}),
+  getAgeVerification: (options) => apiClient.get('/age-verification', options),
+  createAgeVerificationSession: () => apiClient.post('/age-verification/session', { consent: true }),
+  getAdultContext: (options) => apiClient.get('/adult-context', options),
+  updateAdultContext: (data) => apiClient.put('/adult-context', data),
 
   refineBio: (body) => apiClient.post('/bio/refine', body),
   generateBio: (body = {}) => apiClient.post('/bio/generate', body),
@@ -51,6 +56,22 @@ export const talentApi = {
   draftSubmissionNote: (body = {}) => apiClient.post('/submission-note/draft', body),
   sharpenSubmissionNote: (body) => apiClient.post('/submission-note/sharpen', body),
   shortenSubmissionNote: (body) => apiClient.post('/submission-note/shorten', body),
+
+  // Digitals freshness — the four states, and the one action that resolves
+  // `undated`. A shoot date is never inferred; it comes from the talent here.
+  getDigitalsFreshness: (options) => apiClient.get('/digitals/freshness', options),
+  setDigitalsCaptureDate: (imageIds, capturedOn) =>
+    apiClient.put('/digitals/capture-date', { imageIds, capturedOn }),
+
+  // Comp card import — read an existing agency card into a reviewable pre-fill.
+  // The card itself is never stored; `importCompCard` returns a proposal and
+  // `confirmCompCardImport` applies only the fields the talent accepted.
+  importCompCard: (formData) => apiClient.post('/comp-card-import', formData),
+  getCompCardImport: (id) => apiClient.get(`/comp-card-import/${encodeURIComponent(id)}`),
+  confirmCompCardImport: (id, accepted) =>
+    apiClient.post(`/comp-card-import/${encodeURIComponent(id)}/confirm`, { accepted }),
+  discardCompCardImport: (id) =>
+    apiClient.post(`/comp-card-import/${encodeURIComponent(id)}/discard`),
 
   // Media
   uploadMedia: (formData) => apiClient.post('/media', formData),
@@ -80,19 +101,14 @@ export const talentApi = {
 
   // Analytics
   getAnalytics: (days) => apiClient.get(`/analytics${days ? `?days=${days}` : ''}`),
-  getActivity: () => apiClient.get('/activity'),
-
-  // Intel (talent intelligence hub — composed payload + per-day scrub detail)
-  // The talent's own zone travels with the request so timing findings ("attention
-  // lands Thursday afternoons") are stated in their clock, not UTC.
   getIntel: (days, tz) => {
     const params = new URLSearchParams();
-    if (days) params.set('days', String(days));
+    if (days) params.set('days', days);
     if (tz) params.set('tz', tz);
-    const qs = params.toString();
-    return apiClient.get(`/intel${qs ? `?${qs}` : ''}`);
+    return apiClient.get(`/intel${params.size ? `?${params.toString()}` : ''}`);
   },
-  getIntelDay: (date) => apiClient.get(`/intel/day/${date}`),
+  getIntelDay: (date) => apiClient.get(`/intel/day/${encodeURIComponent(date)}`),
+  getActivity: () => apiClient.get('/activity'),
 
   // Notifications (high-signal bell center)
   getNotifications: (options = {}) => {
@@ -104,21 +120,126 @@ export const talentApi = {
   markAllNotificationsRead: () =>
     apiClient.post('/notifications/read-all', {}),
   getSummary: () => apiClient.get('/summary'),
-  getTimeseries: (days = 30) => apiClient.get(`/timeseries?days=${days}`),
-  getSessions: (days = 30) => apiClient.get(`/sessions?days=${days}`),
-
   // Applications
   getApplications: () => apiClient.get('/applications'),
   getApplicationQuota: () => apiClient.get('/applications/quota'),
   getApplicationActivity: (id) => apiClient.get(`/applications/${id}/activity`),
   getApplicationPromptContext: () => apiClient.get('/applications/prompt-context'),
   getAgencies: () => apiClient.get('/agencies'),
+  getAgencyPrivacyDirectory: () => apiClient.get('/agencies?includeBlocked=1'),
   createApplication: (data) => apiClient.post('/applications', data),
   withdrawApplication: (id) => apiClient.post(`/applications/${id}/withdraw`),
+  // Answering an event slot offer — the only two statuses a talent may write.
+  // Never `withdrawApplication`: that redacts the package and hides the row
+  // from an organizer who still has to fill the slot.
+  // Funnel step 6 — best-effort instrumentation for the ApplySuccess payoff
+  // block. Never surfaced to the applicant: a lost count is not their problem.
+  recordApplyPayoffView: (id, action) =>
+    apiClient
+      .post(`/applications/${id}/payoff-viewed`, { action }, { skipRedirect: true })
+      .catch(() => null),
+  confirmApplicationSlot: (id) => apiClient.post(`/applications/${id}/confirm`),
+  declineApplicationSlot: (id) => apiClient.post(`/applications/${id}/decline-slot`),
   getSubmissionProgramStatus: (options) =>
     apiClient.get('/applications/submission-program-status', options),
   acknowledgeSubmissionProgram: () =>
     apiClient.post('/applications/submission-program-acknowledgment', { acknowledged: true }),
+
+  /*
+   * Off-platform submission tracker — the talent's own private record of
+   * submissions made outside Pholio. No agency ever reads these rows.
+   *
+   * The router answers `{ submissions: [...] }` / `{ submission: {...} }`
+   * inside the standard envelope, which `apiClient` has already unwrapped by
+   * the time these run; the array/object fallbacks keep a bare payload working
+   * too. Lapse is never stored — every row arrives with server-computed
+   * `isLapsed` / `lapseDate` / `reapplyOpensOn` (ruling R1), so the client only
+   * ever formats them.
+   */
+  listTrackedSubmissions: async () => {
+    const data = await apiClient.get('/tracker');
+    return Array.isArray(data) ? data : data?.submissions || [];
+  },
+  logTrackedSubmission: async (payload) => {
+    const data = await apiClient.post('/tracker', payload);
+    return data?.submission || data;
+  },
+  /**
+   * Send only the fields that actually change: a PATCH carrying the status the
+   * row already has is rejected as "No editable fields were provided." (422).
+   */
+  updateTrackedSubmission: async (id, payload) => {
+    const data = await apiClient.patch(`/tracker/${encodeURIComponent(id)}`, payload);
+    return data?.submission || data;
+  },
+  // Hard delete (ruling R9) — confirm before calling.
+  deleteTrackedSubmission: (id) => apiClient.delete(`/tracker/${encodeURIComponent(id)}`),
+
+  // Curated recurring open-call windows. Ungated, free, no counters.
+  listCallWindows: async () => {
+    const data = await apiClient.get('/call-windows');
+    return Array.isArray(data) ? data : data?.callWindows || [];
+  },
+
+  // Published agency requirements and score-free package preflight.
+  getSpecRegistryRoutes: ({ agencyId } = {}) =>
+    apiClient.get(
+      `/spec-registry/routes${agencyId ? `?agencyId=${encodeURIComponent(agencyId)}` : ''}`,
+    ),
+  getSpecRegistryRoute: (seriesId) =>
+    apiClient.get(`/spec-registry/routes/${encodeURIComponent(seriesId)}`),
+  preflightSpecRegistry: (payload = {}) =>
+    apiClient.post('/spec-registry/preflight', payload),
+
+  /**
+   * The spec-correct set, as bytes.
+   *
+   * `apiClient` unwraps a `{ success, data }` envelope, and this response is an
+   * archive, so it talks to `fetch` directly. The filename comes from the
+   * server because the server is what named the files inside it.
+   */
+  exportSpecRegistrySet: async ({ seriesId, imageIds } = {}) => {
+    const response = await fetch('/api/talent/spec-registry/export', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/zip, application/json',
+        ...sameOriginMutationHeaders('POST'),
+      },
+      body: JSON.stringify(imageIds === undefined ? { seriesId } : { seriesId, imageIds }),
+    });
+
+    if (!response.ok) {
+      const problem = await response.json().catch(() => null);
+      throw new ApiError(
+        problem?.message || problem?.error || 'That set could not be prepared.',
+        response.status,
+        problem,
+      );
+    }
+
+    const named = /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') || '');
+    return {
+      blob: await response.blob(),
+      filename: named?.[1] || 'digitals.zip',
+      // Everything in the archive (incl. README/STATS/EMAIL text files) — the
+      // honest "N files downloaded" number.
+      fileCount: Number(response.headers.get('X-Pholio-Export-Files')) || null,
+      // Submission content only — what the tracker records as sent (ruling R2).
+      imageCount: Number(response.headers.get('X-Pholio-Export-Images')) || null,
+    };
+  },
+
+  /**
+   * The talent followed the link to the agency's own application page.
+   *
+   * Fired alongside opening the link rather than through a Pholio redirect —
+   * routing an application Pholio has nothing to do with through Pholio is the
+   * implied relationship the provenance rules exist to avoid.
+   */
+  recordSpecRegistryOutboundClick: (seriesId) =>
+    apiClient.post('/spec-registry/outbound-click', { seriesId }),
 
   // Application drafts (one per agency — the in-progress submission dossier)
   listDrafts: (options) =>
@@ -148,10 +269,6 @@ export const talentApi = {
       { expectedGeneration },
       options,
     ),
-
-  // Interviews
-  getInterviews: () => apiClient.get('/interviews'),
-  respondToInterview: (id, body) => apiClient.post(`/interviews/${id}/respond`, body),
 
   // Messages (per application)
   getApplicationMessages: (id) => apiClient.get(`/applications/${id}/messages`),
@@ -200,7 +317,7 @@ export const talentApi = {
   setDefaultCompCardPreset: (slug, presetId) =>
     apiClient.post(`/presets/${encodeURIComponent(slug)}/${encodeURIComponent(presetId)}/apply`, {}, { baseURL: '/api/pdf' }),
 
-  // Message Polish (Studio+)
+  // Message Polish — free to every talent, rate-limited server-side
   polishApplicationMessage: (body) =>
     apiClient.post('/message-polish/polish', body),
 

@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
-  acceptApplication, declineApplication, shortlistApplication,
+  acceptApplication, confirmRepresentationApplication, declineApplication, shortlistApplication,
   keepOnFileApplication, requestMoreApplication, requestMeetingApplication,
   offerDevelopmentApplication, archiveApplication, assignToBoard,
 } from '../api/agency';
@@ -25,7 +25,11 @@ export function useTalentActions(applicationId) {
     onError: (e) => toast.error(e?.message || 'Something went wrong'),
   });
 
-  const accept = useMutation({ mutationFn: () => acceptApplication(applicationId), ...opts('Talent joined the roster') });
+  const accept = useMutation({ mutationFn: () => acceptApplication(applicationId), ...opts('Representation offered') });
+  const confirmRepresentation = useMutation({
+    mutationFn: () => confirmRepresentationApplication(applicationId),
+    ...opts('Representation agreement complete'),
+  });
   const shortlist = useMutation({ mutationFn: () => shortlistApplication(applicationId), ...opts('Added to shortlist') });
   const decline = useMutation({ mutationFn: () => declineApplication(applicationId), ...opts('Not moving forward') });
   const keepOnFile = useMutation({ mutationFn: () => keepOnFileApplication(applicationId), ...opts('Kept on file') });
@@ -36,12 +40,13 @@ export function useTalentActions(applicationId) {
   const addToBoard = useMutation({ mutationFn: (boardId) => assignToBoard(applicationId, boardId), ...opts('Added to board') });
 
   const isPending =
-    accept.isPending || shortlist.isPending || decline.isPending ||
+    accept.isPending || confirmRepresentation.isPending || shortlist.isPending || decline.isPending ||
     keepOnFile.isPending || requestMore.isPending || requestMeeting.isPending ||
     offerDevelopment.isPending || archive.isPending || addToBoard.isPending;
 
   return {
     accept,
+    confirmRepresentation,
     shortlist,
     decline,
     keepOnFile,

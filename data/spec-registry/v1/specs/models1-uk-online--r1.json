@@ -1,0 +1,788 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "models1-uk:online",
+  "revisionId": "models1-uk:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": {
+      "id": "models1-limited",
+      "name": "Models1",
+      "legalName": "Models1 Limited",
+      "officialDomains": [
+        "models1.co.uk"
+      ]
+    },
+    "office": {
+      "id": "models1-london",
+      "name": "London"
+    },
+    "market": {
+      "kind": "country",
+      "code": "gb",
+      "countryCodes": [
+        "GB"
+      ],
+      "city": null
+    },
+    "channel": {
+      "id": "models1-online-application",
+      "type": "official_web_form",
+      "url": "https://www.models1.co.uk/apply/become"
+    },
+    "divisions": {
+      "mode": "unspecified",
+      "values": []
+    },
+    "applicantTracks": {
+      "mode": "only",
+      "values": [
+        "women",
+        "men",
+        "curve"
+      ]
+    },
+    "evidenceIds": [
+      "models1-image-guidance",
+      "models1-online-form"
+    ]
+  },
+  "lifecycle": {
+    "observedOn": "2026-08-09",
+    "effectiveFrom": null,
+    "effectiveUntil": null,
+    "reviewedOn": "2026-08-09",
+    "nextReviewOn": "2026-11-07"
+  },
+  "rules": {
+    "shots": {
+      "count": {
+        "minimum": 3,
+        "maximum": 3,
+        "basis": "explicit_text",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ]
+      },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        {
+          "id": "headshot",
+          "quantity": {
+            "minimum": 1,
+            "maximum": 1
+          },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "headshot",
+          "match": {
+            "field": "shot.frame",
+            "operator": "equals",
+            "value": "headshot",
+            "unit": null
+          },
+          "appliesWhen": null,
+          "evidenceIds": [
+            "models1-online-form"
+          ],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "profile",
+          "quantity": {
+            "minimum": 1,
+            "maximum": 1
+          },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "profile",
+          "match": {
+            "field": "shot.view",
+            "operator": "equals",
+            "value": "profile",
+            "unit": null
+          },
+          "appliesWhen": null,
+          "evidenceIds": [
+            "models1-online-form"
+          ],
+          "matchability": "hybrid"
+        },
+        {
+          "id": "full-length",
+          "quantity": {
+            "minimum": 1,
+            "maximum": 1
+          },
+          "modality": "requested",
+          "basis": "explicit_form_semantics",
+          "sourceLabel": "full length",
+          "match": {
+            "field": "shot.frame",
+            "operator": "equals",
+            "value": "full_length",
+            "unit": null
+          },
+          "appliesWhen": null,
+          "evidenceIds": [
+            "models1-online-form"
+          ],
+          "matchability": "hybrid"
+        }
+      ]
+    },
+    "setWide": [
+      {
+        "id": "no-makeup",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "appearance.makeup_level",
+          "operator": "not_equals",
+          "value": "none",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "Wear no make-up",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+      {
+        "id": "bright-natural-light",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "capture.lighting",
+          "operator": "equals",
+          "value": "bright_natural_light",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "bright, natural light",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+      {
+        "id": "colour-images",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "capture.color_mode",
+          "operator": "equals",
+          "value": "color",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "Photos should be in colour",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "automatic",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+      {
+        "id": "no-filters",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+      "constraint": {
+        "field": "alteration.filter_used",
+        "operator": "equals",
+        "value": true,
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "no filters",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+      {
+        "id": "no-effects",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+      "constraint": {
+        "field": "alteration.effects_used",
+        "operator": "equals",
+        "value": true,
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "no effects",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+    {
+      "id": "no-retouching",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+      "constraint": {
+        "field": "alteration.retouch_used",
+        "operator": "equals",
+        "value": true,
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "no retouching used",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+      "appliesTo": {
+        "mode": "all_shots",
+        "shotIds": []
+        }
+      },
+      {
+        "id": "hair-away-from-face",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "appearance.hair_state",
+          "operator": "equals",
+          "value": "away_from_face",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "keeping your hair away from your face",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "selected_shots",
+          "shotIds": [
+            "headshot",
+            "profile"
+          ]
+        }
+      },
+      {
+        "id": "show-proportions",
+        "modality": "required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "capture.body_proportions_visible",
+          "operator": "equals",
+          "value": true,
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "The full-length image should show your proportions",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "selected_shots",
+          "shotIds": [
+            "full-length"
+          ]
+        }
+      },
+      {
+        "id": "vest-top-allowed",
+        "modality": "allowed",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "clothing.category",
+          "operator": "equals",
+          "value": "vest_top",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "Wearing a vest top ... is fine",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "manual_confirmation",
+      "appliesTo": {
+        "mode": "selected_shots",
+        "shotIds": [
+          "full-length"
+        ]
+        }
+      },
+    {
+      "id": "slim-fitting-jeans-allowed",
+        "modality": "allowed",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "clothing.category",
+          "operator": "equals",
+          "value": "slim_fitting_jeans",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "Wearing ... slim fitting jeans is fine",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "manual_confirmation",
+      "appliesTo": {
+        "mode": "selected_shots",
+        "shotIds": [
+          "full-length"
+        ]
+        }
+      },
+      {
+        "id": "swimwear-prohibited",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "clothing.category",
+          "operator": "equals",
+          "value": "swimwear",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "Please do not submit photos wearing swimwear",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+      {
+        "id": "underwear-prohibited",
+        "modality": "prohibited",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "clothing.category",
+          "operator": "equals",
+          "value": "underwear",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "Please do not submit photos wearing underwear",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "hybrid",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+      {
+        "id": "phone-photos-allowed",
+        "modality": "allowed",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "capture.device_type",
+          "operator": "equals",
+          "value": "phone",
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "they can be taken on a phone",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "manual_confirmation",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      },
+      {
+        "id": "professional-photography-not-required",
+        "modality": "not_required",
+        "basis": "explicit_text",
+        "constraint": {
+          "field": "capture.professional_photography",
+          "operator": "equals",
+          "value": true,
+          "unit": null
+        },
+        "appliesWhen": null,
+        "sourceLabel": "You do not need professional photos",
+        "evidenceIds": [
+          "models1-image-guidance"
+        ],
+        "matchability": "manual_confirmation",
+        "appliesTo": {
+          "mode": "all_shots",
+          "shotIds": []
+        }
+      }
+    ],
+    "files": [
+      {
+        "id": "image-file-size-maximum",
+        "modality": "required",
+        "basis": "explicit_form_semantics",
+        "constraint": {
+          "field": "file.size_bytes",
+          "operator": "lte",
+          "value": 5000000,
+          "unit": "byte"
+        },
+        "appliesWhen": null,
+        "sourceLabel": "upload headshot images (up to 5MB each)",
+        "evidenceIds": [
+          "models1-online-form"
+        ],
+        "matchability": "automatic",
+        "scope": "per_file",
+        "sourceValue": {
+          "value": 5,
+          "unit": "MB",
+          "normalization": "decimal_conservative"
+        }
+      }
+    ],
+    "eligibility": [],
+    "applicationFields": [
+      {
+        "id": "privacy-policy",
+        "field": "consent.privacy_policy",
+        "presence": "required",
+        "appliesWhen": null,
+        "basis": "explicit_text",
+        "sourceLabel": "must read and accept the privacy policy",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "first-name",
+        "field": "applicant.first_name",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "first name",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "last-name",
+        "field": "applicant.last_name",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "last name",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "track",
+        "field": "applicant.track",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "women / men / curve",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "date-of-birth",
+        "field": "applicant.date_of_birth",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "date of birth",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "country",
+        "field": "contact.country",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "country",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "guardian-name",
+        "field": "guardian.name",
+        "presence": "conditional_required",
+        "appliesWhen": {
+          "field": "applicant.age_years",
+          "operator": "lt",
+          "value": 16,
+          "unit": "year"
+        },
+        "basis": "explicit_text",
+        "sourceLabel": "parent / guardian name *",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "guardian-email",
+        "field": "guardian.email",
+        "presence": "conditional_required",
+        "appliesWhen": {
+          "field": "applicant.age_years",
+          "operator": "lt",
+          "value": 16,
+          "unit": "year"
+        },
+        "basis": "explicit_text",
+        "sourceLabel": "parent / guardian email *",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "guardian-phone",
+        "field": "guardian.phone",
+        "presence": "conditional_required",
+        "appliesWhen": {
+          "field": "applicant.age_years",
+          "operator": "lt",
+          "value": 16,
+          "unit": "year"
+        },
+        "basis": "explicit_text",
+        "sourceLabel": "parent / guardian phone *",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "city-area",
+        "field": "contact.city",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "city / area",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "applicant-email",
+        "field": "contact.email",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "applicant email",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "applicant-phone",
+        "field": "contact.phone",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "applicant phone",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "pronouns",
+        "field": "applicant.pronouns",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "pronouns",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "height",
+        "field": "measurements.height",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "height",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "instagram",
+        "field": "social.instagram",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "instagram",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "tiktok",
+        "field": "social.tiktok",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "tiktok",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      },
+      {
+        "id": "message",
+        "field": "applicant.message",
+        "presence": "present_requiredness_unknown",
+        "appliesWhen": null,
+        "basis": "explicit_form_semantics",
+        "sourceLabel": "message",
+        "evidenceIds": [
+          "models1-online-form"
+        ]
+      }
+    ]
+  },
+  "unknowns": [
+    {
+      "fact": "shots.image_reuse",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The guidance names three targets but does not state whether one image may satisfy more than one target.",
+      "evidenceIds": [
+        "models1-online-form"
+      ]
+    },
+    {
+      "fact": "files.mime_types",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The application form does not publish accepted image file types.",
+      "evidenceIds": [
+        "models1-online-form"
+      ]
+    },
+    {
+      "fact": "files.dimensions",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The application form does not publish image dimensions.",
+      "evidenceIds": [
+        "models1-online-form"
+      ]
+    },
+    {
+      "fact": "files.total_size",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "No total upload-size limit is published.",
+      "evidenceIds": [
+        "models1-online-form"
+      ]
+    },
+    {
+      "fact": "eligibility.age",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "This route publishes no age floor or range.",
+      "evidenceIds": [
+        "models1-online-form"
+      ]
+    },
+    {
+      "fact": "eligibility.height",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "This route publishes no height floor or range.",
+      "evidenceIds": [
+        "models1-online-form"
+      ]
+    },
+    {
+      "fact": "presentation.background",
+      "appliesWhen": null,
+      "reason": "not_published",
+      "note": "The image guidance does not state a background requirement.",
+      "evidenceIds": [
+        "models1-image-guidance"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "models1-image-guidance",
+      "authority": "first_party_published",
+      "publisher": "Models1 Limited",
+      "url": "https://www.models1.co.uk/apply",
+      "title": "APPLY - Models1",
+      "locale": "en-GB",
+      "retrievedOn": "2026-08-09",
+      "locator": {
+        "kind": "section",
+        "value": "how to submit the best images"
+      },
+      "excerpt": "Send three photos. No make-up; bright natural light; colour; no filters, effects or retouching.",
+      "archivedUrl": null,
+      "contentHash": null
+    },
+    {
+      "id": "models1-online-form",
+      "authority": "first_party_published",
+      "publisher": "Models1 Limited",
+      "url": "https://www.models1.co.uk/apply/become",
+      "title": "Apply here | Models1 Agency",
+      "locale": "en-GB",
+      "retrievedOn": "2026-08-09",
+      "locator": {
+        "kind": "form_field",
+        "value": "upload headshot images (up to 5MB each)"
+      },
+      "excerpt": "Applicant is under 16 — parent / guardian details required. Upload headshot images (up to 5MB each).",
+      "archivedUrl": null,
+      "contentHash": null
+    }
+  ],
+  "review": {
+    "authority": "first_party_published",
+    "method": "dual_reviewer",
+    "reviewers": [
+      {
+        "id": "pholio-research-reviewer-1",
+        "reviewedOn": "2026-08-09"
+      },
+      {
+        "id": "normalization-review-20260809",
+        "reviewedOn": "2026-08-09"
+      }
+    ],
+    "notes": "Verified and normalization-reviewed against Models1's first-party image-guidance page and online application form. The 5 MB form limit is normalized to 5,000,000 bytes using the package's conservative decimal convention."
+  }
+}

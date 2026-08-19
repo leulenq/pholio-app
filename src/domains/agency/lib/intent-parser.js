@@ -1,8 +1,8 @@
 /**
- * Server-side intent parser for Discover semantic search.
+ * Server-side fallback intent parser for Discover natural-language search.
  *
  * Ports the client lexicon from client/src/domains/agency/lib/intentParser.js
- * and adds parseIntentToFilters() for SQL hard filters + soft query embedding.
+ * and adds parseIntentToFilters() for legacy callers and fallback decomposition.
  */
 
 "use strict";

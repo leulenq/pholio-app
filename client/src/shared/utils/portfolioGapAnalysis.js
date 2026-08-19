@@ -78,7 +78,8 @@ export function analyzePortfolio(images = [], profile = null) {
     id: 'recency',
     label: READINESS_CHECKLIST_COPY.recency.label,
     description: `Reshoot your digitals within ${DIGITALS_STALE_DAYS} days to stay current.`,
-    met: !pkg.recency.isStale,
+    // Met means a known-current set. Unknown age is not met.
+    met: pkg.recency.isCurrent,
   });
 
   const metCount = checks.filter((c) => c.met).length;

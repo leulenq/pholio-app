@@ -1,6 +1,6 @@
 ---
 name: Pholio Agency Command Center
-description: Warm editorial luxury for agency roster operations — cream, gold, and serif authority.
+description: Warm editorial luxury for agency intake and casting — cream, gold, and serif authority.
 colors:
   ink: "#1A1815"
   ink-deep: "#141210"
@@ -113,7 +113,7 @@ value is**, not by how important the surface feels:
 | Tier | What it is | Treatment | Component |
 |---|---|---|---|
 | **Mark** | a bounded entity you hold standing in — boards only | container + ground carries standing | `DivisionMark`, `DivisionSet` |
-| **Figure** | a measured value: height, measurements, age, match, counts | mono tabular numerals + tracked Inter unit, **never a container** | `Figure`, `FigureGroup`, `MatchFigure` |
+| **Figure** | a measured value: height, measurements, age, counts | mono tabular numerals + tracked Inter unit, **never a container** | `Figure`, `FigureGroup` |
 | **Notation** | quiet context: location, recency, provenance, notes | small Inter, muted ink, tone only where actionable | `Place`, `Moment`, `Freshness`, `Notation` |
 
 `MetaLine` joins any of them into the canonical `·` separated secondary line.
@@ -297,7 +297,7 @@ font-size so a row of marks shares one baseline.
   `npx vitest run src/domains/agency` (from `client/`).
 
 ### Signature Component — Casting Kanban
-The roster casting board: columns of talent cards moved across pipeline stages via @dnd-kit. Cards stay flat and compact, photo-led, with type and match-score rendered as **plain inline text** (no corner chips, no score badge). Column min-width 220px, 8px card gap. The board is the densest expression of the "ledger" idea — many talent, calm surface, gold only on the active/selected card.
+The roster casting board: columns of talent cards moved across pipeline stages via @dnd-kit. Cards stay flat and compact, photo-led, with factual type and location metadata rendered as **plain inline text**. Column min-width 220px, 8px card gap. The board is the densest expression of the "ledger" idea — many talent, calm surface, gold only on the active/selected card.
 
 ## 6. Do's and Don'ts
 
@@ -307,14 +307,14 @@ The roster casting board: columns of talent cards moved across pipeline stages v
 - **Do** use Playfair Display only at masthead/section-title tier; Inter for every control, label, and data cell.
 - **Do** convey depth by tonal cream layering first, soft warm shadows second.
 - **Do** render talent status as plain text or one non-badge dot/stripe.
-- **Do** show match score and talent type as plain inline text on cards.
+- **Do** show factual talent type and location metadata as plain inline text on cards.
 - **Do** provide `prefers-reduced-motion` fallbacks and keep `:focus-visible` gold rings.
 
 ### Don't:
 - **Don't** place a small uppercase / letter-spaced eyebrow or kicker above any heading. Use the heading alone.
 - **Don't** use status badges — no green/yellow/red dot or pill encoding "available / on booking / inactive."
 - **Don't** add New / Beta / Live / AI-powered feature badges, or accent-dot-plus-badge metadata combos.
-- **Don't** overlay tiny metadata chips in card corners or on photo thumbnails (no MatchScoreBadge, TalentTypePill).
+- **Don't** overlay tiny metadata chips in card corners or on photo thumbnails (no score badges or TalentTypePill).
 - **Don't** use `backdrop-filter: blur()` on cards, panels, toolbars, or buttons — glass is only for full-screen scrims.
 - **Don't** attach count-bubble badges to nav items or cards.
 - **Don't** use a `border-left`/`border-right` greater than 1px as a colored accent stripe — use full borders or a background tint.
@@ -347,7 +347,7 @@ it feel cinematic is scale, space, and pacing, not a frame around it.
 - **The margin note.** The house voice for each chapter sits in the right margin —
   same surface, no fill, no border, a short gold rule above it. Below 1160px it
   folds in as a standfirst between the lede and the work.
-- **One selection vocabulary.** Boards, agency type, roster path, open-call choice,
+- **One selection vocabulary.** Boards, agency type, open-call choice,
   and the custody acknowledgement all use the same ruled `stg-row` — a real
   checkbox/radio wearing a list row. No chips, no mixed control styles.
 - **One work measure.** Fields, option rows, and supporting blocks share a 780px
@@ -378,11 +378,10 @@ Re-interrogating an approved agency is the failure mode this IA exists to preven
 |---|---------|---------------|----------|
 | — | Welcome | none | Nothing. Access-granted arrival. |
 | 1 | The record | `profile`, `defaults` | Name, market, website, agency type (all pre-filled from the request) + time zone, currency, measurements |
-| 2 | The boards | `boards` | Standing divisions, pre-selected from `primary_boards` |
-| 3 | The roster | `roster` | How talent arrives, pre-selected from `migration_interest` |
-| 4 | The team | `team` | Real invitations via `POST /api/agency/team` |
-| 5 | Intake | `open_call` | Open-call link, inbound email, what talent see |
-| 6 | Custody | `privacy` | Minor-record declaration + custody acknowledgement |
+| 2 | The boards | `boards` | Intake divisions, pre-selected from `primary_boards` |
+| 3 | The team | `team` | Real invitations via `POST /api/agency/team` |
+| 4 | Intake | `open_call` | Open-call link, inbound email, what talent see |
+| 5 | Custody | `privacy` | Minor-record declaration + custody acknowledgement |
 
 ### Placement rules
 

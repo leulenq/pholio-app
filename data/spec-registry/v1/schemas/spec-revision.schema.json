@@ -1,0 +1,1184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pholio.studio/schemas/spec-registry/v1/spec-revision.schema.json",
+  "title": "Pholio Spec Registry revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "taxonomyVersion",
+    "seriesId",
+    "revisionId",
+    "revision",
+    "supersedesRevisionId",
+    "status",
+    "evaluationMode",
+    "scope",
+    "lifecycle",
+    "rules",
+    "unknowns",
+    "evidence",
+    "review"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "../schemas/spec-revision.schema.json"
+    },
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "taxonomyVersion": {
+      "const": "1.0.0"
+    },
+    "seriesId": {
+      "$ref": "#/$defs/id"
+    },
+    "revisionId": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^[a-z0-9][a-z0-9:-]*@[1-9][0-9]*$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "supersedesRevisionId": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9:-]*@[1-9][0-9]*$"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "provisional",
+        "verified",
+        "conflicting",
+        "stale",
+        "retired"
+      ]
+    },
+    "evaluationMode": {
+      "enum": [
+        "advisory",
+        "blocking"
+      ]
+    },
+    "scope": {
+      "$ref": "#/$defs/scope"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/lifecycle"
+    },
+    "rules": {
+      "$ref": "#/$defs/rules"
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/unknown"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "review": {
+      "$ref": "#/$defs/review"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[a-z0-9][a-z0-9._:-]*$"
+    },
+    "nullableString": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "nullableDate": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/date"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "evidenceIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "organization",
+        "office",
+        "market",
+        "channel",
+        "divisions",
+        "applicantTracks",
+        "evidenceIds"
+      ],
+      "properties": {
+        "organization": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "legalName",
+            "officialDomains"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "legalName": {
+              "$ref": "#/$defs/nullableString"
+            },
+            "officialDomains": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 3,
+                "pattern": "^[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+              }
+            }
+          }
+        },
+        "office": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "name": {
+              "$ref": "#/$defs/nullableString"
+            }
+          }
+        },
+        "market": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "code",
+            "countryCodes",
+            "city"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "global",
+                "region",
+                "country",
+                "city",
+                "selected_market"
+              ]
+            },
+            "code": {
+              "$ref": "#/$defs/id"
+            },
+            "countryCodes": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z]{2}$"
+              }
+            },
+            "city": {
+              "$ref": "#/$defs/nullableString"
+            }
+          }
+        },
+        "channel": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "type",
+            "url"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "type": {
+              "enum": [
+                "official_web_form",
+                "official_email",
+                "official_walk_in",
+                "agency_branded_third_party_form",
+                "pholio_open_call"
+              ]
+            },
+            "url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            }
+          }
+        },
+        "divisions": {
+          "$ref": "#/$defs/scopedValues"
+        },
+        "applicantTracks": {
+          "$ref": "#/$defs/scopedValues"
+        },
+        "evidenceIds": {
+          "$ref": "#/$defs/evidenceIds"
+        }
+      }
+    },
+    "scopedValues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "values"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "all",
+            "only",
+            "unspecified"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "observedOn",
+        "effectiveFrom",
+        "effectiveUntil",
+        "reviewedOn",
+        "nextReviewOn"
+      ],
+      "properties": {
+        "observedOn": {
+          "$ref": "#/$defs/date"
+        },
+        "effectiveFrom": {
+          "$ref": "#/$defs/nullableDate"
+        },
+        "effectiveUntil": {
+          "$ref": "#/$defs/nullableDate"
+        },
+        "reviewedOn": {
+          "$ref": "#/$defs/nullableDate"
+        },
+        "nextReviewOn": {
+          "$ref": "#/$defs/nullableDate"
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shots",
+        "setWide",
+        "files",
+        "eligibility",
+        "applicationFields"
+      ],
+      "properties": {
+        "shots": {
+          "$ref": "#/$defs/shotRules"
+        },
+        "setWide": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/setWideRule"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fileRule"
+          }
+        },
+        "eligibility": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atomicRule"
+          }
+        },
+        "applicationFields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/applicationField"
+          }
+        }
+      }
+    },
+    "shotRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "allowImageReuseAcrossSlots",
+        "slots"
+      ],
+      "properties": {
+        "count": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minimum",
+            "maximum",
+            "basis",
+            "evidenceIds"
+          ],
+          "properties": {
+            "minimum": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maximum": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "basis": {
+              "$ref": "#/$defs/basis"
+            },
+            "appliesWhen": {
+              "$ref": "#/$defs/nullableExpression"
+            },
+            "evidenceIds": {
+              "$ref": "#/$defs/evidenceIds"
+            }
+          }
+        },
+        "allowImageReuseAcrossSlots": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/shotSlot"
+          }
+        }
+      }
+    },
+    "shotSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "quantity",
+        "modality",
+        "basis",
+        "sourceLabel",
+        "match",
+        "appliesWhen",
+        "evidenceIds",
+        "matchability"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "quantity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "minimum",
+            "maximum"
+          ],
+          "properties": {
+            "minimum": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maximum": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "modality": {
+          "$ref": "#/$defs/modality"
+        },
+        "basis": {
+          "$ref": "#/$defs/basis"
+        },
+        "sourceLabel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "match": {
+          "$ref": "#/$defs/expression"
+        },
+        "appliesWhen": {
+          "$ref": "#/$defs/nullableExpression"
+        },
+        "evidenceIds": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "matchability": {
+          "$ref": "#/$defs/matchability"
+        }
+      }
+    },
+    "atomicRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "modality",
+        "basis",
+        "constraint",
+        "appliesWhen",
+        "sourceLabel",
+        "evidenceIds",
+        "matchability"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "modality": {
+          "$ref": "#/$defs/modality"
+        },
+        "basis": {
+          "$ref": "#/$defs/basis"
+        },
+        "constraint": {
+          "$ref": "#/$defs/constraint"
+        },
+        "appliesWhen": {
+          "$ref": "#/$defs/nullableExpression"
+        },
+        "sourceLabel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidenceIds": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "matchability": {
+          "$ref": "#/$defs/matchability"
+        }
+      }
+    },
+    "setWideRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "modality",
+        "basis",
+        "constraint",
+        "appliesWhen",
+        "appliesTo",
+        "sourceLabel",
+        "evidenceIds",
+        "matchability"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "modality": {
+          "$ref": "#/$defs/modality"
+        },
+        "basis": {
+          "$ref": "#/$defs/basis"
+        },
+        "constraint": {
+          "$ref": "#/$defs/constraint"
+        },
+        "appliesWhen": {
+          "$ref": "#/$defs/nullableExpression"
+        },
+        "appliesTo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "shotIds"
+          ],
+          "properties": {
+            "mode": {
+              "enum": [
+                "all_shots",
+                "selected_shots"
+              ]
+            },
+            "shotIds": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/id"
+              }
+            }
+          }
+        },
+        "sourceLabel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidenceIds": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "matchability": {
+          "$ref": "#/$defs/matchability"
+        }
+      }
+    },
+    "fileRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "modality",
+        "basis",
+        "constraint",
+        "appliesWhen",
+        "sourceLabel",
+        "evidenceIds",
+        "matchability",
+        "scope",
+        "sourceValue"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "modality": {
+          "$ref": "#/$defs/modality"
+        },
+        "basis": {
+          "$ref": "#/$defs/basis"
+        },
+        "constraint": {
+          "$ref": "#/$defs/constraint"
+        },
+        "appliesWhen": {
+          "$ref": "#/$defs/nullableExpression"
+        },
+        "sourceLabel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidenceIds": {
+          "$ref": "#/$defs/evidenceIds"
+        },
+        "matchability": {
+          "$ref": "#/$defs/matchability"
+        },
+        "scope": {
+          "enum": [
+            "per_file",
+            "whole_package"
+          ]
+        },
+        "sourceValue": {
+          "$ref": "#/$defs/nullableSourceValue"
+        }
+      }
+    },
+    "sourceValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "unit",
+        "normalization"
+      ],
+      "properties": {
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "enum": [
+            "byte",
+            "KB",
+            "MB"
+          ]
+        },
+        "normalization": {
+          "enum": [
+            "identity",
+            "decimal_conservative",
+            "binary_explicit"
+          ]
+        }
+      }
+    },
+    "nullableSourceValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sourceValue"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "applicationField": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "field",
+        "presence",
+        "appliesWhen",
+        "basis",
+        "sourceLabel",
+        "evidenceIds"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "field": {
+          "$ref": "#/$defs/field"
+        },
+        "presence": {
+          "enum": [
+            "required",
+            "optional",
+            "conditional_required",
+            "present_requiredness_unknown"
+          ]
+        },
+        "appliesWhen": {
+          "$ref": "#/$defs/nullableExpression"
+        },
+        "basis": {
+          "$ref": "#/$defs/basis"
+        },
+        "sourceLabel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidenceIds": {
+          "$ref": "#/$defs/evidenceIds"
+        }
+      }
+    },
+    "modality": {
+      "enum": [
+        "required",
+        "requested",
+        "prohibited",
+        "preferred",
+        "encouraged",
+        "allowed",
+        "not_required"
+      ]
+    },
+    "basis": {
+      "enum": [
+        "explicit_text",
+        "explicit_form_semantics",
+        "derived_from_explicit_assertions",
+        "editorial_normalization"
+      ]
+    },
+    "matchability": {
+      "enum": [
+        "automatic",
+        "manual_confirmation",
+        "hybrid",
+        "not_evaluable"
+      ]
+    },
+    "nullableExpression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/expression"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "expression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/constraint"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "all"
+          ],
+          "properties": {
+            "all": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/expression"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "any"
+          ],
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/expression"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "not"
+          ],
+          "properties": {
+            "not": {
+              "$ref": "#/$defs/expression"
+            }
+          }
+        }
+      ]
+    },
+    "constraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "operator",
+        "value",
+        "unit"
+      ],
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/field"
+        },
+        "operator": {
+          "enum": [
+            "equals",
+            "not_equals",
+            "in",
+            "not_in",
+            "gte",
+            "lte",
+            "gt",
+            "lt",
+            "between",
+            "exists"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "unit": {
+          "enum": [
+            null,
+            "cm",
+            "year",
+            "byte",
+            "count"
+          ]
+        }
+      }
+    },
+    "field": {
+      "enum": [
+        "shot.frame",
+        "shot.view",
+        "shot.purpose",
+        "appearance.hair_state",
+        "appearance.hair_product_used",
+        "appearance.hair_color",
+        "appearance.eye_color",
+        "appearance.makeup_level",
+        "appearance.accessory_type",
+        "appearance.natural_hair_color",
+        "appearance.natural_eye_color",
+        "expression.smile",
+        "expression.style",
+        "clothing.fit",
+        "clothing.category",
+        "clothing.upper_body_state",
+        "clothing.style",
+        "capture.background",
+        "capture.image_style",
+        "capture.lighting",
+        "capture.color_mode",
+        "capture.device_type",
+        "capture.body_proportions_visible",
+        "capture.professional_photography",
+        "capture.selfie",
+        "alteration.filter_used",
+        "alteration.effects_used",
+        "alteration.retouch_used",
+        "file.count",
+        "file.size_bytes",
+        "file.mime_type",
+        "applicant.first_name",
+        "applicant.full_name",
+        "applicant.nationality",
+        "applicant.last_name",
+        "applicant.date_of_birth",
+        "applicant.age_years",
+        "applicant.track",
+        "applicant.gender",
+        "applicant.pronouns",
+        "applicant.current_representation",
+        "applicant.story",
+        "applicant.message",
+        "applicant.height_cm",
+        "application.destination_market",
+        "application.division_interest",
+        "application.work_authorization",
+        "application.password",
+        "application.password_confirmation",
+        "contact.email",
+        "contact.phone",
+        "contact.address",
+        "contact.city",
+        "contact.location",
+        "contact.country",
+        "contact.postal_code",
+        "contact.state_region",
+        "contact.preferred_method",
+        "social.instagram",
+        "social.tiktok",
+        "social.youtube",
+        "social.facebook",
+        "social.x",
+        "social.twitch",
+        "social.account",
+        "measurements.height",
+        "measurements.weight",
+        "measurements.bust",
+        "measurements.chest",
+        "measurements.waist",
+        "measurements.hips",
+        "measurements.clothing_size",
+        "measurements.shoe_size",
+        "measurements.cup_size",
+        "guardian.name",
+        "guardian.title",
+        "guardian.relationship",
+        "guardian.email",
+        "guardian.phone",
+        "guardian.written_consent",
+        "guardian.approval",
+        "guardian.identity_document",
+        "consent.privacy_policy",
+        "consent.image_submission_authority",
+        "consent.terms_conditions",
+        "consent.data_processing",
+        "consent.marketing_communications",
+        "consent.partner_marketing"
+      ]
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fact",
+        "appliesWhen",
+        "reason",
+        "note",
+        "evidenceIds"
+      ],
+      "properties": {
+        "fact": {
+          "type": "string",
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+        },
+        "appliesWhen": {
+          "$ref": "#/$defs/nullableExpression"
+        },
+        "reason": {
+          "enum": [
+            "not_published",
+            "ambiguous",
+            "conflicting",
+            "not_yet_researched",
+            "not_applicable",
+            "source_access_limited"
+          ]
+        },
+        "note": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "evidenceIds": {
+          "$ref": "#/$defs/evidenceIds"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "authority",
+        "publisher",
+        "url",
+        "title",
+        "locale",
+        "retrievedOn",
+        "locator",
+        "excerpt",
+        "archivedUrl",
+        "contentHash"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "authority": {
+          "$ref": "#/$defs/authority"
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-z]{2}(?:-[A-Z]{2})?$"
+        },
+        "retrievedOn": {
+          "$ref": "#/$defs/date"
+        },
+        "locator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "text_fragment",
+                "css_selector",
+                "form_field",
+                "section",
+                "whole_page"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/nullableString"
+            }
+          }
+        },
+        "excerpt": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "archivedUrl": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "uri"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "contentHash": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^sha256:[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "authority": {
+      "enum": [
+        "agency_confirmed",
+        "first_party_published",
+        "agency_branded_provider",
+        "reputable_secondary",
+        "unverified"
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "method",
+        "reviewers",
+        "notes"
+      ],
+      "properties": {
+        "authority": {
+          "$ref": "#/$defs/authority"
+        },
+        "method": {
+          "enum": [
+            "unreviewed",
+            "single_reviewer",
+            "dual_reviewer",
+            "agency_confirmation"
+          ]
+        },
+        "reviewers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "reviewedOn"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "reviewedOn": {
+                "$ref": "#/$defs/date"
+              }
+            }
+          }
+        },
+        "notes": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    }
+  }
+}

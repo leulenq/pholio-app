@@ -8,9 +8,12 @@ import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
-import MatchScore from './ui/MatchScore';
 import { DivisionMark } from './status';
 import { MetaLine, Place } from './meta';
+import {
+  isOfferedApplicationStatus,
+  isRepresentedApplicationStatus,
+} from '../../../shared/constants/applicationStatus';
 import './TalentPanel.css';
 
 const getInitials = (name) => {
@@ -41,25 +44,25 @@ function VitalsBand({ measurements }) {
   );
 }
 
-const SIGNED = ['accepted', 'booked', 'represented', 'signed'];
-
 /**
- * Pipeline stepper — Submitted → In review → Signed, derived from the
+ * Pipeline stepper — Submitted → In review → Offered → Represented, derived from the
  * application status. Replaces the old "submission status" card; conveys
  * where the talent sits without a status badge.
  */
 function PipelineStatus({ status }) {
   const s = String(status || '').toLowerCase();
   const declined = s === 'declined';
-  const signed = SIGNED.includes(s);
-  const current = signed ? 2 : 1; // stage 0 (Submitted) is always complete
+  const offered = isOfferedApplicationStatus(s);
+  const represented = isRepresentedApplicationStatus(s);
+  const current = represented ? 3 : offered ? 2 : 1; // stage 0 (Submitted) is always complete
   const stages = [
     { label: 'Submitted' },
     { label: declined ? 'Declined' : 'In review', danger: declined },
-    { label: signed ? 'Signed' : 'Signing' },
+    { label: offered || represented ? 'Offered' : 'Offer' },
+    { label: represented ? 'Represented' : 'Agreement' },
   ];
   return (
-    <div className="tp-pipe" role="group" aria-label={`Status: ${stages[1].label}`}>
+    <div className="tp-pipe" role="group" aria-label={`Status: ${stages[current].label}`}>
       {stages.map((st, i) => {
         const state = i < current ? 'done' : i === current ? 'current' : 'todo';
         return (
@@ -106,11 +109,9 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
   const multi = images.length > 1;
 
   const siteLink = getTalentSiteLink({
-    isPro: profileHydrated?.isPro,
     slug: profileHydrated?.slug || talent.slug,
     portfolioUrl: profileHydrated?.portfolioUrl,
   });
-  const matchScore = talent.match ?? profileHydrated?.matchScore ?? null;
   const isPipeline = Boolean(talent.applicationId);
   const status = profileHydrated?.status || talent.status;
 
@@ -199,9 +200,6 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
             </>
           )}
 
-          {matchScore != null && (
-            <MatchScore score={matchScore} size="sm" tone="overlay" className="tp-hero-match" />
-          )}
 
           <div className="tp-hero-controls">
             {talent.applicationId && (

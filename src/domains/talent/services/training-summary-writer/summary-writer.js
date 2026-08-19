@@ -1,10 +1,6 @@
 "use strict";
 
-const {
-  callGroqChat,
-  countWords,
-  DEFAULT_MODEL,
-} = require("../writer-shared/groq-client");
+const { callGroqChat, countWords } = require("../writer-shared/groq-client");
 const {
   SYSTEM_PROMPT,
   buildFormatPrompt,
@@ -63,7 +59,6 @@ async function runTrainingSummaryMode({ mode, context, text = "" }) {
     const raw = await callGroqChat({
       system: SYSTEM_PROMPT,
       user: userPrompt,
-      model: DEFAULT_MODEL,
       temperature: getTemperature(mode, attempt),
       maxTokens: mode === "summarize" ? 170 : 240,
     });

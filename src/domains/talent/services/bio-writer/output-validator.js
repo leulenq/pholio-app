@@ -1,7 +1,21 @@
 "use strict";
 
-const { scoreBio } = require("./quality-rubric");
+const { scoreBio, passesBioQuality, resolveBounds } = require("./quality-rubric");
+const { resolveRichness } = require("./context-builder");
+const {
+  findFabrications,
+  findDroppedUserFacts,
+  findCoveredSignals,
+  findGroundableSignals,
+} = require("./grounding");
 
+/**
+ * Allow-list of phrases the bio may reuse.
+ *
+ * NOTE: also consumed by the submission-note writer
+ * (services/submission-note-writer/output-validator.js). Keep the signature and
+ * the shape of the return value stable.
+ */
 function collectAllowedPhrases(context = {}, existingBio = "") {
   const phrases = new Set();
 
@@ -36,60 +50,83 @@ function collectAllowedPhrases(context = {}, existingBio = "") {
 }
 
 /**
- * Heuristic: flag capitalized multi-word phrases in output not grounded in allowed text.
+ * How much the profile actually gives the writer to work with. Drives the word
+ * ceiling: a two-fact profile gets two honest sentences, not a paragraph of
+ * padding.
+ * @returns {'thin'|'moderate'|'rich'}
  */
-function findUngroundedPhrases(bio, allowedPhrases) {
-  const allowedBlob = allowedPhrases.join(" ");
-  const matches = bio.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/g) || [];
-  const ungrounded = [];
-
-  for (const phrase of matches) {
-    const key = phrase.toLowerCase();
-    if (key.length < 6) continue;
-    if (allowedBlob.includes(key)) continue;
-    if (/^(New York|Los Angeles|San Francisco|United States)/i.test(phrase)) {
-      if (allowedBlob.includes(key.split(" ")[0])) continue;
-    }
-    ungrounded.push(phrase);
-  }
-
-  return ungrounded.slice(0, 3);
+function deriveRichness(context = {}) {
+  // buildBioContext already stamps this; hand-built contexts get it derived.
+  return context.richness || resolveRichness(context.signals || []);
 }
 
 /**
  * @param {string} bio
  * @param {Object} context
  * @param {{ existingBio?: string, mode?: string, length?: 'tight'|'standard', person?: 'third'|'first' }} options
- * @returns {{ valid: boolean, rubric: object, ungrounded: string[] }}
+ * @returns {{ valid: boolean, rubric: object, fabrications: Array, ungrounded: string[], droppedUserFacts: string[], richness: string, coveredSignals: string[] }}
  */
 function validateBioOutput(bio, context, options = {}) {
-  const allowedPhrases = collectAllowedPhrases(
-    context,
-    options.existingBio || "",
-  );
+  const existingBio = options.existingBio || "";
+  const allowedPhrases = collectAllowedPhrases(context, existingBio);
+  const richness = deriveRichness(context);
+  const bounds = resolveBounds(options.length, richness);
+
   const rubric = scoreBio(bio, {
     allowedPhrases,
     length: options.length,
     person: options.person,
+    bounds,
   });
 
-  const ungrounded = findUngroundedPhrases(bio, allowedPhrases);
-  if (ungrounded.length >= 2) {
-    rubric.issues.push("ungrounded_facts");
-    rubric.score -= 15;
-    rubric.pass = rubric.pass && rubric.score >= 62;
+  // 1. Truthfulness. One invented name is one too many.
+  const fabrications = findFabrications(bio, { context, existingBio });
+  if (fabrications.length) {
+    rubric.issues.push("fabricated_facts");
+    rubric.score = Math.max(0, rubric.score - 40);
   }
 
-  const valid = rubric.pass && rubric.issues.length <= 2;
+  // 2. Padding. Length has to be earned by context.
+  if (richness === "thin" && rubric.wordCount > bounds.softMax) {
+    rubric.issues.push("padded");
+    rubric.score = Math.max(0, rubric.score - 25);
+  }
+
+  // 3. The bio has to actually use the profile.
+  const coveredSignals = findCoveredSignals(bio, context);
+  const groundableSignals = findGroundableSignals(context);
+  if (groundableSignals.length && coveredSignals.length === 0) {
+    rubric.issues.push("no_grounded_signal");
+    rubric.score = Math.max(0, rubric.score - 30);
+  }
+
+  // 4. Refine tightens prose; it never loses the talent's own facts.
+  const droppedUserFacts =
+    options.mode === "refine"
+      ? findDroppedUserFacts(bio, existingBio, context)
+      : [];
+  if (droppedUserFacts.length) {
+    rubric.issues.push("dropped_user_fact");
+    rubric.score = Math.max(0, rubric.score - 30);
+  }
+
+  rubric.pass = passesBioQuality(rubric.score, rubric.issues);
 
   return {
-    valid,
+    valid: rubric.pass,
     rubric,
-    ungrounded,
+    fabrications,
+    // Legacy shape: array of the offending phrases.
+    ungrounded: fabrications.map((f) => f.phrase),
+    droppedUserFacts,
+    coveredSignals,
+    richness,
+    bounds,
   };
 }
 
 module.exports = {
   validateBioOutput,
   collectAllowedPhrases,
+  deriveRichness,
 };

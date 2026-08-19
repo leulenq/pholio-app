@@ -21,7 +21,7 @@ function buildWelcomeAgencyEmailHtml({ contactName, agencyName } = {}) {
     blocks: [
       heading("Your board is ready."),
       goldRule(),
-      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, roster review, messaging, and casting work.`),
+      paragraph(`${greet(contactName)} ${agencyName ? `${strong(agencyName)} now has` : "your agency now has"} a workspace for submissions, messaging, discovery, and casting work.`),
       button("Open agency workspace", `${appUrl()}/dashboard/agency`),
       signoff(),
     ],
@@ -35,7 +35,7 @@ function buildAgencyActivationEmailHtml({ contactName, agencyName, activationUrl
       heading("Your access is granted."),
       goldRule(),
       paragraph(`${greet(contactName)} ${agencyName ? strong(agencyName) : "your agency"} has been reviewed and accepted into Pholio.`),
-      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, and decide how your roster arrives — most of it is confirmation rather than new information."),
+      paragraph("Set a password to open the workspace. You will then confirm the details we hold on file, choose your boards, configure intake, and invite your team — most of it is confirmation rather than new information."),
       button("Set your password", activationUrl),
       note(`This link expires in ${expiresMinutes || 60} minutes and can be used once. If it has lapsed, request a new one from the sign-in page or reply to this email.`),
       signoff(),
@@ -58,8 +58,59 @@ function buildTeamInviteEmailHtml({ inviteeName, agencyName, inviterName, roleLa
   });
 }
 
+/**
+ * The two event-casting notices. Both go to the organizer, because both are
+ * answers to something the organizer did — and a declined slot in particular
+ * is time-critical operational news: somebody has to be walked in that look.
+ *
+ * Built from the shared email components rather than a bespoke layout so they
+ * carry the same masthead, type and footer as every other Pholio email.
+ */
+function buildEventSlotEmailHtml({
+  recipientName,
+  talentName,
+  eventName,
+  confirmed,
+  applicationId,
+}) {
+  const talent = esc(talentName || "An applicant");
+  const event = esc(eventName || "your event");
+  const greeting = recipientName ? `${esc(recipientName)},` : "Hello,";
+  const applicationUrl = `${appUrl()}/dashboard/agency/inbox${
+    applicationId ? `?application=${encodeURIComponent(applicationId)}` : ""
+  }`;
+
+  return renderEmail({
+    previewText: confirmed
+      ? `${talentName || "An applicant"} confirmed their slot for ${eventName || "your event"}.`
+      : `${talentName || "An applicant"} declined their slot for ${eventName || "your event"}.`,
+    blocks: [
+      heading(confirmed ? "A slot is confirmed." : "A slot has opened again."),
+      goldRule(),
+      paragraph(
+        confirmed
+          ? `${greeting} <strong>${talent}</strong> confirmed the slot you offered for <strong>${event}</strong>.`
+          : `${greeting} <strong>${talent}</strong> declined the slot you offered for <strong>${event}</strong>.`,
+      ),
+      ...(confirmed
+        ? []
+        : [
+            paragraph(
+              "The slot is free to offer to someone else. Your pick lists and pool are unchanged.",
+            ),
+          ]),
+      button("Open the applicant", applicationUrl),
+      note(
+        "Only the applicant can confirm or decline a slot — this is their answer, recorded on the application.",
+      ),
+      signoff(),
+    ],
+  });
+}
+
 module.exports = {
   buildWelcomeAgencyEmailHtml,
   buildAgencyActivationEmailHtml,
   buildTeamInviteEmailHtml,
+  buildEventSlotEmailHtml,
 };

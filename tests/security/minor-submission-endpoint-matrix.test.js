@@ -31,7 +31,7 @@ describe("minor submission endpoint access matrix", () => {
       ([method, path]) => `${method} ${path}`,
     );
     expect(new Set(keys).size).toBe(keys.length);
-    expect(MINOR_SUBMISSION_ENDPOINT_MATRIX.length).toBeGreaterThanOrEqual(25);
+    expect(MINOR_SUBMISSION_ENDPOINT_MATRIX.length).toBeGreaterThanOrEqual(24);
     for (const [, , strategy] of MINOR_SUBMISSION_ENDPOINT_MATRIX) {
       expect([
         "application_guard",

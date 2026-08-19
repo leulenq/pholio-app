@@ -18,11 +18,51 @@ process.env.SMTP_USER = "test-user";
 process.env.SMTP_PASS = "test-pass";
 
 const {
+  buildApplicationStatusEmailHtml,
   buildGuardianConsentEmailHtml,
 } = require("../../src/shared/lib/pholio-email");
 const {
+  sendApplicationStatusEmail,
   sendGuardianConsentEmail,
 } = require("../../src/shared/lib/email");
+
+describe("application status email", () => {
+  beforeEach(() => {
+    mockSendMail.mockClear();
+  });
+
+  test("renders completed representation separately from an offer or decline", () => {
+    const html = buildApplicationStatusEmailHtml({
+      talentName: "Mia Voss",
+      agencyName: "North Star Models",
+      status: "represented",
+    });
+
+    // Copy was rewritten in the talent email redesign; the assertions pin the
+    // distinction the test exists for, not the old prose: a completed agreement
+    // must read as completed, never as an offer still to be accepted, and never
+    // as a decline.
+    expect(html).toMatch(/You.{1,6}re represented by North Star Models/);
+    expect(html).toContain("The agreement is complete.");
+    expect(html).not.toMatch(/wants to sign you|passed on your submission/);
+  });
+
+  test("sends a representation-confirmed subject", async () => {
+    await sendApplicationStatusEmail({
+      to: "talent@example.com",
+      talentName: "Mia Voss",
+      agencyName: "North Star Models",
+      status: "represented",
+    });
+
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: "Representation confirmed by North Star Models",
+        html: expect.stringContaining("The agreement is complete."),
+      }),
+    );
+  });
+});
 
 describe("guardian consent email", () => {
   beforeEach(() => {

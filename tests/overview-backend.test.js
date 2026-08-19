@@ -115,9 +115,10 @@ describe("GET /api/talent/overview", () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/overview"),
     );
-    expect(res.body).toHaveProperty("profileStrength");
     expect(res.body).toHaveProperty("nextPriority");
     expect(res.body).toHaveProperty("activityStream");
+    expect(res.body).not.toHaveProperty("profileStrength");
+    expect(res.body).not.toHaveProperty("recommendedAgencies");
   });
 });
 
@@ -142,22 +143,28 @@ describe("Demo seed: talent@example.com profile", () => {
   });
 });
 
+// The demo ledger used to run to seven applications because seeds/seed.js
+// seeded eight real agencies as live Pholio destinations. It no longer does —
+// ruling R5 makes those reference entries, and the seed now creates two
+// invented houses instead. `applications` is unique on (profile_id, agency_id)
+// for direct applications, so the demo ledger is exactly as long as the demo
+// directory: one row per fictional agency.
 describe("Demo seed: applications", () => {
-  test("talent@example.com has 7 applications", async () => {
+  test("talent@example.com has one application per demo agency", async () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/applications"),
     );
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.length).toBe(7);
+    expect(res.body.data.length).toBe(2);
   });
 
-  test("applications include accepted and declined statuses", async () => {
+  test("applications cover both a live and a closed status", async () => {
     const res = await withTalentSession(
       request(app).get("/api/talent/applications"),
     );
     const statuses = res.body.data.map((a) => a.status);
-    expect(statuses).toContain("accepted");
+    expect(statuses).toContain("shortlisted");
     expect(statuses).toContain("declined");
   });
 });
@@ -309,6 +316,18 @@ describe("Public portfolio analytics integrity", () => {
     const res = await request(app)
       .post(`/portfolio/${profile.slug}/event`)
       .send({ eventType: "download", metadata: {} });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Unsupported analytics event");
+  });
+
+  test("rejects retired image-attention events", async () => {
+    const profile = await knex("profiles")
+      .where({ user_id: TALENT_USER_ID })
+      .first();
+    const res = await request(app)
+      .post(`/portfolio/${profile.slug}/event`)
+      .send({ eventType: "image_dwell", imageId: "retired", dwellMs: 5000 });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("Unsupported analytics event");

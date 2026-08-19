@@ -1177,8 +1177,16 @@ router.post(
 
       // Process image (converts to WebP, optimizes). processedBuffer is the exact
       // bytes we persist; it is what content moderation must inspect.
-      const { storageKey, publicUrl, absolutePath, processedBuffer } =
-        await processImage(req.file, profile.id);
+      const {
+        storageKey,
+        publicUrl,
+        absolutePath,
+        processedBuffer,
+        deliveryMimeType,
+        deliverySizeBytes,
+        deliveryWidthPx,
+        deliveryHeightPx,
+      } = await processImage(req.file, profile.id);
 
       // Content moderation + CSAM screening (audit finding H2). The onboarding
       // The scout path handles adult pilot uploads. It still fails toward review
@@ -1250,11 +1258,28 @@ router.post(
           id: imageId,
           profile_id: profile.id,
           path: publicUrl, // Save public URL to be consistent with Media API
+          public_url: publicUrl,
+          storage_key: storageKey,
           absolute_path: absolutePath, // Reliable path to the optimized webp image
+          delivery_mime_type: deliveryMimeType || null,
+          delivery_size_bytes: deliverySizeBytes ?? null,
+          delivery_width_px: deliveryWidthPx ?? null,
+          delivery_height_px: deliveryHeightPx ?? null,
+          delivery_metadata_recorded_at: trx.fn.now(),
           is_primary: isPrimary,
           label: "Scout photo",
           image_type: "digital",
           shot_type: shotType,
+          metadata: JSON.stringify({
+            ai: {
+              classification: {
+                source: "user",
+                confirmed: true,
+                band: "confirmed",
+                shot_type: { value: shotType, confidence: 1 },
+              },
+            },
+          }),
           ...(hasModerationColumns
             ? {
                 moderation_status: effectiveModStatus,

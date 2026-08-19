@@ -57,10 +57,13 @@ import { DIGITALS_ADVISORY_ITEMS, normalizeShotSlug, labelForStyle } from '../..
 import { BOOK_MIN_FRAME_COUNT } from '../../../../shared/constants/packageIntelligence';
 import { cmToFeetInches, cmToInches } from '../../../../shared/utils/measurementConversions';
 import { talentApi } from '../../api/talent';
+import { readVerificationNotice } from '../../lib/specRegistry';
+import { PAYOFF_ACTIONS } from '../../../../shared/constants/eventCasting';
 import { MARKETING_SITE_URL } from '../../../../shared/lib/logout';
 import '../../components/ApplicationsView.css';
 import './ApplyExperience.css';
 import SubmissionThreshold from './SubmissionThreshold';
+import RegistryPreflight from '../../components/RegistryPreflight';
 import { draftFingerprint, getDraftClientId } from './applicationDraftStorage';
 
 const XIcon = ({ size = 24, className }) => (
@@ -86,6 +89,7 @@ import {
   consentBindingMatches,
   submissionConsentPackageKey,
 } from './submissionConsentBinding';
+import { EventIntakeScene, pagesForCall, useEventIntake } from './event';
 import compCardDimensions from '../../../../../../shared/comp-card-dimensions.json';
 import applicationDraftSchema from '../../../../../../shared/application-draft-schema.json';
 
@@ -134,8 +138,8 @@ const PAGES = [
   },
 ];
 
-const pageMarker = (index) =>
-  `${String(index + 1).padStart(2, '0')} / ${String(PAGES.length).padStart(2, '0')}`;
+const pageMarker = (index, pages = PAGES) =>
+  `${String(index + 1).padStart(2, '0')} / ${String(pages.length).padStart(2, '0')}`;
 
 const AUTOSAVE_DELAY_MS = 1500;
 const DRAFT_LIFECYCLE_ERROR_CODES = new Set([
@@ -167,20 +171,32 @@ function draftIssueFromError(error, localDocument, source) {
   };
 }
 
-function repairStepIndex(warnings = []) {
+// `pages` is passed in because an event call inserts a casting step, which
+// shifts every index after it. Defaults to the representation dossier.
+function repairStepIndex(warnings = [], pages = PAGES) {
   const fields = new Set(warnings.map((warning) => warning?.field).filter(Boolean));
-  if (fields.has('boards')) return PAGES.findIndex((page) => page.id === 'board');
+  if (fields.has('boards')) return pages.findIndex((page) => page.id === 'board');
   if (fields.has('digitalSlotPicks')) {
-    return PAGES.findIndex((page) => page.id === 'digitals');
+    return pages.findIndex((page) => page.id === 'digitals');
+  }
+  if (fields.has('specRegistryRevisionId')) {
+    return pages.findIndex((page) => page.id === 'digitals');
   }
   if (fields.has('mediaSetId') || fields.has('excludedImageIds')) {
-    return PAGES.findIndex((page) => page.id === 'book');
+    return pages.findIndex((page) => page.id === 'book');
   }
   if (fields.has('compCardPreset')) {
-    return PAGES.findIndex((page) => page.id === 'compcard');
+    return pages.findIndex((page) => page.id === 'compcard');
   }
-  if (fields.has('note')) return PAGES.findIndex((page) => page.id === 'message');
-  return PAGES.findIndex((page) => page.id === 'review');
+  if (
+    fields.has('availability') ||
+    fields.has('walkVideoUrl') ||
+    fields.has('openCallLinkId')
+  ) {
+    return pages.findIndex((page) => page.id === 'event');
+  }
+  if (fields.has('note')) return pages.findIndex((page) => page.id === 'message');
+  return pages.findIndex((page) => page.id === 'review');
 }
 
 function clientDraftDocument(serverDraft, { restoreConsent = false } = {}) {
@@ -570,6 +586,7 @@ export default function ApplyExperience() {
   const [selectedCompCardPreset, setSelectedCompCardPreset] = useState(null);
   // Submission-scoped: which qualifying digital represents each slot (swap).
   const [digitalSlotPicks, setDigitalSlotPicks] = useState({});
+  const [specRegistryRevisionId, setSpecRegistryRevisionId] = useState(null);
   const [excludedImageIds, setExcludedImageIds] = useState(() => new Set());
   const [note, setNote] = useState('');
   const [consent, setConsent] = useState(false);
@@ -682,10 +699,13 @@ export default function ApplyExperience() {
 
   const applyMutation = useMutation({
     mutationFn: talentApi.createApplication,
-    onSuccess: (_data, variables) => {
+    onSuccess: (data, variables) => {
       lastSavedFingerprintRef.current = '';
       setDraftStatus('submitted');
       setSubmitted({
+        // Carried purely so the success screen can report that it rendered
+        // (funnel step 6); the server derives everything else from the row.
+        applicationId: data?.id || null,
         agency: { name: variables?.submissionPackage?.agencyName },
         market: variables?.submissionPackage?.agencyLocation || null,
         submittedAt: new Date().toISOString(),
@@ -700,20 +720,16 @@ export default function ApplyExperience() {
       queryClient.invalidateQueries({ queryKey: TALENT_NOTIFICATIONS_QUERY_KEY });
     },
     onError: (err) => {
-      if (err?.data?.upgradeRequired) {
+      if (err?.data?.error === 'monthly_discovery_limit_reached') {
         const claims = err?.data?.activeClaims || [];
-        if (err?.data?.error === 'open_call_exemption_cap_reached') {
-          toast.error(
-            "You've used this month's invited submissions. Invited submissions now count toward your monthly limit.",
-          );
-        } else if (claims.length > 0) {
-          // Never upsell past a free entitlement the talent already holds.
-          toast.error(
-            `Monthly discovery limit reached. You can still submit to ${claims[0].agencyName} — they invited you.`,
-          );
-        } else {
-          toast.error('Monthly discovery limit reached.');
-        }
+        // The limit is anti-spam and applies to every plan, so there is
+        // nothing to upsell — point at the open-call path, which is free
+        // and unlimited.
+        toast.error(
+          claims.length > 0
+            ? `Monthly discovery limit reached. You can still submit to ${claims[0].agencyName} — they invited you.`
+            : "Monthly discovery limit reached. Submissions through an agency's own open call link don't count toward it.",
+        );
         return;
       }
       const code = err?.data?.error;
@@ -727,7 +743,7 @@ export default function ApplyExperience() {
         );
         setDraftIssue(issue);
         setDraftStatus('unsaved');
-        setPageIndex(repairStepIndex(issue.repairWarnings));
+        setPageIndex(repairStepIndex(issue.repairWarnings, pages));
         return;
       }
       if (code === 'draft_consent_required') {
@@ -737,13 +753,13 @@ export default function ApplyExperience() {
           draftIssueFromError(err, currentDraftRef.current, 'submit'),
         );
         setDraftStatus('unsaved');
-        setPageIndex(PAGES.findIndex((page) => page.id === 'review'));
+        setPageIndex(pages.findIndex((page) => page.id === 'review'));
         return;
       }
       if (code === 'consent_package_changed') {
         setConsent(false);
         setConsentBinding(null);
-        setPageIndex(PAGES.findIndex((page) => page.id === 'review'));
+        setPageIndex(pages.findIndex((page) => page.id === 'review'));
         toast.error(
           err?.data?.message ||
             'Your package changed after consent. Review it and confirm again.',
@@ -783,6 +799,26 @@ export default function ApplyExperience() {
     [applicationsQuery.data],
   );
   const agencies = useMemo(() => asArray(agenciesQuery.data), [agenciesQuery.data]);
+
+  const applicationQuota = applicationQuotaQuery.data || null;
+  // A live open call claim for the selected agency — that submission is
+  // invited and never draws on the monthly discovery allowance. The claim also
+  // carries the call it came from, which is what makes this an event
+  // application: the server resolves it, the client only renders it.
+  const openCallClaim = useMemo(
+    () =>
+      (applicationQuota?.activeClaims || []).find(
+        (claim) => claim.agencyId === selectedAgencyId,
+      ) || null,
+    [applicationQuota, selectedAgencyId],
+  );
+  // The single seam for event casting in this file (design §e, T2). Everything
+  // it owns — the casting page, its state, its draft fields — lives in ./event.
+  const eventIntake = useEventIntake({ basePages: PAGES, claim: openCallClaim });
+  const pages = eventIntake.pages;
+  // Stable across renders (the hook memoizes it), so callbacks that restore a
+  // draft can depend on it without churning.
+  const hydrateEventDraft = eventIntake.hydrateFromDraft;
   const mediaSets = useMemo(() => asMediaSets(mediaSetsQuery.data), [mediaSetsQuery.data]);
   const gating = useMemo(
     () =>
@@ -812,13 +848,14 @@ export default function ApplyExperience() {
   const site = websiteUrl(selectedAgency?.agency_website);
 
   const draftDocument = useMemo(() => ({
-    currentStepId: PAGES[pageIndex]?.id || PAGES[0].id,
+    currentStepId: pages[pageIndex]?.id || pages[0].id,
     payload: {
       schemaVersion: applicationDraftSchema.currentVersion,
       boards: selectedBoards,
       mediaSetId: selectedMediaSetId,
       excludedImageIds: [...excludedImageIds],
       digitalSlotPicks,
+      specRegistryRevisionId,
       compCardPreset: selectedCompCardPreset
         ? {
             id: selectedCompCardPreset.id,
@@ -827,6 +864,8 @@ export default function ApplyExperience() {
           }
         : null,
       note,
+      ...eventIntake.submissionFields,
+      measurementsConfirmed: eventIntake.measurementsConfirmedForDraft,
       consent: minor ? agencyConsentGranted : consent,
       accuracyConfirmed: minor ? true : accuracyConfirmed,
       adultAuthorityConfirmed: minor ? true : adultAuthorityConfirmed,
@@ -837,9 +876,13 @@ export default function ApplyExperience() {
     adultAuthorityConfirmed,
     consent,
     digitalSlotPicks,
+    eventIntake.submissionFields,
+    eventIntake.measurementsConfirmedForDraft,
+    specRegistryRevisionId,
     excludedImageIds,
     note,
     pageIndex,
+    pages,
     selectedBoards,
     selectedCompCardPreset,
     selectedMediaSetId,
@@ -853,7 +896,7 @@ export default function ApplyExperience() {
     const payload = document?.payload && typeof document.payload === 'object'
       ? document.payload
       : {};
-    const page = PAGES.findIndex((candidate) => candidate.id === document?.currentStepId);
+    const page = pages.findIndex((candidate) => candidate.id === document?.currentStepId);
     const availableBoards = new Set(
       Array.isArray(selectedAgency?.open_boards) ? selectedAgency.open_boards : [],
     );
@@ -882,13 +925,19 @@ export default function ApplyExperience() {
     setSelectedMediaSetId(mediaSetValid ? payload.mediaSetId : 'current');
     setExcludedImageIds(new Set(validExcludedIds));
     setDigitalSlotPicks(validDigitalPicks);
+    setSpecRegistryRevisionId(
+      typeof payload.specRegistryRevisionId === 'string'
+        ? payload.specRegistryRevisionId
+        : null,
+    );
     setSelectedCompCardPreset(payload.compCardPreset || null);
     setNote(typeof payload.note === 'string' ? payload.note.slice(0, 1200) : '');
+    hydrateEventDraft(payload);
     setConsent(false);
     setAccuracyConfirmed(false);
     setAdultAuthorityConfirmed(false);
     setConsentBinding(null);
-  }, [authImages, mediaSets, selectedAgency]);
+  }, [authImages, hydrateEventDraft, mediaSets, pages, selectedAgency]);
 
   const adoptServerDraft = useCallback((server, options = {}) => {
     const serverDocument = clientDraftDocument(server, options);
@@ -1156,12 +1205,12 @@ export default function ApplyExperience() {
     if (draftIssue?.code === 'draft_consent_required') {
       setConsent(false);
       setConsentBinding(null);
-      setPageIndex(PAGES.findIndex((page) => page.id === 'review'));
+      setPageIndex(pages.findIndex((page) => page.id === 'review'));
     }
     lastSavedFingerprintRef.current = '';
     setDraftIssue(null);
     setDraftStatus('unsaved');
-  }, [applyDraftDocument, draftIssue]);
+  }, [applyDraftDocument, draftIssue, pages]);
 
   const selectMediaSet = (id) => {
     setSelectedMediaSetId(id);
@@ -1175,20 +1224,14 @@ export default function ApplyExperience() {
 
   /* ── derived submission state ── */
 
-  const applicationQuota = applicationQuotaQuery.data || null;
-  // A live open call claim for the selected agency — that submission is
-  // invited and never draws on the monthly discovery allowance.
-  const openCallClaim = useMemo(
-    () =>
-      (applicationQuota?.activeClaims || []).find(
-        (claim) => claim.agencyId === selectedAgencyId,
-      ) || null,
-    [applicationQuota, selectedAgencyId],
-  );
-  const monthlyLimitLabel = openCallClaim
-    ? `Invited by ${openCallClaim.agencyName} — this submission won't use your monthly allowance`
-    : applicationQuota?.unlimited
-      ? 'Unlimited submissions this month'
+  // An event cast has no monthly allowance to spend, so mentioning one would
+  // be reassurance about a limit that was never in play (design T1).
+  const monthlyLimitLabel = eventIntake.isEventCall
+    ? `Casting application to ${openCallClaim?.agencyName || 'this organizer'}${
+        eventIntake.call?.event?.name ? ` — ${eventIntake.call.event.name}` : ''
+      }`
+    : openCallClaim
+      ? `Invited by ${openCallClaim.agencyName} — this submission won't use your monthly allowance`
       : applicationQuota
         ? `${applicationQuota.used}/${applicationQuota.limit} discovery submissions this month`
         : 'Submission limit unavailable';
@@ -1292,7 +1335,8 @@ export default function ApplyExperience() {
       {
         key: 'digitals_recency',
         label: 'Current digitals',
-        complete: !packageAudit.recency.isStale,
+        // A set of unknown age is not a current set. `!isStale` said it was.
+        complete: packageAudit.recency.isCurrent,
         note: 'Refresh your digitals — agencies expect a current set',
       },
       {
@@ -1385,10 +1429,15 @@ export default function ApplyExperience() {
       compCardPresetId: selectedCompCardPreset?.id || null,
       imageIds: packageImages.map((image) => image.id),
       note,
+      // Null on a representation submission, and the mirror drops the keys
+      // entirely when the link is null — which is what keeps every existing
+      // package hashing to exactly what it hashed to before event casting.
+      ...eventIntake.submissionFields,
     }),
     [
       boardLabels,
       digitalSlotPicks,
+      eventIntake.submissionFields,
       note,
       packageImages,
       selectedAgency?.id,
@@ -1496,8 +1545,8 @@ export default function ApplyExperience() {
   /* ── navigation ── */
 
   const goTo = (index) => {
-    const bounded = Math.max(0, Math.min(PAGES.length - 1, index));
-    const document = { ...draftDocument, currentStepId: PAGES[bounded].id };
+    const bounded = Math.max(0, Math.min(pages.length - 1, index));
+    const document = { ...draftDocument, currentStepId: pages[bounded].id };
     currentDraftRef.current = document;
     setPageIndex(bounded);
     if (!draftIssue) persistDraftDocument(document);
@@ -1582,7 +1631,13 @@ export default function ApplyExperience() {
         compCardPresetName: selectedCompCardPreset?.name || null,
         compCardSeed: selectedCompCardPreset?.seed || null,
         digitalSlotPicks,
+        specRegistryRevisionId,
         imageIds: packageImages.map((img) => img.id),
+        // Event intake. Absent (null) on a representation submission, and the
+        // server never trusts them to decide the purpose — the open-call claim
+        // does that.
+        ...eventIntake.submissionFields,
+        measurementsConfirmed: eventIntake.measurementsConfirmedForDraft,
         readiness: missingChecks.length === 0 ? 'Ready' : `Missing ${missingChecks.length}`,
         digitalsGaps: digitalsGaps.map((g) => g.label),
         untypedImageCount: untypedPackageCount,
@@ -1621,6 +1676,7 @@ export default function ApplyExperience() {
   if (submitted) {
     return (
       <ApplySuccess
+        applicationId={submitted.applicationId}
         firstName={(profile?.first_name || '').trim()}
         agencyName={submitted.agency?.name || 'the agency'}
         submittedAt={submitted.submittedAt}
@@ -1628,6 +1684,9 @@ export default function ApplyExperience() {
         mediaSetName={submitted.mediaSetName}
         compCardName={submitted.compCardName}
         frameCount={submitted.frameCount}
+        isEventCall={eventIntake.isEventCall}
+        eventName={eventIntake.call?.event?.name || null}
+        portfolioSlug={profile?.slug || null}
         onExit={exitToMarket}
       />
     );
@@ -1703,6 +1762,7 @@ export default function ApplyExperience() {
             setSelectedMediaSetId('current');
             setSelectedCompCardPreset(null);
             setDigitalSlotPicks({});
+            setSpecRegistryRevisionId(null);
             setExcludedImageIds(new Set());
             setNote('');
             setConsent(false);
@@ -1842,8 +1902,8 @@ export default function ApplyExperience() {
 
   /* ── the dossier (persistent rail + paginated right column) ── */
 
-  const page = PAGES[pageIndex];
-  const isLastPage = pageIndex === PAGES.length - 1;
+  const page = pages[pageIndex];
+  const isLastPage = pageIndex === pages.length - 1;
   // Page 01 copy is agency-primary and depends on whether boards are exposed.
   const mast =
     page.id === 'board'
@@ -1887,7 +1947,7 @@ export default function ApplyExperience() {
 
         <div className="apply-dossier-col">
           <header key={`${page.id}-mast`} className="apply-pagemast">
-            <span className="apply-pagemast__marker">{pageMarker(pageIndex)}</span>
+            <span className="apply-pagemast__marker">{pageMarker(pageIndex, pages)}</span>
             <h1 className="apply-pagemast__title">{mast.title}</h1>
             <p className="apply-pagemast__standfirst">{mast.standfirst}</p>
           </header>
@@ -1905,6 +1965,10 @@ export default function ApplyExperience() {
               <DigitalsPage
                 slots={digitalSet}
                 intel={digitalsIntel}
+                agencyId={selectedAgency?.id}
+                agencyName={selectedAgency?.name}
+                specRegistryRevisionId={specRegistryRevisionId}
+                onSpecRegistryRevisionChange={setSpecRegistryRevisionId}
                 isMinor={minor}
                 guardianConsent={agencyConsentGranted}
                 accountGuardianConsent={Boolean(profile?.guardian_consent_at)}
@@ -1949,6 +2013,22 @@ export default function ApplyExperience() {
                 onOpenIdentity={() => navigateFromDraft('/dashboard/talent/profile?tab=identity')}
               />
             )}
+            {page.id === eventIntake.pageId && (
+              <EventIntakeScene
+                call={eventIntake.call}
+                organizerName={selectedAgency?.name}
+                availability={eventIntake.availability}
+                onAvailabilityChange={eventIntake.setAvailability}
+                walkVideoUrl={eventIntake.walkVideoUrl}
+                onWalkVideoChange={eventIntake.setWalkVideoUrl}
+                measurementsConfirmed={eventIntake.measurementsConfirmed}
+                onMeasurementsConfirmedChange={eventIntake.setMeasurementsConfirmed}
+                stats={statsInfo}
+                onOpenProfile={() =>
+                  navigateFromDraft('/dashboard/talent/profile?tab=appearance')
+                }
+              />
+            )}
             {page.id === 'message' && (
               <MessagePage
                 agency={selectedAgency}
@@ -1990,7 +2070,7 @@ export default function ApplyExperience() {
                 requestingGuardianConsent={requestAgencyConsentMutation.isPending}
                 onRequestGuardianConsent={() => requestAgencyConsentMutation.mutate()}
                 onOpenIdentity={() => navigateFromDraft('/dashboard/talent/profile?tab=identity')}
-                onModify={(id) => goTo(PAGES.findIndex((p) => p.id === id))}
+                onModify={(id) => goTo(pages.findIndex((p) => p.id === id))}
                 onSubmit={handleSubmit}
                 canSubmit={canSubmit}
                 submitting={applyMutation.isPending}
@@ -2006,6 +2086,11 @@ export default function ApplyExperience() {
           {monthlyLimitLabel}
           {isLastPage && !isSendReady && sendBlockers.length > 0
             ? ` · ${sendBlockers.map((blocker) => sendBlockerLabel(blocker)).join(', ')} still needed`
+            : ''}
+          {/* Advisory. The server is what refuses the send — this only makes
+              sure nobody reaches the button without knowing why it will. */}
+          {eventIntake.gapLabels.length > 0
+            ? ` · ${eventIntake.gapLabels.join(', ')} required by this casting`
             : ''}
         </p>
         <div className="apply-foot__actions">
@@ -2039,7 +2124,11 @@ export default function ApplyExperience() {
 
 function draftDocumentSummary(document) {
   if (!document) return 'No unsaved local changes were found.';
-  const page = PAGES.find((candidate) => candidate.id === document.currentStepId);
+  // Searched against the event dossier, which is a superset of the
+  // representation one — a resumed casting draft names its step correctly.
+  const page = pagesForCall(PAGES, true).find(
+    (candidate) => candidate.id === document.currentStepId,
+  );
   const note = String(document.payload?.note || '').trim();
   const boards = Array.isArray(document.payload?.boards)
     ? document.payload.boards.length
@@ -2427,6 +2516,14 @@ function AgencyEditorialRail({ agency, site }) {
 /* The house being applied to — used in the chooser preview. */
 function AgencyDossier({ agency, site }) {
   const openBoards = Array.isArray(agency.open_boards) ? agency.open_boards.filter(Boolean) : [];
+  /*
+    The registration, from `GET /api/talent/agencies`. Positive-only (ruling
+    R3): an agency Pholio holds no registry match for gets no line at all, and
+    never a "not verified" — the young register's gaps are not an accusation.
+    Plain text beside the market, not a badge: this is a public-record fact, not
+    a Pholio tier.
+  */
+  const registryLine = readVerificationNotice(agency.verification);
 
   return (
     <aside className="apply-dossier" aria-label="Agency detail">
@@ -2454,6 +2551,7 @@ function AgencyDossier({ agency, site }) {
               <MapPin size={18} aria-hidden />
               {agency.agency_location || 'Global'}
             </p>
+            {registryLine ? <p className="apply-note-lbl">{registryLine}</p> : null}
           </div>
         </div>
       </header>
@@ -2554,6 +2652,10 @@ function ageLabel(image) {
 function DigitalsPage({
   slots,
   intel,
+  agencyId,
+  agencyName,
+  specRegistryRevisionId,
+  onSpecRegistryRevisionChange,
   isMinor = false,
   guardianConsent = false,
   accountGuardianConsent = false,
@@ -2591,6 +2693,15 @@ function DigitalsPage({
 
   return (
     <div className="apply-digitals">
+      <RegistryPreflight
+        agencyId={agencyId}
+        agencyName={agencyName}
+        selectedRevisionId={specRegistryRevisionId}
+        onRevisionChange={onSpecRegistryRevisionChange}
+        imageIds={presentedSlots.flatMap((slot) =>
+          slot.image?.id ? [slot.image.id] : [],
+        )}
+      />
       {/* Minors are a distinct legal regime: full-length/form-fitting body
           frames need guardian consent before they can be sent, and go only to
           the named agency — never public. The send itself is gated upstream;
@@ -3281,11 +3392,9 @@ function MessagePage({
         mode === 'draft' ? 'Note drafted' : mode === 'sharpen' ? 'Note sharpened' : 'Note shortened',
       );
     } catch (err) {
-      if (err?.data?.details?.code === 'STUDIO_PLUS_REQUIRED') {
-        toast.error('Studio+ is required to use the note assistant.');
-      } else {
-        toast.error(err?.message || 'Could not update the note. Please try again.');
-      }
+      // The note assistant is free to every talent — no subscription branch
+      // here. Over-use answers with the shared AI rate limiter's message.
+      toast.error(err?.message || 'Could not update the note. Please try again.');
     } finally {
       setAssistBusy(false);
     }
@@ -3903,7 +4012,7 @@ function ReviewSendPage({
    Submission success — a full-screen, motion-led confirmation
    ════════════════════════════════════════════════════════════ */
 
-function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName, compCardName, frameCount, onExit }) {
+function ApplySuccess({ applicationId = null, firstName, agencyName, submittedAt, market, mediaSetName, compCardName, frameCount, isEventCall = false, eventName = null, portfolioSlug = null, onExit }) {
   const reduce = useReducedMotion();
 
   useEffect(() => {
@@ -3913,6 +4022,23 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName
       document.body.style.overflow = prev;
     };
   }, []);
+
+  // Funnel step 6 (design §g). "What you keep" is the honest answer to twenty
+  // minutes of work on a casting nobody is promised, so whether it is actually
+  // seen — and whether either link is used — is the only evidence that the
+  // payoff landed. Best-effort: `recordApplyPayoffView` swallows its own
+  // failures, and a representation submission records nothing server-side.
+  const recordPayoff = useCallback(
+    (action) => {
+      if (!applicationId) return;
+      talentApi.recordApplyPayoffView(applicationId, action);
+    },
+    [applicationId],
+  );
+
+  useEffect(() => {
+    recordPayoff(PAYOFF_ACTIONS.VIEWED);
+  }, [recordPayoff]);
 
   const container = {
     hidden: {},
@@ -3933,10 +4059,14 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName
   const pace = market
     ? `and can run longer at a busy ${market} house during peak casting`
     : 'and can run longer during peak casting';
-  const guidance =
-    `${agencyName} reviews new submissions in batches, so you won’t always hear back right away — ` +
-    `a reply usually takes anywhere from a few days to a few weeks, ${pace}. ` +
-    `You’ll be notified through Pholio the moment ${agencyName} responds; nothing further is needed from you.`;
+  const guidance = isEventCall
+    ? `${agencyName} triages casting applications in one pass, usually close to the ` +
+      `application deadline. If you move into the pool, designers may see your ` +
+      `package through a read-only link. You’ll be notified through Pholio if ` +
+      `you’re offered a slot — and you’ll have a limited window to answer it.`
+    : `${agencyName} reviews new submissions in batches, so you won’t always hear back right away — ` +
+      `a reply usually takes anywhere from a few days to a few weeks, ${pace}. ` +
+      `You’ll be notified through Pholio the moment ${agencyName} responds; nothing further is needed from you.`;
 
   return createPortal(
     <div className="apply-success" role="status" aria-live="polite">
@@ -3960,7 +4090,8 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName
           Thank you{firstName ? `, ${firstName}` : ''}.
         </motion.h1>
         <motion.p className="apply-success__lede" variants={item}>
-          Your submission has been sent to <em>{agencyName}</em>.
+          Your submission has been sent to <em>{agencyName}</em>
+          {isEventCall && eventName ? <> for <em>{eventName}</em></> : null}.
         </motion.p>
         <motion.p className="apply-success__receipt" variants={item}>
           {dateLabel(submittedAt)} · Under review
@@ -3974,6 +4105,43 @@ function ApplySuccess({ firstName, agencyName, submittedAt, market, mediaSetName
         <motion.div className="apply-success__guidance" variants={item}>
           <span className="apply-success__guidance-label">What happens next</span>
           <p>{guidance}</p>
+        </motion.div>
+
+        {/* The payoff (design T3). A casting is a lottery; the profile, the
+            digitals set and the comp card are not — they exist whether or not
+            this organizer ever answers, and saying so is the honest reason to
+            have spent the last twenty minutes here. */}
+        <motion.div className="apply-success__keep" variants={item}>
+          <span className="apply-success__guidance-label">What you keep</span>
+          <ul className="apply-success__keep-list">
+            <li>A complete profile agencies and organizers can read.</li>
+            <li>
+              {mediaSetName ? `Your ${mediaSetName.toLowerCase()}` : 'Your digitals set'}
+              {frameCount > 0 ? ` — ${frameCount} frames, ready to send again.` : ', ready to send again.'}
+            </li>
+            <li>
+              {compCardName ? `${compCardName} —` : 'A comp card —'} downloadable as a PDF from
+              your media page.
+            </li>
+          </ul>
+          <div className="apply-success__keep-links">
+            <a
+              href="/dashboard/talent/media"
+              onClick={() => recordPayoff(PAYOFF_ACTIONS.COMP_CARD)}
+            >
+              Download comp card
+            </a>
+            {portfolioSlug && (
+              <a
+                href={`/portfolio/${portfolioSlug}`}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => recordPayoff(PAYOFF_ACTIONS.PORTFOLIO_LINK)}
+              >
+                View portfolio link
+              </a>
+            )}
+          </div>
         </motion.div>
 
         <motion.div className="apply-success__actions" variants={item}>

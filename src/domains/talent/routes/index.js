@@ -10,8 +10,8 @@ const profileRouter = require("./profile");
 const mediaRouter = require("./media");
 const analyticsRouter = require("./analytics");
 const intelRouter = require("./intel");
+const ageVerificationRouter = require("./age-verification");
 const applicationsRouter = require("./applications");
-const interviewsRouter = require("./interviews");
 const messagesRouter = require("./messages");
 const agenciesRouter = require("./agencies");
 const settingsRouter = require("./settings");
@@ -27,17 +27,27 @@ const phylloRouter = require("./phyllo-routes");
 const representationsRouter = require("./representations");
 const fieldVisibilityRouter = require("./field-visibility");
 const availabilityRouter = require("./availability");
+const specRegistryRouter = require("./spec-registry");
+const compCardImportRouter = require("./comp-card-import");
+const digitalsRouter = require("./digitals");
+const trackerRouter = require("./tracker");
+const callWindowsRouter = require("./call-windows");
 
 router.use(requireTalentLegalAcceptance());
 
 // Mount API routes
 router.use("/api/talent/media", mediaRouter);
+router.use("/api/talent/spec-registry", specRegistryRouter);
+router.use("/api/talent/comp-card-import", compCardImportRouter);
+router.use("/api/talent/digitals", digitalsRouter);
+router.use("/api/talent/tracker", trackerRouter);
+router.use("/api/talent/call-windows", callWindowsRouter);
 router.use("/api/talent", representationsRouter);
 router.use("/api/talent", profileRouter);
 router.use("/api/talent", analyticsRouter);
 router.use("/api/talent", intelRouter);
+router.use("/api/talent", ageVerificationRouter);
 router.use("/api/talent/applications", applicationsRouter);
-router.use("/api/talent/interviews", interviewsRouter);
 router.use("/api/talent/messages", messagesRouter);
 router.use("/api/talent/agencies", agenciesRouter);
 router.use("/api/talent", settingsRouter);

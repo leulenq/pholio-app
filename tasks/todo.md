@@ -1,3 +1,1294 @@
+# Implementation state — strategic plan execution (session handoff doc)
+
+**Branch:** `claude/pholio-strategic-analysis-dyducf` (all work lands here)
+**Plan of record:** `docs/pholio-strategic-analysis-2026-08.md` (this branch) + user corrections below.
+**Updated:** 2026-08-15
+
+## STANDING OPERATING RULES (binding for every successor session — from the owner)
+
+EXECUTION & ORCHESTRATION
+1. Use subagents aggressively wherever they improve efficiency. Parallel waves need
+   STRICT disjoint file ownership; parallel workers NEVER commit — the lead verifies
+   each lane's tests, then integrates per-pathspec commits and pushes. Single
+   sequential workers may commit locally; lead still pushes. Workers must NEVER
+   `git stash` the shared tree (two near-misses this session).
+2. MODEL ROUTING by task complexity: keep high-level architecture, product judgment,
+   integration decisions, rulings, and difficult implementation reasoning with the
+   strongest model (Fable 5 / Opus). Delegate bounded implementation, repository
+   investigation, testing, research sweeps, and repetitive/mechanical changes down the
+   ladder (opus for hard bounded work, sonnet for standard bounded work, haiku for
+   trivia). A failed cheap attempt that forces an expensive redo is worse than starting
+   at the right class (see also docs/ai-agent-operating-rule.md).
+3. CONTEXT WINDOW is a managed resource: keep the lead's context for synthesis and
+   rulings; offload reading/exploration to agents that return summaries; update THIS
+   FILE at every integration point (it is the handoff). When context becomes a
+   liability, finish the in-flight bounded step, update this file, and start a fresh
+   session with a compact brief pointing at: tasks/todo.md,
+   docs/pholio-strategic-analysis-2026-08.md, docs/event-casting-design-2026-08.md.
+4. If a session/rate limit interrupts work, CONTINUE after reset without waiting for
+   the owner to nudge. Verify any half-landed agent work post-hoc before building on it.
+5. Untrusted prior agent work (codex/cursor-era branches, big unlabeled commits):
+   review before merging — run tests, diff-audit high-risk areas, catalog silent
+   changes. Comments/commit messages are not evidence; behavior is.
+6. When data is missing, make an educated assumption, record it, and proceed —
+   tweak later rather than block (e.g. R7 volume sizing).
+7. Commit/push cadence: designated branch only, push after every integration point
+   (a stop hook enforces a clean pushed tree); no attribution trailers ever.
+
+PRODUCT RULES
+8. NO agency back-office: bookings, calendars, finance/accounting, invoicing, client
+   management, contracts, commissions, deal tracking. Lightweight adjacencies allowed
+   only with disproportionate value and no system-of-record capture (export/handoff
+   and event-casting ops are the two sanctioned ones).
+9. ONE dashboard: modeling agencies and FWB-like event organizers share the agency
+   dashboard (org_kind-aware vocabulary/nav). Never fork infrastructure per org type
+   (design ruling R10).
+10. Agency Discover page STAYS; talent discoverability is a FREE explicit opt-in for
+    all tiers (never Studio+-gated; never ranked by payment).
+11. AI writers (esp. bio) are FREE and get improved, never removed. Nothing paid may
+    be guidance, access, visibility, or distribution — payment buys only craft/property
+    the talent keeps (legal: CA §1702.1 + NY FWA prong (c)).
+12. Age verification (Stripe Identity) STAYS: voluntary, contextual, private-only,
+    result-only storage, provider redaction; official Stripe modal for handoff.
+13. Document precedence: current reasoning + the latest plan (strategic analysis doc +
+    owner corrections here) govern; older audit docs are evidence, never authority.
+
+DESIGN RULES (talent-side frontend)
+14. Base new talent surfaces on the domain design .md files AND the four strongest
+    live references: /media, /profile, Apply Workspace, Settings. New work must feel
+    native, never bolted-on. Honor every CLAUDE.md banned pattern (no badges/chips/
+    dots/eyebrows/gradient text/glass/side-stripes...).
+15. Profile Readiness keeps its numeric score (serif numeral treatment, cac4c57);
+    the Spec Registry surfaces (Market ledger + Apply preflight) were rebuilt fresh —
+    do not resurrect the pre-rebuild implementations.
+
+## User corrections to the plan (binding)
+1. **Agency Discover page STAYS.** Talent discoverability toggle becomes FREE for all
+   (opt-in, default off) — remove `is_pro` from `pool-status.js` gate. (If user objects,
+   revert to pro-gated; they were told.)
+2. **AI bio writer: improve + make FREE.** Do not remove. (Other writers: also un-gate
+   from Studio+ for legal consistency — paid guidance is the NY FWA prong-(c) risk.)
+3. **No agency back-office** (bookings/calendars/finance/invoicing/contracts/commissions/
+   client mgmt/deal tracking). Event-casting ops for event tier OK. CSV/webhook export OK.
+4. **Profile Readiness component:** unmerged branch work removed the numeric score — DO NOT
+   keep that replacement. Redesign fresh, in Pholio's design language (numeric score's
+   removal was the objection; overall component concept was decent).
+5. **Spec Registry talent-side UI (Market + Apply Workspace):** rebuild the frontend fresh;
+   do not build on top of the branch's implementation.
+6. Talent frontend design references: the .md design docs PLUS live surfaces /media,
+   /profile, Apply Workspace, Settings (strongest pages). New work must feel native.
+7. Session continuity: if session/rate limit hits, continue after reset without nudging.
+   Fresh session permitted when context becomes a liability — this file is the handoff.
+8. **Document precedence:** own reasoning + latest plan (docs/pholio-strategic-analysis-
+   2026-08.md + user corrections here) govern. Older docs (2026-08-07 pressure test,
+   2026-08-08 strategic decision, earlier audits) are evidence, not authority — never
+   treat a claim as settled because an older document asserts it.
+
+## Branch audit (2026-08-15)
+- `claude/pholio-product-plan-2026-gfl2y0` — **the big one.** = plan branch e6sees + 21 impl
+  commits (through 2026-08-15): A2 compliance fixes ("what an agency sees independent of
+  what talent pays"), A4 removals (booking desk, commissions, minor records, match scoring,
+  interviews/reminders, agency market analytics, archetype AI), auto-close, agency
+  requirements rebuild, spec-correct export, comp-card import (text/layout only),
+  digitals freshness, Market grid. STATUS: under review (untrusted agent work).
+- `claude/pholio-backend-audit-u4ar6t` — 3 commits: docs + adult-launch migration hook
+  timeout. Review → likely cherry-pick.
+- `claude/repo-contents-check-ifwjo8` — 5 commits: the two missing audit docs (+ BIPA
+  feature revisions doc). Merge the docs into docs/audits/.
+- `cursor/fix-settings-identity-name-da01` — 6 commits: settings danger-zone styling +
+  contract test migrations fix. Review → decide (styling may violate design language).
+- All other branches: ahead:0 (fully merged), ignore.
+
+## Phase status
+- [x] Phase 0a: branch inventory (above)
+- [ ] Phase 0b: review gfl2y0 — FE inventory DONE; backend review still running.
+      FE rebuild targets (design only — KEEP wire contracts + specRegistry.js lib):
+      client/src/domains/talent/pages/RequirementsPage/{index.jsx,SpecMatrix.jsx,AgencyPlate.jsx}
+      (+module.css), client/src/domains/talent/components/RegistryPreflight.jsx (+css),
+      client/src/domains/talent/components/ProfileReadinessSidebar.jsx (+css, restore a
+      numeric readout — main's animated % + Core/Strong ticks deleted w/ getStrengthUI in
+      shared/utils/profileScoring.js; backend profile-strength.js untouched), and
+      OverviewPage readiness card (ov-readiness-pct removed → text). KEEP: CompCardImport
+      (+Overlay), DigitalsFreshness, SpecBuilderPanel (agency), ApplyExperience wiring
+      (specRegistryRevisionId threading). Design refs: Section + <em> emphasis headline
+      idiom, PholioButton (ink fill, 3px radius), forms/ primitives, tokens (#FAF9F7
+      canvas, #C9A55A gold, wells #F8F8F7), serif for names/titles only, motion w/
+      reduced-motion fallback, no badges/chips/stripes/gradient text.
+- [x] Phase 0c: review small branches — VERDICTS: backend-audit-u4ar6t SKIP (patch-identical
+      commits already on main; stale branch, deletable); cursor/fix-settings-identity SKIP
+      (styling conflicts w/ main's newer .set-danger refactor which deliberately rejected
+      the loud treatment; its test fix uses shared knex = regression vs isolated-db
+      pattern); repo-contents-check-ifwjo8 TAKE DOCS ONLY (after gfl2y0 merge, checkout its
+      two docs/audits/2026-08-0{7,8}-*.md files — its plan-doc copy is older than gfl2y0's)
+- [x] Phase 1: gfl2y0 MERGED (bdb0f15). Backend review verdict: merge-with-fixes.
+      Compliance gates confirmed done on branch (flat 5/mo quota no tier lift, full
+      directory, watermark/QR/socials ungated, pool = is_discoverable alone; PDF theme
+      gating stays paid = talent-owned craft, per plan §9.5). Main-defect status:
+      booked→represented FIXED, blocked-agencies FIXED, safety-report server FIXED
+      (client target needs check), deletion-honesty FIXED, details-endpoint snapshot NOT
+      fixed (in fix wave). 17 new test failures + defect list → fix agent running:
+      profile-strength :549 isCurrent, hook timeouts ×2, eager sharp in extract.js,
+      orphaned measured-in-person readers removed (decision: readers die, writers stay
+      dead), DSAR inventory (+comp_card_imports, +spec_registry_engagement_events),
+      consent gate on comp-card vision path, status_changed_at on create/revive,
+      encodeImage wrap, 6 migration guards, confirm TOCTOU, auto-close batch LIMIT,
+      client lint laneInfo. Parallel read-only audit of c80a37e (202-file unlabeled
+      commit; age-verification +385 LOC needs cataloging).
+      Spec-export gaps vs plan: HEIC transcode implicit/unverified (add explicit test),
+      email-draft for email-only agencies MISSING (roadmap Phase 4). Deploy note:
+      requirements feature inert until `npm run release:spec-registry` runs in prod.
+- [x] Phase 1b: fix wave COMPLETE (6 commits, 1edfc4c..83ff905). All 14 items done; two
+      were non-bugs (details endpoint already served frozen snapshot — comment was the
+      defect, test added; safety-report client never self-targeted — contract pinned).
+      Suites: 5 failing, ALL pre-existing (baseline was 7): app, overview-backend,
+      password-changed-notification, intel, notifications (ordering-dependent, needs a
+      proper fix someday). Client lint green. Known seams: showWeight constant in
+      MeasurementsSection (left for branch author intent); comp-card image import now
+      requires AI consent (PDF path exempt) — consider inline consent grant in the
+      import overlay later; docs/comp-card-import-architecture.md amended for the two
+      new exceptions.
+- [x] Phase 2a: FE redesign wave COMPLETE (64b2ac5 age verification, cac4c57 readiness
+      numeral, b2e4cd6 requirements ledger + preflight). Client: lint 0 errors (1
+      pre-existing warning), 336/338 tests (2 pre-existing bio-save timeouts, verified
+      on pristine HEAD), vite build green. Accepted deviations logged in agent reports;
+      lead tweaks: sidebar aria-label aligned, --pr-gold → #B08D45 for contrast.
+      FOLLOW-UPS (queued): PholioCustomSelect combobox has no accessible name (shared
+      primitive, needs aria-labelledby); age-verification backend: return client_secret
+      + expose VITE_STRIPE_PUBLISHABLE_KEY so official modal engages (hosted-page
+      fallback works today); consent-capture shape changed (disclosure+button replaces
+      checkbox; version still recorded) — legal glance; ProfilePage bio-save timeout
+      tests (pre-existing) + tests/notifications.test.js ordering dependence — tickets.
+- [ ] Phase 2b: writer wave — IN PROGRESS (3 parallel FE agents, disjoint ownership,
+      no worker commits — lead integrates; spec: scratchpad/fe-redesign-spec.md):
+      FE-A Profile Readiness numeral restoration (+ Overview card); FE-B Requirements
+      ledger + RegistryPreflight rebuild; FE-C age-verification/private-context redesign
+      (contextual entry, trust explainer, Stripe modal handoff, honest states).
+      Discover free opt-in: DONE on branch (pool-status = is_discoverable alone).
+      Still queued in Phase 2: bio writer free + improved (all writers un-gated) — after
+      FE wave to avoid client overlap.
+      AGE-VERIFICATION RULING (user, mid-session): keep Stripe Identity feature; tweak
+      flow (contextual/voluntary, explicit data story, private-only); FE fully redesigned
+      (current FE is NOT a reference); "Powered by Stripe" line, official modal only.
+- [ ] Phase 3: remaining compliance/trust — flat anti-spam application limit (no tier
+      lifts; verify gfl2y0 did it), full directory for free, seeded real agencies →
+      reference entries w/ "prepare conforming application" CTA, event-casting consent
+      fork, A5 defects (status machine, snapshot leak, blocked-agencies, safety report,
+      deletion honesty) — verify which gfl2y0 already fixed
+- [ ] Phase 4: conforming export completion (HEIC→JPEG transcode, resize-under-cap, ZIP +
+      email draft, stats block) — check what "spec-correct export" on gfl2y0 covers
+- [ ] Phase 5: FWB event mode (event open-call link type, event consent, intake spec w/
+      walk video, organizer pool → designer pick lists via share links, confirmations,
+      CSV per designer, export-back-to-model moment)
+- [ ] Phase 6: tracker + auto-lapse (off-platform), verification rail (NY DOL registry
+      overlay), open-call calendar
+- [ ] Phase 7: Studio+ restructure (craft-only tier; free: unlimited apps, full directory,
+      discoverability, watermark-free standard card, QR/logo/socials, preflight/export/
+      tracker, writers)
+- [ ] Phase 8: tests green, lint, final review pass
+
+## Session 2 resume state (post limit-reset, 2026-08-15 ~09:00 UTC)
+- FE wave INTEGRATED + PUSHED during previous session: 64b2ac5 (age verification
+  voluntary flow), cac4c57 (readiness numeral + threshold rail), b2e4cd6 (requirements
+  ledger + preflight one visual system), ece7ae9 (state doc).
+- Writers: 80a2bc5 un-gates all four writers (rate limiter intact, FWA prong-(c)
+  rationale in message) — VERIFIED post-hoc: 75/75 writer tests pass, client lint clean,
+  PUSHED (f549397 also adds data/*.sqlite3 to .gitignore).
+- IN FLIGHT (parallel, disjoint, no worker commits): (a) bio-writer improvement —
+  truthfulness hard-line (no invented facts), anti-slop rubric, industry vocabulary
+  few-shots, thin-context honesty, table-driven tests; (b) Stripe Identity modal
+  enablement — client_secret in session response + VITE_STRIPE_PUBLISHABLE_KEY docs +
+  additive invalidatedAt exposure if recorded.
+- DONE since resume: Stripe modal enablement (56ff1a2 — client_secret additive, never
+  logged/stored; invalidatedAt correctly ruled out-of-scope, needs migration if wanted);
+  bio-writer improvement (db777c5 — grounding.js single source of truth, one fabrication
+  = hard fail, ~45-term slop lexicon, industry vocab few-shots on fictional names,
+  richness caps, injectable Groq call; 29→135 bio tests, 235 across all writers;
+  RATIFIED: 3 failed attempts → honest 500 instead of degraded bio).
+- IN FLIGHT (parallel, disjoint, no worker commits): (a) Phase 4 export completion —
+  explicit HEIC transcode + capability-aware tests, STATS.txt in every export, EMAIL.txt
+  for email-channel routes (Muse), README update, plate copy if clean; (b) Groq model
+  migration — deprecated llama-3.3-70b-versatile hardcoded in writer-shared groq-client
+  DEFAULT_MODEL + bio-writer + analyzeProfileImage while config lists it as
+  scheduled-for-shutdown; centralize on config.groq.textModel w/ reasoning-model budgets
+  per art-director.js precedent (max_completion_tokens 1600, reasoning spend dominates).
+- DONE: Groq migration (c25bf37 — gpt-oss-120b via config, reasoning_effort low,
+  budgets = max(1600, answer+1400), no-deprecated-ids CI guard, 235 baseline + 18 new;
+  also fixed stale GROQ_VISION_MODEL suggestion in .env.example). Phase 4 export
+  completion (01c4368 — mime sniffing from headers incl. Safari-lies-about-HEIC +
+  compatible-brands, transcode decision-as-data in manifest, STATS.txt via canonical
+  stats-formatter, EMAIL.txt for email routes, channel-aware README; 84/84; env has NO
+  HEVC decode — tests are capability-aware; fixture = Nokia conformance HEIC, provenance
+  in tests/fixtures/heic/README.md, NO explicit upstream license — flagged to user).
+- SMALL FOLLOW-UPS QUEUED: (a) client readRoute drops `channel` — add channelType to
+  client/src/domains/talent/lib/specRegistry.js + branch plate copy for email routes;
+  (b) X-Pholio-Export-Files header counts images only (archive now +1-2 text files) —
+  UI polish, entries semantics kept for engagement recording; (c) inline AI-consent
+  grant in comp-card import overlay; (d) tests/notifications.test.js ordering fix.
+- Phase 5 DESIGN COMPLETE + APPROVED: docs/event-casting-design-2026-08.md (14afda8) w/
+  lead rulings R1-R9 baked in (video=URL v1; SQLite CHECK introspect-rebuild + drift
+  guard; designer links accept-forwarding-risk; event retention event_end+90d COUNSEL
+  CONFIRM; statuses confirmed/declined_by_talent accepted; link cap by org_kind 20/60;
+  GET FWB FORM COUNTS from Alex; 18+ loud on arrival; Lane D fixes /picks+/reply+/opencall
+  netlify redirects). Lane plan: 0 → (A ∥ C ∥ D) → B → E; ownership in design §h.
+- Lane 0 LANDED + PUSHED (60cf598..1b29abd): M1-M5 w/ SQLite CHECK introspection (also
+  repaired live closed_no_response divergence), uniqueness swap, pick-list + funnel
+  tables, constants both sides, 34-test schema suite. CAUGHT+FIXED: SQLite ignores FK
+  pragma inside transactions → M4 rollback emptied applications; M2-M4 now
+  transaction:false w/ regression test. FOLLOW-UP TICKET: 20260701111000 forces FK
+  pragma ON unconditionally — hazard for future SQLite parent-table column drops.
+  NOTE for merge time: env git identity is Claude <noreply@anthropic.com> on ALL branch
+  commits; CLAUDE.md wants owner-only attribution → squash-merge or rebase w/ corrected
+  author at merge (user's call).
+- LANES A, C, D LANDED + PUSHED: D=509b6f1 (tokens/designer page/EVENT_DESIGNER audience;
+  FOUND: /reply + /opencall NEVER worked in prod — no netlify catch-all; fixed all 3
+  redirects; 80 tests), A=e129dc3 (call definition, consent fork w/ byte-identical
+  representation branch, arrival page 18+ loud; 61 tests), C=e253a87+bc72b25 (organizer
+  pool/pick-lists/lineup/offers/export + Events pages + nav gate + routes; 92 tests
+  incl. D's suite re-verified). Cross-lane wiring done by lead (App.jsx routes, RailNav
+  selectAgencyNavGroups gate); vite build green.
+- NEW FOLLOW-UPS from lane C: (1) PROD BUG: inbox.js accept/decline reads nonexistent
+  applications.talent_id → agency status emails NEVER sent; fix after Lane B lands
+  (B owns notification paths now). (2) /api/agency/applications unpaginated w/
+  SUBMISSIONS_HARD_CAP=2000 truncating silently — needs server-side counts+pagination.
+  (3) name-display column for pick lists (D defaults full name). (4) align client
+  eventCasting.js exports w/ Lane 0 vocabulary (C resolved server-side booleans).
+- LANE B LANDED + PUSHED (9e42f59): submit path w/ server-derived event purpose (claim-
+  based, client can't self-declare), fingerprint parity w/ FROZEN-HASH regression
+  (identical literals before/after), drafts v2 w/ repair, event intake scene (video URL
+  per R1), confirm/decline endpoints (conditional update, require-time assertion the
+  statuses never enter agency-writable), auto-close Pass B, R4 retention wired to
+  retention_expires_at. 53 new tests; full suite 2662 pass / 5 pre-existing fails.
+  B follow-ups: drafts still keyed (profile_id,agency_id) → two editions of one
+  organizer share a draft row (schema change, unowned); undated event calls keep 24mo
+  retention (Lane A copy has undated variant — check alignment).
+- LANE E LANDED (3609fc6): funnel writer + 8 call sites (file:line receipts in agent
+  report), internal reporting route, returned_d30 daily job; awaited-try/catch writer
+  pattern (correct under serverless), payoff beacon via authenticated endpoint.
+- EMAIL FIX LANDED (146d0f6): inbox accept/decline resolved recipients via profile →
+  user (was reading nonexistent applications.talent_id — emails NEVER sent; also fixed
+  users.name → profile first/last). Fails-before/passes-after evidence in test.
+- ★ EVENT-CASTING FEATURE COMPLETE AND VERIFIED (2026-08-15): all 6 lanes merged.
+  Full suite 207 pass / 6 fail — ALL SIX are the canonical pre-existing failures
+  (app, notifications[ordering], overview-backend, talent/intel,
+  security/password-changed-notification, talent/representations+submission-program
+  under full-suite ordering). Client lint 0 errors (1 pre-existing warning). Vite
+  build green. Comp-card-presets-403 did not reproduce.
+- DEPLOY RUNBOOK ITEMS for FWB launch: run `npm run release:spec-registry` in prod
+  (requirements feature inert until then); set VITE_STRIPE_PUBLISHABLE_KEY for the
+  Stripe Identity modal; provision FWB as agencies row w/ org_kind='event_organizer'
+  via the internal review pipeline; verify netlify redirects deploy (/picks,/reply,
+  /opencall — the latter two NEVER worked in prod before this branch).
+
+## Session 3 state (successor session, 2026-08-15 ~21:00 UTC)
+- Phase 6 investigation wave DONE (3 read-only agents; 4th agent = Phase 7 is_pro gate
+  audit, results pending/queued for Phase 7). Key findings: spec_registry_engagement_events
+  already records exports per profile (write-only today); auto-close is the pattern to
+  mirror; **reference-entry conversion NEVER happened** — seeds still wire Elite/Ford/IMG/
+  etc. as ACTIVE applyable w/ registry routes + demo applications (plan §9.2 Week-1 item;
+  folded into Phase 6 as migration M4 + directory filter); GET /api/talent/agencies also
+  missing the org_kind filter (flagged in 20260815093000 migration comment — same pass).
+  NY DOL Socrata hder-iq9y is LIVE and fetched: 75 rows w/ real cert numbers incl. DNA,
+  Elite, Ford, IMG, Muse, Next, Society, Wilhelmina, Women, State, Que — raw snapshot to
+  be committed into the trust pack (NEVER fabricate registry data — ruling R4).
+- Phase 6 DESIGN COMPLETE: docs/talent-trust-loop-design-2026-08.md — three tables
+  (off_platform_submissions, agency_verifications, agency_call_windows) + M4 reference
+  conversion; one curated trust-registry pack/pipeline (data/trust-registry/v1, npm
+  release:trust-registry); rulings R1-R9 (display-time lapse — no job; positive-only
+  verification; call_windows namespace to dodge the open-call collision; merged ledger in
+  ApplicationsView; hard delete OK on tracker rows). Lanes: 0 → (A1 ∥ A2) → (B ∥ C).
+  Folds in backlog item: readRoute channelType + email-route plate copy (Lane B).
+- RATE-LIMIT NOTE: first investigation wave was killed by a session limit; relaunched
+  after reset per standing rule 4. is_pro audit agent relaunched with the wave.
+- Phase 6 LANE 0 LANDED (8984532): 4 migrations (off_platform_submissions,
+  agency_verifications, agency_call_windows, reference conversion) + constants both
+  sides + 41-test schema suite. M4 matches by NAME not slug (seeded rows have slug=NULL)
+  + membership safety guard (never demote an agency with members). Cross-lane fix:
+  event-casting-schema test's hardcoded rollback-5 → ledger-derived count. KNOWN:
+  npm run migrate:rollback full-batch unwind dies in 20260320110000's down() — ancient
+  pre-existing defect, step-wise migrate:down works.
+- Phase 6 SERVER WAVE LANDED + PUSHED (f7c035c A1 tracker API 26/26; 6316200 A2 trust
+  registry). A2 highlights: 6 conservative NY DOL matches (elite-model-management,
+  ford-models, img-models, muse-model-management, the-society-management, wilhelmina);
+  SKIPPED ambiguous: Marilyn Red ≠ pack Marilyn (no marilyn org in pack), Elite
+  Models/Japan entities, DNA/Next/State/Women/Que NOT pack orgs (design §b overcounted).
+  3 call windows (Muse Thu 3-4pm, Que Thu 10-11am, MSA Tue no-time; Que+MSA org=null
+  display rows). Directory now ACTIVE+org_kind='agency' w/ deploy-before-migrate guard;
+  seeds = 3 fictional agencies, zero registry route mappings, overview-backend test
+  assertions updated (demo ledger variety reduced — consider 3rd fictional agency).
+  DEPLOY RUNBOOK ADD: run `npm run release:trust-registry` in prod after migrate.
+  FOLLOW-UPS ADDED: scripts/seed-user-accounts.js + seed-mia-intel.js still name real
+  agencies (same honesty treatment needed); officialSiteUrl null everywhere (derive
+  policy undecided); call-window location/instructions null (no committed evidence —
+  gather real addresses on next verification day).
+- Phase 6 CLIENT WAVE IN FLIGHT (B ∥ C, disjoint, no worker commits): B = Requirements
+  ledger verification/call-window lines + This-week strip + email plate copy +
+  readRoute channelType (backlog item) + post-export tracker prompt + ApplyExperience
+  dossier verification line; C = merged ledger in ApplicationsView + tracker overlay/
+  utils + api methods (logTrackedSubmission/listCallWindows contract, query keys
+  ['tracker']/['call-windows']) + Overview "Open calls this week" card. Lead pre-wired:
+  route mounts (1c558b0), shared callWindows formatter (212af43).
+- Phase 6 CLIENT WAVE LANDED + PUSHED (c380f5b Lane B requirements/apply surfaces,
+  325cdd7 Lane C merged ledger + open-calls card). Verified: client lint 0 errors,
+  406/406 client tests, vite build green. Full server suite back on canonical baseline
+  (availability.test.js ordering-dependence exposed by new suites → fixed w/ migrate
+  beforeAll guard, 518b182). ⚠ STASH INCIDENT #3: Lane C ran git stash despite the ban
+  (disclosed, popped cleanly, all files verified intact) — the ban stays in every brief
+  AND lead now verifies tree integrity post-wave regardless.
+- ★ PHASE 6 FEATURE-COMPLETE on the branch: tracker + lapse convention, NY DOL
+  verification rail, open-call windows, reference-entry conversion, directory org_kind
+  filter. DEPLOY RUNBOOK: npm run release:trust-registry after migrate in prod.
+- OWNER QUALITY PASS (2026-08-15, supersedes Phase 7 in priority) — directive: FE work
+  quality regression; full pass, not spot fixes. Lessons recorded (f9871c2).
+  Investigations COMPLETE, root causes found:
+  (1) AGE-VERIFICATION DOB BUG FIXED (83bd12b): normalizedDob lacked instanceof-Date
+      guard → Postgres DATE objects failed the regex → "add your DOB" for users who
+      have one AND verified checks recorded as dob_mismatch. FE design pass still TODO
+      (inventory in agent report: flat white panel, no state differentiation, inert
+      "Powered by Stripe" line, no Stripe asset in repo, panel lives in ProfilePage
+      Movement V not Settings; modal needs VITE_STRIPE_PUBLISHABLE_KEY at build).
+  (2) BORDER DEFECT FAMILY FIXED (a337a94 + in-lane): global.css:153-164 puts
+      border-radius:999px + padding on EVERY talent button; underline-only buttons
+      that don't reset radius curl into "half circles". Fixed: mw-fresh__action,
+      colButton, plateLogAction, tmx__list-state-action. GLOBAL CONFLICTS TO FLAG:
+      global.css button reset (radius+padding), canonical-form-inputs 8px radius
+      (foreign to talent editorial fields, latent), generic gold focus ring. Proposed:
+      lint/codemod rule "border:0 + border-* side ⇒ must set border-radius".
+  (3) IMPORT OVERLAY: no static bug at HEAD (portaled, fixed inset:0; top-anchored =
+      established variant; its close button was the old victim of the global rule,
+      already patched). Screenshot may predate 0fa48d1 rebuild → verify live w/
+      Playwright before closing.
+  (4) READINESS: owner ruling = numeral STAYS, restore origin/main design. Restoration
+      map in agent report: restore ProfileStrengthSidebar.jsx/.css as
+      ProfileReadiness* (prop renamed readiness=), restore getStrengthUI (deleted by
+      38f7cb3, both sides), KEEP isCurrent recency fix + unrelated Overview changes,
+      Overview card back to completeness.percentage + 98% stale cap; 4 test files
+      rewrite/delete; lead deltas: define missing .statusGold, keep #B08D45 numeral
+      gold (contrast), aria-label back to "Profile completeness".
+  (5) REQUIREMENTS REDESIGN (the big one): full audit in agent report. Key facts:
+      docs/spec-correct-export-brief.md specifies per-agency lede-first shape
+      ("covers 4 of 6. Missing: …") — shipped matrix-first page never matched it.
+      SERVER BUGS: compound shot slots (match:{all}) get matchValue=null → silently
+      dropped from matrix (Elite shows 3/6; grid contradicts plate); guidance is
+      per-row → 33 identical "Pholio cannot verify" strings. LABELS: preferredLabel
+      picks shortest raw agency wording (typos/asterisks leak); canonical label maps
+      EXIST unused (frameTaxonomy SHOT_LABELS, taxonomy.json labels+descriptions —
+      no endpoint serves taxonomy). UNRENDERED DATA: shot counts, modality, file
+      caps, setWide shoot rules, eligibility mirrors w/ actual/min/max, target
+      actions, assignments (which photo covers which slot → image-first design
+      possible), summary counts. IA: only entrance is behind the profile gate the
+      page is exempt from; Unlocks payoff column scrolls off-screen; <table> is a
+      foreign idiom (Intel refuses tables; RangeMatrix list is the house pattern);
+      serif-in-button violates Editorial Serif Rule. Design refs: Intel Finding
+      lockups, DigitalsContactSheet slot grid, Settings movements rail, Apply
+      verdict band.
+- QUALITY-PASS WAVE LANDED + PUSHED (all lanes): Q1 20752a8 (compound slotKey/matchKey/
+  matchValues + taxonomy labels DTO — additive, snapshots safe), Q4 4ca4810 (age panel:
+  4-tone Danger-Zone-idiom states, numbered data story, OFFICIAL Stripe wordmark SVG
+  from Stripe's logo kit w/ provenance in the asset), Q3 2cee612 (readiness restored to
+  origin/main design per owner ruling — numeral/progressbar/Core-Strong ticks/
+  getStrengthUI back both sides; kept recency fix; only ruled deltas), Q2 4362935 (the
+  requirements rebuild: two-pane market list, canonical-shot coverage strip w/ talent's
+  own photos, per-agency category-organized detail, one state vocabulary, raw registry
+  wording only as attributed marginalia; SpecLedger/AgencyPlate deleted), lead 2f4bacf
+  (Overview readiness card → requirements pre-gate link, ruling R-A). Client: 437 tests,
+  lint 0 errors, build green at each integration.
+- QUALITY-PASS FOLLOW-UPS: (a) server: expose constraintValue/constraintUnit for
+  files/eligibility rules so those sections get real numerals ("up to 5MB", "starts at
+  173cm") — Q2 ships attributed-quote fallback meanwhile; (b) ProfilePage.test.jsx is
+  timing-marginal under parallel load (latent flake, bump timeout); (c) global.css
+  conflicts flagged to owner (button reset 999px radius+padding = root cause of the
+  border family; canonical-input 8px radius latent; generic focus ring) — proposal in
+  docs/requirements-redesign-spec-2026-08.md; (d) live visual verification pass running
+  (Playwright screenshots incl. import-overlay live repro — no static bug found there).
+- ★ QUALITY PASS COMPLETE incl. LIVE VISUAL VERIFICATION (Playwright, seeded dev DB,
+  screenshots sent to owner). Verification caught + FIXED (b2419a3): unknown-outcome
+  slots read "Not asked for" in agency detail (now "Still needed" — one vocabulary,
+  factual); "Gb" raw market code (now Intl region names; "selected market" enum → line
+  omitted); raw ISO date in reshoot copy (now month prose); masthead counted routes as
+  agencies (now "8 agencies · 10 published routes"). Import overlay CONFIRMED correct
+  live (exact center, top-anchored, full scrim) — owner's screenshot predated the
+  0fa48d1 overlay rebuild. Shoot-date underline confirmed straight. Console clean.
+- REMAINING POLISH NOTES (owner input welcome, not blocking): readiness progress bar
+  is main's green (restored per ruling — the one green element; re-tone to gold needs
+  an owner call since main's design was explicitly requested); Open Calls card day/time
+  column x-alignment; readiness card stretches to Book-grid height (main parity);
+  shoot-date form uses native date widget; "STUDIO+" pill on profile hero is a
+  pre-existing tier chip that reads as a banned pattern (flag only); IMG's elided
+  "avoid ... make-up" transcriptions read truncated (data-curation follow-up: clean
+  sourceLabels in the pack, not code). GLOBAL.CSS CONFLICTS flagged in
+  docs/requirements-redesign-spec-2026-08.md §flag-to-owner (button reset radius+
+  padding = the border-family root cause; canonical-input 8px radius latent; generic
+  focus ring) — root-cause fix needs an owner decision on scoping the reset.
+- ★ PHASE 7 COMPLIANCE CORE COMPLETE + PUSHED (P2 5827915, P3 6fcc9b1): guidance stack
+  free, ?debug=pro gone, QR/logo renders tier-blind (legacy-path QR was gated AND dead
+  — now real; renderPdfView made async), pro-preview.js deleted, /pro/upgrade →
+  settings redirect, Your Website card free w/ analytics-only gate; craft-only Stripe
+  product description + Settings lede (studioCopy.js), trial_will_end pre-charge email
+  w/ unique-index idempotency (marker doubles as bell notice), portal-return honest
+  status line, CA geofence (checkout-jurisdiction.js — fail-open, US-region-code match,
+  STUDIO_BLOCKED_REGIONS default "CA", counsel sign-off = set empty to lift). 46/46
+  stripe tests; full suite on pre-existing baseline; client lint 0 errors.
+  DEPLOY RUNBOOK ADDS: (1) BLOCKING — re-provision live Stripe product description
+  (prod_UlvSm7FpMYpAfE; command in docs/stripe-live-setup.md §5; sandbox too);
+  (2) confirm production SMTP before deploy (trial notice silently no-ops on mock
+  transporter); (3) STUDIO_BLOCKED_REGIONS only needed to change/disable the fence.
+  DEFERRED WITHIN PHASE 7 (net-new revenue surface, post-validation): market packs,
+  card version history, preset freeze, custom domain, tiered storage, digitals archive
+  (audit §G). NEW SMALL NOTE: agency logo renders only on the legacy compcard.ejs
+  path — the standard template never received logo support (pre-existing capability
+  gap, not a tier issue). OWNER RULING (2026-08-15): SKIP the public-portfolio
+  unification (audit §C.1) — lane P1 stopped before any edits, no changes landed. The
+  audit finding itself stands on the record (agency-visible is_pro fork incl. the
+  Studio+ badge, flagged as the top §C item); do NOT work it unless the owner asks.
+- PHASE 8 WAVE 1: H LANDED (71c6534 — demo seed scripts fictional-only [mia-voss bio
+  prose ruled legitimate career narrative; share-token labels in seed-mia-intel:80
+  same category, left]; X-Pholio-Export-Files = all zipped files + NEW
+  X-Pholio-Export-Images = submission content, tracker sentSummary uses images per
+  R2; eventCasting client constants verified already aligned [PickCard's literal copy
+  is deliberate — standalone-bundle isolation]; HEIC README license note). N LANDED
+  (2acdd10 — ★ REAL PROD BUG: bc48e68 merge duplicated the password-changed email
+  block → every reset sent TWO emails; first copy deleted, suite green. BASELINE
+  MYTH BUSTED: app/intel/overview-backend 403s were seeds omitting
+  users.email_verified — isolated-db seed now sets it; notifications suite
+  self-migrates + owns fixtures; ProfilePage vitest timeout 20s). N's two monitored
+  full-suite tallies pending; G (global.css scoping + visual verify) in flight.
+  SKIPPED with ruling: undated-retention copy (consent-versioned, needs its own
+  change).
+- ★ PHASE 8 COMPLETE (2026-08-16). N final tallies: baseline 5 suites/39 tests failed →
+  **FULL GREEN 0 failed / 2859 passed** on two matching runs of the final tree. The
+  "canonical pre-existing failures" are dead: app/intel/overview = seeds omitting
+  users.email_verified (test helper + seeds both fixed, e6a8422 — demo accounts now
+  work in a browser); notifications = self-migrating + own fixtures; password-changed
+  = REAL prod bug (bc48e68 merge duplicated the confirmation-email block → two emails
+  per reset; fixed 2acdd10). G landed (6e2d234): body.is-spa set pre-paint in main.jsx
+  (root mount — /onboarding, token pages, apply studio, agency/setup share no layout;
+  named is-spa not is-talent since it's on agency documents too); global button reset
+  scoped to non-SPA; 10 rider buttons given explicit metrics (settings rail + auth
+  submit were live regressions, fixed); form-input rule + focus ring LEAVE with
+  recorded inventory (.pholio-premium-tag-input relies on input rule). Client 447
+  tests, lint 0 errors, build green, 12-surface screenshot pass.
+- REMAINING BACKLOG (priority order for successor): inbox pagination +
+  SUBMISSIONS_HARD_CAP counts; spec-registry constraintValue/constraintUnit (gives
+  Files/Eligibility numerals; client fallback ships); pick-list name-display column;
+  drafts keyed per-link (editions collide); comp-card import inline consent grant;
+  undated-retention copy (consent-versioned — needs its own ruled change);
+  20260701111000 FK-pragma hazard; PID-scope fixed-name test sqlite files (concurrent
+  jest runs collide); agency-logo support on the standard compcard template; Open
+  Calls card day/time x-alignment; native date widget in shoot-date form. OWNER
+  DECISIONS PARKED: green readiness bar vs gold; profile-hero STUDIO+ pill; portfolio
+  unification (skipped by ruling). DEFERRED: craft-tier substance (audit §G),
+  Phase 7 §9.5 paid features post-validation.
+- Phase 7 AUDIT COMPLETE: docs/studio-plus-gate-audit-2026-08.md. HEADLINE: the public
+  portfolio page STILL forks on is_pro (views/portfolio/show.ejs + portfolio.js:473 —
+  agency-visible tier differences incl. a literal "Studio+" badge; todo.md's A2-6/A2-7
+  "shipped" claims were WRONG — bdb0f15 never touched show.ejs). Also: intel.js:78
+  truncates the guidance stack for free (paid guidance = FWA prong-c), live Stripe product
+  description says "unlimited agency applications" (needs code fix + live re-provision
+  runbook item), Settings lede claims "submission volume" (false), ?debug=pro bypass in
+  analytics.js:882, QR/logo render gates half-reconciled (uploads freed, render still
+  gated). Billing is ROSCA-shaped already (server-enforced disclosure, 2-click portal
+  cancel); missing: portal-return confirmation, trial_will_end notice, any geofence.
+
+## REMAINING ROADMAP (successor session picks up here)
+- Phase 6: off-platform submission tracker + auto-lapse ("sent what where, silence →
+  assume pass, re-apply window"); verification rail (NY DOL registry overlay
+  hder-iq9y + verified official-link display, plain text); open-call calendar
+  (hand-curated: Muse Thu 3-4pm, Q Thu 10-11am, MSA Tue — strategic analysis §9.2).
+- Phase 7: Studio+ restructure per strategic analysis §9.5 — audit remaining is_pro
+  gates against "payment buys only kept craft"; craft tier (editions, 300dpi/print,
+  custom domain, storage, Intel history); ROSCA-clean billing; NY-first, CA geofenced
+  pending counsel.
+- Phase 8: full green + polish.
+- FOLLOW-UP BACKLOG: inbox pagination + SUBMISSIONS_HARD_CAP counts; pick-list
+  name-display column; drafts keyed per-link (editions collide); client readRoute
+  channelType + email-route plate copy; comp-card import inline consent grant;
+  notifications test ordering fix; 20260701111000 FK-pragma hazard; eventCasting
+  client constants alignment; X-Pholio-Export-Files count polish; undated-event
+  retention copy alignment (24mo fallback vs A copy); HEIC fixture upstream license
+  glance; ProfilePage bio-save timeout ticket.
+- NOTE for future parallel waves: two agents ran `git stash -u` on the shared tree
+  mid-wave (both restored cleanly). Ban stashing in worker briefs going forward.
+- (history) Lanes A ∥ C ∥ D were (parallel, disjoint per design §h, NO worker commits —
+  lead integrates per-lane pathspec): A = call definition + consent fork (fingerprint fn
+  EXCLUDED — Lane B extends it w/ its browser mirror) + arrival + settings UI;
+  C = organizer routes/services + inbox export/filter extension + Events pages +
+  ApplicantsPage config (stubs Lane D's mint if absent); D = tokens + /picks public page
+  + EVENT_DESIGNER audience + netlify redirects (R9: also fix /reply, /opencall).
+  THEN: Lane B (intake/submit/confirmations/talent surfaces — long pole), then Lane E
+  (instrumentation).
+- (superseded design-phase note: Phase 5 FWB event mode DESIGN (read-only Plan agent) — event open-call link
+  type + event consent fork, intake spec w/ walk video, organizer pool (reuse inbox) →
+  per-designer pick-list share links (no designer account, magic-link precedent),
+  confirmations on existing status machine, CSV lineup export, export-back-to-model
+  moment, kill-criteria instrumentation. Design → lead review → 3-5 disjoint impl lanes.
+- THEN: Phase 6 tracker/verification rail/open-call calendar, Phase 7 Studio+
+  restructure, Phase 8 full green.
+
+## Branch cleanup (deletion blocked from remote session — git proxy 403s non-designated
+## pushes; GitHub MCP has no delete-branch tool. Run locally:)
+```
+git push origin --delete \
+  claude/agency-onboarding-redesign-ka60u6 claude/division-status-pills-mar43t \
+  claude/expanded-talent-view-redesign-eckj92 claude/pholio-logo-spinner-7krz2p \
+  claude/season-analytics-redesign-th5k8o claude/submissions-review-redesign-b6b03o \
+  claude/talent-settings-audit-0h7bi0 codex/fix-onboarding-dob \
+  codex/publish-all-changes cursor/mobile-legal-consent-gate-22ca \
+  claude/pholio-backend-audit-u4ar6t cursor/fix-settings-identity-name-da01 \
+  claude/pholio-product-plan-2026-e6sees claude/repo-contents-check-ifwjo8
+```
+Rationale: first 10 are ahead:0 (fully merged); backend-audit-u4ar6t is patch-identical to
+main commits; cursor/fix-settings is superseded by main's .set-danger refactor (its test
+fix would regress the isolated-db pattern); e6sees is a strict ancestor of gfl2y0;
+ifwjo8's unique docs were extracted to this branch (da3aeae) and its plan-doc copy is
+older than gfl2y0's. KEEP: main, claude/pholio-strategic-analysis-dyducf,
+claude/pholio-product-plan-2026-gfl2y0 (delete gfl2y0 only after it merges here).
+
+## Decisions log
+- 2026-08-15 (c80a37e audit rulings): (1) Discover AI-ranking removal → deterministic
+  declared-filter search RATIFIED (plan-consistent; kills LL144 AEDT exposure; Discover
+  page stays per user). (2) Stripe Identity age-verification RATIFIED with visibility —
+  matches plan A3 spec (result-only storage, provider redaction, DOB-edit invalidation,
+  DSAR-registered); surfaced to user for veto since it sends gov IDs to Stripe.
+  (3) roster removal confirmed complete + clean (whole feature, no dangling refs);
+  measured-in-person orphaned READERS being removed by fix agent, writers stay dead.
+  Audit also confirmed: Studio+ Intel window gate preserved; dwell-time beacon removed
+  (privacy-positive); no billing/consent-version changes hidden in c80a37e.
+- 2026-08-15: Discover stays; talent discoverability = free explicit opt-in for all tiers
+  (user-confirmed; remove is_pro from pool gate, keep is_discoverable opt-in).
+- 2026-08-15: Base implementation on gfl2y0 after review (contains most Phase-3 work
+  already) rather than re-implementing from main.
+
+---
+
+# Product plan 2026-08 — implementation log
+
+Source: [`docs/pholio-product-plan-2026-08.md`](../docs/pholio-product-plan-2026-08.md).
+Working through its **Sequencing** section in order: compliance → removals → defects →
+the wedge.
+
+---
+
+# Phase 1 — Compliance ✅ shipped
+
+A2 fixes 1–8, 10, 11 plus the C1 discovery-cap tripwire. The governing rule is now true
+in code:
+
+> Anything an agency sees is identical for every talent. Payment may only change what the
+> talent keeps for themselves.
+
+- [x] **A2-1** Agency directory truncated to 20 for free users
+- [x] **A2-2/3** Comp card watermark (reading `"ZipSite"`) on free cards
+- [x] **A2-4** QR code Studio+ only
+- [x] **A2-5** Agency logo Studio+ only (render **and** the three upload/set/delete routes)
+- [x] **A2-6** Socials hyperlinked for Studio+ only
+- [x] **A2-7** "Advanced" stats Studio+ only — and the whole extended-content block with it
+- [x] **A2-8** Social URL generation degraded for free users
+- [x] **A2-10** Open-call submissions capped at 3/month
+- [x] **A2-11** Quota rationale contradicted itself
+- [x] **C1-1** Studio+ lifted the discovery cap (Cal. Lab. Code §1701 tripwire)
+- [x] **Sweep** `pool-status.js` gated *discovery visibility* on `is_pro` — found by grepping
+      the flag rather than the plan's line numbers, exactly as A2 predicted
+
+**Deliberately out of scope:** A2-9 (the plan rates it acceptable), PDF theme and
+card-design gating and the talent's own analytics window (A1 lists both as legitimate
+Studio+).
+
+---
+
+# Phase 2 — Removals 🔄 in progress
+
+## Shipped
+
+- [x] **Booking Desk** — commitments write API, calendar page + test, nav, `calendar.view` /
+      `calendar.manage`. `talent_commitments` kept: the dossier, roster-data and (then) the
+      matching engine read it defensively. Nothing writes it.
+- [x] **Commission code** — `commissionRate` (zero readers) and the dead `.st-split*` CSS.
+- [x] **Off-platform minor records** — intake now rejects under-18 with 422 instead of
+      storing `minor_consent_status: "pending"`; an edit cannot turn an adult record minor.
+- [x] **Match scoring / AI ranking engine** — the whole `domains/matching` tree, its three
+      routes, `matching.*` permissions, the Fit Briefs panel and board view switch.
+- [x] **`casting_briefs`** — dormant with zero writers, dropped with a `down()` that rebuilds
+      the schema.
+- [x] **Interviews and reminders as a scheduling system** — both routers, the talent-side
+      responder, both pages, the dossier Owed sheet, the follow-up tab, eleven permissions,
+      and the copy that promised any of it. `meeting_requested` survives as a *status*, so an
+      agency can still say it wants to meet.
+- [x] **Agency market analytics** — season query layer, both analytics endpoints (including
+      the older one buried in `inbox.js`), the Season page and its 13 viz components,
+      `org.view_analytics`. This was the last reader of the retired interviews/reminders
+      tables.
+- [x] **Legacy archetype / vibe / market-fit AI** — the onboarding chat engine and the Scout
+      image analyser (already unreachable), plus the archetype vocabulary and mock
+      photo-analysis modules. Two of these were non-compliant, not merely unused: Scout
+      scored *facial symmetry*, and the chat engine derived a vibe score and market tags from
+      it. The compliant shot classifier is untouched.
+
+## Still open
+
+- [x] **Residual match scoring** — removed board score calculation/recalculation, scoring
+      weights, score permissions and displays, Discover retrieval/reranking, rollout config,
+      evaluation scripts and score-bearing API fields. Discover still accepts a natural-language
+      brief: it converts the brief into declared factual constraints, filters strictly on those
+      facts, and orders survivors deterministically by name, city or newest with stable tie-breaks.
+- [x] **Roster memberships and board standings as an ongoing system of record** — Pholio now
+      ends at the representation decision. The roster page, CRUD routes, membership-sync
+      writers, standing editor, roster permissions, setup migration path, dossier comparisons,
+      and roster-derived overview KPIs are gone. Application outcomes and applicant-routing
+      boards remain; agencies continue onboarding and roster operations in their own systems.
+- [x] **Intel / analytics pages inferring intent from view counts** (A3) — revised, not
+      remove. Keep Intel and analytics as talent-owned tools, restore the surface, and replace
+      unsupported intent/attention/momentum claims with attributable first-party traffic,
+      application outcomes, material usage, and clearly labeled factual trends.
+- [x] **"Verified adult" state with no verification behind it** (A3) — built a real age-
+      verification layer behind the state; do not remove the capability. Adult-context data
+      remains private and requires explicit, opportunity-specific sharing consent.
+- [x] **Gamification and profile-strength theatre** (A3). The reveal page is already gone —
+      `/reveal` and `/dashboard/talent/reveal` are redirects only.
+      - [x] Removed percentages, score labels, thresholds, and animated strength meters.
+      - [x] Kept only factual submission essentials and named missing-material guidance.
+      - [x] Removed score-bearing overview API fields, fabricated agency match recommendations,
+            and obsolete strength presentation code.
+      - [x] Verified focused readiness contracts, client tests, lint, and build.
+
+## Residual match-scoring decision — resolved
+
+A4 **keeps** Discover ("Invite to Apply — from opt-in talent discovery") while the removal
+list kills "match scoring and all AI ranking". Discover currently orders results by a
+computed `match_score` via `discover-rerank.js`. Removing the score without deciding the
+replacement ordering would leave the surface with no defined order.
+
+There is a house precedent for the answer. `talent/routes/agencies.js` carried this comment
+before this branch touched it:
+
+> Match scoring is intentionally absent until it is backed by real signals. A stable
+> directory order is more useful than fabricated affinity.
+
+Confirmed product direction: **natural-language Discover stays**. The language parser may
+translate a written brief into declared factual constraints; it may not produce affinity,
+similarity, suitability or face-based ranking. Discover keeps filtering on real facts
+(eligibility, boards, location and declared measurements), drops scores and reranking, and
+orders matching talent deterministically.
+
+---
+
+# Phase 3 — Defects (A5) — complete
+
+Application status machine (`booked` → `represented` consolidation, `NOTIFY_STATUSES`
+missing `represented`), the submission-receipt gap in `inbox.js`, blocked agencies not
+enforcing, the safety report passing the reporter's own `user_id` as target, and account
+deletion reporting success when `fullyErased: false`.
+
+## A5 defect closure
+
+- [x] **Frozen submission receipts** — agency application details prefer the immutable
+      submitted profile and media package over the talent's current live profile, expose the
+      submission timestamp, preserve the historical receipt after a later block, and reject
+      withdrawn or redacted packages.
+- [x] **Blocked-agency enforcement** — blocks resolve against stable agency IDs while retaining
+      legacy name/slug compatibility; blocked talent are excluded before Discover totals and
+      pagination, and direct preview also fails closed. Settings can still name and remove a
+      blocked agency without offering it as a submission destination.
+- [x] **Safety-report target integrity** — the generic report flow asks for the actual account,
+      agency, portfolio, message, application, or content target instead of pre-filling the
+      reporter's own user ID; the API rejects a self-targeted user report.
+- [x] **Truthful account deletion** — complete erasure returns 200 and a normal signed-out state;
+      provider-pending erasure returns 202 with `fullyErased: false`, a pending status, and a
+      persistent warning after sign-out rather than claiming deletion completed.
+
+## Application status consolidation
+
+- [x] Make `represented` the only agreement-complete application status accepted by writes.
+- [x] Keep `accepted` as offer / moving forward and distinguish it from representation.
+- [x] Remove legacy `booked` application readers, counters, labels, and client groupings.
+- [x] Notify talent when an application reaches `represented`.
+- [x] Add regression coverage and verify backend/client status consumers.
+
+### Application status review
+
+- Backend and client now share explicit offered (`accepted`) and represented
+  (`represented`) vocabularies. Single and bulk status writes reject legacy `booked`.
+- Agency pipelines, board counts, overview data, dossier actions, talent standing,
+  Intel outcomes, notification copy, and status email copy distinguish an offer from a
+  completed agreement. Genuine client booking / availability uses of `booked` remain.
+- Focused backend coverage: 53/53 passing. Client: 27 files / 197 tests passing; lint
+  has only the pre-existing React Hook Form compiler warning; production build passes.
+- Full backend remains red outside this slice: the five known suites plus two untouched PDF
+  suites (local Chrome unavailable; editions route returns its existing 400), for 7 suites /
+  42 tests after keeping the seed-dependent notifications suite unchanged.
+
+### Phase 3 review
+
+- Focused A5 coverage passes **68/68** across Discover blocking, stable block identity,
+  application receipts, moderation, deletion response semantics, and Settings contracts.
+- Full client Vitest passes **197/197**; client lint is clean and the production build succeeds.
+- Full backend passes **1,942 tests** and remains at the branch's established environmental /
+  seed baseline: **6 suites / 41 tests** (Intel, app, overview, password-change notification,
+  missing notifications migration state, and Chrome-less PDF rasterization). No A5-focused
+  suite regressed.
+
+# Phase 4 — The wedge (Part B) — in progress
+
+Spec Registry → Spec Builder → talent-side preflight → guided capture → freshness engine →
+auto-close.
+
+## Spec Registry v1 dataset foundation
+
+- [x] Read the product plan and map the existing requirements, media, signals, and application
+  snapshot seams.
+- [x] Research current official submission requirements and provenance/versioning practices.
+- [x] Define the versioned registry contract, canonical taxonomy, and evidence rules.
+- [x] Add four source-backed seed specs: Elite Models North America, Elite Model Management
+  global, Elite Japan, and Models 1 UK.
+- [x] Add schema, referential-integrity, and semantic validation tests.
+- [x] Run focused verification and complete an independent architecture/data review.
+- [x] Record implementation decisions and verification results below.
+
+### Spec Registry v1 review
+
+- The first slice is a standalone immutable data package, not a database/API/UI integration.
+  A series is scoped by organization, office/market, channel, and applicant track; the manifest
+  selects the latest revision without deleting history.
+- Four first-party seed revisions are included: Elite Models North America, Elite Model
+  Management's global route, Elite Japan Tokyo, and Models1 UK. All are dual-reviewed and
+  advisory; only assertion-linked agency confirmation can authorize future blocking behavior.
+- Unknown facts are controlled taxonomy entries rather than free-form paths. Public silence is
+  represented explicitly and never treated as optional, unrestricted, or satisfied.
+- The final strong review found and drove fixes for negative-rule polarity, unknown-fact drift,
+  per-assertion blocking provenance, obsolete manifest pointers, stale review deadlines,
+  KB/MB normalization, false timestamp precision, generic Hair/Eye fields, and the exact
+  Models1 slim-fitting-jeans concept. Its regression pass is clean.
+- `npm run validate:spec-registry` passes: **4 current series / 4 revisions / 63 taxonomy
+  fields / 26 unknown facts**.
+- Focused Jest passes **14/14**. All JSON parses, Node syntax checks pass, Ajv dependencies
+  resolve, and scoped `git diff --check` is clean. The full application suite was not rerun for
+  this isolated data-and-validator slice.
+
+## Spec Registry v1 ten-route coverage expansion
+
+- [x] Recover the six remaining researched routes from the product-plan provenance.
+- [x] Re-check each route against current first-party web sources; do not use the industry skill.
+- [x] Extend the controlled taxonomy only for source concepts that the existing vocabulary cannot
+      represent without loss.
+- [x] Add immutable advisory revisions for Ford, Storm, The Society, Muse, Wilhelmina, and IMG.
+- [x] Update the manifest, validation fixtures, and coverage assertions for ten current routes.
+- [x] Run focused validation and complete an independent source/normalization review.
+
+### Coverage-expansion decisions
+
+- The intended six are Ford's selected-city agency-branded Snapcast intake, Storm UK/London's
+  online form, The Society's New York online form, Muse New York's email submission route,
+  Wilhelmina's selected-market form, and IMG's global Get Scouted route. This follows the product
+  plan plus its earlier committed market-research memo; uncited legacy migration backfills are not
+  source evidence.
+- Wilhelmina and IMG currently expose only part of their route to non-interactive web retrieval.
+  They remain valuable records: published form and eligibility facts are normalized, while gated
+  media requirements are explicit controlled unknowns. No prior research claim is carried forward
+  when it is absent from the live source.
+- The ten-route manifest has seven `verified`, one `conflicting` (Storm), and two `provisional`
+  revisions (Wilhelmina and IMG). Every revision remains `advisory`; public or agency-branded
+  source wording never authorizes Pholio to block a submission.
+- IMG's adult and guardian-first paths were checked in the live official form without submitting
+  an application. Adult counts, slots, file rules, and fields are age-scoped; the 14–17 downstream
+  step remains source-access-limited. Its captured public validation bundle is pinned by SHA-256
+  and split into assertion-specific evidence records.
+- The final strong audit drove fixes for Wilhelmina's US-only division options, IMG adult/minor
+  scope leakage, and bundle-evidence locators. The validator now rejects known assertions that
+  overlap an age scope explicitly marked source-access-limited.
+- `npm run validate:spec-registry` passes: **10 current series / 10 revisions / 88 taxonomy
+  fields / 28 unknown facts**. Focused Jest passes **22/22**; all JSON parses, the validator's
+  Node syntax check passes, Ajv dependencies resolve, and scoped whitespace checks are clean.
+  The full application suite was not rerun for this isolated data-package expansion.
+
+---
+
+## Verification standard used throughout
+
+Every slice is checked against a baseline taken at this branch's own HEAD (not the local
+`main` ref, which is stale — see `lessons.md`). Before the Intel removal, backend `npm test`
+held at **5 pre-existing failing suites / 39 failing tests**: seed-dependent `app`,
+`notifications`, `overview-backend`, `intel`, plus `password-changed-notification`.
+`same-origin-app` flakes under parallel load on a 5s migration hook and passes in isolation.
+The restored Intel suite remains at its pre-existing 18 seed/auth failures and now includes
+the revised factual activity contract. Client lint keeps one pre-existing warning in an
+untouched file.
+
+The residual-score slice's focused backend checks pass **167/167**, with **12/12** focused
+client tests passing. The full local run reported
+the same 5/39 baseline plus **2 Puppeteer raster tests** because Chrome 146 is not installed in
+the local Puppeteer cache (6 suites / 41 tests total); that environmental PDF failure is outside
+this slice.
+
+The roster-role slice's focused backend contracts pass **138/138** (120 route/DTO/RBAC/setup
+checks plus the 18-endpoint minor-access inventory), and focused agency client tests pass
+**95/95**. Client lint has only the same untouched React Hook Form compiler warning and the
+production build succeeds. The quiet full backend run returns the same local **6 suites / 41
+tests** described above, with no roster-slice regression.
+
+The Intel/age-verification correction adds **4/4 passing** age-verification service contracts,
+including the explicit-consent requirement.
+The restored Intel/searchability run passes **12** tests and holds at its pre-existing **18**
+seed/auth failures. Client lint has only the same React Hook Form warning, the production
+build succeeds, and full client Vitest passes **194/194**. The full backend run before the final
+consent contract passed **1,928 tests** and held at the branch's
+local **6 suites / 41 tests** baseline: seed/email-verification failures in `app`, `intel`, and
+`overview-backend`; the existing notification and password-confirmation failures; and two
+Chrome-less Puppeteer raster tests.
+
+The profile-theatre removal keeps readiness as a factual checklist and removes every
+talent-facing percentage, strength label, threshold, and progress meter. The two focused
+backend readiness suites pass **30/30**; `overview-backend` remains at its known **15**
+email-verification/seed failures. Profile UI tests pass **6/6**, full client Vitest passes
+**194/194**, client lint has only the existing React Hook Form warning, and the production
+build succeeds.
+
+## Spec Registry application integration
+
+- [x] Define the persisted registry, API, deterministic matcher, and talent preflight contracts.
+- [x] Add SQLite/PostgreSQL-safe registry revision, publication, and current-pointer tables.
+- [x] Publish the authored v1 package into the database idempotently without mutating revisions.
+- [x] Add authenticated list/detail/preflight APIs with source freshness and uncertainty intact.
+- [x] Match every applicable rule conservatively against real profile/media signals, returning
+      explicit satisfied, missing, conflict, manual-review, and unknown outcomes without a score.
+- [x] Build the talent-facing agency-requirements workspace with loading, error, empty, mobile,
+      keyboard, and reduced-motion states.
+- [x] Add migration, publisher, matcher, API, and client regression coverage.
+- [x] Run registry validation, focused/backend/client tests, lint, build, and browser visual QA.
+- [x] Record the completed review and verification evidence below.
+
+These boxes were left unticked when the slice shipped. The evidence is the three
+`20260810*` migrations, `src/domains/spec-registry/{matcher,matcher-input,preflight-service}.js`,
+`src/domains/talent/routes/spec-registry.js`, `client/src/domains/talent/pages/RequirementsPage/`,
+and the seven suites in `tests/spec-registry/`.
+
+## Profile form validity and registry runtime readiness
+
+- [x] Trace the hydration warning to the nested bookout form.
+- [x] Replace it with a labelled local editor that preserves button and Enter-key submission.
+- [x] Add regression coverage for valid form nesting and local keyboard submission.
+- [x] Confirm why the configured Spec Registry API returns 503 and identify the safe release action.
+- [x] Run focused lint/tests and verify the corrected form behavior.
+- [x] Record the completed review and database state below.
+
+### Review
+
+- Replaced the nested bookout `<form>` with an accessible grouped editor. Its button and
+  single-line Enter handling submit only the bookout and never the enclosing profile form.
+- Profile regression suite passes 7/7, scoped ESLint passes, and the production client build
+  passes. The test explicitly rejects `form form` nesting and verifies Enter-key behavior.
+- The Spec Registry 503 is caused by database release state, not the route implementation. The
+  configured Neon database was missing the three registry migrations. Applied only those three,
+  avoiding the unrelated destructive `drop_casting_briefs` migration, then published dataset
+  `2026.08.09.2`. Read-only verification reports 10 current series and 10 stored revisions.
+
+## Tables deliberately left in place
+
+`talent_commitments`, `interviews`, `reminders`, `talent_records`, `roster_memberships`,
+`roster_board_standings`, `agency_import_jobs`, `profile_events`, and `share_tokens`. Only
+`casting_briefs` was dropped, because
+the plan calls it dormant and it had zero writers and no rows. The others may hold real history;
+their product readers and writers are retired, while existing cascade and application-erasure
+paths continue to remove linked talent data.
+
+---
+
+## Spec Builder — agencies author their own registry route (A4 #1)
+
+The registry currently holds ten *researched third-party* routes: file-authored, hash-locked,
+published as one immutable dataset. The Spec Builder makes an agency the **first-party author**
+of its own route, so its open-call applicants are evaluated against what the agency actually
+requires rather than what Pholio observed from outside.
+
+### Why the existing schema already fits
+
+No schema change is needed. The v1 spec-revision schema was written with this case in mind:
+
+- `authority: "agency_confirmed"` and `review.method: "agency_confirmation"` are unused enum
+  values reserved for exactly this.
+- `publisher.js:44 blockingAuthorized()` already gates on that pair.
+- `status: "draft"` is unused and is the natural pre-publish state.
+- An agency stating its own requirement *is* `basis: "explicit_text"` — its own words are the
+  source text, and the evidence record points at its own open-call page.
+
+### Decisions
+
+- **Advisory only.** Agency-authored specs publish with `evaluationMode: "advisory"`.
+  `blockingAuthorized()` stays dormant. A1 invariant 3 — "the open-call path is free and
+  unlimited, always" — must stay literally true: talent always sees what is missing and can
+  always still send. Revisit only with counsel.
+- **Eligibility fields are allowlisted.** An agency may author shot, presentation and file rules
+  across the full taxonomy, but *eligibility* rules are restricted to declared, non-inferred
+  facts: age, height, measurements, work authorization, location, representation status.
+  Appearance-derived fields (`appearance.natural_hair_color`, `appearance.natural_eye_color`,
+  `appearance.hair_color`, `appearance.eye_color`, `applicant.nationality`) are rejected as
+  eligibility constraints. Recording that a third party publishes such a rule is description;
+  giving agencies a Pholio tool to author one is participation. A1 invariant 5.
+- **Agency-authored series resolve outside the dataset.** The editorial dataset stays
+  hash-locked and republished as a whole; an agency's own series carries its own current
+  pointer. One agency, one series, many immutable revisions.
+
+### Plan
+
+- [x] Migration: `spec_registry_series` gains `origin`/`agency_id`/`current_revision_id`;
+      new `agency_spec_drafts`; `application_spec_snapshots.dataset_version` becomes nullable
+      so an agency-authored receipt can be stored.
+- [x] Extract the registry validator core out of `scripts/validate-spec-registry.js` into
+      `src/domains/spec-registry/validation/`, re-exported from the script so the CLI and its
+      tests keep working. Runtime authoring must validate against the *active* taxonomy.
+- [x] Authoring module: authorable-field allowlist, draft load/save, and composition of a
+      simplified agency draft into a full schema-valid revision.
+- [x] Publish service: validate → mint immutable revision → advance the series pointer →
+      upsert `spec_registry_agency_routes`, in one transaction. Republishing an unchanged draft
+      is a no-op, never a new revision.
+- [x] Resolution: `getCurrentRevision` / `listCurrentRoutes` union editorial and agency-authored
+      series; `saveApplicationSnapshot` accepts a revision with no dataset record.
+- [x] Agency API: taxonomy, draft GET/PUT, publish, revision history.
+- [x] Spec Builder UI in Open Call Manager.
+- [x] Tests: allowlist rejection, draft validation, publish immutability and idempotence,
+      resolution union, snapshot acceptance, and the client surface.
+- [x] Run focused tests, registry validation, lint, build; record the review below.
+
+### Review
+
+**No schema change was needed.** The v1 spec-revision schema already reserved every value this
+path requires and the ten researched routes use none of them: `authority: "agency_confirmed"`,
+`review.method: "agency_confirmation"`, `channel.type: "pholio_open_call"`, and `status: "draft"`.
+`publisher.js:44 blockingAuthorized()` was already written to gate on the first two. An agency
+stating its own requirement composes honestly as `basis: "explicit_text"` — its own words are the
+source text, and the evidence record points at its own open call.
+
+**What ships**
+
+- `migrations/20260811090000_agency_authored_spec_registry.js` — series origin/pointer columns,
+  `agency_spec_drafts`, and a nullable snapshot `dataset_version`. Verified up, down and up again
+  on SQLite with every index and the `submission_request_id` unique constraint intact.
+- `src/domains/spec-registry/validation/registry-validator.js` — the former script body, moved
+  whole. `scripts/validate-spec-registry.js` is now a thin CLI re-exporting the same surface, so
+  its 22 tests import unchanged and the command still reports 10/10/88/28.
+- `src/domains/spec-registry/authoring/` — `authorable-fields.js` (the compliance gate),
+  `compose.js`, `validate-authored.js`, `spec-builder-service.js`.
+- `src/domains/agency/routes/spec-builder.js` behind the existing `open_call.view` /
+  `open_call.manage` permissions.
+- `client/src/domains/agency/pages/settings/SpecBuilderPanel.{jsx,css}`, wired as a
+  **Requirements** tab beside Open Call Links.
+
+**Compliance decisions, as built**
+
+- Advisory only. Authored revisions publish `evaluationMode: "advisory"` with
+  `enforcement_authorized: false`, and preflight still returns
+  `{ canProceed: true, advisoryOnly: true, blockingEligible: false }`. A1 invariant 3 holds
+  literally: a published requirement tells an applicant what is missing and never stops them
+  sending.
+- Eligibility is allowlisted rather than denylisted, and the line drawn is between a rule about
+  the *photograph* (presentation — retakeable) and a rule about the *person* (eligibility — not).
+  Nationality and hair/eye colour are refused in every group. Gender may scope a requirement but
+  never be one, which is the exact shape of a real published spec — The Society states an age
+  range scoped to a declared gender. Refused fields are shown in the UI with their reason instead
+  of being silently absent.
+- An agency's own route supersedes what Pholio observed about it from outside, at priority 0.
+- A verified revision must carry a review deadline, so authored specs get `nextReviewOn` one year
+  out and age into `review_due` exactly like researched ones.
+
+**Verification**
+
+- `tests/spec-registry/` — **87/87** across 8 suites, including 21 new Spec Builder contracts.
+  The three pre-existing suites that build their schema by hand now apply the new migration too.
+- Full backend: **2,031 passing**, and the failures hold at the branch's documented baseline of
+  **5 suites / 39 tests** (`app`, `notifications`, `overview-backend`, `intel`,
+  `password-changed-notification` — all seed/migration-state dependent, none touched here).
+- Client: **224/224** Vitest across 31 files, including 10 new panel tests. Lint has only the two
+  pre-existing problems in the untouched talent domain. Production build succeeds.
+- End-to-end on a fully migrated SQLite database, not the hand-rolled test schema: editorial
+  dataset publishes, an agency authors and publishes revision 1, republishing no-ops, the agency
+  resolves to its own route with a null dataset version, and the public directory grows 10 → 11.
+  A talent preflight against that route returned `canProceed: true` with the gender-scoped height
+  floor **satisfied** (female, 178cm ≥ 175) and each unmet shot reported as missing — the wedge
+  working: *you have 0 of Northlight's 3*.
+
+**Not in this slice:** the mandatory brief on open-call links (who / what / eligibility / deadline
+/ what happens next), which is the other half of A4 #1 and an independent build.
+
+### Postgres rehearsal — three defects SQLite hid
+
+The panel returned 500 in dev. Dev points at the Neon database, where the migration was pending.
+Rehearsing on a disposable Neon branch before touching it found three real problems that the
+SQLite suites could not have caught:
+
+1. **No deploy-before-migrate guard.** The route answered 500 on a missing column instead of
+   degrading. Every other schema-dependent surface here has one (`hasOpenCallSchema` → 503).
+   Added `hasSpecBuilderSchema`, cached per process and reset on failure, guarding all five
+   entry points; `SpecAuthoringError` now carries a status so environment problems return **503
+   `SPEC_BUILDER_UNAVAILABLE`** and are told apart from an agency's own mistake. The panel already
+   had an unavailable state; it now recognises this code too.
+2. **`String(date).slice(0, 10)` is wrong on Postgres.** `date` columns arrive as JS `Date`
+   objects there and strings on SQLite, so the normaliser produced `"Tue Aug 11"`. The composed
+   comparison hash therefore never matched what was stored: **every republish minted a redundant
+   revision**, `hasUnpublishedChanges` was permanently true, and the UI would have shown
+   `Tue Aug 11`. Now uses the repository's existing `dateOnly()`, which handles both.
+3. **`seriesIdFor` keyed on the slug.** A slug can be edited; the series id cannot move without
+   orphaning every revision published under the old one. Now keyed on the immutable agency id,
+   with readable identity left where it is actually read, in `scope.organization`.
+
+A fourth was found in the rollback itself: `down()` dropped the `origin` column while leaving
+agency-authored series behind, stranding rows that nothing could interpret afterwards — the
+branch ended with 11 series instead of 10. It now reclaims authored series, their revisions,
+routes and snapshots *before* dropping the column that identifies them, verified 11 → 10 on both
+engines.
+
+**Rehearsal and release**
+
+- Branch `br-sweet-cherry-a4cx2xkb` forked from production, migration applied alone, then
+  inspected: all four FKs on `application_spec_snapshots` survived the `ALTER` including the
+  `dataset_version` one, the `submission_request_id` unique constraint survived, all 10 existing
+  series defaulted to `origin='editorial'`, and no rows were lost.
+- Full author → publish → republish → resolve cycle exercised on Postgres against real
+  production-shaped data. After the fixes: publish mints r1, both republishes report
+  `unchanged`, dates read `2026-08-11` / `2027-08-11`, and only one revision exists.
+- `down()` then `up()` re-verified on the branch and on SQLite. Branch deleted.
+- **Only `20260811090000` was applied to production**, as batch 14. The other 7 pending
+  migrations were left alone — several carry `dropColumn`, `.update`, `.del` or
+  `dropTableIfExists`, so `npm run migrate` must not be run casually against that database.
+- Post-release check against production: schema guard true, 10 series all editorial, panel loads
+  with 43 authorable fields.
+
+**Verification after the fixes:** spec-registry **90/90** (2 new regression tests pinning the
+date-type and series-id-stability behaviour); backend **2,034 passing** at the same documented
+5-suite/39-test baseline; panel **10/10**; client lint and build unchanged. Full client Vitest
+showed 3 failures in `ProfilePage`, an untouched talent file, which passes **7/7** in isolation —
+a load-related flake of the same class as the documented `same-origin-app` one.
+
+---
+
+## Open call brief — A4 #1 complete
+
+---
+
+The second half of A4 #1. An open call with no brief is a link into silence: the applicant
+cannot tell who it is for, what to send, or what happens after they send it.
+
+- [x] Migration adding the brief to `agency_open_call_links`.
+- [x] Shared brief service: validation, storage columns, and the applicant-facing DTO.
+- [x] Mandatory on every new link; editable in place on existing ones.
+- [x] Surface the brief on the talent arrival page, in the agency's own words.
+- [x] A call past its published closing date stops taking submissions and says so.
+- [x] Tests, then rehearse the migration on a Neon branch before releasing it.
+
+### Decisions
+
+- **Mandatory for new links, grandfathered for existing ones.** Two links are live in
+  production with no brief. Breaking a link an agency has already published on its own site is
+  worse than a missing brief, so they keep working and are reported as needing one —
+  `brief_completed_at` is what separates "the agency answered" from "nobody has filled this in",
+  which a brief of empty strings could not.
+- **The deadline is a required decision, not a required date.** Agencies run permanent open
+  calls — Storm takes walk-ins Mon–Fri — so an agency either names a closing date or says the
+  call runs continuously. Forcing a date would manufacture a deadline nobody means. Refusing to
+  answer at all is still rejected.
+- **A dated call closes itself.** Past its published date the arrival page says so, no claim is
+  minted, and the client does not even fire the beacon. Left open it would keep taking
+  submissions into a call the agency considers finished — the exact silence B3 is about.
+- **Eligibility may be empty.** A call open to everyone should say nothing rather than invent a
+  restriction. `who`, `what` and `next steps` are required; eligibility is not.
+- **The brief does not restate the Spec Registry.** Prose says who the call is for and what
+  happens next; exact shot requirements stay structured in Requirements, and the field hint
+  points there rather than inviting a second, contradictory copy.
+
+### Review
+
+- `src/domains/agency/services/open-call-brief.js` holds validation, columns, closing and the
+  DTO in one place because the agency API writes it and the public arrival page renders it —
+  a brief the applicant reads differently from the one the agency wrote is worse than none.
+- `findActiveLinkByCode` selects the brief columns **conditionally**, so the arrival page still
+  works on a database that has the open-call schema but not yet this migration. Verified by
+  rolling the migration back on a scratch database and confirming arrivals still resolve.
+- The arrival page shows the agency's own four sections and its closing line; links with no
+  brief keep the previous generic three steps rather than being given reassuring filler nobody
+  wrote.
+
+**Verification.** New: 19 brief-service contracts, 2 API contracts (a link cannot be created
+without a brief; an undecided deadline is refused), 7 arrival-page tests, 7 panel tests.
+Backend **2,054 passing** at the documented 5-suite/39-test baseline. Client **238/238** across
+33 files. Lint back to the two pre-existing talent-domain problems; build passes.
+
+Rehearsed on Neon branch `br-purple-bonus-a4cmrnuk`: columns land as expected, the Postgres
+`date` round-trip reads correctly through `dateOnly` (the trap from the Spec Builder slice,
+avoided this time by writing it that way from the start), `down()` then `up()` leaves the two
+existing links untouched. Branch deleted. **Only `20260811140000` was applied to production**,
+as batch 15; the same 7 unrelated pending migrations remain untouched.
+
+---
+
+## Instagram professional login — in progress
+
+- [x] Confirm Meta's Instagram Login applies to professional (business/creator) accounts.
+- [x] Preserve validated adult eligibility across the Instagram signup redirect.
+- [ ] Verify the login and signup handoffs with focused tests.
+
+---
+
+## Spec-correct export + requirements rebuild — shipped
+
+Brief: [`docs/spec-correct-export-brief.md`](../docs/spec-correct-export-brief.md).
+
+### 1. Export — service + route
+
+- [x] `export/zip.js` — stored-entry ZIP writer. No new dependency: already-compressed
+      JPEG/WebP bytes do not deflate, so `store` is both correct and small.
+- [x] `export/export-plan.js` — pure planner over `rules.files` (`per_file` / `total_set` /
+      `whole_package` size, count and mime constraints) plus the shot-slot assignments the
+      matcher already produced.
+- [x] `export/spec-export-service.js` — Sharp resize/encode/name pipeline. **No crop step**:
+      the schema carries no dimension, aspect or orientation rule, so there is no crop target.
+- [x] `POST /api/talent/spec-registry/export`. Never gated behind Studio+ (guardrail 1).
+
+### 2. Instrumentation (guardrail 4)
+
+- [x] Migration: `spec_registry_engagement_events`.
+- [x] `export` recorded by the export route; `outbound_click` by a new route.
+- [x] `summarizeEngagement()` + a script that prints the per-agency sentence.
+
+### 3. Removal path (guardrail 3)
+
+- [x] Migration: `delisted_at` / `delisted_reason` on `spec_registry_series`.
+- [x] Every read path in `store/repository.js` filters delisted series.
+- [x] `scripts/delist-spec-registry-agency.js`.
+
+### 4. Rebuilt talent requirements surface
+
+Rebuild, not extend. The existing markup and CSS are behaviour reference only.
+
+- [x] Requirement framing — "published requirements", "your set covers 4 of 6"; never
+      "Prepare this package for X", because nothing is sent to a non-customer agency.
+- [x] One directory, marked per entry as inline plain text. No badge/chip/pill/dot
+      (root `CLAUDE.md` bans 4, 5, 7, 10).
+- [x] The full check for everyone, customer agency or not.
+- [x] Provenance on every entry: source link, checked-on date, non-affiliation.
+- [x] Export action and an instrumented outbound link.
+- [x] One reader only — `lib/specRegistry.js`.
+
+### Decisions
+
+- **No crop, and the export says so in writing.** The registry schema carries no
+  dimension, aspect-ratio or orientation rule — checked against
+  `data/spec-registry/v1/schemas/spec-revision.schema.json`, not just the brief — so there
+  is no crop target. Agencies publish *size* limits, not dimensions. The README inside every
+  archive states that no crop was applied and why, because a talent who receives a rejection
+  deserves to know Pholio did not silently reframe their work.
+- **The ZIP is written here, not installed.** Already-compressed JPEG bytes do not deflate, so
+  stored entries are the correct method rather than a shortcut — which removes the only hard
+  part of the format and with it the case for a new production dependency in a bundle that
+  already externalizes native modules by hand. Verified against `zlib.crc32` and the system
+  `unzip`, not against itself; that is what caught the missing filename in the central
+  directory, which no self-consistent test would have found.
+- **`imageIds: []` means "chose nothing", so the export defaults to `null`.** That is a real
+  answer for a preflight and a useless one for a download. The route maps an omitted field to
+  the whole eligible book and documents the difference.
+- **Delisting is a flag, not a delete.** The editorial dataset is hash-locked as one package
+  and application snapshots cite its revisions as evidence. `getCurrentRevision` enforces it,
+  so the preflight, the export and the snapshot path cannot each forget to. Reads probe for
+  the column first: a directory going dark because a deploy is one migration ahead of its
+  database is far worse than a delisting landing a moment late.
+- **An agency network is not one organization, and the removal path now says so.** Elite
+  publishes three entries — `elite-model-management` (global, 3 shots), `elite-models` (North
+  America, 6 shots including the personality pic) and `elite-model-japan` (no shot list) — on
+  three domains with three application pages. They stay separate, because merging them would
+  tell a talent applying in New York to send the global set. But `--organization` therefore
+  removes one of three, and the operator acting on a delisting request should not have to
+  already know the other two rows exist. The script now reports likely siblings and offers
+  `--like` to sweep them, and never widens the removal on its own: `legalName` is null on all
+  three, so Pholio has not established they are one legal entity, and delisting on a shared
+  name prefix would assert a corporate relationship nobody verified — the same failure as
+  inventing a crop target.
+- **Engagement counts people, not events.** One talent exporting six times is one person who
+  prepared a set, and the sentence guardrail 4 asks for is a claim about people. Recording is
+  best-effort throughout — a failed count must never break a download or swallow a click.
+- **`RegistryPreflight` was left alone.** It serves the apply workspace, where a submission
+  genuinely happens; the objection was to borrowing its framing for a surface that sends
+  nothing, not to the component.
+
+### Review
+
+Three defects only appeared once the surface ran against the published registry, and all three
+are the kind a fixture cannot produce:
+
+- The headline asked two questions at once — a shot count over a list that included file limits
+  and social handles. Ford read "Missing: Image count · Close-up · Waist-up · Instagram · TikTok
+  · YouTube URL · Facebook · Twitter · Twitch" beneath "covers 1 of 4".
+- `guidanceForOutcome` ended its lines with "Confirm it before sending" — correct in the apply
+  workspace, wrong on a surface where most agencies cannot receive a submission at all. The test
+  meant to catch this asserted the absence of send-framing against a *collapsed* panel with a
+  fixture that never carried the string, so it passed for the wrong reason.
+- Elite Model Japan publishes 33 application fields, which pushed the provenance line off the
+  bottom of the entry. The long groups now open on demand.
+
+**Verification.** Backend **436 passing** across 40 suites (`tests/integration`, `tests/agency`,
+`tests/unit`, `tests/spec-registry`), including 40 new: ZIP container, export planner, the Sharp
+pipeline end-to-end against real photographs, and engagement. Client **45/45** across 7 files.
+Lint back to the two pre-existing talent-domain problems; production build passes. Both
+migrations verified `down` then `up` on a scratch SQLite file with all 202 applied.
+
+Exercised in the running app, not just in tests: the archive downloads through Chromium
+(`elite-model-management-digitals.zip` — a resized, correctly named JPEG plus the provenance
+README), the delisting script removes Elite from the directory (10 routes → 9), blocks its
+export with a 404, and relists it, and the engagement report renders the real recorded download
+as *"1 person prepared an Elite Model Management-spec set on Pholio recently."*
+
+---
+
+# Comp card import (A3) — shipped
+
+Plan: `docs/pholio-product-plan-2026-08.md` A3 "Add", "On uploading an existing comp card",
+and C3. Architecture and compliance rationale: `docs/comp-card-import-architecture.md`.
+
+**Scope.** The *import source* half only: read an existing agency card, propose structured
+profile fields, talent confirms each one. The *attachment* half (card stored as "existing
+agency card", dated, secondary) is deliberately not built.
+
+**What was built.**
+
+- `src/shared/lib/pdf-text.js` — reads a PDF's text layer with per-run position and font
+  size. No rasterising, no pixel access; a card's photographs are opaque to this path.
+- `src/domains/ai/comp-card-vision.js` — OCR fallback via Groq for flattened/image cards.
+  Transcription only; descriptive output about a person is filtered, not merely discouraged.
+- `services/comp-card-import/units.js` — explicit unit wins, then non-overlapping plausible
+  ranges, then the card's own system; genuine overlap stays **ambiguous** rather than guessed.
+- `services/comp-card-import/parse-card.js` — labels, name (letter-spacing collapsed per text
+  run), agency (registry match or low-confidence free text), printed shot-type captions.
+- `services/comp-card-import/proposal.js` — the proposal contract and a validated apply.
+- `routes/comp-card-import.js` — upload / read / confirm / discard. In-memory upload, no
+  storage engine, no `is_pro` check anywhere.
+- `migrations/20260814140000_create_comp_card_imports.js` — proposal + `measurements_source`.
+- `components/CompCardImport/` — review UI above the profile form.
+
+**The three rules that shaped it.**
+
+1. *Proposal, never a silent write.* Confirm validates against the stored proposal, so an
+   ambiguous reading can only be applied as an option that was actually offered, and a column
+   import does not own is rejected server-side.
+2. *No capture date, ever.* No `captured_at`, no image rows, nothing reaches
+   `digitals-freshness.js`. Applied measurements record `measurements_source =
+   comp_card_import` so "last updated" cannot read as a fresh measurement.
+3. *Never dead-ends.* Every failure returns a full proposal of `not_found` fields plus a
+   reason — a working manual-entry screen. No human queue anywhere in the path.
+
+**Verification.** Backend full suite: **2193 passing / 41 failing**, against a stashed-HEAD
+baseline of **2143 passing / 41 failing** — the same 6 pre-existing failures
+(`tests/notifications.test.js`, `tests/security/password-changed-notification.test.js` and
+four others), plus the 50 new tests. Client 8/8 for the new component. Lint 0 errors;
+production build passes. Migration verified `down`/`up` twice on a scratch SQLite file.
+
+Exercised in the running app through Chromium against real generated PDFs: a US imperial card
+read 10 fields with unit conversion and evidence lines; a card with nothing to disambiguate it
+surfaced Bust 52 / Waist 53 as unanswered choices that start unselected (apply count moved
+5 → 6 only once a reading was picked); `is_pro` posted to confirm was rejected while the legit
+fields applied; and the same card imported identically with `is_pro = 0`.
+
+**Known limits** (also in the architecture doc): flattened PDFs are not OCR'd (no rasteriser
+in this service — reported as `pdf_no_text_layer` with a message asking for a JPEG/PNG);
+label vocabulary is English-first; shot types come only from printed captions, which most
+cards do not carry.
+
+---
+
 # Reconcile all Pholio branches into canonical main — 2026-08-04
 
 - [ ] Inventory local, remote, stash, and uncommitted work by commit and patch equivalence.

@@ -19,7 +19,12 @@ function createKnexMock(seed = {}, schema = {}) {
     application_submission_requests: [
       ...(seed.application_submission_requests || []),
     ],
+    application_spec_snapshots: [...(seed.application_spec_snapshots || [])],
     comp_card_presets: [...(seed.comp_card_presets || [])],
+    comp_card_imports: [...(seed.comp_card_imports || [])],
+    spec_registry_engagement_events: [
+      ...(seed.spec_registry_engagement_events || []),
+    ],
     notifications: [...(seed.notifications || [])],
     onboarding_analytics: [...(seed.onboarding_analytics || [])],
     commissions: [...(seed.commissions || [])],
@@ -36,6 +41,8 @@ function createKnexMock(seed = {}, schema = {}) {
     "talent_user_settings",
     "image_rights",
     "comp_card_presets",
+    "comp_card_imports",
+    "spec_registry_engagement_events",
     "notifications",
     "onboarding_analytics",
     "commissions",
@@ -242,11 +249,36 @@ describe("buildTalentDataExport", () => {
             created_at: "2026-06-27T00:00:00.000Z",
           },
         ],
+        application_spec_snapshots: [
+          {
+            id: "snapshot-1",
+            application_id: "app-1",
+            revision_id: "models1-uk:online@1",
+            evaluation_json: '{"submission":{"advisoryOnly":true}}',
+          },
+        ],
         comp_card_presets: [
           {
             id: "preset-1",
             profile_id: "profile-1",
             name: "Default Preset",
+          },
+        ],
+        // Keyed by user_id, unlike almost everything else in the export.
+        comp_card_imports: [
+          {
+            id: "import-1",
+            user_id: "user-1",
+            extraction_method: "pdf_text",
+            source_filename: "elite-card.pdf",
+          },
+        ],
+        spec_registry_engagement_events: [
+          {
+            id: "engagement-1",
+            profile_id: "profile-1",
+            series_id: "models1-uk",
+            event_type: "export",
           },
         ],
         notifications: [
@@ -270,6 +302,7 @@ describe("buildTalentDataExport", () => {
           "application_drafts",
           "application_draft_events",
           "application_submission_requests",
+          "application_spec_snapshots",
         ],
         profileColumns: ["vibe_score", "archetype"],
         imageColumns: ["path", "moderation_status"],
@@ -332,8 +365,25 @@ describe("buildTalentDataExport", () => {
         status: "completed",
       }),
     ]);
+    expect(result.application_spec_snapshots).toEqual([
+      expect.objectContaining({
+        id: "snapshot-1",
+        revision_id: "models1-uk:online@1",
+      }),
+    ]);
     expect(result.comp_card_presets).toEqual([
       expect.objectContaining({ id: "preset-1", name: "Default Preset" }),
+    ]);
+    // DSAR coverage for the two tables the August branch added. Both hold
+    // personal data about the subject, so both have to reach their export.
+    expect(result.comp_card_imports).toEqual([
+      expect.objectContaining({
+        id: "import-1",
+        source_filename: "elite-card.pdf",
+      }),
+    ]);
+    expect(result.spec_registry_engagement_events).toEqual([
+      expect.objectContaining({ id: "engagement-1", event_type: "export" }),
     ]);
     expect(result.notifications).toEqual([
       expect.objectContaining({ id: "notification-1", title: "Welcome to Pholio" }),
@@ -362,6 +412,7 @@ describe("buildTalentDataExport", () => {
     expect(result.application_drafts).toEqual([]);
     expect(result.application_draft_events).toEqual([]);
     expect(result.application_submission_requests).toEqual([]);
+    expect(result.application_spec_snapshots).toEqual([]);
   });
 
   it("exports declared profile AI columns only when present on schema", async () => {

@@ -1,15 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const knex = require("../../../shared/db/knex");
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const apiResponse = require("../../../shared/lib/api-response");
+const {
+  requireTalentProfile,
+} = require("../services/writer-shared/writer-profile");
 const { buildBioContext } = require("../services/bio-writer/context-builder");
 const { refineBio, generateBio } = require("../services/bio-writer/bio-writer");
-
-async function loadTalentProfile(userId) {
-  return knex("profiles").where({ user_id: userId }).first();
-}
 
 function parseBioOptions(body = {}) {
   return {
@@ -18,26 +16,11 @@ function parseBioOptions(body = {}) {
   };
 }
 
-async function requireStudioPlus(req, res) {
-  const profile = await loadTalentProfile(req.session.userId);
-  if (!profile) {
-    apiResponse.notFound(res, "Profile not found");
-    return null;
-  }
-  if (!profile.is_pro) {
-    apiResponse.error(res, "Studio+ subscription required", 403, {
-      code: "STUDIO_PLUS_REQUIRED",
-    });
-    return null;
-  }
-  return profile;
-}
-
 router.post(
   "/refine",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const { bio } = req.body;
@@ -85,7 +68,7 @@ router.post(
   "/generate",
   requireRole("TALENT"),
   asyncHandler(async (req, res) => {
-    const profile = await requireStudioPlus(req, res);
+    const profile = await requireTalentProfile(req, res);
     if (!profile) return;
 
     const context = buildBioContext(profile);

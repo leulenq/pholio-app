@@ -1,12 +1,7 @@
 /**
  * DOB-derived age filter cutoffs for Discover.
  *
- * Lives in its own module because discover-search.js requires
- * discover-retrieval.js — retrieval importing the helper back from
- * discover-search would create a require cycle. This is the same logic as
- * `ageFilterDobCutoffs` in discover-search.js (the canonical in-file copy,
- * kept in sync; consolidating discover-search onto this module is follow-up
- * work outside this PR's scope).
+ * Shared by Discover's explicit-filter path and focused tests.
  *
  * Boundaries (today = referenceDate):
  *   - age >= minAge  ⟺  DOB <  (today - minAge years) + 1 day   [strict <]
@@ -52,7 +47,25 @@ function ageFilterDobCutoffs(minAge, maxAge, referenceDate = new Date()) {
   return out;
 }
 
+async function loadEligibleProfileIds(knex, filters = {}) {
+  const query = knex("profiles")
+    .where({
+      is_discoverable: true,
+      profile_status: "active",
+    })
+    .whereNotNull("bio_curated");
+  const { maxDobExclusive, minDobInclusive } = ageFilterDobCutoffs(
+    filters.min_age ?? null,
+    filters.max_age ?? null,
+  );
+  if (maxDobExclusive) query.where("date_of_birth", "<", maxDobExclusive);
+  if (minDobInclusive) query.where("date_of_birth", ">=", minDobInclusive);
+  const rows = await query.select("id");
+  return new Set(rows.map((row) => row.id));
+}
+
 module.exports = {
   ageFilterDobCutoffs,
   utcDateString,
+  loadEligibleProfileIds,
 };

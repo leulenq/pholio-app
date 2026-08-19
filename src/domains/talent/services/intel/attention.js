@@ -11,7 +11,7 @@
 
 const knex = require("../../../../shared/db/knex");
 const { whereSince, whereBefore, parseDbDate, dayKey } = require("./db-utils");
-const { marketLabel } = require("./market-resolve");
+const { marketLabel } = require("../market-resolve");
 
 async function tableExists(name) {
   try {
@@ -32,7 +32,6 @@ async function loadIntelEvents(profileId, since, before = null) {
     "session_id",
     "market",
     "image_id",
-    "dwell_ms",
     "share_token_id",
     "source",
     "occurred_at",
@@ -195,7 +194,7 @@ function rhythmWindow(legacyEvents, intelEvents, tz) {
   };
 }
 
-/** Attention composition by tier for the Signal Spectrum (tiers 3–5 here). */
+/** Factual traffic and action counts. No dwell/referrer threshold implies intent. */
 function tier345Counts({ legacyEvents, intelEvents, sessions }) {
   const pulls = legacyEvents.filter((e) =>
     CARD_PULL_LEGACY.has(e.event_type),
@@ -213,34 +212,18 @@ function tier345Counts({ legacyEvents, intelEvents, sessions }) {
   );
   const publicSessions = sessions.filter((s) => !agencySessionIds.has(s.id));
 
-  // Qualified visit: real dwell (activity beyond arrival) or an external
-  // referrer — a person, not passing traffic.
-  const qualified = publicSessions.filter((s) => {
-    const started = parseDbDate(s.started_at);
-    const last = parseDbDate(s.last_activity_at);
-    const dwell = started && last ? last.getTime() - started.getTime() : 0;
-    return dwell >= 10_000 || Boolean(s.referrer);
-  }).length;
-
-  const totalViews = legacyEvents.filter((e) => e.event_type === "view").length;
-  const agencyViews = intelEvents.filter(
-    (e) => e.action === "view" && e.viewer_class === "agency",
-  ).length;
-  const reach = Math.max(0, totalViews - agencyViews - qualified);
-
-  return { cardPulls: pulls, linkOpens, qualified, reach };
+  return { cardPulls: pulls, linkOpens, visits: publicSessions.length };
 }
 
 /**
- * Intent-bearing attention per day: a card pull, a share-link open or a
- * qualified visit — someone who did something beyond arriving. Raw reach is
- * deliberately excluded; it is the number that inflates and decides nothing.
+ * Recorded profile activity per day: visits, card pulls, and shared-link opens.
+ * These are observable actions, not evidence of a viewer's intent.
  */
-function intentByDay({ legacyEvents, intelEvents, sessions }) {
+function activityByDay({ legacyEvents, intelEvents, sessions }) {
   const strikes = strikesByDay(legacyEvents, intelEvents);
-  const qualified = qualifiedByDay(sessions, intelEvents);
+  const visits = visitsByDay(sessions, intelEvents);
   const out = {};
-  for (const map of [strikes.pulls, strikes.opens, qualified]) {
+  for (const map of [strikes.pulls, strikes.opens, visits]) {
     for (const [day, n] of Object.entries(map)) out[day] = (out[day] || 0) + n;
   }
   return out;
@@ -252,16 +235,16 @@ function intentByDay({ legacyEvents, intelEvents, sessions }) {
  * to compare against honestly — a comparison drawn from three events is a
  * decoration, not a benchmark.
  */
-function intentSeries({ dayKeys, priorDayKeys, current, prior, comparable }) {
+function activitySeries({ dayKeys, priorDayKeys, current, prior, comparable }) {
   return dayKeys.map((date, i) => ({
     date,
-    intent: current[date] || 0,
+    activity: current[date] || 0,
     prior: comparable ? prior[priorDayKeys[i]] || 0 : null,
   }));
 }
 
-/** Qualified visits per day (base layer of the intent series). */
-function qualifiedByDay(sessions, intelEvents) {
+/** Public visitor sessions per day, excluding sessions classified as agency. */
+function visitsByDay(sessions, intelEvents) {
   const agencySessionIds = new Set(
     intelEvents
       .filter((e) => e.viewer_class === "agency" && e.session_id)
@@ -270,13 +253,8 @@ function qualifiedByDay(sessions, intelEvents) {
   const out = {};
   for (const s of sessions) {
     if (agencySessionIds.has(s.id)) continue;
-    const started = parseDbDate(s.started_at);
-    const last = parseDbDate(s.last_activity_at);
-    const dwell = started && last ? last.getTime() - started.getTime() : 0;
-    if (dwell >= 10_000 || Boolean(s.referrer)) {
-      const k = dayKey(s.started_at);
-      if (k) out[k] = (out[k] || 0) + 1;
-    }
+    const k = dayKey(s.started_at);
+    if (k) out[k] = (out[k] || 0) + 1;
   }
   return out;
 }
@@ -298,9 +276,10 @@ function marketRows(
   for (const e of located) {
     const entry =
       byMarket.get(e.market) ||
-      { count: 0, mix: { agency: 0, client: 0, public: 0 }, days: {} };
+      { count: 0, mix: { agency: 0, shared: 0, public: 0 }, days: {} };
     entry.count += 1;
-    if (entry.mix[e.viewer_class] !== undefined) entry.mix[e.viewer_class] += 1;
+    const viewerClass = e.viewer_class === "client" ? "shared" : e.viewer_class;
+    if (entry.mix[viewerClass] !== undefined) entry.mix[viewerClass] += 1;
     const k = dayKey(e.occurred_at);
     if (k) entry.days[k] = (entry.days[k] || 0) + 1;
     byMarket.set(e.market, entry);
@@ -375,22 +354,19 @@ function sourceRows(intelEvents, sessions) {
 /** Image-level attention for The Book, Ranked (zone 5). */
 function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
   const imageEvents = intelEvents.filter(
-    (e) => e.image_id && e.action.startsWith("image_"),
+    (e) => e.image_id && (e.action === "image_impression" || e.action === "image_open"),
   );
   const byImage = new Map();
   for (const e of imageEvents) {
     const entry =
-      byImage.get(e.image_id) || { impressions: 0, opens: 0, dwellMs: 0 };
+      byImage.get(e.image_id) || { impressions: 0, opens: 0 };
     if (e.action === "image_impression") entry.impressions += 1;
     if (e.action === "image_open") entry.opens += 1;
-    if (e.action === "image_dwell" && Number.isFinite(Number(e.dwell_ms))) {
-      entry.dwellMs += Number(e.dwell_ms);
-    }
     byImage.set(e.image_id, entry);
   }
 
   const scored = images.map((img) => {
-    const a = byImage.get(img.id) || { impressions: 0, opens: 0, dwellMs: 0 };
+    const a = byImage.get(img.id) || { impressions: 0, opens: 0 };
     return {
       id: img.id,
       url: img.public_url || img.path,
@@ -400,13 +376,11 @@ function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
       isPrimary: Boolean(img.is_primary),
       impressions: a.impressions,
       opens: a.opens,
-      dwellMs: a.dwellMs,
-      // Open rate is the honest, comparable metric: of the people who saw this
-      // frame in the grid, how many opened it. The previous ranking multiplied
+      // Open rate is an observable metric: of the sessions where this frame
+      // appeared in the grid, how many opened it. The previous ranking multiplied
       // opens, dwell and impressions into a unitless "score" that could not be
       // checked against anything or compared between two frames.
       openRate: a.impressions > 0 ? a.opens / a.impressions : null,
-      avgDwellMs: a.opens > 0 ? Math.round(a.dwellMs / a.opens) : null,
     };
   });
 
@@ -418,7 +392,7 @@ function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
 
   if (!calibrating && rankable.length >= 2) {
     [...rankable]
-      .sort((a, b) => b.openRate - a.openRate || b.avgDwellMs - a.avgDwellMs)
+      .sort((a, b) => b.openRate - a.openRate || b.opens - a.opens)
       .forEach((img, i) => {
         img.rank = i + 1;
       });
@@ -427,7 +401,7 @@ function bookAttention(intelEvents, images, { minEvents = 25 } = {}) {
       img.flags = [];
       if (img.rank === 1) img.flags.push("most_opened");
       if (img.rank === rankable.length && rankable.length >= 3) {
-        img.flags.push("most_skipped");
+        img.flags.push("least_opened");
       }
       if (img.impressions < SEEN) img.flags.push("unseen");
     }
@@ -467,9 +441,9 @@ module.exports = {
   countByDay,
   rhythmWindow,
   tier345Counts,
-  qualifiedByDay,
-  intentByDay,
-  intentSeries,
+  visitsByDay,
+  activityByDay,
+  activitySeries,
   marketRows,
   sourceRows,
   bookAttention,

@@ -1,6 +1,17 @@
 import React from 'react';
 import { Mail, Phone, ArrowUpRight } from 'lucide-react';
 
+function submittedDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 export function SubmissionPackageDetails({ submissionPackage, compact = false }) {
   if (!submissionPackage) return null;
 
@@ -14,10 +25,17 @@ export function SubmissionPackageDetails({ submissionPackage, compact = false })
   const languages = Array.isArray(submittedProfile.languages)
     ? submittedProfile.languages.filter(Boolean)
     : [];
+  const sentOn = submittedDate(submissionPackage.submittedAt);
 
   return (
     <div className={`submission-package${compact ? ' submission-package--compact' : ''}`}>
       <dl className="submission-package__facts">
+        {sentOn && (
+          <div>
+            <dt>Sent</dt>
+            <dd>{sentOn}</dd>
+          </div>
+        )}
         <div>
           <dt>Submitted for</dt>
           <dd>{boards.length ? boards.join(' · ') : 'General consideration'}</dd>

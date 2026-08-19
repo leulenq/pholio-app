@@ -4,7 +4,7 @@ Scope: `client/src/domains/talent/**` and talent-facing dashboard routes under `
 
 ## Product role
 
-The talent dashboard is a cinematic portfolio studio for models, actors, creators, and other talent. The user is building a professional presence: uploading images, curating a portfolio, generating comp cards, tracking profile strength, and submitting to agencies. The interface should make their work feel staged and premium, not merely stored.
+The talent dashboard is a cinematic portfolio studio for models, actors, creators, and other talent. The user is building a professional presence: uploading images, curating a portfolio, generating comp cards, checking concrete submission requirements, and submitting to agencies. The interface should make their work feel staged and premium, not merely stored.
 
 ## Required design context
 

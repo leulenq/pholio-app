@@ -78,6 +78,9 @@
   background: transparent;
   font-family: inherit;
   font-size: 0.8125rem;
+  /* Was inherited from the global bare-<button> reset, which no longer applies
+     inside the SPA. */
+  letter-spacing: 0.02em;
   color: var(--ag-gold, #b8956a);
   text-decoration: none;
   cursor: pointer;

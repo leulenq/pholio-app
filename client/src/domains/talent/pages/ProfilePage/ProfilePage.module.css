@@ -546,6 +546,49 @@
   justify-self: center;
 }
 
+/*
+ * Comp card import trigger. A quiet inline control in the page's own mono
+ * metadata voice — import is a one-off act and should not hold page real estate
+ * for the profile's whole life.
+ */
+.importTriggerRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 26px;
+}
+
+.importTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  border: 1px solid var(--pf-hair);
+  border-radius: var(--pf-radius-sm);
+  background: transparent;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pf-text-faint);
+  cursor: pointer;
+  transition: color 0.2s var(--pf-ease-std), border-color 0.2s var(--pf-ease-std);
+}
+
+.importTrigger:hover {
+  color: var(--pf-text);
+  border-color: var(--pf-hair-gold);
+}
+
+.importTrigger:focus-visible {
+  outline: 2px solid var(--pf-gold);
+  outline-offset: 3px;
+}
+
+.importTrigger svg {
+  color: var(--pf-gold);
+}
+
 .rightSidebar {
   grid-column: 3;
   grid-row: var(--pf-workspace-row);
@@ -563,6 +606,9 @@
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 400;
+  /* Marker and label inherit this tracking; it used to come from the global
+     bare-<button> reset, which no longer applies inside the SPA. */
+  letter-spacing: 0.02em;
   line-height: 1.35;
   color: var(--pf-text-soft);
   text-decoration: none;
@@ -2036,6 +2082,10 @@
   background: #fff;
   text-align: left;
   cursor: pointer;
+  /* Lane label and description inherit their tracking from this box. Declared
+     here because global.css no longer resets bare <button> inside the SPA. */
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
   transition:
     border-color 0.2s var(--pf-ease-std),
     background 0.2s var(--pf-ease-std),

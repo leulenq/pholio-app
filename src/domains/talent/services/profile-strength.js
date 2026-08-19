@@ -276,7 +276,9 @@ const calculateProfileStrength = (data) => {
   }
 
   const hasRecencyAnchor = hasHeadshot || hasFullBody;
-  const hasCurrentDigitals = hasRecencyAnchor && !pkg.recency.isStale;
+  // Credit for current digitals needs a *known* recent shoot date. An undated
+  // set is not current — it is unknown — and unknown earns nothing.
+  const hasCurrentDigitals = hasRecencyAnchor && pkg.recency.isCurrent;
   if (hasCurrentDigitals) {
     improveScore += IMPROVE_FIELD_POINTS.digitals_recency;
   } else if (pkg.recency.isStale && hasRecencyAnchor) {
@@ -544,7 +546,7 @@ const calculateProfileStrength = (data) => {
     photo_back: digitals.hasBack,
     photo_editorial: digitals.hasEditorial,
     photo_lifestyle: digitals.hasLifestyle,
-    digitals_recency: !pkg.recency.isStale,
+    digitals_recency: hasCurrentDigitals,
     bio: hasBio,
     look: hasLook,
     shoe: hasShoe,

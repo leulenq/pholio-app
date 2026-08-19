@@ -9,9 +9,8 @@ const BOARD_STAGE_LABELS = {
   requested_more: 'Shortlisted',
   meeting_requested: 'Shortlisted',
   development: 'New Face — Development',
-  accepted: 'Signed',
+  accepted: 'Offered',
   represented: 'Represented',
-  booked: 'Represented',
   passed: 'Passed',
   declined: 'Declined',
   archived: 'Passed',
@@ -83,7 +82,7 @@ export default function BoardsTable({ boards, stages = [] }) {
           {rows.map((b) => {
             const total = b.application_count ?? 0;
             const inReview = b.submitted_count ?? 0;
-            const booked = b.booked_count ?? 0;
+            const represented = b.represented_count ?? 0;
             const c = closesLabel(b.closes_at);
             const soon = c && /(today|tomorrow|^[123]d$)/.test(c);
             const stageMix = boardStageMix(b, stages);
@@ -96,7 +95,7 @@ export default function BoardsTable({ boards, stages = [] }) {
                 </span>
                 <span className={`ov-td-closes${soon ? ' is-soon' : ''}`}>{c || '—'}</span>
                 <span className="ov-td-num ov-td-r">{inReview}</span>
-                <span className="ov-td-num ov-td-r">{booked}</span>
+                <span className="ov-td-num ov-td-r">{represented}</span>
                 <span className="ov-td-num ov-td-muted ov-td-r">{total}</span>
                 <span
                   className="ov-stage-mix"

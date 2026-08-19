@@ -98,20 +98,20 @@ async function seedUser(email, profileDetails, seedApps = true) {
   const now = new Date();
   const daysAgo = (n) => new Date(now.getTime() - n * 86400000).toISOString();
 
-  // Mapping some typical agencies
+  // Mapping to Pholio's fictional demo agencies (seeds/seed.js). `applications`
+  // has UNIQUE(profile_id, agency_id), so this list must not name more
+  // agencies than actually exist in the dev `agencies` table.
   const targetAgencies = [
-    { name: 'Wilhelmina Models', status: 'shortlisted', days: 3 },
-    { name: 'Next Management', status: 'submitted', days: 5 },
-    { name: 'IMG Models', status: 'accepted', days: 14 },
-    { name: 'Elite Model Management', status: 'submitted', days: 21 },
-    { name: 'Ford Models', status: 'represented', days: 28 },
-    { name: 'DNA Model Management', status: 'declined', days: 45 },
-    { name: 'The Society Management', status: 'submitted', days: 7 },
+    { name: 'Meridian Talent Collective', status: 'shortlisted', days: 3 },
+    { name: 'Harbor Model Management', status: 'accepted', days: 14 },
+    { name: 'Lumen Model Management', status: 'represented', days: 28 },
   ];
 
+  const usedAgencyIds = new Set();
   for (const target of targetAgencies) {
     const agencyId = agencyMap[target.name];
-    if (agencyId) {
+    if (agencyId && !usedAgencyIds.has(agencyId)) {
+      usedAgencyIds.add(agencyId);
       await knex('applications').insert({
         id: uuidv4(),
         profile_id: profileId,
@@ -122,8 +122,15 @@ async function seedUser(email, profileDetails, seedApps = true) {
       });
       console.log(`Created application to ${target.name} (status: ${target.status})`);
     } else {
-      // Fallback: use first available agency in list if target agency is not found
-      const fallbackAgency = agencies[Math.floor(Math.random() * agencies.length)];
+      // Fallback: pick an agency that hasn't been used yet for this profile,
+      // to respect the UNIQUE(profile_id, agency_id) constraint.
+      const unused = agencies.filter((ag) => !usedAgencyIds.has(ag.id));
+      if (unused.length === 0) {
+        console.warn(`Skipping application (status: ${target.status}) — no unused agencies left.`);
+        continue;
+      }
+      const fallbackAgency = unused[Math.floor(Math.random() * unused.length)];
+      usedAgencyIds.add(fallbackAgency.id);
       await knex('applications').insert({
         id: uuidv4(),
         profile_id: profileId,

@@ -179,8 +179,6 @@ Each component owns its styles in a co-located `.css` file. The convention for s
 | `iv-*` | InterviewCard |
 | `dd-*` | DiscoverDetail |
 | `ov-*` | OverviewPage / OverviewPulse |
-| `ro-*` | RosterPage |
-| `rws-*` | RosterWorkspace |
 | `cas-*` | CastingPage / CastingPanel |
 | `tfv-*` | TalentFullView |
 | `an-*` | AnalyticsPage (agency) |
@@ -193,7 +191,6 @@ Agency-domain components also use `--ag-*` tokens directly in their CSS rather t
 
 | File | Lines | Why dead |
 |------|-------|----------|
-| `styles/analytics.css` | 1,719 | Legacy analytics page CSS from pre-component-CSS era. `AnalyticsPage.css` replaced it; 0 classes referenced in JSX. |
 | `styles/dashboard-shell.css` | 275 | Legacy talent dashboard shell. The actual shell moved to `TalentLayout.css` + Tailwind; 0 classes referenced in JSX. |
 | `styles/dashboard.css` | 173 | Legacy sidebar layout. Never imported in the current codebase. |
 

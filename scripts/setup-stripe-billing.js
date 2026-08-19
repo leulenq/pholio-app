@@ -39,6 +39,33 @@ const ACCOUNT_BRANDING = {
 };
 
 const PRODUCT_NAME = "Studio+";
+
+/**
+ * ⚠️ CUSTOMER-FACING COPY — CRAFT ONLY.
+ *
+ * This string is rendered on Stripe Checkout, invoices, and receipts, so it is
+ * a product claim. Studio+ may only describe what the talent KEEPS for
+ * themselves: comp-card craft, exports, and their own portfolio analytics.
+ *
+ * It must NEVER mention applications, submission volume, agency reach, ranking,
+ * review speed, or any other procurement outcome. The application quota is flat
+ * and tier-blind by design (`src/domains/talent/services/application-quota.js`),
+ * and nothing an agency sees or receives differs by payment. Selling reach here
+ * would be a false statement on a billing surface.
+ *
+ * Keep converged with the two other places this promise is stated:
+ *   - client/src/domains/talent/components/RightSidebar/RightSidebar.jsx (:92-95)
+ *   - client/src/domains/talent/pages/SettingsPage/index.jsx (Membership lede)
+ *
+ * ⚠️ CHANGING THIS CONSTANT DOES NOT CHANGE STRIPE. The live product
+ * (`prod_UlvSm7FpMYpAfE`) already exists, so `ensureProduct()` below finds and
+ * reuses it and never rewrites its description. Re-provisioning the live
+ * description is a deploy-runbook step — see docs/stripe-live-setup.md
+ * ("Re-provision the live product description").
+ */
+const PRODUCT_DESCRIPTION =
+  "Premium comp-card themes and customization, print-ready exports, and extended portfolio analytics. Includes a 14-day free trial.";
+
 const PRODUCT_METADATA = {
   pholio_plan_id: STUDIO_PLUS_PLAN.id,
   pholio_product: "studio_plus",
@@ -100,13 +127,29 @@ async function ensureProduct(stripe) {
   let product = await findExistingProduct(stripe);
   if (product) {
     console.log(`Found existing product: ${product.id} (${product.name})`);
+    // Reused, never rewritten — so an already-provisioned product keeps
+    // whatever description Stripe holds. Surface the drift loudly instead of
+    // letting stale customer-facing copy sit unnoticed on live Checkout.
+    if (product.description !== PRODUCT_DESCRIPTION) {
+      console.warn(
+        [
+          "",
+          "⚠️  Stripe product description differs from PRODUCT_DESCRIPTION in this script.",
+          `    Stripe : ${product.description || "(none)"}`,
+          `    Code   : ${PRODUCT_DESCRIPTION}`,
+          "    This script does not update existing products. Update it in the Stripe",
+          "    Dashboard (Products → Studio+ → Edit) or with `stripe products update`.",
+          "    See docs/stripe-live-setup.md → Re-provision the live product description.",
+          "",
+        ].join("\n"),
+      );
+    }
     return product;
   }
 
   product = await stripe.products.create({
     name: PRODUCT_NAME,
-    description:
-      "Premium talent portfolio tools — analytics, comp cards, and unlimited agency applications. Includes a 14-day free trial.",
+    description: PRODUCT_DESCRIPTION,
     metadata: PRODUCT_METADATA,
   });
   console.log(`Created product: ${product.id} (${product.name})`);

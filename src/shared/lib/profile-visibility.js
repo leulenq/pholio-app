@@ -31,6 +31,7 @@ const {
   AGENCY_DISCOVERY_FIELDS,
   OWNER_FIELDS,
   CONFIRMED_JOB_FIELDS,
+  EVENT_DESIGNER_FIELDS,
 } = require("./audience-dto");
 const {
   SUBMISSION_PROFILE_SOURCE_FIELDS,
@@ -77,7 +78,9 @@ function applyImageVisibility(query, audience = AUDIENCE.PUBLIC, opts = {}) {
       this.whereNull(col).orWhere(col, false);
     });
   } else {
-    // Every authenticated agency audience honors the blanket agency exclusion.
+    // Every agency-side audience honors the blanket agency exclusion — the
+    // token-bearing event designer included, since they are reading a slice an
+    // agency handed them.
     const col = `${prefix}exclude_from_agency`;
     query.where(function notExcludedFromAgency() {
       this.whereNull(col).orWhere(col, false);
@@ -226,12 +229,30 @@ const CONFIRMED_JOB_SELECT = uniqueColumns(
   AGE_GATING_COLUMNS,
 );
 
+/**
+ * Designer pick-list query (design §(d)). Allowlist + the two name columns the
+ * DTO consumes to build `display_name` + age gating.
+ *
+ * The shipped read path does NOT use this list: `pick-share.js` renders the
+ * frozen submission snapshot, never a live `profiles` row, exactly so a profile
+ * edit after submission cannot change what a designer sees. The list exists
+ * because `selectColumnsForAudience` throws on an unregistered audience and
+ * because a future organizer-side join must have one canonical answer for
+ * "which columns may a designer's view touch" rather than inventing a second.
+ */
+const EVENT_DESIGNER_SELECT = uniqueColumns(
+  EVENT_DESIGNER_FIELDS,
+  ["first_name", "last_name"],
+  AGE_GATING_COLUMNS,
+);
+
 const AUDIENCE_SELECT = Object.freeze({
   [AUDIENCE.PUBLIC]: PUBLIC_PROFILE_SELECT,
   [AUDIENCE.AGENCY_DISCOVERY]: AGENCY_DISCOVERY_SELECT,
   [AUDIENCE.AGENCY_SUBMISSION]: AGENCY_SUBMISSION_SELECT,
   [AUDIENCE.OWNER]: OWNER_PROFILE_SELECT,
   [AUDIENCE.CONFIRMED_JOB]: CONFIRMED_JOB_SELECT,
+  [AUDIENCE.EVENT_DESIGNER]: EVENT_DESIGNER_SELECT,
 });
 
 /**
@@ -283,6 +304,7 @@ module.exports = {
   AGENCY_SUBMISSION_SELECT,
   OWNER_PROFILE_SELECT,
   CONFIRMED_JOB_SELECT,
+  EVENT_DESIGNER_SELECT,
   AUDIENCE_SELECT,
   qualifyColumns,
   selectColumnsForAudience,

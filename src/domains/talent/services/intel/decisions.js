@@ -16,7 +16,7 @@ const STEP_LABEL = {
   sent: "sent",
   opened: "opened",
   advanced: "advanced",
-  settled: "signed or kept",
+  settled: "represented or kept",
 };
 
 function plural(n, one, many) {
@@ -57,7 +57,7 @@ function buildDecisions({
       headline: `${row.agencyName} asked for more materials${
         row.ageDays != null ? ` ${row.ageDays} ${plural(row.ageDays, "day")} ago` : ""
       }.`,
-      reason: "The strongest signal a live submission carries. Response time is read as part of it.",
+      reason: "This request is recorded on the submission and is waiting for your response.",
       action: "Send what they asked for",
       to: "/dashboard/talent/applications",
     });
@@ -77,7 +77,7 @@ function buildDecisions({
               digitals.daysOver,
               "day",
             )} past the 12-week window.`,
-      reason: "Boards measure you against unretouched digitals. Past 12 weeks they get re-requested.",
+      reason: "Your recorded capture dates put this set outside Pholio's 12-week current window.",
       action: "Shoot fresh digitals",
       to: "/dashboard/talent/media",
     });
@@ -92,7 +92,7 @@ function buildDecisions({
       headline: `Your book is missing ${missing
         .map((r) => r.label.toLowerCase())
         .join(" and ")}.`,
-      reason: "Headshot, full length and profile are checked before the work. A gap reads as unfinished.",
+      reason: "These are the three baseline views used by Pholio's package-readiness check.",
       action: "Add the missing frames",
       to: "/dashboard/talent/media",
     });
@@ -109,15 +109,14 @@ function buildDecisions({
         "is",
         "are",
       )} unread past ${Math.round(band.p75)} days — the point by which most reads have happened.`,
-      reason: "A board that hasn't opened you by now usually won't. More boards beats more waiting.",
-      action: "Submit to other agencies",
-      to: "/dashboard/talent/agencies",
+      reason: "This compares the recorded age of each unread submission with the platform's observed first-read range; it does not predict an outcome.",
+      action: "Review open submissions",
+      to: "/dashboard/talent/applications",
     });
   }
 
   // 5. Where submissions actually die — only when the step above carries volume.
   if (weakest && weakest.rate < 0.5) {
-    const isOpenGap = weakest.to === "opened";
     out.push({
       key: `funnel:${weakest.from}-${weakest.to}`,
       severity: "fix",
@@ -127,11 +126,9 @@ function buildDecisions({
         weakest.denominator,
         "submission",
       )}).`,
-      reason: isOpenGap
-        ? "Never being opened is a targeting problem, not a materials one."
-        : "Boards open you and stop. That gap is the package, not the targeting.",
-      action: isOpenGap ? "Widen where you submit" : "Strengthen the package",
-      to: isOpenGap ? "/dashboard/talent/agencies" : "/dashboard/talent/media",
+      reason: "This is the largest observed transition gap in your submission history. The data does not establish why it happened.",
+      action: "Review submissions",
+      to: "/dashboard/talent/applications",
     });
   }
 
@@ -145,7 +142,7 @@ function buildDecisions({
         measurements.state === "missing"
           ? "Your measurements have never been confirmed."
           : `Your measurements were last confirmed ${measurements.ageDays} days ago.`,
-      reason: "Bookers work from current numbers. Stats over 90 days get re-asked first.",
+      reason: "Pholio marks measurements for re-confirmation after 90 days.",
       action: "Re-confirm your stats",
       to: "/dashboard/talent/profile",
     });
@@ -161,7 +158,7 @@ function buildDecisions({
         card.state === "missing"
           ? "You have no comp card."
           : "Your comp card predates your current book.",
-      reason: "The card is what gets pulled, filed and passed around a board.",
+      reason: "Regenerating keeps the saved card aligned with the images currently in your book.",
       action: "Regenerate your card",
       to: "/dashboard/talent/media",
     });
@@ -173,7 +170,7 @@ function buildDecisions({
       key: "submit",
       severity: "grow",
       headline: "Your package is current and nothing is out.",
-      reason: "Materials only age from here. Spend them while they still represent you.",
+      reason: "Your recorded materials meet the current package-readiness checks.",
       action: "Submit to an agency",
       to: "/dashboard/talent/agencies",
     });
