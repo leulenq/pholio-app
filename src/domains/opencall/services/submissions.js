@@ -89,7 +89,7 @@ const {
   anonIdFromRequest,
   recordEventFunnelEvent,
 } = require("../../../shared/services/event-funnel");
-const { baseCookieOptions } = require("../../../shared/lib/cookie-domain");
+const config = require("../../../config");
 const {
   ensureIdentityForEmail,
   findClaimedProfileForEmail,
@@ -210,13 +210,25 @@ function readDraftToken(req) {
   return null;
 }
 
+/**
+ * HOST-ONLY, deliberately — this is the one first-party cookie that does NOT
+ * use `baseCookieOptions()`'s shared `.pholio.studio` domain.
+ *
+ * The session cookie is domain-scoped because the marketing site and the app
+ * share it. A draft token is only ever presented to the app that minted it, so
+ * scoping it to the app host keeps a bearer credential for someone's
+ * half-finished application off every other subdomain that could ever be
+ * added. Narrower is correct here, and nothing needs the wider scope.
+ *
+ * `sameSite: 'lax'` is the CSRF boundary: a cross-site POST arrives without
+ * this cookie, so a third-party page has no draft to write to.
+ */
 function draftCookieOptions() {
   return {
-    ...baseCookieOptions(),
+    path: "/",
     httpOnly: true,
-    // Explicit rather than inherited: `lax` is what makes a cross-site POST
-    // arrive without the cookie, which is this flow's CSRF boundary.
     sameSite: "lax",
+    secure: config.nodeEnv === "production",
     maxAge: DRAFT_TTL_DAYS * 24 * 60 * 60 * 1000,
   };
 }
@@ -226,7 +238,14 @@ function issueDraftToken(res, rawToken) {
 }
 
 function clearDraftToken(res) {
-  res.clearCookie(DRAFT_COOKIE_NAME, baseCookieOptions());
+  // A deletion only matches when name, path and domain line up — so the clear
+  // must be as host-only as the set.
+  res.clearCookie(DRAFT_COOKIE_NAME, {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax",
+    secure: config.nodeEnv === "production",
+  });
 }
 
 /* -------------------------------------------------------------- call context */
@@ -975,7 +994,10 @@ async function submitDraft(db, { call, draft, consent, req } = {}) {
         label: `Open call application to ${call.agencyName || call.agencyId}`,
         retention_expires_at: retentionExpiresAt,
         payload: jsonForDb(db, { ...payload, submittedAt }),
-        created_at: new Date(),
+        // An ISO string, not a Date: under Jest's VM realm knex's `instanceof
+        // Date` check fails and it persists the literal "[object Object]" —
+        // the same hazard `event-funnel.js` documents.
+        created_at: submittedAt,
       });
 
       await recordSubmissionDisclosureConsent(trx, {

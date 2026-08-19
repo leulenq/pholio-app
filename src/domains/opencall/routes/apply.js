@@ -41,6 +41,7 @@
  */
 
 const express = require("express");
+const fs = require("fs");
 
 const knex = require("../../../shared/db/knex");
 const {
@@ -95,6 +96,23 @@ function fail(res, status, code, message, extra = {}) {
     message,
     ...extra,
   });
+}
+
+/**
+ * Throw away a multer upload that never became a media row.
+ *
+ * Local storage writes the original to `config.uploadsDir` before any handler
+ * runs; R2 storage buffers it in memory and has nothing on disk. Best-effort
+ * and never throws — a leftover temp file must not turn into a 500.
+ */
+function discardUpload(req) {
+  const filePath = req?.file?.path;
+  if (!filePath) return;
+  try {
+    fs.unlinkSync(filePath);
+  } catch {
+    /* already gone */
+  }
 }
 
 /** Safe agency fields only, exactly as the arrival endpoint projects them. */
@@ -470,15 +488,22 @@ router.post(
   async (req, res) => {
     try {
       const ctx = await resolveContext(req, res, { requireDraft: true });
-      if (!ctx) return;
+      // Multer has already written the upload to disk by the time any of these
+      // gates run, so every early return has to take its bytes with it — this
+      // endpoint is anonymous, and a refused upload that leaves a file behind
+      // is a public write to the filesystem.
+      if (!ctx) return discardUpload(req);
       const { call, draft } = ctx;
 
       if (call.closed) {
+        discardUpload(req);
         return fail(res, 409, "CALL_CLOSED", "This call has closed.");
       }
       if (!draft.applicant_identity_id) {
         // The design gate, not an oracle: it fires for everyone who has not
-        // done the email step.
+        // done the email step (§7 — every stored asset has an accountable
+        // address attached before it exists).
+        discardUpload(req);
         return fail(
           res,
           403,
@@ -513,6 +538,9 @@ router.post(
         }),
       });
     } catch (error) {
+      // `storeSubmissionMedia` removes what it processed; anything it refused
+      // before processing still has multer's original sitting on disk.
+      discardUpload(req);
       switch (error.code) {
         case "UNKNOWN_MEDIA_FIELD":
         case "MEDIA_FIELD_NOT_REQUESTED":

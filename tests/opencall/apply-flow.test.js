@@ -314,12 +314,16 @@ describe("the apply stage end to end", () => {
 
       /* ---- uploads are gated behind the email step (§7) ------------------ */
       const image = await testImage();
+      const before = fs.readdirSync(config.uploadsDir).length;
       const tooEarly = await hit(
         agent.post(`/api/public/opencall/call/${code}/draft/media/digital_headshot`),
       )
         .attach("media", image, { filename: "h.png", contentType: "image/png" })
         .expect(403);
       expect(tooEarly.body.error).toBe("EMAIL_REQUIRED");
+      // Multer wrote the file before the gate ran, so a refused upload must
+      // take its bytes with it — this endpoint is anonymous.
+      expect(fs.readdirSync(config.uploadsDir).length).toBe(before);
 
       /* ---- the email step ------------------------------------------------ */
       const emailRes = await hit(
