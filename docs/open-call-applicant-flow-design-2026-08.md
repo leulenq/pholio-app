@@ -1,6 +1,7 @@
 # The Open Call as its own product — applicant flow, identity, and claiming
 
-**Status:** PROPOSAL. Nothing in this document is built. It asks for rulings before any lane starts.
+**Status:** PROPOSAL, revision 2. Nothing in this document is built. It asks for rulings before any lane starts.
+**Revision note (2026-08-19):** v2 restructures the design around the two-sided constraint (§2): the applicant flow must stay genuinely quick, *and* what the organizer receives must be materially better than Forms + Sheets. The main change from v1: the heavy event-intake asks (walk video, availability, measurement confirmation) move from submit-gates to a shortlist-stage request. v1's identity ladder, claim flow, and containment strategy stand.
 **Supersedes in part:** `docs/event-casting-design-2026-08.md` §(e) T1–T3 and the applicant half of §(c). The organizer half of that document (pool triage, pick lists, offers, export) stands unchanged and this design is built to protect it.
 **Scope authority:** `docs/pholio-strategic-analysis-2026-08.md` §6. Designed against the code at `69694ba`.
 **Trigger:** the FWBK Queens Google Form response sheet, reviewed with Alex (FWBK co-producer).
@@ -25,12 +26,12 @@ Pholio's open-call link, as built, asks the same applicant to do this before FWB
 
 Seven fields versus an account, an email round-trip, six onboarding screens and a photo shoot. The gap is not a tuning problem. **The account is currently charged as the price of entry; it should be issued as the receipt.**
 
-Two things are worth separating, because the fix for one is not the fix for the other:
+But there are two traps here, not one, and v1 of this document only escaped the first:
 
-- **The intake bar is mostly right.** A designer cannot cast a show from a name and an Instagram handle. Digitals, height and measurements are what make Pholio worth more to FWBK than their form. Keep the bar.
-- **The account wall is wrong.** It is three costs (account, email round-trip, onboarding) stacked in front of an applicant who has not yet done one thing FWBK asked for, and it delivers nothing to them until after all three are paid.
+- **The friction trap.** Keep the current wall and applicants choose the Google Form every time. This is the trap §0's table documents.
+- **The prettier-form trap.** Strip the flow down to Google-Forms parity and Pholio becomes a nicer form with a login — and there is no reason for FWBK, or any future partner, to switch. The organizer's willingness to send their applicants to Pholio is the whole channel; a product that only relocates their spreadsheet does not earn it.
 
-This document keeps the bar and removes the wall.
+§2 states the constraint that escapes both traps, and the rest of the document is rebuilt on it.
 
 ---
 
@@ -60,13 +61,91 @@ The Queens response sheet's "Are you 18 or older?" column reads *No* on a large 
 
 **This is the highest-value unknown available and it is one question to Alex.** See §8, item 0.
 
+### C7. v1 of this document kept the full event-intake bar at submit
+v1 removed the account wall but still required walk video, availability and measurement confirmation from every applicant before send whenever the call asked for them. That charges the whole line for what only the callback needs (see §2). This revision moves those asks to the shortlist stage.
+
 ---
 
-## 2. The principle
+## 2. The two-sided constraint
 
-> **An open call is a form that works on its own. A Pholio profile is what the applicant is offered afterwards, for having filled it in.**
+### 2.1 The Google Form's cheapness is an accounting trick
 
-Three consequences, and they are the whole design:
+The Form does not remove the cost of casting a show. It defers the cost, and moves it onto other people:
+
+- **Onto the organizer.** The form has no photos, so reviewing 250 rows means manually opening 250 Instagram profiles — a curated feed with no height, no digitals, no stats. Then DMing and emailing individuals for the materials the form never collected.
+- **Back onto the applicant, later.** The strategy research documents 250+ models at a single in-person Queens casting. The cattle call *is* the real intake; the Google Form is just a ticket to it. The applicant's true cost today is ninety seconds of typing plus hours of travel and standing in line to be seen for thirty seconds.
+- **Onto the data.** The response sheet itself shows the price: "I don't have a phone num" sitting in a phone-number column, and an 18+ column that may be misaligned against its rows. Even seven fields do not arrive clean.
+
+Forms is only frictionless if you stop the clock at row-insertion. So the design constraint is not *be as cheap as the Form*. It is:
+
+> **Price each stage of the funnel at what that stage is worth to both sides.**
+
+Three laws fall out of that, and they are the spine of this design.
+
+### 2.2 Law 1 — value density governs the apply stage
+
+Every second of applicant effort at the top of the funnel must buy the organizer review capability at the pool stage. Run each candidate field through that test:
+
+| Ask | Applicant cost | Organizer value at pool triage | Verdict |
+|---|---|---|---|
+| Name, email, phone, 18+, gender, city | ~90s typed | Table stakes; arrives validated and deduplicated | **Apply** |
+| Height | ~5s, one number | Instagram cannot supply it; every lineup decision needs it | **Apply** |
+| Two photos (headshot + full length) from the camera roll | ~90s | Transforms review from Instagram-tab archaeology into visual triage — the single highest value-per-second ask that exists | **Apply** (default; the spec decides, §3.1) |
+| Instagram | ~10s | Useful secondary signal | **Apply, optional** |
+| Walk video | Minutes to produce; the #1 abandonment risk | Nobody watches 250 walk videos at pool triage — not the organizer, not 40 designers | **Shortlist** |
+| Availability for event dates | ~30s but answered weeks early, so often wrong by the fitting | Only matters for people actually being considered | **Shortlist** |
+| Confirmed current measurements | Requires care and honesty | Only matters at fitting/lineup time | **Shortlist** |
+
+The apply stage lands at roughly **four minutes on a phone, no account**: the Google Form's seven answers, plus height, plus two photos. Deliberately *slightly* heavier than the Form — and every extra second is spent on the two items with the highest value density.
+
+### 2.3 Law 2 — the heavy asks follow selection, not precede it
+
+The walk video, availability and measurement confirmation move from submit-gates to a **shortlist-stage request**. When the organizer shortlists an applicant, one click sends:
+
+> "Fashion Week Brooklyn shortlisted you. They need your walk video and your availability for October 4–10 by Friday."
+
+Fulfilled on a tokenized page — no account required (§5.4) — with the system, not the organizer, doing the chasing and the deadline.
+
+Why this resolves the tension rather than relocating it:
+
+- **The arithmetic.** 250 applicants spend four minutes each; the ~60 shortlisted spend ten more. Total applicant effort collapses versus charging everyone the full package, and the effort that remains is spent by people who now have a concrete reason to spend it.
+- **The psychology.** The request arrives as *good news*. "You've been shortlisted, send your walk" converts at callback-motivation, not cold-form-motivation.
+- **The industry shape.** This is what casting already is: submission → callback with more materials → fitting. v1 was asking the whole line for what only the callback needs. The software should sequence asks the way the industry already does.
+- **The organizer's side.** Materials arrive only from people they chose, at the moment they need them, collected automatically. Their current version of this step is manual DMs.
+
+### 2.4 Law 3 — the product is the casting room, not the doorway
+
+Google can always match the doorway. What Forms + Sheets structurally cannot do:
+
+- Photo-led pool triage with lifecycle states, on data that arrived validated and deduplicated.
+- Per-designer pick lists with selections flowing back (already designed and partly built).
+- The one-click **Request materials** verb with automatic chasing and a deadline.
+- Confirmations and no-show management.
+- Status flowing back to the applicant — a Form ends in "your response has been recorded" and permanent silence.
+- A deduplicated identity across Brooklyn, Queens, Japan, Italy and London editions (§3.2).
+
+**The test this imposes on every future feature: it must do something structurally impossible in Forms + Sheets, or it is decoration.** The form is the doorway; the casting room is the product.
+
+This also defines the adoption wedge. An organizer may configure their intake spec at literal Google-Forms parity — no photos, seven fields — and *still* get dedup, pick lists, statuses, confirmations and export. Even at parity intake the workflow is the product, so there is no configuration in which Pholio is merely a prettier form. The Request-materials verb then teaches them, on their own pool, why photos in the spec are worth asking for.
+
+### 2.5 What the applicant sees that a Form never gives them
+
+The applicant spends ~4 minutes instead of 90 seconds. The reasons must be on the screen while they spend them, not discovered later:
+
+- The photos go straight to the casting team — not a maybe-clicked Instagram link.
+- Compensation is stated verbatim (paid / unpaid / stipend) before they invest a minute.
+- They get a live status — submitted, shortlisted, offered — instead of silence, the number-one applicant complaint in any casting context.
+- Next edition is one tap: a claimed profile prefills the whole spec (§5.3).
+- They leave with the start of a profile and a comp card (§5.2).
+- Their submission remains theirs: visible, editable until the deadline, withdrawable. A Form response vanishes into someone's Drive.
+
+The bar: the applicant must never think "why couldn't this just have been a Google Form" — and the answer to that thought must be visible at the moment it would occur.
+
+### 2.6 The principle, restated
+
+> **An open call is a form that works on its own. A Pholio profile is what the applicant is offered afterwards, for having filled it in. And each stage of the funnel is charged exactly what that stage needs — nothing is asked before the moment it earns its ask.**
+
+Three consequences carried over from v1, unchanged:
 
 1. **The application is the primary object.** It does not depend on a user, a profile, or a session.
 2. **The account is opt-in, after the fact, and proven by email.** No `users` row is written for someone who has not asked for one.
@@ -76,24 +155,28 @@ Three consequences, and they are the whole design:
 
 ## 3. Architecture
 
-### 3.1 The intake spec — the call declares what it needs
+### 3.1 The intake spec — the call declares what it needs, *and when*
 
-Today a call's requirements are three booleans (`requires_walk_video`, `requires_availability`, `requires_measurements`) sitting on top of a fixed, universal send-readiness bar. That is backwards: the universal bar is the demanding part and no call chose it.
+Today a call's requirements are three booleans (`requires_walk_video`, `requires_availability`, `requires_measurements`) sitting on top of a fixed, universal send-readiness bar. That is backwards twice over: the universal bar is the demanding part and no call chose it, and the booleans can only gate submission — they cannot say *when* a material is due.
 
-Replace with an **intake spec** on the link: an ordered list of field keys drawn from a **closed platform vocabulary**, plus a per-field `required | optional | hidden`.
+Replace with an **intake spec** on the link: an ordered list of field keys drawn from a **closed platform vocabulary**, each carrying `required | optional | hidden` **and a stage**:
 
 ```
 agency_open_call_links.intake_spec        json NOT NULL DEFAULT (platform default for call_kind)
 agency_open_call_links.intake_spec_version integer NOT NULL DEFAULT 1
+
+-- spec entry shape
+{ key: "walk_video_url", requirement: "required", stage: "apply" | "shortlist" }
 ```
 
 The vocabulary is closed and platform-owned. This is the load-bearing constraint:
 
 - **Every key maps to exactly one canonical profile or application column.** `legal_name`, `email`, `phone`, `date_of_birth`, `gender`, `city`, `height`, `core_measurements`, `instagram`, `portfolio_url`, `digital_headshot`, `digital_full_length`, `digital_profile`, `walk_video_url`, `availability_window`.
 - An organizer who wants to ask something outside the vocabulary gets a **custom question** instead: free text, stored as an answer on the application, shown in the organizer's inbox and CSV, and **never promoted to a profile**. Custom questions are how a partner gets flexibility without polluting the profile schema.
+- `stage` is per-call configuration, defaulted by the platform. The default event spec puts the two photos and height at `apply` and walk video / availability / measurement confirmation at `shortlist` (§2.2's table). An organizer who wants The-Bureau-style everything-up-front moves those keys to `apply`; the spec is the mechanism, the default is the recommendation.
 - Send-readiness stops being a universal gate for open-call submissions and becomes the *default spec* for a representation call. `evaluate/validateSubmissionPackage` keeps its current behaviour when the spec is the representation default, so existing agencies see no change.
 
-FWBK's Brooklyn spec is then, concretely: legal name, email, phone, 18+ attestation, gender, city, height, Instagram (optional), digital headshot, digital full-length, walk video (optional). Eleven fields, four of them one tap. That is a real form, not a Google Form — and it is finishable in one sitting on a phone.
+FWBK's Brooklyn apply-stage spec is then, concretely: legal name, email, phone, 18+ attestation, gender, city, height, Instagram (optional), digital headshot, digital full-length. Ten asks, four of them one tap, two of them camera-roll picks. Finishable in one sitting on a phone in about four minutes.
 
 **Reuse note:** `src/domains/spec-registry/authoring/` already implements a curated, versioned, agency-authored field vocabulary with a builder UI (`SpecBuilderPanel.jsx`). It is the closest precedent in the codebase and the spec builder should be evaluated for reuse before a second authoring surface is written.
 
@@ -119,7 +202,7 @@ applicant_identities                       -- "this human, as asserted by an app
   phone_normalized  varchar(32) NULL        -- E.164 where parseable; a duplicate SIGNAL, never a key
   profile_id        uuid NULL FK profiles ON DELETE SET NULL   -- set at claim; NULL while unclaimed
   claimed_at        timestamp NULL
-  disowned_at       timestamp NULL          -- "this wasn't me" (§5.4)
+  disowned_at       timestamp NULL          -- "this wasn't me" (§5.5)
   created_at / updated_at
   UNIQUE (email_normalized)
   index (phone_normalized), index (profile_id)
@@ -152,9 +235,19 @@ open_call_submission_media                 -- anonymous uploads, scoped to one d
 applicant_claim_tokens                     -- the magic link (message-reply-tokens.js idiom)
   id uuid pk · applicant_identity_id FK CASCADE
   token_hash varchar(64) NOT NULL UNIQUE   -- sha256 hex; raw only in the emailed URL
-  purpose varchar(16) NOT NULL             -- claim | disown
+  purpose varchar(16) NOT NULL             -- claim | disown | materials
   expires_at timestamp NOT NULL · consumed_at timestamp NULL
   created_at
+
+open_call_material_requests                -- the shortlist-stage ask (§2.3)
+  id uuid pk
+  application_id    uuid NOT NULL FK applications ON DELETE CASCADE
+  requested_keys    json NOT NULL           -- shortlist-stage keys from the call's intake spec
+  due_at            timestamp NULL
+  requested_by_user_id uuid NULL FK users ON DELETE SET NULL
+  fulfilled_at      timestamp NULL
+  created_at / updated_at
+  UNIQUE (application_id)                   -- one live request per application; re-request updates it
 ```
 
 And on `applications`, making the profile optional:
@@ -170,6 +263,8 @@ The two partial uniques from `20260815091000` are re-expressed against whichever
 ### 3.4 Why an application row at all, rather than letting the organizer read submissions
 
 Because ruling **R10** — *no separate FWB infrastructure, ever; extend, never fork* — is correct and this design must not break it. The organizer's inbox, triage, pick lists, offers, notifications, auto-close and CSV export all operate on `applications`. An unclaimed applicant that lived only in `open_call_submissions` would need a parallel review surface, which is precisely the fork R10 forbids. Submitting writes an `applications` row exactly as today; only its identity pointer differs.
+
+The material request rides the same rails: it is keyed to the `applications` row, triggered from the existing `shortlisted` status, delivered through the claim-token email channel, and its fulfillment lands in the frozen submission snapshot the organizer already reads.
 
 ---
 
@@ -212,9 +307,11 @@ The designer pick page needs **no change at all**: per §(d) of the event-castin
   │             AND the first question, on the same screen. No "Begin" button
   │             that leads to another page of prose.
   │
-  ├─ Screens 2..n — exactly the intake spec, one thought per screen, phone-first.
-  │             Autosaved to the anonymous draft on every step. A closed tab
-  │             is resumable from the same device for 14 days.
+  ├─ Screens 2..n — exactly the apply-stage spec, one thought per screen,
+  │             phone-first. Autosaved to the anonymous draft on every step.
+  │             A closed tab is resumable from the same device for 14 days.
+  │             Photos come LAST, so every typed answer is banked in the
+  │             draft before the highest-abandonment step (ruling Q7).
   │
   ├─ Email step — the only field with special behaviour (§5.3)
   │
@@ -228,6 +325,8 @@ The designer pick page needs **no change at all**: per §(d) of the event-castin
                  your digitals, your stats, and a comp card. Want to keep it?"
                  [ Send me my link ]      [ No thanks ]
 ```
+
+A draft abandoned at the photo step gets **one** email nudge — "finish your application, two photos left" — and nothing more. The typed answers are already in the draft; the nudge is the recovery path for the one step most likely to fail on a bad connection.
 
 ### 5.2 The claim is the receipt
 
@@ -257,15 +356,25 @@ So: the flow never branches visibly. It takes the application in every case, and
 | Email has an **unclaimed identity** from a prior call | Same identity, second application. Cross-edition dedup, free. | "Keep it — one tap." |
 | **New** email | New identity. | "Keep it — one tap." |
 
-There is also a **fast path that is not an oracle**: a "Already on Pholio? Sign in" affordance the applicant chooses for themselves. Signing in pre-fills the entire spec from the existing profile, and the flow collapses to reviewing pre-filled answers, adding whatever the call needs that the profile lacks, and consenting. This is the answer to *"existing Pholio users should obviously be able to reuse their profile information"* — offered, never forced, and it never confirms anything about an address the visitor typed.
+There is also a **fast path that is not an oracle**: a "Already on Pholio? Sign in" affordance the applicant chooses for themselves. Signing in pre-fills the entire spec from the existing profile, and the flow collapses to reviewing pre-filled answers, adding whatever the call needs that the profile lacks, and consenting. This is the answer to *"existing Pholio users should obviously be able to reuse their profile information"* — offered, never forced, and it never confirms anything about an address the visitor typed. A returning claimed applicant's second edition is a one-minute review, which is §2.5's strongest applicant-side argument.
 
-### 5.4 "That wasn't me"
+### 5.4 The shortlist request — fulfilment without an account
+
+When the organizer requests materials (§6), the applicant receives:
+
+> "Fashion Week Brooklyn shortlisted you. They need your walk video and your availability for October 4–10 by Friday."
+
+The link carries a `materials`-purpose token and opens a tokenized page in the shape of `/reply/:token` — **no account, no claim required**. The page restates the designer-visibility clause for the new materials ("designers working the event will see your walk video and availability through a read-only link"), collects exactly the requested keys, and writes them into the frozen submission snapshot the organizer and designers already read.
+
+Fulfilling the request is also the natural claim moment — the page offers it, after the materials are sent, never as a precondition. The talent most worth converting are precisely the ones getting traction, and this is where they are.
+
+### 5.5 "That wasn't me"
 
 Because the flow accepts an unverified email by design, someone can submit an application using another person's address. That person then receives a receipt for something they did not do. This is a requirement, not a nicety:
 
 The **That wasn't me** link consumes a `disown` token, sets `applicant_identities.disowned_at`, severs the identity from the submission, and flags the application to the organizer as *identity disputed*. It never deletes the organizer's application — the organizer decides what to do with it — and it never reveals anything about the submission's contents to the person disowning it beyond the call it went to.
 
-### 5.5 Duplicates the system will not resolve
+### 5.6 Duplicates the system will not resolve
 
 The same human with two email addresses is two identities. This is unavoidable without an identity provider, and **automatic merging is not the answer** — merging two humans because a phone number matched leaks one person's data to another.
 
@@ -275,10 +384,14 @@ The correct posture: `phone_normalized` is a **signal**, surfaced to the organiz
 
 ## 6. FWBK's review workflow
 
-The existing design gives FWBK triage → per-designer pick lists → offers → confirmations → CSV. That is strictly better than the spreadsheet and is already built. Unclaimed applicants add four requirements, all small, all mandatory before FWBK is asked to switch:
+The existing design gives FWBK triage → per-designer pick lists → offers → confirmations → CSV. That is strictly better than the spreadsheet and is already built. This design adds one verb and four requirements.
+
+**The verb: Request materials.** On any shortlisted application (single or bulk), one action sends the shortlist-stage asks from the call's intake spec, with a due date. The system chases; fulfilment lands in the snapshot; the row shows requested / fulfilled / overdue as plain text. This is the moment the organizer understands the product is not a form — their current version of this step is DMing people one at a time. It is also structurally impossible in Forms + Sheets, which is the §2.4 test.
+
+The four requirements, all small, all mandatory before FWBK is asked to switch:
 
 1. **Every organizer surface must include unclaimed applicants.** Guaranteed by §4's resolver and its enforcement test, not by review.
-2. **Verified-email state must be visible** — the row shows whether the address was proven by a claim click. It is real signal about who will actually turn up to a fitting, and it is FWBK's replacement for "I emailed them and it bounced." Plain text, not a badge (banned pattern #4).
+2. **Verified-email state must be visible** — the row shows whether the address was proven by a claim or materials click. It is real signal about who will actually turn up to a fitting, and it is FWBK's replacement for "I emailed them and it bounced." Plain text, not a badge (banned pattern #4). The pool likewise shows **completeness honestly**: an application missing requested materials reads as exactly that, in words.
 3. **CSV export must be at least as good as their spreadsheet on day one.** The export is FWBK's exit ramp and their comfort blanket; an export that silently omits unclaimed rows is worse than the Google Form and would end the partnership on contact.
 4. **Their highlighting maps to marks.** The yellow rows in the sheet are "maybe". `PICK_MARKS = {pick, maybe, pass}` already models exactly this. Say so to Alex in those words — it is the one place where the product already speaks their existing workflow back to them.
 
@@ -291,7 +404,7 @@ Three orthogonal axes on the call, replacing what is currently one implicit shap
 | Axis | Column | Values | Today |
 |---|---|---|---|
 | Purpose | `call_kind` | `representation` \| `event_casting` | exists |
-| Requirements | `intake_spec` | closed vocabulary + custom questions | 3 booleans |
+| Requirements | `intake_spec` | closed vocabulary + stages + custom questions | 3 booleans |
 | Identity | `identity_policy` | `account_required` \| `account_optional` \| `account_never` | implicit `account_required` |
 
 `identity_policy` is what makes this shippable without breaking anyone:
@@ -317,20 +430,22 @@ Anonymous photo upload materially changes the CSAM exposure profile: today every
 **0 · Ask Alex four questions. Before anything.** (hours, not days)
    1. **The age distribution in the response sheet** — is the 18+ column what it appears to be? This decides whether the funnel is worth optimising at all (C6).
    2. Actual response counts per edition — R7 sized on an educated assumption and said so.
-   3. What happens to a row after it is highlighted — the real workflow, not the described one.
+   3. What happens to a row after it is highlighted — the real workflow, not the described one. (Prediction to test: yellow = "maybe", and the follow-up is manual DMs — which is exactly what the Request-materials verb replaces.)
    4. How many of the ~40 designers would actually open a pick link.
 
 **1 · Ship the C4 claim-key fix.** Independent of everything else, small, and it is currently taxing the multi-edition path that the strategy calls the real prize.
 
-**2 · Intake spec + anonymous draft + submit.** The core. Ends at an application row with an identity and no account.
+**2 · Intake spec (with stages) + anonymous draft + submit.** The core. Ends at an application row with an identity and no account.
 
 **3 · The resolver and its enforcement test, then inbox and CSV.** Organizer surfaces must be correct *before* real applicants are unclaimed, not after.
 
 **4 · The claim email and the claim transaction.** The receipt.
 
-**5 · Retire the arrival page as a gate** — fold it into screen one of the form.
+**5 · The Request-materials verb and the tokenized fulfilment page.** The casting-room feature that separates this from a prettier form; it reuses the claim-token idiom and the snapshot write path from steps 2–4.
 
-**6 · Pre-account funnel instrumentation** — `call_viewed → field_reached(key) → submitted → claim_sent → claimed`. Without step 6 the next version of this document is written from guesses again (C2).
+**6 · Retire the arrival page as a gate** — fold it into screen one of the form.
+
+**7 · Pre-account funnel instrumentation** — `call_viewed → field_reached(key) → submitted → claim_sent → claimed → materials_requested → materials_fulfilled`. Without step 7 the next version of this document is written from guesses again (C2).
 
 ---
 
@@ -344,13 +459,15 @@ Anonymous photo upload materially changes the CSAM exposure profile: today every
 | Q4 | Does the claim click alone set `email_verified = true`? | **Yes.** It is a single-use, hashed, expiring token delivered to that address — strictly stronger evidence than the current Firebase verification email, and it is the same act. |
 | Q5 | Retention for an unclaimed submission. | `event_ends_on + 90d` per R4, stated in the consent in those words. |
 | Q6 | Does `account_required` remain available to agencies? | **Yes.** Nothing is deleted; the current behaviour becomes a per-call setting. |
+| Q7 | Do the two photos gate submission, or follow it? | **Gate it, by default — but sequenced last.** A pool where half the rows have no photos sends the organizer back to Instagram-tab hell for that half, which forfeits the highest-value organizer win (§2.2). Sequencing photos as the final step banks every typed answer into the draft first, and the abandoned-at-photos draft gets one email nudge. The spec remains the escape hatch: an organizer may mark photos optional and accept the triage cost knowingly. |
+| Q8 | Does fulfilling a materials request require claiming? | **No.** Fulfilment happens on a tokenized page, no account needed — a shortlisted applicant forced through account creation to answer the organizer is the original wall rebuilt in the middle of the funnel. The page restates the designer-visibility consent for the new materials, and offers the claim *after* the materials are sent. |
 
 ---
 
 ## 10. What this does not change
 
-- The organizer's dashboard: still the same inbox, RBAC, settings and export (R10 upheld).
+- The organizer's dashboard: still the same inbox, RBAC, settings and export (R10 upheld). The Request-materials verb is an action on it, not a fork of it.
 - The designer pick page: unchanged, it already reads only the frozen snapshot.
-- The consent content and versioning model: unchanged; it binds to a submission instead of a profile.
+- The consent content and versioning model: unchanged; it binds to a submission instead of a profile, and the materials page restates the relevant clause for late-arriving materials.
 - Representation calls at existing agencies: unchanged, by `identity_policy` default.
-- The intake **bar** for FWBK: unchanged. Digitals, height and measurements are still asked for. Only the order and the price of admission change.
+- The intake **bar** for FWBK: **re-sequenced, not lowered.** Everything the event needs is still collected — digitals and height from everyone at apply, walk video, availability and confirmed measurements from the shortlisted when they are shortlisted. Each stage of the funnel is charged what that stage needs, and no more.
