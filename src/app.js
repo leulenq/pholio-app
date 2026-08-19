@@ -650,7 +650,20 @@ app.use(
   authLimiter,
 );
 app.use(["/onboarding/entry", "/casting/entry"], onboardingLimiter);
-app.use(["/api/public/open-call", "/api/public/opencall"], authLimiter);
+app.use("/api/public/open-call", authLimiter);
+// The anonymous applicant flow is an interactive multi-screen form: one
+// applicant legitimately issues ~14 requests in a couple of minutes (call
+// load, per-screen autosaves, email, two uploads, consent fetch, submit).
+// authLimiter's 10–15/min ceiling would 429 real applicants mid-form — the
+// exact failure rateLimitMax.onboarding was raised to fix — so the form
+// prefix takes the onboarding ceiling while the credential-shaped claim and
+// disown endpoints keep the strict one. Per-draft media is separately capped
+// (5 rows, 8MB each, gated behind the email step).
+app.use(
+  ["/api/public/opencall/claim", "/api/public/opencall/disown"],
+  authLimiter,
+);
+app.use("/api/public/opencall/call", onboardingLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
