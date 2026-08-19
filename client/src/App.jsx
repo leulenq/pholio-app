@@ -27,6 +27,7 @@ const TestPreview = lazy(() => import('./domains/onboarding/pages/TestPreview'))
 const OpenCallApplyPage = lazy(() => import('./domains/opencall/pages/OpenCallApplyPage'));
 const OpenCallClaimPage = lazy(() => import('./domains/opencall/pages/ClaimPage'));
 const OpenCallDisownPage = lazy(() => import('./domains/opencall/pages/DisownPage'));
+const OpenCallMaterialsPage = lazy(() => import('./domains/opencall/materials/MaterialsPage'));
 
 // Agency pages
 const AgencyOverview = lazy(() => import('./domains/agency/pages/OverviewPage'));
@@ -112,6 +113,7 @@ function App() {
           <Route path="/opencall/:code" element={<OpenCallApplyPage />} />
           <Route path="/opencall/claim/:token" element={<OpenCallClaimPage />} />
           <Route path="/opencall/disown/:token" element={<OpenCallDisownPage />} />
+          <Route path="/opencall/materials/:token" element={<OpenCallMaterialsPage />} />
 
           {/* Platform staff review — API authorization is independent of product roles. */}
           <Route path="/internal" element={<Navigate to="/internal/agency-requests" replace />} />
