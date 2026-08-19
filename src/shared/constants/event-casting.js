@@ -66,6 +66,17 @@ const FUNNEL_EVENT_TYPES = Object.freeze({
   PAYOFF_VIEWED: "payoff_viewed",
   SECOND_RECIPIENT_SUBMITTED: "second_recipient_submitted",
   RETURNED_D30: "returned_d30",
+  // The anonymous applicant flow's own steps — `docs/open-call-applicant-flow-
+  // design-2026-08.md` §8 item 7. Critique C2's whole point is that the
+  // existing funnel measures the leak and cannot locate it, because
+  // `application_started` is only reachable *after* account creation. These
+  // four extend the chain past submit, where the identity ladder actually
+  // lives: the receipt goes out, the applicant claims (or never does), the
+  // organizer asks for shortlist materials, the applicant sends them.
+  CLAIM_SENT: "claim_sent",
+  CLAIMED: "claimed",
+  MATERIALS_REQUESTED: "materials_requested",
+  MATERIALS_FULFILLED: "materials_fulfilled",
 });
 const FUNNEL_EVENT_TYPE_VALUES = Object.freeze(Object.values(FUNNEL_EVENT_TYPES));
 

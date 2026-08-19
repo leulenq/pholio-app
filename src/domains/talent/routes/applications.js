@@ -259,12 +259,20 @@ async function attachCallContext(db, claims) {
   });
 }
 
-/** The live claim for (profile, agency) outside a transaction, for preflight. */
+/**
+ * The live claim for (profile, agency) outside a transaction, for preflight.
+ *
+ * Since `20260819100000` an organizer can hold more than one live claim for one
+ * profile — one per edition — and this claim decides the purpose of the
+ * submission being composed. The most recently refreshed one wins: a claim is
+ * refreshed on arrival, so it is the call the applicant just walked in through.
+ */
 async function previewClaimForAgency(db, profileId, agencyId) {
   try {
     return (
       (await db("agency_open_call_claims")
         .where({ profile_id: profileId, agency_id: agencyId, status: "active" })
+        .orderBy("updated_at", "desc")
         .first()) || null
     );
   } catch {
@@ -1341,13 +1349,22 @@ router.post(
           quotaProfile || profile,
         );
         // Authoritative open-call resolution: an active claim for this exact
-        // agency exempts this submission from the monthly discovery quota,
-        // with no ceiling on how many such claims a talent may redeem. The
-        // claim is consumed below in this same transaction. Nothing
-        // client-supplied participates.
+        // call exempts this submission from the monthly discovery quota, with
+        // no ceiling on how many such claims a talent may redeem. The claim is
+        // consumed below in this same transaction. Nothing client-supplied
+        // participates — the link comes from `eventCall`, which was itself
+        // resolved from the claim minted on arrival.
+        //
+        // An event cast resolves by link, not by agency: one organizer can hold
+        // a live claim for Brooklyn and another for Queens at the same time
+        // (design §1 C4), and the agency-keyed lookup would spend whichever row
+        // came back first.
         let openCallClaim = null;
         if (openCallReady) {
-          openCallClaim = await resolveActiveClaim(trx, profile.id, agencyId);
+          openCallClaim = await resolveActiveClaim(trx, profile.id, agencyId, {
+            callPurpose,
+            linkId: eventCall?.linkId || null,
+          });
         }
         // The claim was re-attributed to a different link between preflight and
         // now (the talent re-arrived through another of the organizer's calls).

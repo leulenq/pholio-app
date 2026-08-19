@@ -650,7 +650,7 @@ app.use(
   authLimiter,
 );
 app.use(["/onboarding/entry", "/casting/entry"], onboardingLimiter);
-app.use("/api/public/open-call", authLimiter);
+app.use(["/api/public/open-call", "/api/public/opencall"], authLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
@@ -825,6 +825,7 @@ app.use("/", internalAgencyRequestRoutes);
 // Platform-staff read of the event-casting funnel. Never agency-facing.
 app.use("/", require("./domains/internal/routes/event-funnel"));
 app.use("/api", apiRoutes);
+app.use("/api/public/opencall", require("./domains/opencall/routes"));
 app.use("/api/public", publicRoutes);
 app.use("/api", moderationRoutes);
 // Guardian consent (token-verified). Mounted before onboarding-gated routes so the

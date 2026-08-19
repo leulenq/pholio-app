@@ -45,9 +45,20 @@ router.get(
         .as("latest_msgs");
 
       // Get threads with latest message info
+      /* DELIBERATELY PROFILE-ONLY (design §4 containment; open-call applicant
+         flow lane W3-D). A message thread is a conversation with a signed-in
+         talent account: it needs a `users` row to notify, a session to read it
+         in and a profile page to hang off. An unclaimed open-call applicant
+         (state 2 — `applicant_identity_id` with no `profile_id`) has none of
+         those, so it is excluded HERE, EXPLICITLY, by `whereNotNull` on
+         `a.profile_id` — and the join to `profiles` is a LEFT JOIN so nothing
+         about this surface's membership is decided by join semantics. When a
+         messaging channel for unclaimed applicants exists it will be the
+         tokenized page (§5.4), not this thread list. */
       const threads = await applyMinorSubmissionFilter(knex("messages as m")
         .join("applications as a", "m.application_id", "a.id")
-        .join("profiles as p", "a.profile_id", "p.id")
+        .leftJoin("profiles as p", "a.profile_id", "p.id")
+        .whereNotNull("a.profile_id")
         .leftJoin("board_applications as ba", "ba.application_id", "a.id")
         .leftJoin("boards as b", "ba.board_id", "b.id")
         .join(latestMessageSubquery, function () {
@@ -287,9 +298,16 @@ router.post(
       // Send email notification with magic reply link (async, non-blocking)
       (async () => {
         try {
+          /* DELIBERATELY PROFILE-ONLY, same reason as the thread list above:
+             this resolves the *account* that receives the magic reply link. An
+             unclaimed open-call applicant has no `users` row to address, and a
+             reply token would open a talent dashboard that does not exist. The
+             `whereNotNull` states that instead of leaving it to the inner join,
+             and a null result here already means "send no email". */
           const talent = await knex("applications as a")
-            .join("profiles as p", "a.profile_id", "p.id")
+            .leftJoin("profiles as p", "a.profile_id", "p.id")
             .join("users as u", "p.user_id", "u.id")
+            .whereNotNull("a.profile_id")
             .where("a.id", applicationId)
             .select(
               "u.email",

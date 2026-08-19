@@ -10,6 +10,7 @@ router.use(require("./team-rbac"));
 router.use(require("./casting"));
 router.use(require("./tags"));
 router.use(require("./messages"));
+router.use(require("./materials"));
 router.use(require("./overview"));
 router.use(require("./notifications"));
 router.use(require("./activity"));
