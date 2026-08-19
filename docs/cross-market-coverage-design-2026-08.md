@@ -219,3 +219,108 @@ Ordered; each is one engineer; file ownership disjoint so 1–3 can run in paral
 | 5 | **Sweep**: copy-denylist test, a11y assertions, reduced-motion check, desktop/mobile screenshot pass per talent CLAUDE.md verification rule | `components/market/__tests__/MarketCoverage.test.jsx` | 4 |
 
 Lead integrates and commits; no worker commits (repo operating rule).
+
+---
+
+# Amendment 1 — widening past the shot list (2026-08-19)
+
+The owner challenged the scope: shots are the richest part, but agencies publish
+other requirements that also overlap. Measured against the ten real specs in
+`data/spec-registry/v1/specs/`, the challenge is right, and one dismissal was
+made for the wrong reason.
+
+## What the data says (10 published specs)
+
+| Category | Measured overlap | Ruling |
+|---|---|---|
+| Application fields | email 9/10 · name, date of birth 8/10 · phone, Instagram 7/10 · height, city 6/10 · TikTok 5/10 · guardian details 4/10 | **In.** Highest overlap of any category |
+| Shot count | 9/10 publish one; minimums cluster at 3, maximums 3–6 | **In.** One line beside the verdict |
+| Set-wide conditions | High semantic overlap, zero textual overlap; no match keys published | **Held** — re-entry condition below |
+| Eligibility | Every entry unique but machine-comparable (`age_years >= 15`, `height >= 173cm`) | **Held** — re-entry condition below |
+| Files | 8 sparse entries | Out |
+
+## Corrected reasoning on form fields
+
+The per-house code treats `applicationFields` as noise, and per house it is: 33
+undifferentiated rows each saying "Pholio cannot verify this" (`briefModel`'s
+collapse ruling). Cross-market the overlap **is** the information: the forms ask
+for the same few facts, and knowing that list once is the same "prepare once"
+proposition as the union shot list.
+
+**No personal verdict, deliberately.** A form field is something the talent
+*supplies*, not something they are measured against, so the block never says
+"you have 6 of 9" — a match would add tone risk for zero information. Document
+facts only.
+
+## The two holds, with re-entry conditions
+
+- **Set-wide conditions** return when the registry publishes match keys for
+  them, the way shot slots carry `matchKey`. Until then, merging "Do not wear
+  makeup" / "do not wear any makeup" / "Have a clean face with absolutely no
+  makeup" is Pholio deciding three houses' sentences are one sentence — the
+  "never invents" line. An unmerged list of near-duplicates is worse than
+  nothing. This is an authoring-lane task, not a UI task.
+- **Eligibility** returns only with its own wording pass at the same depth as
+  §5. It aggregates honestly as *published-threshold ranges* (a fact about
+  documents), but it is the one category that can tell a reader they sit
+  outside every list, and that sentence must be designed, not bolted on. The
+  guardian/consent cluster already arrives safely via the form-facts block.
+
+## Amended copy (deltas to §5 only; everything else stands)
+
+- **Title:** `What these houses publish, read as one.` — the scope outgrew
+  "shot lists"; the sentence still names documents and one act of reading.
+  (Rejected: "What these houses ask for" — "ask of you" flavor; "The market's
+  shot lists and forms, read as one" — inventory, not a sentence.)
+- **Count line**, directly under the verdict, only when ≥2 houses publish a
+  structured count: `The published counts run {min} to {max} images.` — and
+  when every published count is the same number: `Every published count is
+  {n} images.` Derived from structured `minimum`/`maximum` values only; prose
+  counts are never parsed. (Rejected: "Most houses want 3–6 images" — "want"
+  is demand-for-you voice; "You need 3–6 photos" — imperative, and false as a
+  universal.)
+- **Form-facts block**, after the frames list, before the footnote. Small
+  heading `Their forms`, then one data-driven sentence: `The application
+  forms ask for the same few facts: an email address (9 of 10), name and date
+  of birth (8), a phone number and Instagram (7), height and city (6), TikTok
+  (5), and for minors, a parent or guardian's details (4).` — grouped by
+  count, descending; labels from the taxonomy pack, counts computed, nothing
+  hardcoded. Fields asked by fewer than half the forms collapse into the
+  closing clause: `along with each form's own remaining fields — open a house
+  for its list.` (Rejected: a per-field row grid — the analytics dashboard
+  arriving as a table; "9 agencies require your email" — "require of you"
+  voice; any checkmark against the profile — see the no-verdict ruling.)
+- **Footnote** gains nothing: its existing sentence "each house also publishes
+  measurements, forms and terms of its own" already carries the scoping.
+
+The §5 denylist applies to the new strings verbatim.
+
+## Amended data model (deltas to §6)
+
+`buildCoverage` additionally returns:
+
+```
+shotCountSpan: { min, max, houses } | null   // structured counts only; null
+                                             // when fewer than 2 houses publish one
+formFacts: {
+  fields: [{ field, label, houses }],        // per-house deduped by field key,
+                                             // sorted (houses desc, label asc)
+  formsPublished,                            // houses with any applicationFields
+  shownThreshold,                            // the >= half cutoff actually applied
+} | null
+```
+
+Both derive from the same single preflight response — `CATEGORY.SHOT_COUNT`
+and `CATEGORY.APPLICATION_FIELDS` findings are already in every evaluation.
+No new fetch, no server change. Houses, not routes, remain the counting unit.
+
+## Amended tests (additions to §9)
+
+13. Count-span honesty: the rendered span is exactly the min-of-minimums to
+    max-of-maximums across structured published counts; a prose-only count
+    contributes nothing; one publishing house → no line.
+14. Form facts: counts match fixtures; per-house dedupe (two routes of one
+    house asking `contact.email` count once); the block never contains "you",
+    "your set", or any satisfied/missing state.
+15. The equal-counts sentence renders iff all published counts collapse to
+    one number.
