@@ -10,14 +10,14 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
 
 ## Waves
 
-- [ ] **W1-A1 (Opus)** C4 claim-key fix: `agency_open_call_claims.call_purpose`, per-purpose partial
+- [x] **W1-A1 (Opus)** C4 claim-key fix: `agency_open_call_claims.call_purpose`, per-purpose partial
       uniques (repr: agency+profile; event: link+profile), service + submit-path updates, tests.
-- [ ] **W1-A2 (Opus)** Schema: `applicant_identities`, `open_call_submissions`,
+- [x] **W1-A2 (Opus)** Schema: `applicant_identities`, `open_call_submissions`,
       `open_call_submission_media`, `applicant_claim_tokens`, `open_call_material_requests`;
       `applications.profile_id` → nullable (SQLite introspect-and-rebuild per `20260815090000`
       precedent) + `applicant_identity_id` + CHECK + identity-keyed partial uniques;
       `agency_open_call_links.intake_spec/intake_spec_version/identity_policy`. Migration tests.
-- [ ] **W1-B (Sonnet)** Intake vocabulary constants, server + client mirror + parity test:
+- [x] **W1-B (Sonnet)** Intake vocabulary constants, server + client mirror + parity test:
       field keys, stages, requirements, identity policies, default specs per call kind,
       normalize/validate helpers.
 - [ ] **W2-C1 (Opus)** Identity + token services: `applicant-identities`, claim/disown/materials
@@ -36,4 +36,13 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
 - [ ] **W5 (lead)** Full test suite + client lint + adversarial diff review; docs updated; commits.
 
 ## Review log
-(filled as waves land)
+- W1-B landed: constants + parity test (19 tests). Committed.
+- W1-A1 landed: claims keyed per purpose; verified diff + 17 migration tests; also confirmed a
+  PRE-EXISTING harness hazard — tests/setup/isolated-db.js mutates process.env.DATABASE_URL and
+  never restores it, so two suites sharing one jest worker can collide (reproduced with suites
+  from main). Revisit at final full-suite pass; not a lane regression.
+- W1-A2 landed: 5 tables + nullable applications.profile_id via shared introspect-and-rebuild
+  helper; 36 tests; agent ran FULL suite green (230 suites / 2965 tests, --runInBand).
+  Runbook note: PG ACCESS EXCLUSIVE locks on applications + snapshot/consent tables.
+- W2-C1 (identity/tokens/claim) and W3-D (resolver/organizer) launched in parallel, disjoint files;
+  snapshot payload.identity contract fixed by lead and written into both specs.
