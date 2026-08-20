@@ -590,6 +590,44 @@ export function marginaliaFor(sourceLabel, canonical) {
   return wording;
 }
 
+/*
+  Words that never change a shot instruction: articles, filler, and the media
+  nouns every source uses interchangeably ("upload profile", "personality pic",
+  "close up photo" all name the same ask as their canonical labels).
+*/
+const INSTRUCTION_STOPWORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'of', 'with', 'your', 'you', 'for', 'in',
+  'on', 'to', 'be', 'is', 'are', 'should', 'please', 'taken', 'take',
+  'upload', 'submit', 'photo', 'photos', 'photograph', 'photographs',
+  'picture', 'pictures', 'pic', 'pics', 'image', 'images', 'shot', 'shots',
+]);
+
+/**
+ * Does the agency's wording change the instruction, or only restate it?
+ *
+ * Muse's "Close ups … hair down" beside the canonical "Close-up, hair down"
+ * reads as a duplicate requirement — every content word is already in the
+ * canonical name, so printing both asks the reader to reconcile nothing.
+ * Wording earns a place next to the instruction only when it carries a content
+ * word the canonical label does not ("wear a bikini", "in daylight"). The rest
+ * belongs behind provenance.
+ */
+export function marginaliaAddsInformation(sourceLabel, canonical) {
+  const tokens = (value) =>
+    String(value ?? '')
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^\p{Letter}\p{Number}\s]/gu, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => (word.length > 2 && word.endsWith('s') ? word.slice(0, -1) : word))
+      .filter((word) => !INSTRUCTION_STOPWORDS.has(word));
+  const canonicalTokens = new Set(tokens(canonical));
+  const sourceTokens = tokens(sourceLabel);
+  if (!sourceTokens.length) return false;
+  return sourceTokens.some((word) => !canonicalTokens.has(word));
+}
+
 /**
  * An excerpt of an agency's page, made safe to set on ours.
  *
@@ -714,6 +752,11 @@ export function buildAgencyView({ route, evaluation, labels }) {
       key: finding.slotKey,
       label,
       marginalia: marginaliaFor(finding.sourceLabel, label),
+      // The wording exactly as published (typeset, unfiltered): marginaliaFor
+      // drops anything the canonical name contains, which also drops wording
+      // that ADDS to the name ("close up in natural daylight" ⊃ "close-up") —
+      // consumers deciding materiality need the unfiltered phrase.
+      sourceWording: publishedWording(finding.sourceLabel),
       state: slotStateForOutcome(finding.outcome),
       imageId: finding.assignments.find((entry) => entry?.imageId)?.imageId || null,
       target: finding.target,

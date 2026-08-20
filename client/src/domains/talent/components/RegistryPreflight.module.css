@@ -1,70 +1,78 @@
 /* ============================================================
-   REGISTRY PREFLIGHT — advisory panel inside the apply wizard
+   REGISTRY PREFLIGHT — the agency's ask, in the workspace's
+   own voice.
 
-   A well, not a card. This sits beside the talent's actual work
-   in the digitals step and must stay subordinate to it: the
-   step's content is the subject, this is the margin note that
-   says whether the subject will pass.
+   No box. The apply workspace composes on open paper with
+   hairline rules, mono-caps micro-labels, serif item names,
+   and gold reserved for the coverage segments and the one
+   action that moves things forward — this module borrows that
+   vocabulary (prepare.css's manifest, ApplyExperience.css's
+   digitals band) rather than flying registry colours over it.
 
-   Secondary text is #5A6472 rather than DESIGN.md's #64748B —
-   on the #F8F8F7 well that slate measures 4.48:1, just under
-   the 4.5:1 the spec's acceptance asks for.
+   Tokens come from ApplyExperience.css (--app-*); every var()
+   carries a fallback for isolation in tests.
    ============================================================ */
 
 .panel {
-  --pf-ink: #0f172a;
-  --pf-text-2: #5a6472;
-  --pf-well: #f8f8f7;
-  --pf-border: #e2e8f0;
-  --pf-gold-text: #75501b;
-  --pf-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --pf-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-
   box-sizing: border-box;
-  margin: 0 0 24px;
-  padding: 16px;
-  border-radius: 12px;
-  background: var(--pf-well);
-  color: var(--pf-ink);
-  font-family: var(--pf-sans);
+  margin: 0 0 clamp(28px, 3.6vw, 46px);
+  padding: clamp(18px, 2.4vw, 26px) 0;
+  border-top: 1px solid var(--app-hair, #e7e2d8);
+  border-bottom: 1px solid var(--app-hair, #e7e2d8);
+  color: var(--app-text, #1a1815);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+
+/* ── head rail: who this checks against, where they live ──── */
 
 .head {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: 8px 18px;
   align-items: baseline;
 }
 
 .title {
   margin: 0;
   min-width: 0;
-  color: var(--pf-ink);
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.45;
+  color: var(--app-text-soft, #6b6459);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   overflow-wrap: anywhere;
 }
 
-.coverage {
-  margin: 0 0 0 auto;
-  color: var(--pf-text-2);
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.45;
-  text-align: right;
-  white-space: nowrap;
+.headLink {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+  color: var(--app-gold, #b08d45);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.2s var(--app-ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.headLink:hover,
+.headLink:focus-visible {
+  color: var(--app-text, #1a1815);
 }
 
 .route {
-  width: min(280px, 100%);
+  flex-basis: 100%;
+  width: min(300px, 100%);
+  margin-top: 6px;
 }
 
-/* The select's own well background vanishes on a well panel. */
 .route :global(.pholio-custom-select-trigger) {
   min-height: 40px;
   padding: 8px 12px;
-  border-color: var(--pf-border);
   background: #ffffff;
   font-size: 0.85rem;
 }
@@ -72,126 +80,167 @@
 .route :global(.pholio-label) {
   margin-bottom: 4px;
   font-size: 0.75rem;
-  color: var(--pf-text-2);
+  color: var(--app-text-soft, #6b6459);
 }
 
-/* ── coverage schematic ───────────────────────────────────── */
+/* ── the one line of arithmetic, in the band's own idiom ──── */
 
-.slots {
+.summaryRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 14px 0 0;
-  padding: 0;
-  list-style: none;
+  gap: 8px 16px;
+  align-items: center;
+  margin-top: 14px;
 }
 
-.slot {
+.coverage {
   display: inline-flex;
+  gap: 6px;
+  flex: none;
 }
 
-/* ── findings ─────────────────────────────────────────────── */
+.seg {
+  width: clamp(22px, 2.6vw, 34px);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--app-hair-strong, #d9d2c4);
+  transition: background 0.3s var(--app-ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
 
-.rows {
+.segOn {
+  background: var(--app-gold, #c9a55a);
+}
+
+.summary {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--app-text-soft, #6b6459);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+/* ── their set: serif names, quiet words, one gold action ─── */
+
+.list {
   display: grid;
-  margin: 12px 0 0;
+  margin: 6px 0 0;
   padding: 0;
   list-style: none;
 }
 
-.row {
+.item {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 10px;
+  gap: 4px 18px;
   align-items: baseline;
   min-width: 0;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--pf-border);
+  padding: 13px 0;
+  border-bottom: 1px solid var(--app-hair, #e7e2d8);
 }
 
-.row:last-child {
+.item:last-child {
   border-bottom: 0;
+  padding-bottom: 4px;
 }
 
-.rowMark {
-  position: relative;
-  top: 1px;
-}
-
-.rowLabel {
+.itemBody {
+  display: grid;
+  gap: 3px;
   min-width: 0;
-  color: var(--pf-ink);
-  font-size: 0.85rem;
-  line-height: 1.5;
+  flex: 1 1 16ch;
+}
+
+.itemLabel {
+  color: var(--app-text, #1a1815);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1rem, 1.3vw, 1.15rem);
+  font-weight: 300;
+  line-height: 1.2;
   overflow-wrap: anywhere;
 }
 
-.rowGuidance {
-  min-width: 0;
-  color: var(--pf-text-2);
-  font-size: 0.8rem;
-  line-height: 1.5;
+/* Wording that changes the instruction — a quiet second line, never a second
+   label beside the name. */
+.itemNote {
+  color: var(--app-text-faint, #97917f);
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
-/* The agency's own wording beside our canonical name — quoted, quiet, never
-   spoken in Pholio's voice (ruling R-E). Mono sets it apart as a excerpt
-   rather than a second label, the "Intel idiom" the redesign spec asks for. */
-.rowMarginalia {
-  min-width: 0;
-  color: var(--pf-text-2);
+.itemState {
+  flex: none;
+  color: var(--app-text-soft, #6b6459);
   font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
-.rowAction,
-.link {
-  color: var(--pf-gold-text);
-  font-size: 0.8rem;
-  line-height: 1.5;
+.itemState[data-needed] {
+  color: var(--app-text, #1a1815);
+}
+
+.itemAction {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--app-gold, #b08d45);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
   text-decoration: none;
-  border-bottom: 1px solid rgba(201, 165, 90, 0.45);
-  transition: color 0.2s var(--pf-ease), border-color 0.2s var(--pf-ease);
-}
-
-.rowAction {
-  margin-left: auto;
   white-space: nowrap;
+  transition: color 0.2s var(--app-ease, cubic-bezier(0.4, 0, 0.2, 1));
 }
 
-.rowAction:hover,
-.rowAction:focus-visible,
-.link:hover,
-.link:focus-visible {
-  color: var(--pf-ink);
-  border-bottom-color: var(--pf-ink);
+.itemAction:hover,
+.itemAction:focus-visible {
+  color: var(--app-text, #1a1815);
+}
+
+/* ── the one file fact that matters right now ─────────────── */
+
+.filesLine {
+  margin: 14px 0 0;
+  max-width: 62ch;
+  color: var(--app-text-soft, #6b6459);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.65;
 }
 
 /* ── details disclosure ───────────────────────────────────── */
 
 .details {
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 .detailsToggle {
   display: inline-flex;
-  gap: 6px;
+  gap: 7px;
   align-items: center;
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--pf-text-2);
-  font-family: inherit;
-  font-size: 0.8rem;
-  line-height: 1.5;
+  color: var(--app-text-soft, #6b6459);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
   cursor: pointer;
-  transition: color 0.2s var(--pf-ease);
+  transition: color 0.2s var(--app-ease, cubic-bezier(0.4, 0, 0.2, 1));
 }
 
 .detailsToggle:hover {
-  color: var(--pf-ink);
+  color: var(--app-text, #1a1815);
 }
 
 .detailsToggle:focus-visible {
@@ -200,7 +249,7 @@
 }
 
 .detailsChevron {
-  transition: transform 0.2s var(--pf-ease);
+  transition: transform 0.2s var(--app-ease, cubic-bezier(0.4, 0, 0.2, 1));
 }
 
 .detailsChevronOpen {
@@ -212,15 +261,77 @@
 }
 
 .detailGroup {
-  padding-top: 12px;
+  padding-top: 16px;
 }
 
 .detailTitle {
+  margin: 0 0 6px;
+  color: var(--app-text-soft, #6b6459);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.detailRows {
+  display: grid;
   margin: 0;
-  color: var(--pf-ink);
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.4;
+  padding: 0;
+  list-style: none;
+}
+
+.detailRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  align-items: baseline;
+  padding: 4px 0;
+}
+
+.detailText {
+  min-width: 0;
+  color: var(--app-text-soft, #6b6459);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.detailAside {
+  flex: none;
+  color: var(--app-text-faint, #97917f);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* The agency's exact phrase, attributed in the disclosure — quoted, quiet,
+   never spoken in Pholio's voice (ruling R-E). */
+.detailWording {
+  min-width: 0;
+  color: var(--app-text-faint, #97917f);
+  font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  color: var(--app-gold, #b08d45);
+  font-size: 13px;
+  line-height: 1.6;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.45);
+  transition: color 0.2s var(--app-ease, cubic-bezier(0.4, 0, 0.2, 1));
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--app-text, #1a1815);
+  border-bottom-color: var(--app-text, #1a1815);
 }
 
 /* ── quiet states ─────────────────────────────────────────── */
@@ -231,10 +342,11 @@
 
 .noteLine {
   margin: 0;
-  max-width: 68ch;
-  color: var(--pf-text-2);
-  font-size: 0.85rem;
-  line-height: 1.55;
+  max-width: 62ch;
+  color: var(--app-text-soft, #6b6459);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.65;
 }
 
 .noteLinks {
@@ -250,10 +362,11 @@
 
 .provenance,
 .caution {
-  margin: 14px 0 0;
+  margin: 16px 0 0;
   max-width: 76ch;
-  color: var(--pf-text-2);
-  font-size: 0.75rem;
+  color: var(--app-text-faint, #97917f);
+  font-size: 12px;
+  font-weight: 300;
   line-height: 1.6;
 }
 
@@ -263,21 +376,23 @@
 }
 
 @media (max-width: 640px) {
-  .coverage {
+  .headLink {
     margin-left: 0;
-    text-align: left;
   }
 
-  .rowAction {
-    margin-left: 0;
+  .itemState,
+  .itemAction {
+    flex: initial;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rowAction,
+  .headLink,
+  .itemAction,
   .link,
   .detailsToggle,
-  .detailsChevron {
+  .detailsChevron,
+  .seg {
     transition: none;
   }
 }
