@@ -663,7 +663,7 @@ export function publishedWording(value) {
  * ================================================================== */
 
 /** The published shot slots for one route, in the order the server listed them. */
-function shotFindings(findings) {
+export function shotFindings(findings) {
   return findings.filter(
     (finding) =>
       finding.categoryKey === CATEGORY.SHOTS &&

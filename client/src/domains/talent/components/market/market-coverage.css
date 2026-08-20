@@ -1,0 +1,281 @@
+/* ============================================================
+   WHAT THESE HOUSES PUBLISH, READ AS ONE
+
+   The board's preface. It borrows the board's material — the
+   hairline top edge, the full-bleed gutter, the mono control —
+   but not its poster voice: the line is set in the serif at
+   reading size so it can never be mistaken for a house named
+   "WHAT THESE HOUSES PUBLISH".
+
+   Amendment 1 widened it past the shot list, and the widening
+   arrives entirely in the quiet registers: the published-count
+   span at footnote size beside the verdict, the forms sentence
+   in the same Inter as the rows. Nothing new is loud, because
+   nothing new outranks the photographs.
+
+   Open, it stays on the cream. A solid-ink panel is the
+   signature of a house (`.hbnd--open`), and a derived reading
+   of every house must not be able to impersonate one.
+
+   Gold appears exactly once, as ink, on the completes line.
+   One accent, one meaning.
+   ============================================================ */
+
+.mcov {
+  border-top: 1px solid var(--mb-hair, rgba(26, 24, 21, 0.11));
+}
+
+/* ── closed: one line, one control ────────────────────────── */
+
+.mcov-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px 32px;
+  padding: clamp(18px, 2vw, 24px) var(--mb-gutter, clamp(28px, 5.4vw, 104px));
+}
+
+/*
+  The reading register: smaller than a verdict, lighter than a name. It is a
+  sentence about documents, and it should read like one.
+*/
+.mcov-line {
+  margin: 0;
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(15.5px, 1.5vw, 17px);
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+/* The scope switch's register, exactly — this is the board's own control. */
+.mcov-toggle {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--mb-faint, rgba(26, 24, 21, 0.4));
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s var(--mb-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.mcov-toggle:hover { color: var(--mb-text, #1a1815); }
+
+.mcov-toggle:focus-visible {
+  outline: 2px solid var(--mb-gold, #c9a55a);
+  outline-offset: 4px;
+}
+
+/* ── open: still the cream ────────────────────────────────── */
+
+.mcov-panel {
+  overflow: hidden;
+  background: color-mix(in srgb, var(--mb-warm, #f4efe6) 45%, transparent);
+  border-bottom: 1px solid var(--mb-hair, rgba(26, 24, 21, 0.11));
+}
+
+.mcov-panel__inner {
+  max-width: 96ch;
+  padding: clamp(20px, 2.4vw, 28px) var(--mb-gutter, clamp(28px, 5.4vw, 104px))
+    clamp(26px, 3vw, 36px);
+}
+
+/* Waiting and failing, in the brief's voice — on cream, not ink. */
+.mcov-wait {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+  font-size: 13.5px;
+}
+
+.mcov-retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+  font-family: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.2s var(--mb-ease, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.mcov-retry:hover { color: var(--mb-text, #1a1815); }
+
+.mcov-retry:focus-visible {
+  outline: 2px solid var(--mb-gold, #c9a55a);
+  outline-offset: 3px;
+}
+
+/* The one sentence read first, and often the only one read. */
+.mcov-verdict {
+  margin: 0;
+  color: var(--mb-text, #1a1815);
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.15rem, 1.8vw, 1.45rem);
+  font-weight: 300;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+.mcov-verdict em {
+  font-style: normal;
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+}
+
+/* ── the frames ───────────────────────────────────────────── */
+
+.mcov-list {
+  margin: clamp(18px, 2vw, 24px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mcov-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 14px;
+  min-height: 64px;
+  padding: 9px 0;
+  border-top: 1px solid var(--mb-hair, rgba(26, 24, 21, 0.11));
+}
+
+.mcov-row:last-child {
+  border-bottom: 1px solid var(--mb-hair, rgba(26, 24, 21, 0.11));
+}
+
+/*
+  An unfilled slot the way a digitals sheet leaves one: the warm ground, a
+  hairline, and nothing else. No icon and no dashed border — absence does not
+  need to be decorated to be legible.
+*/
+.mcov-frame {
+  width: 44px;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 1px solid var(--mb-hair, rgba(26, 24, 21, 0.11));
+  border-radius: 2px;
+  background: var(--mb-warm, #f4efe6);
+}
+
+.mcov-frame__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mcov-row__body { min-width: 0; }
+
+/* Presence reads as presence; absence needs no extra label. */
+.mcov-label {
+  display: block;
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.mcov-row--in .mcov-label { color: var(--mb-text, #1a1815); }
+
+.mcov-completes {
+  display: block;
+  margin-top: 3px;
+  color: var(--mb-gold-text, #75501b);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.mcov-count {
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+  font-size: 12.5px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── the published counts, and the forms ──────────────────── */
+
+/*
+  A second fact about the same documents, sitting with the verdict at the row
+  count's size and ink. `--mb-soft` rather than `--mb-faint`: this line is the
+  only home its fact has, which is the §8 rule for when faint is too faint.
+*/
+.mcov-span {
+  margin: 8px 0 0;
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/*
+  The list's last row already draws its own rule, so the block is separated by
+  air rather than by a second hairline.
+*/
+.mcov-forms {
+  margin: clamp(18px, 2vw, 24px) 0 0;
+}
+
+/*
+  Quiet Inter, not the mono caps of `.hb-cond__key` or `.hb-detail dt`. Two
+  reasons, both this file's own: inside this component the mono register is
+  spoken for — it is "the scope switch's register, exactly", the board's own
+  control — and a small tracked-caps label set directly above a sentence reads
+  as an eyebrow, which the house style bans outright. A heading here only has
+  to sit a little firmer than the sentence beneath it.
+*/
+.mcov-sub {
+  margin: 0 0 6px;
+  color: var(--mb-text, #1a1815);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.mcov-forms__line {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--mb-soft, rgba(26, 24, 21, 0.58));
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/*
+  The minors sentence is the same fact-about-documents at the same volume — it
+  is separated because its condition is separate, not because it is smaller or
+  softer than what precedes it.
+*/
+.mcov-forms__line + .mcov-forms__line { margin-top: 6px; }
+
+.mcov-note {
+  max-width: 68ch;
+  margin: clamp(16px, 1.8vw, 22px) 0 0;
+  color: var(--mb-faint, rgba(26, 24, 21, 0.4));
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── narrow ───────────────────────────────────────────────── */
+
+/* Nothing hides; the count simply drops under the label. */
+@media (max-width: 760px) {
+  .mcov-row { grid-template-columns: 44px minmax(0, 1fr); }
+
+  .mcov-count {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mcov-toggle,
+  .mcov-retry { transition: none; }
+}
