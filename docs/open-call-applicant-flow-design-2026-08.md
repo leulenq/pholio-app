@@ -1,6 +1,14 @@
 # The Open Call as its own product — applicant flow, identity, and claiming
 
-**Status:** PROPOSAL, revision 2. Nothing in this document is built. It asks for rulings before any lane starts.
+**Status:** IMPLEMENTED on `claude/open-call-applicant-flow-0w71i7` (2026-08-19), per the rulings recorded in `tasks/todo.md`. Q1 (minors/age policy) remains open and owned by a separate workstream; everything else in §9 was resolved as recommended. Implementation notes that deviate from or sharpen this text:
+
+- `intake_spec` is stored NULL meaning "platform default for the call kind", so revising the default never needs a data migration.
+- A claimed user lands in a *shortened, prefilled* onboarding rather than a faked-complete one — the event spec collects no date of birth, and the dashboard gates legitimately need it.
+- The C4 claim-key fix shipped, including the review-caught inverse (a representation submission can no longer consume an event-edition claim).
+- Materials tokens are bound to the specific request they were minted for.
+- **Open gates before production:** §7.1's anonymous-media CSAM/moderation wiring is NOT closed (named in `src/domains/opencall/services/media.js`); the board-pipeline candidates endpoint doesn't resolve identity rows' truth fields; HEIC uploads are not accepted (uploader-wide decision). On PostgreSQL the schema migrations take ACCESS EXCLUSIVE on `applications` and the snapshot/consent tables — schedule accordingly.
+
+Original proposal status: it asked for rulings before any lane started.
 **Revision note (2026-08-19):** v2 restructures the design around the two-sided constraint (§2): the applicant flow must stay genuinely quick, *and* what the organizer receives must be materially better than Forms + Sheets. The main change from v1: the heavy event-intake asks (walk video, availability, measurement confirmation) move from submit-gates to a shortlist-stage request. v1's identity ladder, claim flow, and containment strategy stand.
 **Supersedes in part:** `docs/event-casting-design-2026-08.md` §(e) T1–T3 and the applicant half of §(c). The organizer half of that document (pool triage, pick lists, offers, export) stands unchanged and this design is built to protect it.
 **Scope authority:** `docs/pholio-strategic-analysis-2026-08.md` §6. Designed against the code at `69694ba`.

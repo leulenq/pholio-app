@@ -394,16 +394,43 @@ async function listActiveClaims(db, profileId) {
  * back first. `linkId` is server-resolved from the claim behind the submission
  * — never client-supplied. Representation keeps the agency-keyed lookup, which
  * is still its uniqueness rule.
+ *
+ * A REPRESENTATION SUBMISSION ALSO RESOLVES BY PURPOSE, and that half is not
+ * cosmetic: without it the agency-keyed lookup matches ANY live claim for
+ * (profile, agency), so an applicant holding a live Queens *event* claim who
+ * then applies to that same organizer's representation call spends the Queens
+ * exemption on the representation application. The later Queens submission is
+ * then taxed and cannot re-mint, because a consumed claim blocks its own key
+ * forever — the C4 bug (design §1 C4) re-entered through the side door.
+ *
+ * No ORDER BY is needed once the purpose is pinned: the partial uniques from
+ * `20260819100000` allow at most one ACTIVE claim per resolved key — (agency,
+ * profile, representation) here, (link, profile, event) above — and the
+ * pre-migration fallback below is covered by the blanket
+ * `uq_open_call_claims_agency_profile` it replaced.
  */
 async function resolveActiveClaim(trx, profileId, agencyId, options = {}) {
   const byLink =
     options.callPurpose === CALL_PURPOSES.EVENT_CASTING && options.linkId;
+  // Absent means representation: that is `DEFAULT_CALL_PURPOSE`, and it is what
+  // every non-event submit path passes.
+  const isRepresentation =
+    options.callPurpose !== CALL_PURPOSES.EVENT_CASTING;
+  // Deploy-before-migrate: without the column every claim is keyed
+  // (agency, profile) exactly as before, which is the pre-`20260819100000`
+  // behaviour this fallback must preserve.
+  const purposeAware = isRepresentation
+    ? await hasClaimPurposeColumn(trx)
+    : false;
   let query = trx("agency_open_call_claims")
     .where({
       profile_id: profileId,
       agency_id: agencyId,
       status: CLAIM_STATUSES.ACTIVE,
       ...(byLink ? { link_id: options.linkId } : {}),
+      ...(purposeAware
+        ? { call_purpose: CALL_PURPOSES.REPRESENTATION }
+        : {}),
     })
     .select("*");
   if (trx.client.config.client === "pg") {

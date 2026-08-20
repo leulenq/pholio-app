@@ -15,13 +15,17 @@ export const ApplicantsZone = ({ applicationId, onProfileHydrated }) => {
   });
 
   useEffect(() => {
-    const { profile, application } = appQuery.data || {};
+    const {
+      profile, application,
+      emailVerified, identityClaimed, identityDisputed, identitySource, materialsStatus,
+    } = appQuery.data || {};
     if (!profile) return;
     const hydration = buildProfileHydration(profile, profile.images);
     if (hydration) {
       onProfileHydrated?.({
         ...hydration,
         status: application?.status ?? null,
+        emailVerified, identityClaimed, identityDisputed, identitySource, materialsStatus,
       });
     }
   }, [appQuery.data, onProfileHydrated]);

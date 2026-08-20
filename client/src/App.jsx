@@ -24,7 +24,10 @@ const ApplyPage = lazy(() => import('./domains/talent/pages/ApplyPage'));
 const SettingsPage = lazy(() => import('./domains/talent/pages/SettingsPage'));
 const CastingCallPage = lazy(() => import('./domains/onboarding/pages/CastingCallPage'));
 const TestPreview = lazy(() => import('./domains/onboarding/pages/TestPreview'));
-const OpenCallArrivalPage = lazy(() => import('./domains/onboarding/pages/OpenCallArrivalPage'));
+const OpenCallApplyPage = lazy(() => import('./domains/opencall/pages/OpenCallApplyPage'));
+const OpenCallClaimPage = lazy(() => import('./domains/opencall/pages/ClaimPage'));
+const OpenCallDisownPage = lazy(() => import('./domains/opencall/pages/DisownPage'));
+const OpenCallMaterialsPage = lazy(() => import('./domains/opencall/materials/MaterialsPage'));
 
 // Agency pages
 const AgencyOverview = lazy(() => import('./domains/agency/pages/OverviewPage'));
@@ -103,8 +106,14 @@ function App() {
             element={<Navigate to="/dashboard/talent" replace />}
           />
 
-          {/* Agency open call arrival — standalone, pre-auth */}
-          <Route path="/opencall/:code" element={<OpenCallArrivalPage />} />
+          {/* Agency open call — standalone, pre-auth. The apply flow decides
+              between the anonymous form and the arrival page (which it renders
+              itself for account_required links, closed/invalid codes, and
+              visitors who are already signed in). */}
+          <Route path="/opencall/:code" element={<OpenCallApplyPage />} />
+          <Route path="/opencall/claim/:token" element={<OpenCallClaimPage />} />
+          <Route path="/opencall/disown/:token" element={<OpenCallDisownPage />} />
+          <Route path="/opencall/materials/:token" element={<OpenCallMaterialsPage />} />
 
           {/* Platform staff review — API authorization is independent of product roles. */}
           <Route path="/internal" element={<Navigate to="/internal/agency-requests" replace />} />

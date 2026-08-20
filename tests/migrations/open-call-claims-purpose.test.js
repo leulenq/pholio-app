@@ -298,6 +298,48 @@ describe("open call claims are keyed per call", () => {
       expect(resolved).toBeNull();
     });
 
+    test("a representation submission never spends an event claim", async () => {
+      /* The C4 bug through the side door. The event key is (link, profile) and
+         the representation key is (agency, profile), so an agency-keyed lookup
+         with no purpose filter matches the Queens claim too — and `consumeClaim`
+         then spends the Queens exemption on a representation application. The
+         later Queens submission is taxed AND cannot re-mint, because a consumed
+         claim blocks its own key forever. */
+      const brooklyn = await mintClaim(db, mintArgs(brooklynId, organizerId, profileId));
+      expect(brooklyn.claim.call_purpose).toBe(CALL_PURPOSES.EVENT_CASTING);
+
+      expect(
+        await resolveActiveClaim(db, profileId, organizerId, {
+          callPurpose: CALL_PURPOSES.REPRESENTATION,
+          linkId: null,
+        }),
+      ).toBeNull();
+      // …and with no options at all, which is what every non-event submit passes.
+      expect(await resolveActiveClaim(db, profileId, organizerId)).toBeNull();
+
+      // The event claim is untouched and still spendable by its own edition.
+      const forBrooklyn = await resolveActiveClaim(db, profileId, organizerId, {
+        callPurpose: CALL_PURPOSES.EVENT_CASTING,
+        linkId: brooklynId,
+      });
+      expect(forBrooklyn.id).toBe(brooklyn.claim.id);
+    });
+
+    test("with both live, a representation submission resolves only the representation claim", async () => {
+      const event = await mintClaim(db, mintArgs(queensId, organizerId, profileId));
+      const repr = await mintClaim(
+        db,
+        mintArgs(organizerReprLinkId, organizerId, profileId),
+      );
+
+      const resolved = await resolveActiveClaim(db, profileId, organizerId, {
+        callPurpose: CALL_PURPOSES.REPRESENTATION,
+      });
+      expect(resolved.id).toBe(repr.claim.id);
+      expect(resolved.call_purpose).toBe(CALL_PURPOSES.REPRESENTATION);
+      expect(resolved.id).not.toBe(event.claim.id);
+    });
+
     test("representation resolves by agency, with or without options", async () => {
       const { claim } = await mintClaim(db, mintArgs(reprLinkOneId, agencyId, profileId));
       expect((await resolveActiveClaim(db, profileId, agencyId)).id).toBe(claim.id);

@@ -98,6 +98,20 @@
   margin-top: 5px;
 }
 
+/* ---------- NO-MESSAGE STATE ---------- */
+/* Replaces the composer for an identity-backed applicant the API excludes
+   from messaging — plain text, never a disabled-but-visible input. */
+.tt-no-message {
+  margin: 0;
+  padding: 10px 13px;
+  border: 1px solid rgba(26, 26, 21, 0.08);
+  border-radius: 2px;
+  background: var(--ag-surface-hover, #F5F2EE);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ag-text-2);
+}
+
 /* ---------- COMPOSER ---------- */
 .tt-composer {
   display: flex;

@@ -964,6 +964,277 @@ function readEventScopeParams(query = {}) {
   };
 }
 
+/**
+ * The candidate rows behind `GET /api/agency/applications`, fetched under the
+ * hard cap.
+ *
+ * WHY THIS IS A FUNCTION AND WHY IT SOMETIMES RUNS TWICE
+ *
+ * A filter that names a `profiles` column cannot be evaluated in SQL for an
+ * identity-backed row — its name, city and height live inside a JSON payload no
+ * database in this stack can index — so those rows are kept in the candidate set
+ * and the identical filter is re-applied in JS against the resolved DTO
+ * (`matchesIdentityFilters` in the route). Doing that with one query means every
+ * profile-scoped predicate is wrapped in `OR applications.profile_id IS NULL`,
+ * and THAT is fine until the pool approaches the cap: the identity rows are
+ * matched by SQL whether or not they will survive the JS pass, so they occupy
+ * LIMIT slots, and account-backed rows that DO match the filter sort past the
+ * cap and vanish from the organizer's inbox with no error. Silent omission is
+ * the exact failure this whole lane exists to prevent; the OR only moved it from
+ * small pools to large ones.
+ *
+ * So when any profile-scoped filter is active the fetch splits in two:
+ *
+ *   account-backed  `profile_id IS NOT NULL`, filters applied in pure SQL, the
+ *                   full cap to itself. This is byte-for-byte the query that ran
+ *                   before identity rows existed, so pre-cap fidelity for the
+ *                   account-backed half is restored exactly.
+ *   identity-backed `profile_id IS NULL`, no profile-scoped predicates at all
+ *                   (SQL cannot judge them), its own bounded slice.
+ *
+ * THE CHOSEN SPLIT: each half gets the full `cap`, so the worst case while a
+ * profile-scoped filter is active is 2× the ceiling. Taking the identity half's
+ * slice out of the account half's budget was the alternative and it is the wrong
+ * one — it would starve exactly the rows this split exists to stop losing, and
+ * it would make how many account-backed matches an organizer can see depend on
+ * how many unclaimed applicants happen to be in the pool. The cap is a
+ * pathological-load guard, not a page size; doubling it under a filter is a cost
+ * the guard can carry, and the merged set is still bounded.
+ *
+ * With no profile-scoped filter active there is nothing for SQL to be unable to
+ * judge, so the single query runs unchanged.
+ *
+ * @returns {Promise<{rows: object[], capped: boolean}>} rows in SQL order; the
+ *   caller does the JS re-filter, the sort and the DTO shaping exactly as before.
+ */
+async function fetchSubmissionCandidates(
+  db,
+  {
+    agencyId,
+    identitySupported = false,
+    emailVerifiedColumn = false,
+    allowMinorSubmissions = false,
+    eventColumnsReady = false,
+    openCallLinkId = "",
+    sort = "az",
+    city = "",
+    letter = "",
+    search = "",
+    status = "",
+    gender = "",
+    tagList = [],
+    dateFrom = "",
+    dateTo = "",
+    minHeight = NaN,
+    maxHeight = NaN,
+    cap = SUBMISSIONS_HARD_CAP,
+  } = {},
+) {
+  const hasMinHeight = !Number.isNaN(minHeight);
+  const hasMaxHeight = !Number.isNaN(maxHeight);
+  /* Every filter below names a `profiles` column, and every one of them is
+     re-applied in JS by the caller. Adding a profile-scoped filter here without
+     adding it there (or the reverse) is how a row goes missing. */
+  const profileScopedFilterActive = Boolean(
+    city || letter || search || gender || hasMinHeight || hasMaxHeight,
+  );
+
+  /**
+   * @param {"combined"|"account"|"identity"} variant
+   */
+  const build = (variant) => {
+    // NOTE: knex silently drops .select() arguments that follow an array
+    // argument, so the audience columns must be spread into one flat list
+    // or the application_* aliases never reach the SQL.
+    let query = db("applications")
+      .select([
+        ...selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
+          table: "profiles",
+        }),
+        "applications.status as application_status",
+        "applications.id as application_id",
+        "applications.created_at as application_created_at",
+        "applications.profile_id as application_profile_id",
+        // Plain-data truth fields (design §6 requirement 2) — read from the
+        // two authoritative columns rather than through the resolver, which
+        // would cost a second pass over rows this query already has.
+        ...(emailVerifiedColumn
+          ? ["users.email_verified as account_email_verified"]
+          : []),
+        ...(identitySupported
+          ? [
+              "applications.applicant_identity_id",
+              "applicant_identities.claimed_at as identity_claimed_at",
+              "applicant_identities.disowned_at as identity_disowned_at",
+            ]
+          : []),
+      ])
+      .leftJoin("profiles", "applications.profile_id", "profiles.id")
+      .leftJoin("users", "profiles.user_id", "users.id")
+      .modify((builder) => {
+        if (identitySupported) {
+          builder.leftJoin(
+            "applicant_identities",
+            "applicant_identities.id",
+            "applications.applicant_identity_id",
+          );
+        }
+      })
+      .where("applications.agency_id", agencyId)
+      .whereNot("applications.status", "withdrawn")
+      .where((scope) => {
+        scope.whereNotNull("profiles.bio_curated");
+        if (identitySupported) {
+          scope.orWhereNull("applications.profile_id");
+        }
+      });
+
+    // The split's own predicate. Left untouched in the combined variant so a
+    // pool with no profile-scoped filter runs the identical SQL it always has.
+    if (variant === "account") {
+      query = query.whereNotNull("applications.profile_id");
+    } else if (variant === "identity") {
+      query = query.whereNull("applications.profile_id");
+    }
+
+    query = applyMinorSubmissionFilter(query, {
+      alias: "applications",
+      allowMinor: allowMinorSubmissions,
+    });
+
+    /* Scope the desk to one event call (design §e O3). Ruling R10 forbids a
+       second inbox for organizers, so the event pool IS this endpoint with a
+       link filter — the same rows, the same DTO, the same triage verbs.
+
+       RULING R7 CONFLICT, reported to the lead: this route has no
+       pagination. `SUBMISSIONS_HARD_CAP` is a truncating ceiling and R7
+       sizes a call at exactly 2,000 applications, so a call at the design
+       ceiling is cut at the cap boundary (`capped: true`). The paginated
+       read is `GET /api/agency/events/:linkId/pool`. */
+    if (openCallLinkId && eventColumnsReady) {
+      query = query.where("applications.open_call_link_id", openCallLinkId);
+    }
+
+    /* Profile-scoped filters. In the combined variant each one keeps
+       `applications.profile_id IS NULL` rows in the candidate set; in the
+       account variant there are no such rows to keep, so the predicate is the
+       plain SQL one; in the identity variant they are skipped entirely and the
+       caller's JS pass is the only judge. */
+    const keepIdentityRows = (scope, inner) => {
+      scope.where((builder) => {
+        inner(builder);
+        if (variant === "combined" && identitySupported) {
+          builder.orWhereNull("applications.profile_id");
+        }
+      });
+    };
+    if (variant !== "identity") {
+      if (city) {
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.whereILike("profiles.city", `%${city}%`),
+          ),
+        );
+      }
+      if (letter) {
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.whereILike("profiles.last_name", `${letter}%`),
+          ),
+        );
+      }
+      if (search) {
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner
+              .whereILike("profiles.first_name", `%${search}%`)
+              .orWhereILike("profiles.last_name", `%${search}%`),
+          ),
+        );
+      }
+      if (hasMinHeight) {
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.where("profiles.height_cm", ">=", minHeight),
+          ),
+        );
+      }
+      if (hasMaxHeight) {
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.where("profiles.height_cm", "<=", maxHeight),
+          ),
+        );
+      }
+      if (gender) {
+        query = query.where((scope) =>
+          keepIdentityRows(scope, (inner) =>
+            inner.where("profiles.gender", gender),
+          ),
+        );
+      }
+    }
+
+    // Status, dates and tags are `applications` columns: SQL can judge them for
+    // an identity-backed row, so they apply to every variant.
+    if (status && status !== "all") {
+      if (status === "pending") {
+        query = query.where(function () {
+          this.where("applications.status", "pending").orWhereNull(
+            "applications.status",
+          );
+        });
+      } else {
+        query = query.where("applications.status", status);
+      }
+    }
+    if (dateFrom) {
+      query = query.where("applications.created_at", ">=", new Date(dateFrom));
+    }
+    if (dateTo) {
+      // Add one day to include the entire end date
+      const endDate = new Date(dateTo);
+      endDate.setDate(endDate.getDate() + 1);
+      query = query.where("applications.created_at", "<", endDate);
+    }
+    if (tagList.length > 0) {
+      query = query.whereIn("applications.id", function () {
+        this.select("application_id")
+          .from("application_tags")
+          .where({ agency_id: agencyId })
+          .whereIn("tag", tagList)
+          .groupBy("application_id")
+          .havingRaw("COUNT(DISTINCT tag) = ?", [tagList.length]);
+      });
+    }
+
+    if (sort === "city") {
+      query = query.orderBy(["profiles.city", "profiles.last_name"]);
+    } else {
+      query = query.orderBy(["profiles.last_name", "profiles.first_name"]);
+    }
+
+    // Safety ceiling only — see SUBMISSIONS_HARD_CAP comment above.
+    return query.limit(cap);
+  };
+
+  if (!identitySupported || !profileScopedFilterActive) {
+    const rows = await build("combined");
+    return { rows, capped: rows.length >= cap };
+  }
+
+  const [accountRows, identityRows] = await Promise.all([
+    build("account"),
+    build("identity"),
+  ]);
+  return {
+    rows: [...accountRows, ...identityRows],
+    // Either half hitting its own ceiling means the organizer is looking at a
+    // truncated pool, which is what `capped` tells the client.
+    capped: accountRows.length >= cap || identityRows.length >= cap,
+  };
+}
+
 // GET /api/agency/applications - Get filtered applications as JSON
 router.get(
   "/api/agency/applications",
@@ -1004,192 +1275,42 @@ router.get(
       // account-backed applications the rows, the shape and the order are
       // unchanged.
       //
-      // NOTE: knex silently drops .select() arguments that follow an array
-      // argument, so the audience columns must be spread into one flat list
-      // or the application_* aliases never reach the SQL.
-      let query = knex("applications")
-        .select([
-          ...selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
-            table: "profiles",
-          }),
-          "applications.status as application_status",
-          "applications.id as application_id",
-          "applications.created_at as application_created_at",
-          "applications.profile_id as application_profile_id",
-          // Plain-data truth fields (design §6 requirement 2) — read from the
-          // two authoritative columns rather than through the resolver, which
-          // would cost a second pass over rows this query already has.
-          ...(emailVerifiedColumn
-            ? ["users.email_verified as account_email_verified"]
-            : []),
-          ...(identitySupported
-            ? [
-                "applications.applicant_identity_id",
-                "applicant_identities.claimed_at as identity_claimed_at",
-                "applicant_identities.disowned_at as identity_disowned_at",
-              ]
-            : []),
-        ])
-        .leftJoin("profiles", "applications.profile_id", "profiles.id")
-        .leftJoin("users", "profiles.user_id", "users.id")
-        .modify((builder) => {
-          if (identitySupported) {
-            builder.leftJoin(
-              "applicant_identities",
-              "applicant_identities.id",
-              "applications.applicant_identity_id",
-            );
-          }
-        })
-        .where("applications.agency_id", req.session.userId)
-        .whereNot("applications.status", "withdrawn")
-        .where((scope) => {
-          scope.whereNotNull("profiles.bio_curated");
-          if (identitySupported) {
-            scope.orWhereNull("applications.profile_id");
-          }
-        });
-      query = applyMinorSubmissionFilter(query, {
-        alias: "applications",
-        allowMinor: req.allowMinorSubmissions,
-      });
-
-      /* Scope the desk to one event call (design §e O3). Ruling R10 forbids a
-         second inbox for organizers, so the event pool IS this endpoint with a
-         link filter — the same rows, the same DTO, the same triage verbs.
-
-         RULING R7 CONFLICT, reported to the lead: this route has no
-         pagination. `SUBMISSIONS_HARD_CAP` is a truncating ceiling and R7
-         sizes a call at exactly 2,000 applications, so a call at the design
-         ceiling is cut at the cap boundary (`capped: true`). The paginated
-         read is `GET /api/agency/events/:linkId/pool`. */
-      const { openCallLinkId } = readEventScopeParams(req.query);
-      if (openCallLinkId && (await hasApplicationEventColumns())) {
-        query = query.where("applications.open_call_link_id", openCallLinkId);
-      }
-
-      /* Apply filters (same logic as main route).
-         A filter that names a `profiles` column cannot be evaluated in SQL for
-         an identity-backed row — its name, city and height live inside a JSON
-         payload no database in this stack can index. Rather than let those rows
-         be dropped by a predicate that can only be false for them (the exact
-         silent-omission failure this lane exists to stop), each profile-scoped
-         predicate keeps `applications.profile_id IS NULL` rows in the candidate
-         set, and the identical filter is re-applied in JS against the resolved
-         DTO further down (`identityFilters`). The result set is bounded by
-         SUBMISSIONS_HARD_CAP, so the second pass is over a page, not a table. */
-      const keepIdentityRows = (scope, build) => {
-        scope.where((inner) => {
-          build(inner);
-          if (identitySupported) inner.orWhereNull("applications.profile_id");
-        });
-      };
-      if (city) {
-        query = query.where((scope) =>
-          keepIdentityRows(scope, (inner) =>
-            inner.whereILike("profiles.city", `%${city}%`),
-          ),
-        );
-      }
-      if (letter) {
-        query = query.where((scope) =>
-          keepIdentityRows(scope, (inner) =>
-            inner.whereILike("profiles.last_name", `${letter}%`),
-          ),
-        );
-      }
-      if (search) {
-        query = query.where((scope) =>
-          keepIdentityRows(scope, (inner) =>
-            inner
-              .whereILike("profiles.first_name", `%${search}%`)
-              .orWhereILike("profiles.last_name", `%${search}%`),
-          ),
-        );
-      }
-      if (status && status !== "all") {
-        if (status === "pending") {
-          query = query.where(function () {
-            this.where("applications.status", "pending").orWhereNull(
-              "applications.status",
-            );
-          });
-        } else {
-          query = query.where("applications.status", status);
-        }
-      }
+      // The fetch itself lives in `fetchSubmissionCandidates`, which documents
+      // why a profile-scoped filter makes it two queries instead of one.
       const minHeightNumber = parseInt(min_height, 10);
       const maxHeightNumber = parseInt(max_height, 10);
-      if (!Number.isNaN(minHeightNumber)) {
-        query = query.where((scope) =>
-          keepIdentityRows(scope, (inner) =>
-            inner.where("profiles.height_cm", ">=", minHeightNumber),
-          ),
-        );
-      }
-      if (!Number.isNaN(maxHeightNumber)) {
-        query = query.where((scope) =>
-          keepIdentityRows(scope, (inner) =>
-            inner.where("profiles.height_cm", "<=", maxHeightNumber),
-          ),
-        );
-      }
+      // Split exactly as before — including the empty-string cases, so the
+      // endpoint answers a malformed `?tags=` the same way it always has.
+      const tagList = tags
+        ? typeof tags === "string"
+          ? tags.split(",").map((tag) => tag.trim())
+          : Array.isArray(tags)
+            ? tags
+            : []
+        : [];
+      const { openCallLinkId } = readEventScopeParams(req.query);
 
-      // Gender filter
-      if (gender) {
-        query = query.where((scope) =>
-          keepIdentityRows(scope, (inner) =>
-            inner.where("profiles.gender", gender),
-          ),
-        );
-      }
-
-      // Date range filter
-      if (date_from) {
-        query = query.where(
-          "applications.created_at",
-          ">=",
-          new Date(date_from),
-        );
-      }
-      if (date_to) {
-        // Add one day to include the entire end date
-        const endDate = new Date(date_to);
-        endDate.setDate(endDate.getDate() + 1);
-        query = query.where("applications.created_at", "<", endDate);
-      }
-
-      // Tags filter - application must have ALL specified tags
-      if (tags) {
-        const tagArray =
-          typeof tags === "string"
-            ? tags.split(",").map((t) => t.trim())
-            : Array.isArray(tags)
-              ? tags
-              : [];
-        if (tagArray.length > 0) {
-          query = query.whereIn("applications.id", function () {
-            this.select("application_id")
-              .from("application_tags")
-              .where({ agency_id: req.session.userId })
-              .whereIn("tag", tagArray)
-              .groupBy("application_id")
-              .havingRaw("COUNT(DISTINCT tag) = ?", [tagArray.length]);
-          });
-        }
-      }
-
-      if (sort === "city") {
-        query = query.orderBy(["profiles.city", "profiles.last_name"]);
-      } else {
-        query = query.orderBy(["profiles.last_name", "profiles.first_name"]);
-      }
-
-      // Safety ceiling only — see SUBMISSIONS_HARD_CAP comment above.
-      query = query.limit(SUBMISSIONS_HARD_CAP);
-
-      const allRows = await query;
-      const capped = allRows.length >= SUBMISSIONS_HARD_CAP;
+      const { rows: allRows, capped } = await fetchSubmissionCandidates(knex, {
+        agencyId: req.session.userId,
+        identitySupported,
+        emailVerifiedColumn,
+        allowMinorSubmissions: req.allowMinorSubmissions,
+        eventColumnsReady: openCallLinkId
+          ? await hasApplicationEventColumns()
+          : false,
+        openCallLinkId,
+        sort,
+        city,
+        letter,
+        search,
+        status,
+        gender,
+        tagList,
+        dateFrom: date_from,
+        dateTo: date_to,
+        minHeight: minHeightNumber,
+        maxHeight: maxHeightNumber,
+      });
       if (capped) {
         console.warn(
           `[API/Agency/Applications] Submissions hard cap (${SUBMISSIONS_HARD_CAP}) reached for agency ${req.session.userId}; results truncated.`,
@@ -4625,3 +4746,13 @@ router.get(
 );
 
 module.exports = router;
+/**
+ * `SUBMISSIONS_HARD_CAP` is 2,000 and a suite cannot honestly seed past it, so
+ * the split-query fetch is exercised directly with a small injected `cap` — the
+ * only seam at which "a matching account-backed row beyond the naive combined
+ * LIMIT still comes back" can be asserted at all.
+ */
+module.exports.__testables = {
+  SUBMISSIONS_HARD_CAP,
+  fetchSubmissionCandidates,
+};

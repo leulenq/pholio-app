@@ -262,10 +262,24 @@ router.post(
 
     const identity = await resolveApplicantIdentity(knex, application);
 
+    /* The row's id is settled here, before either write, because the emailed
+       token has to name the request it is for (`20260819140000`) and the mint
+       runs first. UNIQUE(application_id) means a re-request updates the live
+       row, so an existing row keeps its id and its already-emailed links stay
+       pointed at the right ask; a first request reserves the id the insert
+       below will use. */
+    const existing = await knex(TABLE)
+      .where({ application_id: applicationId })
+      .first("id");
+    const requestId = existing?.id || uuidv4();
+
     /* An unclaimed applicant is reachable only through a tokenized link, so mint
        BEFORE writing the request: an ask recorded against an applicant who was
        never told about it is worse than no ask at all. */
     let materialsUrl = null;
+    let materialsTokenId = null;
+    let mintClaimToken = null;
+    let bindClaimTokenToRequest = null;
     if (!application.profile_id) {
       if (!application.applicant_identity_id) {
         return fail(
@@ -275,11 +289,11 @@ router.post(
           "This application has no profile and no applicant identity to contact.",
         );
       }
-      let mintClaimToken;
       try {
         // Required lazily: a sibling lane owns this module, so module load here
         // must not depend on its presence.
         ({
+          bindClaimTokenToRequest,
           mintClaimToken,
         } = require("../../opencall/services/claim-tokens"));
       } catch {
@@ -303,6 +317,7 @@ router.post(
           ttlDays: MATERIALS_TOKEN_TTL_DAYS,
         });
         materialsUrl = token?.url || null;
+        materialsTokenId = token?.tokenId || null;
       } catch (error) {
         console.error("[Request Materials] Token mint failed:", error);
         return fail(
@@ -324,13 +339,11 @@ router.post(
 
     // Upsert against UNIQUE(application_id): a re-request replaces the keys and
     // the deadline, and clears `fulfilled_at` because what was asked changed.
+    // `requestId` was resolved above, before the mint.
     const now = knex.fn.now();
-    const existing = await knex(TABLE)
-      .where({ application_id: applicationId })
-      .first("id");
     const requestedKeysJson = JSON.stringify(requestedKeys);
     if (existing) {
-      await knex(TABLE).where({ id: existing.id }).update({
+      await knex(TABLE).where({ id: requestId }).update({
         requested_keys: requestedKeysJson,
         due_at: dueAt ? dueAt.toISOString() : null,
         requested_by_user_id: getSessionActorUserId(req) || null,
@@ -339,7 +352,7 @@ router.post(
       });
     } else {
       await knex(TABLE).insert({
-        id: uuidv4(),
+        id: requestId,
         application_id: applicationId,
         requested_keys: requestedKeysJson,
         due_at: dueAt ? dueAt.toISOString() : null,
@@ -348,6 +361,28 @@ router.post(
         created_at: now,
         updated_at: now,
       });
+    }
+
+    /* Bind the link to THIS ask, now that the row it names exists. It cannot be
+       done at mint: `material_request_id` is a foreign key and the mint runs
+       first on purpose (above). This closes the gap before anything is sent —
+       without it the fulfilment page falls back to guessing from the identity's
+       outstanding requests, and an applicant shortlisted by two organizers has
+       each organizer's link resolving, and fulfilling, whichever request sorts
+       first. A failure here leaves the token on that legacy path rather than
+       failing an ask that is already recorded. */
+    if (materialsTokenId && typeof bindClaimTokenToRequest === "function") {
+      const bound = await bindClaimTokenToRequest(
+        knex,
+        materialsTokenId,
+        requestId,
+      ).catch(() => false);
+      if (!bound) {
+        console.warn(
+          "[Request Materials] Materials link could not be bound to request",
+          requestId,
+        );
+      }
     }
 
     const stored =

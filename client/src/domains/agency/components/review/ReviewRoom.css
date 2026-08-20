@@ -639,6 +639,14 @@
 
 .rv-note--alert { color: var(--rv-alert); }
 
+/* The dispute sentence sits right under the hero, not folded into a lower
+   column — it is the one fact that should stop a booker before anything
+   else on this submission. Weight and placement carry that, never a badge. */
+.rv-identity-flag {
+  margin-top: 10px;
+  font-weight: 600;
+}
+
 .rv-bio {
   margin: 8px 0 0;
   font-family: 'Noto Serif Display', Georgia, serif;

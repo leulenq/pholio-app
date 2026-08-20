@@ -1,0 +1,761 @@
+/*
+ * The Screen Test, on a public stage.
+ *
+ * `client/src/domains/onboarding/DESIGN.md` is the authority for everything
+ * here: black stage, one accent gold, Playfair carrying both the question and
+ * the typed answer, no boxes and no underlines on fields, one fixed Action
+ * Dock, ease-out with no bounce. The anonymous apply flow is an
+ * onboarding-class surface, so it wears that system rather than the cream
+ * editorial dashboards.
+ *
+ * The tokens are redeclared locally rather than imported from the onboarding
+ * domain's `CastingCinematic.css`: this surface is standalone and pre-auth, it
+ * must not depend on another domain's stylesheet load order, and it must not
+ * publish `:root` variables into the dashboards. Values are byte-identical to
+ * that file's Screen Test token block.
+ *
+ * Phone-first — this form's primary device is a phone (design §5.1).
+ * No chips, no badges, no glass blur, no gradient text, no progress dots.
+ */
+
+.oc {
+  --oc-ink: #000000;
+  --oc-gold: #c9a55a;
+  --oc-gold-deep: #b8956a;
+  --oc-gold-ink: #0a0806;
+  --oc-text: #f5f1ea;
+  --oc-text-2: rgba(245, 241, 234, 0.55);
+  --oc-text-3: rgba(245, 241, 234, 0.3);
+  --oc-ghost: rgba(245, 241, 234, 0.15);
+  --oc-hair: rgba(245, 241, 234, 0.14);
+  --oc-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --oc-serif: 'Playfair Display', Georgia, serif;
+  --oc-sans: 'Inter', -apple-system, system-ui, sans-serif;
+
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow-x: hidden;
+  background: var(--oc-ink);
+  color: var(--oc-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* The casting flow paints the document surface black while it is mounted so the
+   safe-area strip does not render as a white bar above the stage. Same trick. */
+body.oc-dark-body {
+  background: #000;
+}
+
+.oc__orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.oc__orb--1 {
+  top: -12%;
+  left: -14%;
+  width: 62vw;
+  height: 62vw;
+  background: radial-gradient(circle, rgba(201, 165, 90, 0.28) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.oc__orb--2 {
+  bottom: -14%;
+  right: -16%;
+  width: 68vw;
+  height: 68vw;
+  background: radial-gradient(circle, rgba(120, 120, 128, 0.16) 0%, rgba(0, 0, 0, 0) 70%);
+}
+
+.oc__stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: clamp(28px, 8vh, 64px) 20px 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+/* ─────────────────────────────────────────────── the organizer, and the call */
+
+.oc__mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: clamp(20px, 4vh, 32px);
+}
+
+/* Their real mark, or nothing — a generated monogram is a fake logo at exactly
+   the moment trust is being established (arrival page's rule, kept). */
+.oc__logo {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid var(--oc-hair);
+}
+
+.oc__organizer {
+  font-family: var(--oc-serif);
+  font-size: clamp(17px, 4.4vw, 20px);
+  letter-spacing: -0.01em;
+}
+
+.oc__location {
+  font-family: var(--oc-sans);
+  font-size: 12.5px;
+  color: var(--oc-text-3);
+}
+
+.oc__headline {
+  font-family: var(--oc-serif);
+  font-weight: 400;
+  font-size: clamp(26px, 7.4vw, 40px);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+
+.oc__facts {
+  width: 100%;
+  margin: 0 0 20px;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--oc-hair);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  text-align: left;
+}
+
+.oc__fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.oc__fact-label {
+  font-family: var(--oc-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--oc-gold-deep);
+}
+
+.oc__fact-body {
+  margin: 0;
+  font-family: var(--oc-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--oc-text);
+  white-space: pre-line;
+}
+
+/* Ruling R8. The one hard eligibility rule on the page, in plain words, before
+   anyone spends a minute. Deliberately not a badge. */
+.oc__agegate {
+  width: 100%;
+  margin: 0 0 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--oc-hair);
+  font-family: var(--oc-sans);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--oc-text);
+  text-align: left;
+}
+
+.oc__resume {
+  font-family: var(--oc-sans);
+  font-size: 12.5px;
+  color: var(--oc-gold-deep);
+  margin: 0 0 14px;
+}
+
+/* ──────────────────────────────────────────────────────────── the question */
+
+.oc__question {
+  font-family: var(--oc-serif);
+  font-weight: 400;
+  font-size: clamp(24px, 7vw, 38px);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  margin: 0;
+  padding-bottom: 2px;
+  text-wrap: balance;
+}
+
+.oc__question em {
+  font-style: italic;
+  color: var(--oc-gold);
+}
+
+.oc__rule {
+  width: 54px;
+  height: 1px;
+  margin: 20px 0 24px;
+  background: linear-gradient(
+    to right,
+    rgba(201, 165, 90, 0),
+    rgba(201, 165, 90, 0.75),
+    rgba(201, 165, 90, 0)
+  );
+}
+
+.oc__hint {
+  font-family: var(--oc-sans);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--oc-text-3);
+  margin: 14px 0 0;
+  max-width: 44ch;
+}
+
+.oc__error {
+  font-family: var(--oc-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e8a798;
+  margin: 14px 0 0;
+  max-width: 44ch;
+}
+
+.oc__note {
+  font-family: var(--oc-sans);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--oc-text-2);
+  margin: 0 0 22px;
+  max-width: 46ch;
+}
+
+/* ──────────────────────────────────────────────────── the Spotlight Field */
+
+.oc-spotlight {
+  position: relative;
+  width: 100%;
+  min-height: 4.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oc-spotlight__glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 78%;
+  height: 220%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(201, 165, 90, 0.14), transparent 68%);
+  opacity: 0;
+  transition: opacity 0.6s var(--oc-ease);
+}
+
+/* No box and no underline: the answer is typed straight onto the stage, in the
+   same face the House asked the question in. Specificity is deliberately high
+   so the app's global form styling never leaks a white 44px box onto it. */
+.oc-spotlight .oc-spotlight__input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: center;
+  font-family: var(--oc-serif);
+  font-weight: 400;
+  font-size: clamp(1.7rem, 8vw, 3rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--oc-text);
+  caret-color: var(--oc-gold);
+}
+
+.oc-spotlight .oc-spotlight__input::placeholder {
+  color: var(--oc-ghost);
+  font-style: italic;
+  opacity: 1;
+}
+
+/* The gold pool ignites on focus — the focus indicator for a boxless field. */
+.oc-spotlight .oc-spotlight__input:focus ~ .oc-spotlight__glow {
+  opacity: 1;
+}
+
+.oc-spotlight .oc-spotlight__input--date {
+  width: auto;
+  color-scheme: dark;
+  appearance: auto !important;
+  -webkit-appearance: auto !important;
+  font-size: clamp(1.5rem, 6.6vw, 2.4rem);
+}
+
+.oc-spotlight .oc-spotlight__input--date::-webkit-calendar-picker-indicator {
+  filter: invert(72%) sepia(30%) saturate(560%) hue-rotate(2deg);
+  cursor: pointer;
+  opacity: 0.85;
+  width: 0.86em;
+  height: 0.86em;
+  margin-left: 0.4em;
+}
+
+/* iOS renders no picker indicator and ghosts the empty segments into
+   invisibility on black; on phones the date field gets a visible tappable
+   hairline so it does not read as an empty gap. (Same fix as the casting flow.) */
+@media (max-width: 640px) {
+  .oc-spotlight .oc-spotlight__input--date {
+    width: min(82vw, 320px);
+    padding: 0.65rem 1rem !important;
+    border: 1px solid rgba(201, 165, 90, 0.42) !important;
+    border-radius: 6px !important;
+    background: rgba(201, 165, 90, 0.05) !important;
+  }
+}
+
+.oc-spotlight--inline {
+  min-height: 3.2rem;
+}
+
+.oc-spotlight--inline .oc-spotlight__input {
+  font-size: clamp(1.1rem, 4.6vw, 1.5rem);
+}
+
+.oc__field-label {
+  font-family: var(--oc-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--oc-text-3);
+  margin: 0 0 2px;
+}
+
+.oc__pair {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ───────────────────────────────────────────────────────── identity tiles */
+
+.oc-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.oc-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 116px;
+  padding: 18px 10px;
+  background: none;
+  border: 1px solid var(--oc-hair);
+  border-radius: 4px;
+  color: var(--oc-text-2);
+  cursor: pointer;
+  transition:
+    border-color 0.3s var(--oc-ease),
+    color 0.3s var(--oc-ease),
+    background 0.3s var(--oc-ease);
+}
+
+.oc-tile svg {
+  fill: none;
+  stroke: currentColor;
+}
+
+.oc-tile__label {
+  font-family: var(--oc-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.oc-tile.is-selected {
+  border-color: var(--oc-gold);
+  color: var(--oc-gold);
+  background: rgba(201, 165, 90, 0.06);
+}
+
+.oc-tile:focus-visible {
+  outline: 2px solid var(--oc-gold);
+  outline-offset: 3px;
+}
+
+/* ──────────────────────────────────────────── the attestation, as a statement */
+
+/*
+ * Not a checkbox row and not a badge: the applicant affirms a full sentence,
+ * and the sentence lights gold once they have. The control is the statement.
+ */
+.oc-attest {
+  width: 100%;
+  display: block;
+  text-align: left;
+  padding: 20px;
+  background: none;
+  border: 1px solid var(--oc-hair);
+  border-radius: 4px;
+  color: var(--oc-text-2);
+  font-family: var(--oc-serif);
+  font-size: clamp(17px, 4.8vw, 22px);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    border-color 0.3s var(--oc-ease),
+    color 0.3s var(--oc-ease),
+    background 0.3s var(--oc-ease);
+}
+
+.oc-attest.is-affirmed {
+  border-color: var(--oc-gold);
+  color: var(--oc-gold);
+  background: rgba(201, 165, 90, 0.06);
+}
+
+.oc-attest__aside {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--oc-sans);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--oc-text-3);
+}
+
+.oc-attest:focus-visible {
+  outline: 2px solid var(--oc-gold);
+  outline-offset: 3px;
+}
+
+/* ─────────────────────────────────────────────────────────────── digitals */
+
+.oc-frames {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.oc-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  aspect-ratio: 3 / 4;
+  padding: 16px;
+  background: rgba(245, 241, 234, 0.02);
+  border: 1px solid var(--oc-hair);
+  border-radius: 3px;
+  color: var(--oc-text-2);
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    border-color 0.3s var(--oc-ease),
+    color 0.3s var(--oc-ease);
+}
+
+.oc-frame.is-filled {
+  border-color: var(--oc-gold);
+  color: var(--oc-gold);
+}
+
+.oc-frame__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.88;
+}
+
+.oc-frame__label {
+  position: relative;
+  z-index: 1;
+  font-family: var(--oc-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.oc-frame__state {
+  position: relative;
+  z-index: 1;
+  font-family: var(--oc-sans);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.62);
+  border-radius: 2px;
+}
+
+.oc-frame:focus-visible {
+  outline: 2px solid var(--oc-gold);
+  outline-offset: 3px;
+}
+
+.oc-frames__guidance {
+  font-family: var(--oc-sans);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--oc-text-3);
+  margin: 18px 0 0;
+}
+
+/* ─────────────────────────────────────────────────────────────── consent */
+
+.oc-consent {
+  width: 100%;
+  text-align: left;
+  margin: 0 0 4px;
+}
+
+.oc-consent__terms {
+  font-family: var(--oc-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--oc-gold-deep);
+  margin: 0 0 12px;
+}
+
+.oc-consent__body {
+  font-family: var(--oc-sans);
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--oc-text-2);
+  margin: 0 0 12px;
+}
+
+.oc-consent__body--strong {
+  color: var(--oc-text);
+}
+
+.oc-consent__confirms {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.oc-blockers {
+  width: 100%;
+  text-align: left;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--oc-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e8a798;
+}
+
+/* ─────────────────────────────────────────────────────── the Action Dock */
+
+/*
+ * One fixed home for the primary action: bottom-center, reserved height, always
+ * rendered. It never mounts/unmounts and never moves between screens — it only
+ * changes state (dimmed → gold when the screen is satisfiable).
+ */
+.oc-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 22;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 1.6rem 1rem calc(env(safe-area-inset-bottom, 0px) + 0.9rem);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.94) 45%, rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+
+.oc-dock__inner {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.oc-dock__cta {
+  width: 100%;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 22px;
+  border: 1px solid #faf7f2;
+  border-radius: 3px;
+  background: #faf7f2;
+  color: #1a1815;
+  font-family: var(--oc-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    opacity 0.3s var(--oc-ease),
+    transform 0.3s var(--oc-ease);
+}
+
+.oc-dock__arrow {
+  color: #9b742f;
+  transition: transform 0.3s var(--oc-ease);
+}
+
+.oc-dock__cta:hover .oc-dock__arrow {
+  transform: translateX(4px);
+}
+
+.oc-dock__cta[disabled] {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.oc-dock__quiet {
+  min-height: 40px;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  color: var(--oc-text-2);
+  font-family: var(--oc-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.3s var(--oc-ease);
+}
+
+.oc-dock__quiet:hover {
+  color: var(--oc-text);
+}
+
+.oc-dock__cta:focus-visible,
+.oc-dock__quiet:focus-visible {
+  outline: 2px solid var(--oc-gold);
+  outline-offset: 3px;
+}
+
+/* Progress, when it is worth stating, is words — never dots. */
+.oc-dock__count {
+  font-family: var(--oc-sans);
+  font-size: 0.66rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--oc-text-3);
+}
+
+/* ────────────────────────────────────────────────────────────── the payoff */
+
+.oc__payoff-list {
+  width: 100%;
+  margin: 0 0 24px;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--oc-hair);
+  list-style: none;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--oc-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--oc-text-2);
+}
+
+.oc__link {
+  display: inline-block;
+  margin-top: 4px;
+  font-family: var(--oc-sans);
+  font-size: 13px;
+  color: var(--oc-text-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.oc__link:hover {
+  color: var(--oc-gold);
+}
+
+.oc__legal {
+  font-family: var(--oc-sans);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--oc-text-3);
+  margin: 14px 0 0;
+}
+
+.oc__legal a {
+  color: var(--oc-gold-deep);
+  text-decoration: none;
+}
+
+.oc__legal a:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 700px) {
+  .oc__stage {
+    padding-bottom: 200px;
+  }
+
+  .oc-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .oc-dock__inner {
+    max-width: 460px;
+  }
+}
+
+/* Reduced motion is required by the design system: crossfades only, no
+   infinite ambient loops, instant ignite. */
+@media (prefers-reduced-motion: reduce) {
+  .oc *,
+  .oc *::before,
+  .oc *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

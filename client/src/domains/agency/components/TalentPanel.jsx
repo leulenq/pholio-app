@@ -9,7 +9,7 @@ import { ApplicantsZone } from './zones/ApplicantsZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
 import { DivisionMark } from './status';
-import { MetaLine, Place } from './meta';
+import { MetaLine, Notation, Place } from './meta';
 import {
   isOfferedApplicationStatus,
   isRepresentedApplicationStatus,
@@ -114,6 +114,14 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
   });
   const isPipeline = Boolean(talent.applicationId);
   const status = profileHydrated?.status || talent.status;
+  const identitySource = profileHydrated?.identitySource ?? talent.identitySource;
+  const identityClaimed = profileHydrated?.identityClaimed ?? talent.identityClaimed;
+  const identityDisputed = profileHydrated?.identityDisputed ?? talent.identityDisputed;
+  const emailVerified = profileHydrated?.emailVerified ?? talent.emailVerified;
+  // The API excludes an unclaimed identity-backed applicant from messaging —
+  // no confirmed way to reach them in-app yet. Fields absent (older API):
+  // default to messaging allowed rather than guessing a restriction.
+  const canMessage = !(identitySource === 'submission' && identityClaimed === false);
 
   const renderZone = () => {
     switch (context) {
@@ -239,6 +247,14 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
             ) : (
               <h2 className="tp-name">{talent.name}</h2>
             )}
+            {(identityDisputed || (identitySource === 'submission' && typeof emailVerified === 'boolean')) && (
+              <MetaLine size="sm" onDark>
+                {identitySource === 'submission' && typeof emailVerified === 'boolean' && (
+                  <Notation onDark>{emailVerified ? 'Email verified' : 'Email unverified'}</Notation>
+                )}
+                {identityDisputed && <Notation onDark>Identity disputed</Notation>}
+              </MetaLine>
+            )}
           </div>
         </div>
 
@@ -268,7 +284,11 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
 
           {talent.applicationId && (
             <div className="tp-thread-wrap">
-              <TalentThread applicationId={talent.applicationId} />
+              <TalentThread
+                applicationId={talent.applicationId}
+                canMessage={canMessage}
+                messagingDisabledReason="No Pholio account yet — this applicant can't be messaged directly."
+              />
             </div>
           )}
         </div>

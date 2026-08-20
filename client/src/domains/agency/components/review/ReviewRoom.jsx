@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -73,7 +74,29 @@ const monthsAgo = (days) => {
 const titleCase = (v) =>
   v ? String(v).charAt(0).toUpperCase() + String(v).slice(1).toLowerCase() : '';
 
+const fmtDate = (value) => {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 const imageSrc = (img) => img?.url || img?.public_url || img?.path || null;
+
+/** Plain-text materials line — undefined `materialsStatus` (older API, or
+ *  nothing was ever requested) renders nothing. */
+const materialsLine = (materialsStatus, materialRequest) => {
+  if (materialsStatus === 'fulfilled') return 'Materials received';
+  if (materialsStatus === 'overdue') {
+    const due = materialRequest?.dueAt ? fmtDate(materialRequest.dueAt) : null;
+    return due ? `Materials overdue · due ${due}` : 'Materials overdue';
+  }
+  if (materialsStatus === 'requested') {
+    const due = materialRequest?.dueAt ? fmtDate(materialRequest.dueAt) : null;
+    return due ? `Materials requested · due ${due}` : 'Materials requested';
+  }
+  return null;
+};
 
 const isSubmittedStatus = (s) => !s || s === 'submitted' || s === 'pending' || s === 'new';
 
@@ -175,6 +198,7 @@ export default function ReviewRoom({
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [pendingDecision, setPendingDecision] = useState(null);
   const roomRef = useRef(null);
+  const navigate = useNavigate();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['application', applicationId],
@@ -187,6 +211,19 @@ export default function ReviewRoom({
   const submissionPackage = data?.submissionPackage || null;
   const notes = useMemo(() => (Array.isArray(data?.notes) ? data.notes : []), [data]);
   const tags = useMemo(() => (Array.isArray(data?.tags) ? data.tags : []), [data]);
+
+  // Plain-data truth fields (design: open-call-applicant-flow). Absent on an
+  // older API response — every read below renders nothing rather than guessing.
+  const emailVerified = data?.emailVerified;
+  const identityDisputed = Boolean(data?.identityDisputed);
+  const identitySource = data?.identitySource;
+  const materialsStatus = data?.materialsStatus;
+  const materialRequest = data?.materialRequest || null;
+  const possibleDuplicateOf = data?.possibleDuplicateOf || null;
+  const materialsText = materialsLine(materialsStatus, materialRequest);
+  const emailLine = identitySource === 'submission' && typeof emailVerified === 'boolean'
+    ? (emailVerified ? 'Verified' : 'Unverified')
+    : null;
 
   // Reset per-talent view state when the queue advances.
   const [prevAppId, setPrevAppId] = useState(applicationId);
@@ -446,6 +483,11 @@ export default function ReviewRoom({
                   <Stamp>{getStatusLabel(status)}</Stamp>
                 )}
               </div>
+              {identityDisputed && (
+                <p className="rv-note rv-note--alert rv-identity-flag">
+                  The person behind this email says they did not submit this application.
+                </p>
+              )}
             </div>
           </div>
 
@@ -586,10 +628,24 @@ export default function ReviewRoom({
                 <Row label="Languages" value={languages} />
                 <Row label="Nationality" value={profile?.nationality} />
                 <Row label="Track" value={titleCase(stats?.track)} />
+                <Row label="Email" value={emailLine} />
+                <Row label="Materials" value={materialsText} />
               </dl>
               {packageRedacted && (
                 <p className="rv-note rv-note--alert">
                   The talent withdrew this submission; its disclosure package is no longer available.
+                </p>
+              )}
+              {possibleDuplicateOf && (
+                <p className="rv-note">
+                  May be the same person as{' '}
+                  <button
+                    type="button"
+                    className="rv-more"
+                    onClick={() => navigate(`/dashboard/agency/talent/${possibleDuplicateOf}`)}
+                  >
+                    an earlier submission
+                  </button>.
                 </p>
               )}
               <div className="rv-links">

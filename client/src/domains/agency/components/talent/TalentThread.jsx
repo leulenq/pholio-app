@@ -43,7 +43,7 @@ function Empty({ icon: Icon, children }) {
   );
 }
 
-function Conversation({ applicationId }) {
+function Conversation({ applicationId, canMessage, messagingDisabledReason }) {
   const qc = useQueryClient();
   const [draft, setDraft] = useState('');
   const { data: messages = [], isLoading } = useQuery({
@@ -83,14 +83,18 @@ function Conversation({ applicationId }) {
           );
         })}
       </div>
-      <Composer
-        value={draft}
-        onChange={setDraft}
-        onSubmit={() => send.mutate(draft.trim())}
-        pending={send.isPending}
-        placeholder="Write a message to the talent…"
-        icon={SendHorizontal}
-      />
+      {canMessage ? (
+        <Composer
+          value={draft}
+          onChange={setDraft}
+          onSubmit={() => send.mutate(draft.trim())}
+          pending={send.isPending}
+          placeholder="Write a message to the talent…"
+          icon={SendHorizontal}
+        />
+      ) : (
+        <p className="tt-no-message">{messagingDisabledReason || 'This applicant cannot be messaged yet.'}</p>
+      )}
     </div>
   );
 }
@@ -145,7 +149,15 @@ const TABS = [
   { key: 'notes', label: 'Notes', icon: PenLine },
 ];
 
-export function TalentThread({ applicationId }) {
+/**
+ * @param {boolean} [canMessage] The API excludes identity-backed applicants
+ *   (no Pholio account yet, no confirmed way to reach them in-app) from
+ *   messaging. Defaults to true — only an explicit `false` disables the
+ *   composer, so an older caller with no opinion keeps working as before.
+ * @param {string} [messagingDisabledReason] Plain-text reason shown in the
+ *   composer's place when `canMessage` is false.
+ */
+export function TalentThread({ applicationId, canMessage = true, messagingDisabledReason }) {
   const [tab, setTab] = useState('messages');
   if (!applicationId) return null;
   return (
@@ -163,7 +175,13 @@ export function TalentThread({ applicationId }) {
           </button>
         ))}
       </div>
-      {tab === 'messages' && <Conversation applicationId={applicationId} />}
+      {tab === 'messages' && (
+        <Conversation
+          applicationId={applicationId}
+          canMessage={canMessage}
+          messagingDisabledReason={messagingDisabledReason}
+        />
+      )}
       {tab === 'notes' && <Notes applicationId={applicationId} />}
     </div>
   );

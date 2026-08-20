@@ -700,6 +700,17 @@ describe("POST /api/agency/applications/:id/request-materials", () => {
     expect(tokens).toHaveLength(1);
     // The raw token is never returned to the organizer.
     expect(JSON.stringify(response.body)).not.toContain(tokens[0].token_hash);
+
+    /* …and the link names THIS ask (`20260819140000`). Without the binding the
+       fulfilment page falls back to guessing from the identity's outstanding
+       requests, so an applicant shortlisted by two organizers has each
+       organizer's link rendering — and fulfilling — whichever request sorts
+       first. The binding is written just after the upsert, because the column is
+       a foreign key and the mint deliberately runs before the row exists. */
+    const requestRow = await knex("open_call_material_requests")
+      .where({ application_id: BO.applicationId })
+      .first("id");
+    expect(tokens[0].material_request_id).toBe(requestRow.id);
   });
 
   test("the recorded ask shows up as a word on the inbox row and in the CSV", async () => {

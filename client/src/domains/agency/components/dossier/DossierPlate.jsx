@@ -24,6 +24,7 @@ export function DossierPlate({ dossier, hero, onOpenHero, onOpenFrame, strip = [
   const name = talentName(talent);
   const line = readingLine(dossier);
   const rep = representationRead(dossier.representation);
+  const identityDisputed = Boolean(dossier.identityDisputed);
   // A dead asset URL must never leave a broken-image glyph on the masthead —
   // fall back to the monogram plate the empty case already uses.
   const [shotFailed, setShotFailed] = useState(false);
@@ -77,6 +78,12 @@ export function DossierPlate({ dossier, hero, onOpenHero, onOpenFrame, strip = [
           <span className="dx-plate__rep-head">{rep.headline}</span>
           {rep.detail && <span className="dx-plate__rep-detail">{rep.detail}</span>}
         </div>
+
+        {identityDisputed && (
+          <p className="dx-plate__disputed">
+            The person behind this email says they did not submit this application.
+          </p>
+        )}
 
         {talent.bio_curated && <p className="dx-plate__bio">{talent.bio_curated}</p>}
 

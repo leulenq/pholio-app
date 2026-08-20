@@ -60,8 +60,21 @@ const {
   ensureModerationColumnChecked,
 } = require("../../../shared/lib/content-moderation");
 const {
+  boundedString,
   loadApplicationSubmissionPackages,
+  normalizeCompCard,
+  orderedImages,
+  parsePayload,
 } = require("./application-submission-package");
+const {
+  hasApplicantIdentitySupport,
+  hasColumnCached,
+  IDENTITY_SOURCES,
+  resolveApplicantIdentity,
+} = require("./applicant-identity");
+const {
+  redactExpiredSubmissionPackages,
+} = require("../../../shared/lib/submission-retention");
 
 /** Activity rows carried into the record ledger. */
 const TIMELINE_LIMIT = 40;
@@ -369,6 +382,302 @@ async function buildStanding(db, { agencyId, application }) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// The identity branch — the unclaimed open-call applicant
+// ---------------------------------------------------------------------------
+//
+// `docs/open-call-applicant-flow-design-2026-08.md` §4 / §6 requirement 1:
+// "Every organizer surface must include unclaimed applicants." Since
+// `20260819120000` an `applications` row may carry `applicant_identity_id` and
+// no `profile_id`, and this builder's `db("profiles").where({ id: null })`
+// returned undefined → the route answered 404 for a row the organizer can see
+// in their inbox and open in `/details`. The dossier was the last surface still
+// dropping them.
+//
+// The shape is the profile branch's shape. What differs is only what can be
+// known: an unclaimed applicant has a frozen submission and nothing else — no
+// live profile to carry a bio, a book beyond the snapshot, an availability
+// declaration, a market, or a representation record. Those come back as the
+// neutral/empty value each consumer already handles (`dossierModel.js` reads
+// every one of them through `?.`/`|| []`), never as an invented value.
+
+/**
+ * The pseudo-`profiles` row the frozen identity feeds `buildSubmissionProfileSnapshot`.
+ * Deliberately identical to `inbox.js`'s local `identityProfileRow` — a route
+ * module is the wrong thing for a service to require, and the two copies are
+ * held together by the DTO contract they both read, not by an import.
+ *
+ * `date_of_birth` is null and STAYS null: an anonymous applicant asserts the
+ * 18+ attestation the event spec asks for, not a date (design §3.1, ruling Q1).
+ * `isMinorProfile` is therefore never run against this object — a fabricated
+ * DOB is the only way it could misclassify, and there is none to fabricate.
+ * A null DOB means the snapshot's `age` is null and `is_minor` is false, which
+ * is the honest reading of "attested adult, date not collected", and the minor
+ * redaction path is deliberately not entered for this branch.
+ */
+function identityProfileRow(dto) {
+  return {
+    id: null,
+    slug: null,
+    first_name: dto?.firstName || null,
+    last_name: dto?.lastName || null,
+    city: dto?.city || null,
+    gender: dto?.gender || null,
+    height_cm: dto?.heightCm ?? null,
+    bust_cm: dto?.measurements?.bustCm ?? null,
+    waist_cm: dto?.measurements?.waistCm ?? null,
+    hips_cm: dto?.measurements?.hipsCm ?? null,
+    date_of_birth: null,
+  };
+}
+
+/**
+ * The applicant's Instagram, in the `social_accounts` shape the snapshot and
+ * `shapeSocialAccounts` speak. Not invention: the handle is a value the
+ * applicant typed into the intake form; this only carries it in the shape the
+ * consumer reads. No handle → no row.
+ */
+function identitySocialRows(dto) {
+  const handle = dto?.instagram || null;
+  if (!handle) return [];
+  return [{ platform: "instagram", handle, url: null, verified: false }];
+}
+
+/**
+ * The frozen package for an identity-backed application.
+ *
+ * `loadApplicationSubmissionPackages` cannot answer this one. It is safe to
+ * call with `{ id, profile_id: null, slug: null }` — it filters on
+ * `application?.profile_id` and returns an empty Map rather than throwing —
+ * but that is exactly why it is useless here: an identity package row is keyed
+ * by `application_id` with `profile_id` NULL (`20260819130000`), and that
+ * loader's query is `whereIn("profile_id", …)`. So the row is read by
+ * application id here and shaped with that module's own exported normalizers,
+ * so both branches hand the client the same package object.
+ */
+async function loadIdentitySubmissionPackage(db, application) {
+  if (!(await tableExists(db, "talent_submission_packages"))) return null;
+  // Same read-side retention sweep the profile branch gets for free inside
+  // `loadApplicationSubmissionPackages`.
+  await redactExpiredSubmissionPackages(db).catch(() => 0);
+
+  const row = await db("talent_submission_packages")
+    .where({ application_id: application.id })
+    .orderBy([
+      { column: "created_at", order: "desc" },
+      { column: "id", order: "desc" },
+    ])
+    .first();
+  if (!row) return null;
+
+  const payload = parsePayload(row.payload);
+
+  if (row.revoked_at || row.redacted_at || payload.disclosureRedacted) {
+    return {
+      id: row.id,
+      submittedAt: payload.submittedAt || row.created_at || null,
+      revoked: true,
+      redacted: true,
+      redactionReason: row.redaction_reason || payload.redactionReason || "revoked",
+      mediaSet: null,
+      boards: [],
+      digitalSlotPicks: {},
+      images: [],
+      compCard: null,
+      contact: null,
+      profile: null,
+    };
+  }
+
+  const compCard = normalizeCompCard(
+    payload.compCard && typeof payload.compCard === "object"
+      ? payload.compCard
+      : null,
+  );
+
+  return {
+    id: row.id,
+    submittedAt: payload.submittedAt || row.created_at || null,
+    mediaSet: {
+      id: boundedString(payload.mediaSetId, 80),
+      name: boundedString(payload.mediaSetName, 120),
+    },
+    boards: Array.isArray(payload.boards)
+      ? payload.boards
+          .slice(0, 20)
+          .map((board) => boundedString(board, 120))
+          .filter(Boolean)
+      : [],
+    digitalSlotPicks:
+      payload.digitalSlotPicks && typeof payload.digitalSlotPicks === "object"
+        ? payload.digitalSlotPicks
+        : {},
+    images: orderedImages(
+      Array.isArray(payload.images) ? payload.images : [],
+      payload.digitalSlotPicks,
+    ),
+    // An unclaimed applicant has no `/pdf/view/:slug` to link — no profile, no
+    // slug. A comp card in the payload keeps its metadata, never a dead URL.
+    compCard: compCard ? { ...compCard, viewUrl: compCard.externalUrl || null } : null,
+    contact:
+      payload.contact && typeof payload.contact === "object"
+        ? {
+            email: boundedString(payload.contact.email, 254),
+            phone: boundedString(payload.contact.phone, 40),
+          }
+        : null,
+    profile: null,
+    minorDataMinimized: payload.minorDataMinimized === true,
+  };
+}
+
+/**
+ * The dossier for an application whose applicant has no Pholio account yet.
+ *
+ * Same keys as the profile branch. The frozen package is the primary content
+ * here — for an unclaimed applicant it is the ONLY content — so it is attached
+ * exactly as it is for a profile-backed row.
+ */
+async function buildIdentityDossier(db, { application, agencyId }) {
+  const dto = await resolveApplicantIdentity(db, application);
+  const frozen = await loadIdentitySubmissionPackage(db, application);
+
+  /* Attested adult, date of birth not collected: no minor gating, no minor
+     redaction. See `identityProfileRow` — there is no DOB to feed
+     `isMinorProfile`, and fabricating one is the only way this could
+     misclassify. */
+  const minor = false;
+  const social = identitySocialRows(dto);
+  const snapshot = buildSubmissionProfileSnapshot(identityProfileRow(dto), {
+    social,
+    minor,
+  });
+
+  /* Frozen frames only. Unlike the profile branch there is no live-`images`
+     enrichment pass: these ids are `open_call_submission_media` ids (design
+     §3.3) and would match nothing in `images`. The snapshot carries its own
+     `image_type` / `shot_type` / `sort`; `captured_at` is simply not a fact the
+     open-call intake collects, so it stays absent rather than guessed. */
+  const rawImages = frozen?.images?.length ? frozen.images : dto.images || [];
+  const images = rawImages.map(buildAgencyImageDTO).filter(Boolean);
+
+  const standing = await buildStanding(db, { agencyId, application });
+
+  const contact = { email: dto.email || null, phone: dto.phone || null };
+
+  return {
+    application: {
+      id: application.id,
+      status: application.status,
+      board_id: application.board_id || null,
+      created_at: application.created_at || null,
+      viewed_at: application.viewed_at || null,
+      accepted_at: application.accepted_at || null,
+      declined_at: application.declined_at || null,
+      invited_by_agency_id: application.invited_by_agency_id || null,
+    },
+    talent: {
+      ...snapshot,
+      // Only a live profile answers these. `market` is derived from a profile
+      // column, and availability is a declaration the applicant has never been
+      // asked to make.
+      market: null,
+      availability_status: null,
+      // The professional record is a `profiles` read; every field is null and
+      // every list empty rather than absent, so the client's `professional.x`
+      // reads keep working.
+      professional: buildProfessionalRecord({}, minor),
+      social: shapeSocialAccounts(snapshot.social || social),
+    },
+    images,
+    submissionPackage: frozen || {
+      /* No package row (or one written before the submit lane snapshotted
+         identities): the applicant still owes the organizer their contact and
+         whatever frames the resolver could find. Same fallback `/details`
+         builds for this branch. */
+      id: null,
+      submittedAt: application.created_at || null,
+      mediaSet: null,
+      boards: [],
+      digitalSlotPicks: {},
+      images: dto.images || [],
+      compCard: null,
+      contact,
+      profile: null,
+    },
+    representation: {
+      /* Not "unrepresented" — Pholio has no representation record for someone
+         with no profile, and asserting one from an empty object would be an
+         invented fact. `status: null` is the unknown, and the client's
+         `representationRead` already reads it as "No representation on
+         record." */
+      status: null,
+      represented_by: null,
+      lines: [],
+    },
+    availability: {
+      status: null,
+      window_days: CALENDAR_WINDOW_DAYS,
+      // No profile id, so no bookouts and no commitments can exist to read.
+      bookouts: [],
+      commitments: [],
+    },
+    standing,
+    compliance: {
+      is_minor: false,
+      age_band: snapshot.age_band || null,
+      guardian_consent_at: null,
+    },
+    contact,
+    // Plain data — booleans and one lowercase word, never a badge (design §6
+    // requirement 2, CLAUDE.md banned pattern #4).
+    identityClaimed: Boolean(dto.isClaimed),
+    emailVerified: Boolean(dto.isEmailVerified),
+    identityDisputed: Boolean(dto.isDisowned),
+    identitySource: IDENTITY_SOURCES.SUBMISSION,
+  };
+}
+
+/**
+ * The profile branch's answer to the same four truth fields, computed without
+ * re-running the resolver (this builder has already read the profile, and the
+ * resolver would read it a second time). Both branches carry the keys so a
+ * client never has to read an absent `identityClaimed` as `false` on an
+ * account-backed applicant.
+ *
+ * Both reads are column/table-probed: several agency suites hand-build a
+ * partial schema with no `email_verified` column and no `applicant_identities`
+ * table, and a dossier that used to work must not start 500ing on them.
+ */
+async function buildProfileTruthFields(db, application, profile) {
+  let emailVerified = false;
+  if (profile?.user_id && (await hasColumnCached(db, "users", "email_verified"))) {
+    const account = await db("users")
+      .where({ id: profile.user_id })
+      .first("email_verified");
+    emailVerified = Boolean(account?.email_verified);
+  }
+
+  let identityDisputed = false;
+  if (
+    application.applicant_identity_id &&
+    (await hasApplicantIdentitySupport(db))
+  ) {
+    const identity = await db("applicant_identities")
+      .where({ id: application.applicant_identity_id })
+      .first("disowned_at")
+      .catch(() => null);
+    identityDisputed = Boolean(identity?.disowned_at);
+  }
+
+  return {
+    identityClaimed: true,
+    emailVerified,
+    identityDisputed,
+    identitySource: IDENTITY_SOURCES.PROFILE,
+  };
+}
+
 /**
  * Build the full dossier payload.
  *
@@ -378,6 +687,14 @@ async function buildStanding(db, { agencyId, application }) {
  * @returns {Promise<object|null>} null when the profile no longer exists.
  */
 async function buildTalentDossier(db, { application, agencyId }) {
+  /* Identity-backed (design §4): no `profiles` row exists and none should be
+     invented, so the frozen submission answers instead. Only this exact shape
+     takes the branch — a profile-backed application whose profile has genuinely
+     gone still falls through to the null return the route 404s on. */
+  if (!application.profile_id && application.applicant_identity_id) {
+    return buildIdentityDossier(db, { application, agencyId });
+  }
+
   const columns = [
     ...new Set([
       ...selectColumnsForAudience(AUDIENCE.AGENCY_SUBMISSION, {
@@ -448,9 +765,10 @@ async function buildTalentDossier(db, { application, agencyId }) {
     representationRows,
   );
 
-  const [standing, availability] = await Promise.all([
+  const [standing, availability, truth] = await Promise.all([
     buildStanding(db, { agencyId, application }),
     buildAvailability(db, { agencyId, profile }),
+    buildProfileTruthFields(db, application, profile),
   ]);
 
   const contact = minor
@@ -495,6 +813,9 @@ async function buildTalentDossier(db, { application, agencyId }) {
       guardian_consent_at: minor ? profile.guardian_consent_at || null : null,
     },
     contact,
+    // Same four plain-data fields the identity branch carries, so the client
+    // reads one contract instead of two.
+    ...truth,
   };
 }
 

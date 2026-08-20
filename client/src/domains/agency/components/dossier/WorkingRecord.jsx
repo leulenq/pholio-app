@@ -44,7 +44,7 @@ export function ActivityLedger({ timeline = [] }) {
   );
 }
 
-export function WorkingRecord({ applicationId, timeline }) {
+export function WorkingRecord({ applicationId, timeline, canMessage = true }) {
   return (
     <div className="dx-record">
       <div className="dx-record__log">
@@ -53,7 +53,11 @@ export function WorkingRecord({ applicationId, timeline }) {
       </div>
       <div className="dx-record__work">
         <h3 className="dx-record__title">Working notes and conversation</h3>
-        <TalentThread applicationId={applicationId} />
+        <TalentThread
+          applicationId={applicationId}
+          canMessage={canMessage}
+          messagingDisabledReason="No Pholio account yet — this applicant can't be messaged directly."
+        />
       </div>
     </div>
   );

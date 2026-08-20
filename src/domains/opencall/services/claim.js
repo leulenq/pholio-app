@@ -42,15 +42,17 @@ const {
 const {
   MODERATION_STATUS,
 } = require("../../../shared/lib/content-moderation");
+const { isMinorProfile } = require("../../../shared/lib/talent-age");
 const {
   getState,
   initialState,
   transitionTo,
 } = require("../../onboarding/services/state-machine");
 const { consumeClaimToken } = require("./claim-tokens");
+const { parseJsonColumn } = require("./json");
 const {
   IDENTITIES_TABLE,
-  normalizeEmailAsTyped,
+  findUserForIdentityEmail,
 } = require("./applicant-identities");
 
 const SUBMISSIONS_TABLE = "open_call_submissions";
@@ -101,15 +103,13 @@ function codedError(message, code) {
   return error;
 }
 
-function parseJsonColumn(value) {
-  if (!value) return {};
-  if (typeof value === "object") return value;
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+/**
+ * The claim paths read `answers` only to look keys up on the result, so an
+ * array is harmless here and was accepted before the readers were consolidated.
+ * `allowArrays` keeps that exactly.
+ */
+function parseAnswersColumn(value) {
+  return parseJsonColumn(value, { allowArrays: true });
 }
 
 function isEmptyAnswer(value) {
@@ -131,7 +131,7 @@ function isEmptyAnswer(value) {
 function mergeAnswers(submissions) {
   const merged = {};
   for (const submission of submissions) {
-    const answers = parseJsonColumn(submission.answers);
+    const answers = parseAnswersColumn(submission.answers);
     for (const [key, value] of Object.entries(answers)) {
       if (isEmptyAnswer(value)) continue;
       if (!(key in merged)) merged[key] = value;
@@ -401,18 +401,19 @@ function funnelContextFrom(submissions) {
   };
 }
 
+/**
+ * The account this identity already has, if any.
+ *
+ * One line, because the matching rule (exact address OR the same address with a
+ * `+tag`, confirmed by re-normalizing, deterministic when several collapse) is
+ * `findUserForIdentityEmail`'s and must be identical everywhere: the version
+ * that lived here missed a plus-tagged registration, so a claim created a
+ * SECOND account for someone who already had one.
+ */
 async function findExistingUserForIdentity(trx, identity) {
-  const candidates = [
-    identity.email_normalized,
-    normalizeEmailAsTyped(identity.email_normalized),
-  ].filter(Boolean);
-  const unique = [...new Set(candidates)];
-  return trx("users")
-    .whereRaw(
-      `LOWER(email) IN (${unique.map(() => "?").join(", ")})`,
-      unique,
-    )
-    .first("id", "role", "email", "email_verified");
+  return findUserForIdentityEmail(trx, identity.email_normalized, {
+    select: ["email_verified"],
+  });
 }
 
 /**
@@ -471,7 +472,7 @@ async function insertProjectedProfile(trx, { userId, projected, onboarding }) {
  * application came from this request, which it did not.
  *
  * Coded failures: IDENTITY_NOT_FOUND, IDENTITY_DISOWNED, TERMS_REQUIRED,
- * IDENTITY_EMAIL_IS_AGENCY, CLAIM_TOKEN_CONFLICT.
+ * IDENTITY_EMAIL_IS_AGENCY, IDENTITY_EMAIL_IS_MINOR, CLAIM_TOKEN_CONFLICT.
  */
 async function claimIdentity(db, { identityId, termsAccepted, tokenId } = {}) {
   if (!identityId) throw codedError("identityId is required", "IDENTITY_NOT_FOUND");
@@ -543,7 +544,38 @@ async function claimIdentity(db, { identityId, termsAccepted, tokenId } = {}) {
 
       let profile = await trx("profiles")
         .where({ user_id: existingUser.id })
-        .first("id");
+        .first("id", "date_of_birth");
+
+      /* THE MINOR GUARD, mirroring `resolveDestination` in
+         `services/submissions.js` — refuse BEFORE any write.
+
+         An account-backed submission by a minor is gated on a guardian's
+         per-agency authorization (`getAgencyConsentGrant`, GUARDIAN_AGENCY_
+         CONSENT_REQUIRED in `domains/talent/routes/applications.js`). Attaching
+         an anonymous application to a minor's live profile here would walk
+         around that gate through the side door: the applications this claim
+         re-points carry an adult attestation nobody with authority gave.
+
+         So this stops at the door and creates nothing — no user, no profile, no
+         image promotion, no re-pointing, no `claimed_at`. The identity stays
+         unclaimed and the organizer keeps the application, exactly as they do
+         for an agency mailbox (IDENTITY_EMAIL_IS_AGENCY, just above), which
+         `routes/claim.js` answers with the same friendly "manage this from your
+         existing account" response.
+
+         Real minor intake — guardian-consented, on this anonymous path — is
+         design §9 Q1 and belongs to the separate minors/age-policy workstream.
+         This is containment until that lands, not a policy. */
+      if (
+        profile &&
+        isMinorProfile({ ...profile, email: existingUser.email })
+      ) {
+        throw codedError(
+          "This address belongs to an existing Pholio account",
+          "IDENTITY_EMAIL_IS_MINOR",
+        );
+      }
+
       let profileCreated = false;
       let promotedImageCount = 0;
 
