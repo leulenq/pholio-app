@@ -36,6 +36,7 @@ describe("session endpoint CSRF guard", () => {
   const protectedPaths = [
     "/api/login",
     "/api/logout",
+    "/api/auth/instagram/start",
     "/api/auth/password-reset",
   ];
 

@@ -844,6 +844,19 @@
   applied to the database serving the dev process. Treat an advisory API's missing-table 503 as a
   release-state defect to diagnose, not as a frontend retry problem.
 
+# Scope Clarifications
+
+- Apple-related work in Pholio is for the Pholio ID Apple Wallet pass only;
+  do not add Apple OAuth or alter authentication providers unless explicitly
+  requested.
+
+## 2026-08-12 — Optional schema columns must be guarded at every read boundary
+
+- When production has a deliberately partial migration state, trace a missing
+  column through request handlers *and* background workers. Any optional column
+  must be selected only after a schema check; an absent consent flag must fail
+  closed rather than make unrelated work fail.
+
 ## 2026-08-15 — New surfaces must clear the bar of the strongest live pages, verified visually
 
 - Shipping a feature's data plumbing with a first-pass presentation is a regression, not a

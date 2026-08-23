@@ -31,14 +31,11 @@ async function loadAuthoritativeProfile(
   { forUpdate = false } = {},
 ) {
   if (!profileId) return null;
-  let query = knex("profiles")
-    .where({ id: profileId })
-    .select(
-      "id",
-      "date_of_birth",
-      "guardian_consent_at",
-      "ai_processing_consent",
-    );
+  const columns = ["id", "date_of_birth", "guardian_consent_at"];
+  if (await knex.schema.hasColumn("profiles", "ai_processing_consent")) {
+    columns.push("ai_processing_consent");
+  }
+  let query = knex("profiles").where({ id: profileId }).select(columns);
   if (
     forUpdate &&
     ["pg", "postgres", "postgresql"].includes(knex.client?.config?.client)

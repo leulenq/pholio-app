@@ -638,6 +638,29 @@ async function normalizeProfileImageSort(trx, profileId) {
 }
 
 /**
+ * Loads an image owned by the current talent along with the profile context
+ * required by media guards. AI consent was added after some production schemas
+ * had already dropped the legacy column, so it must remain an optional select.
+ */
+async function selectOwnedImageWithProfile(
+  imageId,
+  userId,
+  profileColumns = [],
+  db = knex,
+) {
+  const columns = ["images.*", ...profileColumns];
+  if (await db.schema.hasColumn("profiles", "ai_processing_consent")) {
+    columns.push("profiles.ai_processing_consent");
+  }
+  return db("images")
+    .select(columns)
+    .leftJoin("profiles", "images.profile_id", "profiles.id")
+    .where("images.id", imageId)
+    .where("profiles.user_id", userId)
+    .first();
+}
+
+/**
  * Middleware to ensure profile exists for the current user
  * and attach it to req.profile for use in multer/S3 naming.
  */
@@ -1838,18 +1861,11 @@ router.put(
     const imageId = req.params.id;
     const userId = req.session.userId;
 
-    const image = await knex("images")
-      .select(
-        "images.*",
-        "profiles.date_of_birth",
-        "profiles.guardian_consent_at",
-        "profiles.work_permit_on_file",
-        "profiles.ai_processing_consent",
-      )
-      .leftJoin("profiles", "images.profile_id", "profiles.id")
-      .where("images.id", imageId)
-      .where("profiles.user_id", userId)
-      .first();
+    const image = await selectOwnedImageWithProfile(imageId, userId, [
+      "profiles.date_of_birth",
+      "profiles.guardian_consent_at",
+      "profiles.work_permit_on_file",
+    ]);
 
     if (!image)
       return res
@@ -2013,19 +2029,12 @@ router.put(
     const imageId = req.params.id;
     const userId = req.session.userId;
 
-    const image = await knex("images")
-      .select(
-        "images.*",
-        "profiles.id as profile_id",
-        "profiles.date_of_birth",
-        "profiles.guardian_consent_at",
-        "profiles.work_permit_on_file",
-        "profiles.ai_processing_consent",
-      )
-      .leftJoin("profiles", "images.profile_id", "profiles.id")
-      .where("images.id", imageId)
-      .where("profiles.user_id", userId)
-      .first();
+    const image = await selectOwnedImageWithProfile(imageId, userId, [
+      "profiles.id as profile_id",
+      "profiles.date_of_birth",
+      "profiles.guardian_consent_at",
+      "profiles.work_permit_on_file",
+    ]);
 
     if (!image) {
       return res
@@ -2199,19 +2208,12 @@ router.patch(
       return res.status(400).json({ success: false, message: `Invalid role.` });
     }
 
-    const image = await knex("images")
-      .select(
-        "images.*",
-        "profiles.user_id",
-        "profiles.date_of_birth",
-        "profiles.guardian_consent_at",
-        "profiles.work_permit_on_file",
-        "profiles.ai_processing_consent",
-      )
-      .leftJoin("profiles", "images.profile_id", "profiles.id")
-      .where("images.id", imageId)
-      .where("profiles.user_id", userId)
-      .first();
+    const image = await selectOwnedImageWithProfile(imageId, userId, [
+      "profiles.user_id",
+      "profiles.date_of_birth",
+      "profiles.guardian_consent_at",
+      "profiles.work_permit_on_file",
+    ]);
 
     if (!image)
       return res
@@ -2291,18 +2293,11 @@ router.post(
 
     const userId = req.session.userId;
 
-    const image = await knex("images")
-      .select(
-        "images.*",
-        "profiles.id as _profile_id",
-        "profiles.date_of_birth",
-        "profiles.guardian_consent_at",
-        "profiles.ai_processing_consent",
-      )
-      .leftJoin("profiles", "images.profile_id", "profiles.id")
-      .where("images.id", imageId)
-      .where("profiles.user_id", userId)
-      .first();
+    const image = await selectOwnedImageWithProfile(imageId, userId, [
+      "profiles.id as _profile_id",
+      "profiles.date_of_birth",
+      "profiles.guardian_consent_at",
+    ]);
 
     if (!image) {
       return res
@@ -3144,4 +3139,5 @@ module.exports.__testables = {
   buildInitialUploadMetadata,
   classificationStatusFromMetadata,
   scheduleImageClassification,
+  selectOwnedImageWithProfile,
 };
