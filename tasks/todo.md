@@ -170,5 +170,24 @@ itself remains at 218 / batch 18 — nothing has been applied there.
     handled it, but the log line claimed both were dropped. Fixed to name only
     what it actually drops.
 
-Still to do before production: apply the six (owner's call), and decide the
-orphaned Elite trust-registry org key.
+### APPLIED TO PRODUCTION — 2026-08-24, batch 19
+
+All six applied on the owner's instruction. Restore point taken first:
+Neon branch `pre-migration-batch19-2026-08-24` (br-rough-block-a44lxze2),
+created with NO expiry so it outlives the rehearsal branches.
+
+Verified after: 218 -> 224 migrations, batch 19. Every row count identical to
+the pre-migration baseline — applications 47, profiles 62, users 67, images 71,
+agencies 22, notes 6, tags 42, onboarding_signals 3, sessions 26. The 6 existing
+declined applications kept decline_reason NULL. Ten schema assertions correct
+(agency_invitations created; decline_reason added; match_score,
+board_scoring_weights, archetype, vibe_score gone; invited_by_agency_id,
+ai_processing_consent and age_range all kept). profiles is 109 columns.
+Invitation service smoke-tested live: 9/9, and inviting still writes no
+applications row (47 -> 47).
+
+Rollback if ever needed: `npx knex migrate:rollback` reverses batch 19; the
+reconcile migration is deliberately one-way and restores nothing, by design.
+
+Still open: decide the orphaned Elite trust-registry org key (`elite-models` vs
+the delisted `elite-model-management`).
