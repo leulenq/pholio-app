@@ -188,6 +188,7 @@ async function createSchema() {
     t.string("shot_type", 50).nullable();
     t.string("image_type", 50).nullable();
     t.string("style_type", 50).nullable();
+    t.string("set_id", 36).nullable();
     t.timestamp("captured_at").nullable();
     t.integer("sort").defaultTo(0);
     t.string("status", 20).nullable();
@@ -740,5 +741,71 @@ describe("dossier access boundaries", () => {
       `/api/agency/applications/${APPLICATION_ID}/dossier`,
     );
     expect([401, 403]).toContain(res.status);
+  });
+});
+
+/**
+ * Digitals freshness reaches the reviewer, and reaches them honestly.
+ *
+ * The client used to compute this itself and was wrong in two directions at
+ * once: it aged from `created_at` when `captured_at` was absent, so an undated
+ * frame reported its upload date as if that were a capture date, and it read the
+ * NEWEST digital, so one recent frame made a whole stale set look fresh. Both
+ * errors told a booker the digitals were current when they were not, which is
+ * the one thing this readout exists to prevent.
+ */
+describe("dossier digitals freshness", () => {
+  async function fetchFreshness() {
+    const res = await request(app)
+      .get(`/api/agency/applications/${APPLICATION_ID}/dossier`)
+      .set("Cookie", cookie);
+    expect(res.status).toBe(200);
+    return res.body.data.digitalsFreshness;
+  }
+
+  test("a set shot 25 days ago reads as current", async () => {
+    const freshness = await fetchFreshness();
+    expect(freshness).not.toBeNull();
+    expect(freshness.state).toBe("current");
+    expect(freshness.hasDigitals).toBe(true);
+  });
+
+  test("the OLDEST frame in a set decides it, not the newest", async () => {
+    // Bind the three digitals into one set, then backdate a single frame past
+    // the stale threshold. Two frames stay recent, so a "newest wins" reading —
+    // the bug this replaces — would still call the set current.
+    await knex("images")
+      .whereIn("shot_type", ["headshot", "profile", "full_length"])
+      .update({ set_id: "set-one" });
+    await knex("images")
+      .where({ shot_type: "headshot" })
+      .update({ captured_at: iso(-200) });
+
+    const freshness = await fetchFreshness();
+    expect(freshness.state).toBe("stale");
+    expect(freshness.currentSet.ageDays).toBeGreaterThanOrEqual(200);
+
+    await knex("images")
+      .where({ shot_type: "headshot" })
+      .update({ captured_at: iso(-25) });
+  });
+
+  test("an undated frame stops the set claiming to be current", async () => {
+    await knex("images")
+      .whereIn("shot_type", ["headshot", "profile", "full_length"])
+      .update({ set_id: "set-one" });
+    await knex("images")
+      .where({ shot_type: "profile" })
+      .update({ captured_at: null });
+
+    const freshness = await fetchFreshness();
+    // Not "current" — nobody knows how old that frame is, and a dossier must
+    // not answer a question it cannot answer.
+    expect(freshness.state).not.toBe("current");
+    expect(freshness.undatedCount).toBeGreaterThan(0);
+
+    await knex("images")
+      .where({ shot_type: "profile" })
+      .update({ captured_at: iso(-25) });
   });
 });

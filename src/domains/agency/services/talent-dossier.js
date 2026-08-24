@@ -49,6 +49,9 @@ const {
   selectColumnsForAudience,
 } = require("../../../shared/lib/profile-visibility");
 const {
+  digitalsFreshness,
+} = require("../../talent/services/digitals-freshness");
+const {
   buildSubmissionProfileSnapshot,
   normalizeStringList,
 } = require("../../../shared/lib/submission-profile");
@@ -75,6 +78,30 @@ const {
 const {
   redactExpiredSubmissionPackages,
 } = require("../../../shared/lib/submission-retention");
+
+/**
+ * Digitals freshness for the reviewer, computed here rather than on the client.
+ *
+ * The client used to work this out itself, and got it wrong twice over: it aged
+ * from `captured_at || created_at`, so an undated frame silently reported the
+ * date it was uploaded, and it took the *newest* digital, so a part-stale set
+ * read as fresh off its most recent frame. A booker judging "are these current?"
+ * was being told yes on both counts when the honest answer was "we don't know"
+ * or "no". One source of truth, and it is `digitals-freshness.js` — the same
+ * engine the talent sees, so neither side is told a different story.
+ *
+ * Returns null when no frame carries an `image_type`. The engine reads that as
+ * "no digitals", which is a claim rather than an absence — and a dossier must
+ * not assert a talent has no digitals when what it actually has is no data.
+ *
+ * @param {Array<object>} rawImages rows carrying image_type / captured_at
+ * @returns {object|null}
+ */
+function buildDigitalsFreshness(rawImages) {
+  const images = Array.isArray(rawImages) ? rawImages : [];
+  if (!images.some((img) => img && img.image_type)) return null;
+  return digitalsFreshness(images);
+}
 
 /** Activity rows carried into the record ledger. */
 const TIMELINE_LIMIT = 40;
@@ -590,6 +617,7 @@ async function buildIdentityDossier(db, { application, agencyId }) {
       social: shapeSocialAccounts(snapshot.social || social),
     },
     images,
+    digitalsFreshness: buildDigitalsFreshness(rawImages),
     submissionPackage: frozen || {
       /* No package row (or one written before the submit lane snapshotted
          identities): the applicant still owes the organizer their contact and
@@ -797,6 +825,7 @@ async function buildTalentDossier(db, { application, agencyId }) {
       social: minor ? [] : shapeSocialAccounts(snapshot.social || social),
     },
     images,
+    digitalsFreshness: buildDigitalsFreshness(rawImages),
     submissionPackage: frozen
       ? { ...frozen, contact: minor ? null : frozen.contact || contact }
       : null,

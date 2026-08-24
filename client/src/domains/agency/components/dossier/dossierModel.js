@@ -222,12 +222,16 @@ export function packageRead(dossier) {
     .filter(Boolean)
     .map((d) => new Date(d).getTime())
     .filter((t) => Number.isFinite(t));
-  const newestDigital = digitals
-    .map((img) => img.captured_at || img.created_at)
-    .filter(Boolean)
-    .map((d) => new Date(d).getTime())
-    .filter((t) => Number.isFinite(t))
-    .sort((a, b) => b - a)[0];
+  // Freshness comes from the server (`talent-dossier.js` → `digitals-freshness`),
+  // so a booker and the talent are told the same thing by the same engine.
+  //
+  // This file used to compute it, and was wrong twice over. It aged from
+  // `captured_at || created_at`, so an undated frame quietly reported the day it
+  // was uploaded as if that were when it was shot. And it took the *newest*
+  // digital, so a set with one recent frame read as fresh no matter how old the
+  // rest were. Both errors pointed the same way: towards telling a reviewer the
+  // digitals were current when they were not.
+  const freshness = dossier?.digitalsFreshness || null;
 
   return {
     set,
@@ -237,7 +241,11 @@ export function packageRead(dossier) {
     digitalsCount: digitals.length,
     bookCount: book.length,
     newestFrameAt: dated.length ? new Date(Math.max(...dated)).toISOString() : null,
-    digitalsAgeDays: newestDigital ? daysSince(new Date(newestDigital).toISOString()) : null,
+    freshness,
+    // The OLDEST frame in the set a submission actually carries — the frame that
+    // decides whether the set is usable. Null when nothing is datable, which is
+    // a real answer ("we don't know") and must not be read as zero.
+    digitalsAgeDays: freshness?.currentSet?.ageDays ?? null,
     missingLabels: set.missingSlots.map((slot) => SHOT_LABELS[slot] || titleCase(slot)),
   };
 }
