@@ -13,6 +13,7 @@ const { parseBrief } = require("./discover/parse");
 const { evaluateProfile } = require("./discover/constraint-eval");
 const { buildUnderstanding } = require("./discover/present");
 const { ageFilterDobCutoffs } = require("./discover-age");
+const { invitedProfileIds } = require("./agency-invitations");
 const {
   AUDIENCE,
   buildAgencyDiscoveryDTO,
@@ -211,12 +212,33 @@ function understandingFromParse(parsed, role, brief) {
   );
 }
 
+/**
+ * Which profiles this agency has already reached — used only to set
+ * `dto.is_invited`, so Discover does not offer "invite" twice.
+ *
+ * Since `20260820100000_create_agency_invitations.js` an invitation is its own
+ * record rather than a placeholder `applications` row, so both tables have to be
+ * consulted: the agency has "already reached" a talent it invited, and equally
+ * one who applied to it unprompted. Reading `applications` alone would let
+ * Discover re-offer an invite to someone already invited.
+ */
 async function fetchApplicationMap(knex, agencyId) {
-  const rows = await knex("applications")
-    .where({ agency_id: agencyId })
-    .select("profile_id", "invited_by_agency_id");
+  const [applications, invitedIds] = await Promise.all([
+    knex("applications").where({ agency_id: agencyId }).select("profile_id"),
+    invitedProfileIds(knex, agencyId),
+  ]);
 
-  return new Map(rows.map((application) => [application.profile_id, application]));
+  const reached = new Map();
+  for (const row of applications) {
+    reached.set(row.profile_id, { profile_id: row.profile_id, applied: true });
+  }
+  for (const profileId of invitedIds) {
+    const existing = reached.get(profileId);
+    if (existing) existing.invited = true;
+    else reached.set(profileId, { profile_id: profileId, invited: true });
+  }
+
+  return reached;
 }
 
 async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) {

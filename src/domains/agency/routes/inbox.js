@@ -24,6 +24,10 @@ const {
 const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
 const { searchDiscoverableTalent } = require("../services/discover-search");
 const {
+  findInvitation,
+  createInvitation,
+} = require("../services/agency-invitations");
+const {
   writeQueryLog,
   writeImpressionEvents,
   writeInviteEvent,
@@ -4458,26 +4462,48 @@ router.post(
         });
       }
 
-      const existingApplication = await knex("applications")
-        .where({ profile_id: profileId, agency_id: agencyId })
-        .first();
+      // An invitation is not an application (see
+      // `20260820100000_create_agency_invitations.js`). Writing one as an
+      // `applications` row handed this agency the submission-grade dossier —
+      // exact date of birth and email — for a talent who had done nothing, and
+      // told that talent they had already applied here.
+      //
+      // Both conditions still block a second invite, but for different reasons:
+      // a standing invitation, or a real application the talent already sent.
+      const [existingInvitation, existingApplication] = await Promise.all([
+        findInvitation(knex, { agencyId, profileId }),
+        knex("applications")
+          .where({ profile_id: profileId, agency_id: agencyId })
+          .first(),
+      ]);
 
-      if (existingApplication) {
+      if (existingInvitation) {
         return res
           .status(409)
           .json({ error: "You have already invited this talent" });
       }
 
-      const applicationId = require("crypto").randomUUID();
-      await knex("applications").insert({
-        id: applicationId,
-        profile_id: profileId,
-        agency_id: agencyId,
-        status: "pending",
-        invited_by_agency_id: agencyId,
-        created_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
+      if (existingApplication) {
+        return res
+          .status(409)
+          .json({ error: "This talent has already applied to your agency" });
+      }
+
+      const invitationId = await createInvitation(knex, {
+        agencyId,
+        profileId,
+        id: require("crypto").randomUUID(),
       });
+
+      if (!invitationId) {
+        // Deploy landed before the migration. Say so rather than sending an
+        // email for an invitation no record backs.
+        return res.status(503).json({
+          error: "invitations_unavailable",
+          message:
+            "Invitations are briefly unavailable while Pholio finishes an update. Please try again shortly.",
+        });
+      }
 
       // Send invitation email (optional)
       try {
