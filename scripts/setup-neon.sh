@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Neon Database Setup Script for ZipSite
+# Neon Database Setup Script for Pholio
 # This script helps you set up Neon database connection
 
 set -e
 
-echo "🚀 ZipSite Neon Database Setup"
+echo "🚀 Pholio Neon Database Setup"
 echo "================================"
 echo ""
 

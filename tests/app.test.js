@@ -37,7 +37,7 @@ afterAll(async () => {
   }
 });
 
-describe("ZipSite application", () => {
+describe("Pholio application", () => {
   /* RETIRED — targets a removed endpoint.
      This asserted a server-rendered form POST to /login returning a 302.
      /login is now an SPA route (src/app.js) and authentication moved to

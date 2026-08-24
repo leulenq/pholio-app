@@ -180,7 +180,7 @@
   function initPortfolioToggle() {
     const toggleButtons = document.querySelectorAll('.feature-demo__toggle-btn');
     const portfolioFrame = document.getElementById('portfolio-frame');
-    const brandPholio = document.getElementById('portfolio-brand-zipsite');
+    const brandPholio = document.getElementById('portfolio-brand-pholio');
     const portfolioUrl = document.getElementById('portfolio-url');
     const portfolioBadge = document.getElementById('portfolio-badge');
     const portfolioFeatures = document.getElementById('portfolio-features');
