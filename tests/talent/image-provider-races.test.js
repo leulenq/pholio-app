@@ -83,8 +83,6 @@ describe("image provider consent and feature-flag races", () => {
       table.text("image_analysis");
       table.timestamp("image_analyzed_at");
       table.string("image_analysis_model");
-      table.text("look_descriptor");
-      table.timestamp("look_descriptor_generated_at");
       table.timestamp("updated_at");
     });
     await db.schema.createTable("images", (table) => {
@@ -214,22 +212,17 @@ describe("image provider consent and feature-flag races", () => {
     expect(result).toBeNull();
     expect(mockGroqCreate).toHaveBeenCalledTimes(1);
     expect(profile.image_analysis).toBeNull();
-    expect(profile.look_descriptor).toBeNull();
   });
 
-  test("eligible master vision persists analysis and descriptor", async () => {
-    mockGroqCreate
-      .mockResolvedValueOnce(
-        providerResponse({
-          castingAnalysis: {
-            boneStructure: "Angular",
-            lookType: "Editorial",
-          },
-        }),
-      )
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: "Editorial with commercial range" } }],
-      });
+  test("eligible master vision persists casting analysis with a single provider call", async () => {
+    mockGroqCreate.mockResolvedValueOnce(
+      providerResponse({
+        castingAnalysis: {
+          boneStructure: "Angular",
+          lookType: "Editorial",
+        },
+      }),
+    );
 
     const result = await masterVisionAnalysis(db, Buffer.from("image"), PROFILE_ID);
     const profile = await db("profiles").where({ id: PROFILE_ID }).first();
@@ -238,11 +231,13 @@ describe("image provider consent and feature-flag races", () => {
       boneStructure: "Angular",
       lookType: "Editorial",
     });
-    expect(mockGroqCreate).toHaveBeenCalledTimes(2);
+    // Only the vision call — no second (text) call to score the analysis or
+    // generate an AI "look descriptor" from it. See
+    // migrations/20260820120000_drop_ai_look_descriptor.js.
+    expect(mockGroqCreate).toHaveBeenCalledTimes(1);
     expect(JSON.parse(profile.image_analysis)).toMatchObject({
       lookType: "Editorial",
     });
-    expect(profile.look_descriptor).toBe("Editorial with commercial range");
   });
 
   test("master vision fails closed before provider invocation when the flag is off", async () => {

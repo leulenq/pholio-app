@@ -104,7 +104,11 @@ describe("fallback on model failure", () => {
     expect(out.contract.roles).toHaveLength(1);
     const hard = out.contract.roles[0].hard;
     expect(hard.gender_presentation).toEqual(["female"]);
-    expect(hard.boards).toEqual(["editorial"]);
+    // The "Look" facet (editorial/commercial/etc.) no longer maps to a
+    // hard `boards` filter in the regex/lexicon fallback path — it filtered
+    // on the dead `profiles.archetype` trait. See
+    // migrations/20260820110000_drop_profiles_archetype.js.
+    expect(hard.boards).toBeNull();
     // regex-guessed height must NOT be silently applied
     expect(out.needs_confirmation_fields.map((x) => x.field)).toContain("height_cm");
     warn.mockRestore();

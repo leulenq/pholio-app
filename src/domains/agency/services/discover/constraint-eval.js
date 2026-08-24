@@ -168,9 +168,6 @@ function profileBoards(profile) {
       list = [];
     }
   }
-  if (!list.length && profile.archetype) {
-    list = normalizeBookingLaneList([profile.archetype]);
-  }
   return list;
 }
 

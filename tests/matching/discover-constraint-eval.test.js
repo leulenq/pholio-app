@@ -123,8 +123,11 @@ describe("enum / boolean fields", () => {
     expect(boardsStatus(["editorial"], { modeling_categories: '["editorial"]' })).toBe("pass");
     expect(boardsStatus(["editorial"], { modeling_categories: '["commercial"]' })).toBe("fail");
     expect(boardsStatus(["editorial"], { modeling_categories: null })).toBe("unknown");
-    // archetype fallback
-    expect(boardsStatus(["editorial"], { archetype: "Editorial" })).toBe("pass");
+    // The `profiles.archetype` fallback was removed (dead column, always
+    // null in production — see migrations/20260820110000_drop_profiles_archetype.js).
+    // A profile with no modeling_categories/booking_lanes is now "unknown"
+    // regardless of any archetype value.
+    expect(boardsStatus(["editorial"], { archetype: "Editorial" })).toBe("unknown");
   });
 
   test("union derivation", () => {

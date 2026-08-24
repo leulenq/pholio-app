@@ -10,7 +10,6 @@ const SNAPSHOT_FIELDS = [
   "last_name",
   "city",
   "gender",
-  "archetype",
   "stats_track",
   "height_cm",
   "bust_cm",

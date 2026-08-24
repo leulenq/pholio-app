@@ -61,6 +61,11 @@ const KNOWN_DRIFT = {
   "profiles.look_descriptor": true,
   "profiles.look_descriptor_generated_at": true,
   "profiles.booking_lanes": true,
+  // Dropped by migrations/20260820110000_drop_profiles_archetype.js (dead
+  // legacy archetype/vibe/market-fit column, always null in production).
+  // tests/security/ai-launch-fail-closed.test.js still asserts fail-closed
+  // nulling behaviour around its historical presence.
+  "profiles.archetype": true,
   // Image retirement moved to `status`; two spec-registry suites still model it.
   "images.retired_at": true,
 };

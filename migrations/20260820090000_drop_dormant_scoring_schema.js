@@ -1,4 +1,16 @@
 /**
+ * NOT transactional, deliberately.
+ *
+ * SQLite has no DROP COLUMN, so knex rebuilds the table: create-copy-drop-
+ * rename. It guards that with `PRAGMA foreign_keys = OFF`, which SQLite
+ * silently ignores inside a transaction. Dropping a column from a table other
+ * rows reference would then cascade and empty them — the exact regression
+ * tests/migrations/event-casting-schema.test.js exists to catch, and which it
+ * caught here.
+ */
+exports.config = { transaction: false };
+
+/**
  * Drop dormant automated-scoring schema (board_scoring_weights,
  * applications.match_score, applications.match_calculated_at).
  *

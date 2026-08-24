@@ -131,7 +131,6 @@ router.get(
           "p.bust_cm",
           "p.waist_cm",
           "p.hips_cm",
-          "p.archetype",
         )
         .orderBy([
           { column: "a.created_at", order: "desc" },
@@ -207,7 +206,6 @@ router.get(
             [row.first_name, row.last_name].filter(Boolean).join(" ").trim() ||
             identity?.displayName ||
             "Unknown Talent",
-          archetype: row.archetype || "editorial",
           avatar: primaryImage?.path || null,
           stage: mapApplicationStatusToCastingStage(row.application_status),
           backendStatus: row.application_status || "submitted",
