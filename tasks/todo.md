@@ -72,3 +72,78 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
   fix lane dispatched; one finding referenced a file absent from HEAD (moot).
 - Open before production: 7.1 anonymous-media moderation wiring; board-candidates endpoint
   identity fields; HEIC; minors policy (other workstream).
+
+---
+
+# Launch gap closure — verified against `docs/pholio-strategic-analysis-2026-08.md`
+
+Source: build-status audit 2026-08-23. Studio+ paid tier excluded by owner (§11 puts it at
+week 8+ anyway). Lead = Claude (Opus/Strong). Workers never commit; lead integrates.
+Branch: `claude/launch-gap-stage-1`.
+
+## Stage 1 — bleeding now — DONE
+
+- [x] **S1-LEAD (Strong)** Invite-to-Apply consent gate — `45b5b654`.
+      `inbox.js` and its drifted page-route twin in `roster.js` both recorded an agency's
+      interest as an `applications` row, which (a) satisfied the ownership check on
+      `/applications/:id/details` and so handed over the submission-grade dossier — exact
+      `date_of_birth` via `AGE_GATING_COLUMNS`, plus email — for a talent who had never
+      applied, and (b) made `alreadyAppliedToTarget` self-fulfilling, telling that talent
+      they had already applied. Now `agency_invitations`; `applications` row only on a real
+      apply; `invited_by_agency_id` kept but written at apply time so the dossier's
+      `invited` flag keeps its honest meaning. Guarded reads (deploy-before-migrate).
+      10 tests. No backfill — production held zero such rows.
+- [x] **S1-W1 (Standard)** Deletions — `7d2cec12`.
+      ZipSite removed from every shipping surface; `public/scripts/pdf-export.js` and
+      `render-pdf.js` deleted outright (unreferenced, carried a `bookings@zipsite.com`
+      contact and a "Refined by ZipSite" watermark). `board_scoring_weights` +
+      `applications.match_score` drop migration written, NOT applied.
+      `FIREBASE_PROJECT_ID=zipsite-78e85` deliberately untouched — live project id, an
+      infrastructure migration rather than a rename.
+- [ ] **DEFERRED by owner** — `social-oauth.js` mock verifier stays until Phyllo is set up.
+      It is production-gated but backs live dev/staging UI (`SocialSection`, `MockConsentPage`).
+- [ ] **S1-LEAD** Agency dossier digitals freshness, server-side.
+      `client/.../dossier/dossierModel.js:221-240` ages from `created_at` and takes the
+      *newest* frame, so a reviewer reads an undated or part-stale set as fresh. Compute in
+      `talent-dossier.js` so there is one source of truth, then thin the client.
+
+## Blocker found while verifying Stage 1
+
+- [ ] **Spec Registry suites are red on main** — 8 suites / 59 tests, all
+      `spec_registry_agency_routes` FOREIGN KEY violations during dataset seeding.
+      Confirmed PRE-EXISTING (reproduced with the Stage 1 source reverted). This is the
+      §7 centerpiece and the §9.6 #1 feature; it should not ship red. Investigate before
+      further feature work.
+
+## Stage 2 — the removals §9.2/§9.3 call for
+
+- [ ] Archetype & vibe AI: `analyzeProfileImage.js` still emits `lookType`/`marketSignals`/
+      `bookingStrengths`/`developmentNotes`/`castingNotes`, wired at `media.js:44,181` and
+      `comp-card-import.js:43`. Also retire `archetype` + `market_fit_rankings` as profile
+      columns and PDF composition inputs. Standard impl / Strong review.
+
+## Stage 3 — agency surfaces
+
+- [ ] Applicant inbox: wire the frontend to the sort/city/eligibility/date-range filters the
+      backend already supports (`ApplicantsPage.jsx` ignores all of them).
+- [ ] Comparison view (not built).
+- [ ] Auto-close: expose the per-agency review window in settings (exists in DB/API, no UI)
+      + one-click templated decline (no `decline_reason` anywhere).
+- [ ] "Request refresh", distinct from "request more materials".
+- [ ] Season memory: agency-facing re-application diffing.
+- [ ] Export webhook (CSV done; webhook is zero).
+
+## Stage 4 — talent surface
+
+- [ ] Per-recipient share tokens with open tracking: built server-side (`intel.js:104-190`,
+      `share_tokens`), consumed by zero client code. §9.2 calls this the single most
+      emotionally valuable analytics event Pholio can show.
+
+## Stage 5 — event mode (FWB-blocking)
+
+- [ ] Confirmations / RSVP / no-show handling.
+- [ ] Export-back-to-model payoff bundle — funnel event fires, deliverable not located.
+
+## Open question for the owner
+
+- Machine-readable comp card (§9.6 #6, embedded structured data) — not built, unscoped.
