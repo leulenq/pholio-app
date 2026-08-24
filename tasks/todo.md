@@ -191,3 +191,60 @@ reconcile migration is deliberately one-way and restores nothing, by design.
 
 Still open: decide the orphaned Elite trust-registry org key (`elite-models` vs
 the delisted `elite-model-management`).
+
+---
+
+# Scoped: deduplicate the reference agency rows
+
+Found 2026-08-24 while mapping trust-registry verifications. NOT done — scoped
+here deliberately, because the first instinct (delete the empty twin) is wrong.
+
+## The defect
+
+Eight seeded reference agencies exist TWICE in production, created 2026-07-28,
+identical in name, website and REFERENCE status:
+
+  DNA Model Management · Elite Model Management · Ford Models · IMG Models
+  Marilyn Agency · Next Management · The Society Management · Wilhelmina Models
+
+Talent see each of them twice in the directory. That is the user-visible half.
+
+## Why it is not a five-minute cleanup
+
+- **40 foreign keys reference `agencies.id`, 22 of them ON DELETE CASCADE** —
+  applications, boards, application_tags, application_submission_consent_events,
+  guardian_consent_requests, open_call_submissions, roster_memberships,
+  spec_registry_series and more. Deleting a row silently destroys whatever
+  points at it. Only 3 of the 40 have been checked.
+- **The twins are not interchangeable.** In every pair one row carries a real
+  talent application and the other is empty (Elite ed82df8b / Ford f2b7bec8 /
+  IMG d1ffbc1c / Society fe9a146a / Wilhelmina ed5c17a4 each hold 1). Five real
+  applications hang off one arbitrary half.
+- **Root cause unknown.** `20260701110000` only UPDATEs by name, so it is not
+  the source. Whatever created them on 2026-07-28 has not been found, and until
+  it is, a dedupe may simply be undone by the next deploy.
+- **Name-keyed writes currently hit both rows** (`.where({ name }).update()` in
+  20260701110000). That is why the twins stay identical — and it means any other
+  name-keyed write needs auditing before one row disappears.
+
+## The work, in order
+
+1. Find what inserted the duplicates on 2026-07-28 and stop it recurring.
+   Until this is answered, do not delete anything.
+2. Audit all 40 FK references for rows pointing at each doomed id. Not a
+   spot-check — enumerate.
+3. Decide the survivor per pair: the applications-bearing row, which is also the
+   row the trust-registry mapping now points at (see the mapping section above).
+4. Write it as a MIGRATION, not ad-hoc SQL: re-point every reference, then
+   delete. Rehearse on a Neon branch off production, verifying row counts per
+   affected table before and after.
+5. Add a uniqueness constraint so it cannot recur. Note reference agencies have
+   `slug: null`, so the constraint cannot be on slug alone.
+6. Re-run `npm run release:trust-registry` afterwards if any survivor id changes.
+
+## Not blocking
+
+The verification mapping does not depend on this. Four verifications are mapped
+and live against the applications-bearing rows; the empty twins simply render no
+verification, which is what they rendered before.
+
