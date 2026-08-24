@@ -394,13 +394,15 @@ describe("trust registry", () => {
         referenceDate: REFERENCE_DATE,
       });
 
-      // Models1 is a UK agency; the NY register has no row for it, and absence
-      // must read as silence, not as a negative claim.
-      const models1 = payload.routes.find(
-        (route) => route.organization.id === "models1-limited",
+      // The committed NY DOL pull only has a row filed under the parent
+      // "elite-model-management" id, not under Elite NA's own spec-registry
+      // organization id — so this live US route has no registry match, and
+      // absence must read as silence, not as a negative claim.
+      const eliteNa = payload.routes.find(
+        (route) => route.organization.id === "elite-models",
       );
-      expect(models1.verification).toBeNull();
-      expect(models1.callWindows).toEqual([]);
+      expect(eliteNa.verification).toBeNull();
+      expect(eliteNa.callWindows).toEqual([]);
     });
   });
 

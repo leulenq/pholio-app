@@ -150,19 +150,19 @@ describe("Spec Registry persistence and publication", () => {
     expect(first).toMatchObject({
       changed: true,
       status: "succeeded",
-      datasetVersion: "2026.08.09.2",
+      datasetVersion: "2026.08.19.1",
     });
     expect(second).toMatchObject({
       changed: false,
       status: "unchanged",
-      datasetVersion: "2026.08.09.2",
+      datasetVersion: "2026.08.19.1",
     });
     expect(Number((await db("spec_registry_datasets").count("* as n").first()).n)).toBe(1);
-    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(10);
-    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(10);
+    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(6);
+    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(6);
 
     const current = await getCurrentDataset(db);
-    expect(current.manifest).toMatchObject({ datasetVersion: "2026.08.09.2" });
+    expect(current.manifest).toMatchObject({ datasetVersion: "2026.08.19.1" });
     expect(current.taxonomy.fields).toHaveLength(88);
     expect(current.packageSha256).toMatch(/^[a-f0-9]{64}$/);
 
@@ -178,16 +178,16 @@ describe("Spec Registry persistence and publication", () => {
     const runs = await db("spec_registry_sync_runs").orderBy("started_at", "asc");
     expect(runs.map((run) => run.status).sort()).toEqual(["succeeded", "unchanged"]);
     expect(JSON.parse(runs.find((run) => run.status === "succeeded").counts_json)).toMatchObject({
-      currentSeries: 10,
-      revisions: 10,
+      currentSeries: 6,
+      revisions: 6,
     });
   });
 
   test("keeps historical manifests while atomically moving the current pointer", async () => {
     await publishRegistry(db, registry);
     const next = clone(registry);
-    next.manifest.datasetVersion = "2026.08.10.1";
-    next.manifest.publishedOn = "2026-08-10";
+    next.manifest.datasetVersion = "2026.08.20.1";
+    next.manifest.publishedOn = "2026-08-20";
     next.summary = clone(registry.summary);
 
     await publishRegistry(db, next);
@@ -195,17 +195,17 @@ describe("Spec Registry persistence and publication", () => {
     const datasets = await db("spec_registry_datasets")
       .orderBy("dataset_version", "asc")
       .pluck("dataset_version");
-    expect(datasets).toEqual(["2026.08.09.2", "2026.08.10.1"]);
-    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(20);
-    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(10);
-    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.10.1");
+    expect(datasets).toEqual(["2026.08.19.1", "2026.08.20.1"]);
+    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(12);
+    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(6);
+    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.20.1");
   });
 
   test("refuses to reactivate a stale historical dataset", async () => {
     await publishRegistry(db, registry);
     const next = clone(registry);
-    next.manifest.datasetVersion = "2026.08.10.1";
-    next.manifest.publishedOn = "2026-08-10";
+    next.manifest.datasetVersion = "2026.08.20.1";
+    next.manifest.publishedOn = "2026-08-20";
     next.summary = clone(registry.summary);
     await publishRegistry(db, next);
 
@@ -214,16 +214,16 @@ describe("Spec Registry persistence and publication", () => {
     });
 
     const misleadingVersion = clone(registry);
-    misleadingVersion.manifest.datasetVersion = "2026.08.11.1";
-    misleadingVersion.manifest.publishedOn = "2026-08-08";
+    misleadingVersion.manifest.datasetVersion = "2026.08.21.1";
+    misleadingVersion.manifest.publishedOn = "2026-08-18";
     misleadingVersion.summary = clone(registry.summary);
     await expect(publishRegistry(db, misleadingVersion)).rejects.toMatchObject({
       code: "DATASET_ROLLBACK_FORBIDDEN",
     });
-    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.10.1");
+    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.20.1");
     expect(
       await db("spec_registry_sync_runs")
-        .where({ dataset_version: "2026.08.09.2", status: "failed" })
+        .where({ dataset_version: "2026.08.19.1", status: "failed" })
         .first("error_code"),
     ).toEqual({ error_code: "DATASET_ROLLBACK_FORBIDDEN" });
   });
@@ -231,8 +231,8 @@ describe("Spec Registry persistence and publication", () => {
   test("revision collision rolls back a staged dataset and preserves the current pointer", async () => {
     await publishRegistry(db, registry);
     const invalidNext = clone(registry);
-    invalidNext.manifest.datasetVersion = "2026.08.10.9";
-    invalidNext.manifest.publishedOn = "2026-08-10";
+    invalidNext.manifest.datasetVersion = "2026.08.20.9";
+    invalidNext.manifest.publishedOn = "2026-08-20";
     invalidNext.specs[0].review.notes = `${invalidNext.specs[0].review.notes || ""} changed`;
     invalidNext.summary = clone(registry.summary);
 
@@ -242,13 +242,13 @@ describe("Spec Registry persistence and publication", () => {
 
     expect(
       await db("spec_registry_datasets")
-        .where({ dataset_version: "2026.08.10.9" })
+        .where({ dataset_version: "2026.08.20.9" })
         .first(),
     ).toBeUndefined();
-    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.09.2");
+    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.19.1");
     expect(
       await db("spec_registry_sync_runs")
-        .where({ dataset_version: "2026.08.10.9" })
+        .where({ dataset_version: "2026.08.20.9" })
         .first("status", "error_code"),
     ).toEqual({
       status: "failed",
@@ -268,13 +268,13 @@ describe("Spec Registry persistence and publication", () => {
 
     await db("spec_registry_agency_routes").insert({
       agency_id: agencyId,
-      series_id: "models1-uk:online",
+      series_id: "ford-models:selected-city-online",
       priority: 10,
     });
     expect(await listCurrentRoutes(db, { agencyId })).toMatchObject({
       available: true,
       resolution: "resolved",
-      routes: [{ seriesId: "models1-uk:online", priority: 10 }],
+      routes: [{ seriesId: "ford-models:selected-city-online", priority: 10 }],
     });
 
     await db("spec_registry_agency_routes").insert({
@@ -286,7 +286,7 @@ describe("Spec Registry persistence and publication", () => {
       available: true,
       resolution: "choice_required",
       routes: [
-        { seriesId: "models1-uk:online", priority: 10 },
+        { seriesId: "ford-models:selected-city-online", priority: 10 },
         { seriesId: "elite-models-na:online-general", priority: 20 },
       ],
     });

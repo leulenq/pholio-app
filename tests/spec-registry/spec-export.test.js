@@ -28,7 +28,7 @@ const FULL_LENGTH_ID = "a0000000-0000-4000-8000-000000000003";
 const CLOSE_UP_ID = "a0000000-0000-4000-8000-000000000004";
 const PROFILE_SHOT_ID = "a0000000-0000-4000-8000-000000000005";
 
-const ELITE_SERIES = "elite-model-management-global:online";
+const FORD_SERIES = "ford-models:selected-city-online";
 /** The one published route whose channel is an inbox rather than a form. */
 const MUSE_SERIES = "muse-model-management-nyc:email";
 const REFERENCE_DATE = "2026-08-14";
@@ -229,36 +229,38 @@ describe("spec-correct export — end to end", () => {
     await db.destroy();
   });
 
-  test("produces an archive named after Elite's published slots", async () => {
+  test("produces an archive named after Ford's published slots", async () => {
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES },
       { referenceDate: REFERENCE_DATE },
     );
 
-    expect(result.archiveName).toBe("elite-model-management-digitals.zip");
+    expect(result.archiveName).toBe("ford-models-digitals.zip");
     const files = unzip(result.buffer);
     expect([...files.keys()].sort()).toEqual([
       "README.txt",
       "STATS.txt",
-      "elite-model-management-close-up.jpg",
-      "elite-model-management-full-length.jpg",
-      "elite-model-management-profile.jpg",
+      "ford-models-close-up.jpg",
+      "ford-models-full-length.jpg",
+      "ford-models-profile.jpg",
     ]);
-    // Elite takes applications through a form, so there is nothing to draft.
+    // Ford takes applications through a form, so there is nothing to draft.
     expect(files.has("EMAIL.txt")).toBe(false);
   });
 
-  test("every file lands under the 5MB per-file limit Elite publishes", async () => {
+  test("every file lands under the 3MB per-file limit Ford publishes", async () => {
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES },
       { referenceDate: REFERENCE_DATE },
     );
 
-    expect(result.manifest.perFileLimitBytes).toBe(5_000_000);
+    // Ford publishes "under 3MB" with a strict less-than, so the computed
+    // ceiling is one byte short of the published value.
+    expect(result.manifest.perFileLimitBytes).toBe(2_999_999);
     for (const entry of result.manifest.entries) {
-      expect(entry.bytes).toBeLessThanOrEqual(5_000_000);
+      expect(entry.bytes).toBeLessThanOrEqual(2_999_999);
       expect(entry.withinPublishedLimit).toBe(true);
     }
   });
@@ -311,11 +313,11 @@ describe("spec-correct export — end to end", () => {
     const original = fs.statSync(path.join(workingDirectory, "full.jpg")).size;
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES, imageIds: [FULL_LENGTH_ID] },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES, imageIds: [FULL_LENGTH_ID] },
       { referenceDate: REFERENCE_DATE },
     );
     const files = unzip(result.buffer);
-    const encoded = files.get("elite-model-management-full-length.jpg");
+    const encoded = files.get("ford-models-full-length.jpg");
     expect(encoded.length).not.toBe(original);
     // Still a real, decodable JPEG at a sane size.
     const meta = await sharp(encoded).metadata();
@@ -326,10 +328,10 @@ describe("spec-correct export — end to end", () => {
   test("applies no crop — the aspect ratio the talent shot is the aspect ratio they get", async () => {
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES, imageIds: [FULL_LENGTH_ID] },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES, imageIds: [FULL_LENGTH_ID] },
       { referenceDate: REFERENCE_DATE },
     );
-    const encoded = unzip(result.buffer).get("elite-model-management-full-length.jpg");
+    const encoded = unzip(result.buffer).get("ford-models-full-length.jpg");
     const meta = await sharp(encoded).metadata();
     // Source was 3200×4800, exactly 2:3.
     expect(meta.width / meta.height).toBeCloseTo(3200 / 4800, 3);
@@ -338,13 +340,13 @@ describe("spec-correct export — end to end", () => {
   test("carries the provenance inside the archive", async () => {
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES },
       { referenceDate: REFERENCE_DATE },
     );
     const readme = unzip(result.buffer).get("README.txt").toString("utf8");
 
-    expect(readme).toContain("Elite Model Management");
-    expect(readme).toContain("not affiliated with Elite Model Management");
+    expect(readme).toContain("Ford Models");
+    expect(readme).toContain("not affiliated with Ford Models");
     expect(readme).toContain("No cropping was applied");
     expect(readme).toMatch(/https?:\/\//);
     expect(readme).toContain(REFERENCE_DATE);
@@ -355,7 +357,7 @@ describe("spec-correct export — end to end", () => {
     await expect(
       buildSpecExport(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES },
         { referenceDate: REFERENCE_DATE },
       ),
     ).rejects.toMatchObject({ code: "SPEC_EXPORT_EMPTY", status: 422 });
@@ -366,7 +368,7 @@ describe("spec-correct export — end to end", () => {
     await expect(
       buildSpecExport(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES, imageIds: [CLOSE_UP_ID] },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES, imageIds: [CLOSE_UP_ID] },
         { referenceDate: REFERENCE_DATE },
       ),
     ).rejects.toMatchObject({ code: "SELECTED_IMAGES_UNAVAILABLE" });
@@ -376,13 +378,13 @@ describe("spec-correct export — end to end", () => {
     await db("images").where({ id: CLOSE_UP_ID }).update({ absolute_path: "/nonexistent/x.jpg" });
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES },
       { referenceDate: REFERENCE_DATE },
     );
     const files = unzip(result.buffer);
-    expect(files.has("elite-model-management-close-up.jpg")).toBe(false);
-    expect(files.has("elite-model-management-full-length.jpg")).toBe(true);
-    expect(result.manifest.unavailable.map((entry) => entry.slotLabel)).toEqual(["close-up"]);
+    expect(files.has("ford-models-close-up.jpg")).toBe(false);
+    expect(files.has("ford-models-full-length.jpg")).toBe(true);
+    expect(result.manifest.unavailable.map((entry) => entry.slotLabel)).toEqual(["Close-up"]);
     expect(files.get("README.txt").toString("utf8")).toContain("Could not be read");
   });
 
@@ -397,16 +399,16 @@ describe("spec-correct export — end to end", () => {
 
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES },
       { referenceDate: REFERENCE_DATE },
     );
 
     const files = unzip(result.buffer);
-    expect(files.has("elite-model-management-close-up.jpg")).toBe(false);
-    expect(files.has("elite-model-management-full-length.jpg")).toBe(true);
+    expect(files.has("ford-models-close-up.jpg")).toBe(false);
+    expect(files.has("ford-models-full-length.jpg")).toBe(true);
     // Same shape as an unreadable source — the manifest names what is missing
     // rather than the set silently arriving one shot short.
-    expect(result.manifest.unavailable.map((entry) => entry.slotLabel)).toEqual(["close-up"]);
+    expect(result.manifest.unavailable.map((entry) => entry.slotLabel)).toEqual(["Close-up"]);
     expect(files.get("README.txt").toString("utf8")).toContain("Could not be read");
   });
 
@@ -416,12 +418,12 @@ describe("spec-correct export — end to end", () => {
     const [exported, preflight] = await Promise.all([
       buildSpecExport(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES, imageIds },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES, imageIds },
         { referenceDate: REFERENCE_DATE },
       ),
       preflightRegistry(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES, imageIds },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES, imageIds },
         { referenceDate: REFERENCE_DATE },
       ),
     ]);
@@ -432,39 +434,39 @@ describe("spec-correct export — end to end", () => {
 
   test("a delisted agency disappears from the directory, the check and the export", async () => {
     const before = await listRegistryRoutes(db, { referenceDate: REFERENCE_DATE });
-    expect(before.routes.map((route) => route.seriesId)).toContain(ELITE_SERIES);
+    expect(before.routes.map((route) => route.seriesId)).toContain(FORD_SERIES);
 
     await db("spec_registry_series")
-      .where({ series_id: ELITE_SERIES })
+      .where({ series_id: FORD_SERIES })
       .update({ delisted_at: new Date().toISOString(), delisted_reason: "Asked by email" });
 
     const after = await listRegistryRoutes(db, { referenceDate: REFERENCE_DATE });
-    expect(after.routes.map((route) => route.seriesId)).not.toContain(ELITE_SERIES);
+    expect(after.routes.map((route) => route.seriesId)).not.toContain(FORD_SERIES);
 
     await expect(
       buildSpecExport(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES },
         { referenceDate: REFERENCE_DATE },
       ),
     ).rejects.toMatchObject({ code: "SPEC_REGISTRY_ROUTE_NOT_FOUND" });
 
     // Nothing was destroyed — the published record survives for the evidence
     // trail behind snapshots that already cite it.
-    const row = await db("spec_registry_series").where({ series_id: ELITE_SERIES }).first();
+    const row = await db("spec_registry_series").where({ series_id: FORD_SERIES }).first();
     expect(row.delisted_reason).toBe("Asked by email");
   });
 
   test("relisting restores the route", async () => {
     await db("spec_registry_series")
-      .where({ series_id: ELITE_SERIES })
+      .where({ series_id: FORD_SERIES })
       .update({ delisted_at: new Date().toISOString() });
     await db("spec_registry_series")
-      .where({ series_id: ELITE_SERIES })
+      .where({ series_id: FORD_SERIES })
       .update({ delisted_at: null, delisted_reason: null });
 
     const routes = await listRegistryRoutes(db, { referenceDate: REFERENCE_DATE });
-    expect(routes.routes.map((route) => route.seriesId)).toContain(ELITE_SERIES);
+    expect(routes.routes.map((route) => route.seriesId)).toContain(FORD_SERIES);
   });
 
   test("the whole registry still reads on a database without the delisting column", async () => {
@@ -491,14 +493,14 @@ describe("spec-correct export — end to end", () => {
     await publishRegistry(legacy, registry);
 
     const routes = await listRegistryRoutes(legacy, { referenceDate: REFERENCE_DATE });
-    expect(routes.routes.map((route) => route.seriesId)).toContain(ELITE_SERIES);
+    expect(routes.routes.map((route) => route.seriesId)).toContain(FORD_SERIES);
     await legacy.destroy();
   });
 
   test("uses a unique name per file, so the archive cannot silently lose a shot", async () => {
     const result = await buildSpecExport(
       db,
-      { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+      { profileId: PROFILE_ID, seriesId: FORD_SERIES },
       { referenceDate: REFERENCE_DATE },
     );
     const names = result.manifest.entries.map((entry) => entry.name);
@@ -511,7 +513,7 @@ describe("spec-correct export — end to end", () => {
    * measurements should never retype them into an agency's form.
    */
   describe("STATS.txt", () => {
-    async function statsFor(seriesId = ELITE_SERIES) {
+    async function statsFor(seriesId = FORD_SERIES) {
       const result = await buildSpecExport(
         db,
         { profileId: PROFILE_ID, seriesId },
@@ -588,13 +590,13 @@ describe("spec-correct export — end to end", () => {
       expect(files.has("EMAIL.txt")).toBe(true);
       expect(result.manifest.emailDraftIncluded).toBe(true);
 
-      const elite = await buildSpecExport(
+      const ford = await buildSpecExport(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES },
         { referenceDate: REFERENCE_DATE },
       );
-      expect(unzip(elite.buffer).has("EMAIL.txt")).toBe(false);
-      expect(elite.manifest.emailDraftIncluded).toBe(false);
+      expect(unzip(ford.buffer).has("EMAIL.txt")).toBe(false);
+      expect(ford.manifest.emailDraftIncluded).toBe(false);
     });
 
     test("points at the address Muse publishes, and invents nothing", async () => {
@@ -663,14 +665,14 @@ describe("spec-correct export — end to end", () => {
       expect(readme).toContain("Attach them to the email drafted in");
       expect(readme).not.toContain("Upload them on the agency's own site");
 
-      const elite = await buildSpecExport(
+      const ford = await buildSpecExport(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES },
         { referenceDate: REFERENCE_DATE },
       );
-      const eliteReadme = unzip(elite.buffer).get("README.txt").toString("utf8");
-      expect(eliteReadme).toContain("Upload them on the agency's own site");
-      expect(eliteReadme).not.toContain("EMAIL.txt");
+      const fordReadme = unzip(ford.buffer).get("README.txt").toString("utf8");
+      expect(fordReadme).toContain("Upload them on the agency's own site");
+      expect(fordReadme).not.toContain("EMAIL.txt");
     });
   });
 
@@ -755,14 +757,14 @@ describe("spec-correct export — end to end", () => {
       async () => {
         const result = await buildSpecExport(
           db,
-          { profileId: PROFILE_ID, seriesId: ELITE_SERIES },
+          { profileId: PROFILE_ID, seriesId: FORD_SERIES },
           { referenceDate: REFERENCE_DATE },
         );
         const files = unzip(result.buffer);
-        const closeUp = "elite-model-management-close-up.jpg";
+        const closeUp = "ford-models-close-up.jpg";
 
         if (decodeAvailable) {
-          // Elite publishes no HEIC in its accepted formats, so the file has to
+          // Ford route publishes no accepted-format rule, so any format change
           // change format — and the entry has to say so, under a .jpg name.
           expect(files.has(closeUp)).toBe(true);
           expect((await sharp(files.get(closeUp)).metadata()).format).toBe("jpeg");
@@ -780,7 +782,7 @@ describe("spec-correct export — end to end", () => {
           // a named absence and a reason the talent can act on.
           expect(files.has(closeUp)).toBe(false);
           const missing = result.manifest.unavailable.find(
-            (item) => item.slotLabel === "close-up",
+            (item) => item.slotLabel === "Close-up",
           );
           expect(missing).toMatchObject({
             reason: "heic_decode_unsupported",
@@ -793,7 +795,7 @@ describe("spec-correct export — end to end", () => {
 
         // True either way, and the point of the whole design: one awkward file
         // never costs the talent the download.
-        expect(files.has("elite-model-management-full-length.jpg")).toBe(true);
+        expect(files.has("ford-models-full-length.jpg")).toBe(true);
         expect(files.has("STATS.txt")).toBe(true);
       },
     );
@@ -801,7 +803,7 @@ describe("spec-correct export — end to end", () => {
     test("the transcode target is read from the spec, not assumed", async () => {
       const result = await buildSpecExport(
         db,
-        { profileId: PROFILE_ID, seriesId: ELITE_SERIES, imageIds: [FULL_LENGTH_ID] },
+        { profileId: PROFILE_ID, seriesId: FORD_SERIES, imageIds: [FULL_LENGTH_ID] },
         { referenceDate: REFERENCE_DATE },
       );
       // A JPEG into a JPEG archive: re-encoded for the byte cap and the
