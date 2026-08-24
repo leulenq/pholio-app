@@ -142,65 +142,27 @@ exports.up = async function up(knex) {
 };
 
 /**
- * Restores each column as its original migration defined it, so a rollback
- * reproduces the pre-reconciliation schema rather than an approximation.
- * Sources: 20260212000003 (fit scores), 20250121000000 (the google and ip
- * columns plus verified_location_intel), 20250125000000-era prediction
- * columns, 20250120000000 + 20260320100005 (AI analysis), 20250102000002 (age).
+ * Deliberately irreversible.
  *
- * Only restores what `up()` would have dropped, so it is safe against a
- * database where some were already absent.
+ * The rehearsal against a branch of production caught the asymmetry this
+ * replaces. `up()` is a no-op there — production already lacks all 34 columns —
+ * but the previous `down()` restored every column that was currently missing,
+ * so reverting a deploy would have CREATED 34 columns production has never had,
+ * resurrecting exactly the inference surface the compliance work removed. A
+ * rollback that adds a compliance surface is worse than no rollback.
+ *
+ * There is nothing to restore in any case. Every column this migration drops is
+ * dead in all environments: no writer, no reader outside hasColumn-guarded
+ * denylists, and for the geo group a live duplicate on `onboarding_signals`.
+ * Reverting the deploy that ships this migration does not need them back.
+ *
+ * Rolling back and re-applying still round-trips cleanly: `up()` is idempotent
+ * and finds nothing to drop the second time.
  *
  * @param {import('knex')} knex
  */
-exports.down = async function down(knex) {
-  const restore = {
-    fit_score_runway: (t) => t.smallint("fit_score_runway").nullable(),
-    fit_score_editorial: (t) => t.smallint("fit_score_editorial").nullable(),
-    fit_score_commercial: (t) => t.smallint("fit_score_commercial").nullable(),
-    fit_score_lifestyle: (t) => t.smallint("fit_score_lifestyle").nullable(),
-    fit_score_swim_fitness: (t) =>
-      t.smallint("fit_score_swim_fitness").nullable(),
-    fit_score_overall: (t) => t.smallint("fit_score_overall").nullable(),
-    fit_scores_calculated_at: (t) =>
-      t.timestamp("fit_scores_calculated_at").nullable(),
-    google_addresses: (t) => t.text("google_addresses").nullable(),
-    google_birthday: (t) => t.string("google_birthday").nullable(),
-    google_gender: (t) => t.string("google_gender").nullable(),
-    google_organization: (t) => t.string("google_organization").nullable(),
-    google_phone: (t) => t.string("google_phone").nullable(),
-    ip_address: (t) => t.string("ip_address").nullable(),
-    ip_city: (t) => t.string("ip_city").nullable(),
-    ip_country: (t) => t.string("ip_country").nullable(),
-    ip_region: (t) => t.string("ip_region").nullable(),
-    ip_timezone: (t) => t.string("ip_timezone").nullable(),
-    verified_location_intel: (t) =>
-      t.text("verified_location_intel").nullable(),
-    predicted_bust: (t) => t.integer("predicted_bust").nullable(),
-    predicted_eye_color: (t) => t.string("predicted_eye_color").nullable(),
-    predicted_hair_color: (t) => t.string("predicted_hair_color").nullable(),
-    predicted_height_cm: (t) => t.integer("predicted_height_cm").nullable(),
-    predicted_hips: (t) => t.integer("predicted_hips").nullable(),
-    predicted_skin_tone: (t) => t.string("predicted_skin_tone").nullable(),
-    predicted_waist: (t) => t.integer("predicted_waist").nullable(),
-    predicted_weight_lbs: (t) => t.integer("predicted_weight_lbs").nullable(),
-    visual_intel: (t) => t.text("visual_intel").nullable(),
-    librarian_synthesis: (t) => t.text("librarian_synthesis").nullable(),
-    market_fit_rankings: (t) => t.text("market_fit_rankings").nullable(),
-    onboarding_predictions: (t) => t.text("onboarding_predictions").nullable(),
-    photo_embedding: (t) => t.text("photo_embedding").nullable(),
-    vector_summary: (t) => t.text("vector_summary").nullable(),
-    vector_summary_text: (t) => t.text("vector_summary_text").nullable(),
-    age: (t) => t.integer("age").nullable(),
-  };
-
-  const missing = [];
-  for (const column of DRIFTED_COLUMNS) {
-    if (!(await knex.schema.hasColumn("profiles", column))) missing.push(column);
-  }
-  if (missing.length === 0) return;
-
-  await knex.schema.alterTable("profiles", (table) => {
-    for (const column of missing) restore[column](table);
-  });
+exports.down = async function down() {
+  console.log(
+    "[Migration] reconcile_profiles_ai_drift is a one-way reconciliation — nothing to restore",
+  );
 };

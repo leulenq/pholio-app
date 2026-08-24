@@ -1026,13 +1026,37 @@
 .set-signin { padding: clamp(22px, 2.4vw, 30px); }
 
 /* ── Google-native sign-in row ────────────────────────────── */
-/* Modelled on the federated-identity list row Google itself uses on
-   myaccount.google.com — flat leading mark, two-line text block, a plain
-   link out to the account page Pholio doesn't own. No card, no shadow, no
-   status pill: this row sits directly on the settings surface, the same way
-   `.set-handle` does beside it. Only the row itself (mark, title, email,
-   the "Manage" link) carries Google's own type system and blue; the label
-   above and the disclaimer below stay in Pholio's voice. */
+/*
+ * This is Material 3's actual list-item, not an approximation of one. Every
+ * number below is sourced from google/material-web (the token values in
+ * `tokens/versions/v0_192`, the `:host` rules in
+ * `list/internal/listitem/_list-item.scss` and `labs/item/internal/_item.scss`)
+ * or scraped from the live CSS Google's own accounts surface ships today:
+ *
+ *   row:      display:flex; align-items:center; gap:16px; min-height:72px;
+ *             padding:12px 16px          (md-item, two-line variant)
+ *   leading:  the *avatar* slot (40px, corner-full), not the plain icon slot
+ *             (24px) — M3 reserves avatar for rows that identify a person or
+ *             account rather than merely trigger a control, which is what
+ *             this row does. Avatars are normally a tonal fill, but Google's
+ *             brand guidelines require the G mark "on a white background," so
+ *             this one is white with a 1px outline-variant ring instead —
+ *             no drop shadow; M3 avatars carry no elevation of their own.
+ *   headline: 16px/24px regular, 0.5px tracking, #1f1f1f   (body-large)
+ *   support:  14px/20px regular, 0.25px tracking, #444746  (body-medium)
+ *   divider:  1px solid #e8eaed                     (outline-variant, live)
+ *   button:   40px, corner-full, 8px icon/label gap, 14px/20px medium label,
+ *             0.1px tracking, #0b57d0 (current GM3 primary — supersedes the
+ *             older #1a73e8), 18px icon, 0.08 hover / 0.12 pressed state layer
+ *   font:     "Google Sans Flex","Google Sans Text","Google Sans",Roboto,Arial
+ *             (Google's current production stack, scraped live — not the
+ *             older "Google Sans, Roboto" pairing)
+ *
+ * The row sits flush on the settings surface — no card, no shadow, no status
+ * pill — the same way `.set-handle` beside it does. Only the row itself
+ * (mark, text, button) carries Google's system; the label above and the
+ * disclaimer below stay in Pholio's voice.
+ */
 
 .set-signin-google { padding: clamp(22px, 2.4vw, 30px); }
 
@@ -1054,72 +1078,99 @@
   color: var(--set-gold);
 }
 
-.set-signin-google__row {
+.set-signin-google__item {
   display: flex;
   align-items: center;
   gap: 16px;
-  font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 72px;
+  padding: 12px 16px;
+  margin: 0 -16px;
+  font-family: 'Google Sans Flex', 'Google Sans Text', 'Google Sans', Roboto, Arial, sans-serif;
 }
 
-/* Google's own flat icon-tile treatment: the mark on plain white with a
-   hairline, no elevation. The four-colour "G" is reproduced unmodified. */
-.set-signin-google__mark {
+/* M3's leading-avatar geometry (40px, corner-full) — this row identifies an
+   account, so avatar is the correct slot, not the smaller plain-icon one.
+   White fill + hairline ring stand in for the usual tonal fill because the
+   G mark must sit on white, per Google's own brand guidelines; no shadow,
+   since M3 avatars carry no elevation of their own. */
+.set-signin-google__leading {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 9999px;
   background: #ffffff;
-  border: 1px solid #dadce0;
+  border: 1px solid #e8eaed;
 }
 
-.set-signin-google__body {
+.set-signin-google__text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  overflow: hidden;
 }
 
-.set-signin-google__title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #202124;
-  line-height: 1.3;
-}
-
-.set-signin-google__email {
-  font-size: 13px;
-  color: #5f6368;
+.set-signin-google__headline {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.03125rem;
+  color: #1f1f1f;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* Google's standard link blue — this control belongs to Google's account
-   page, not Pholio's, so it does not borrow Pholio's gold. */
-.set-signin-google__manage {
+.set-signin-google__supporting {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+  letter-spacing: 0.015625rem;
+  color: #444746;
+}
+
+/* A real M3 text button: fully-rounded, primary-coloured label, a state
+   layer instead of an underline for hover/focus. #0b57d0 is Google's current
+   production primary blue, not the page's gold — this control belongs to
+   Google's own account page, which is where it leads. */
+.set-signin-google__button {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 13px;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font-family: 'Google Sans Flex', 'Google Sans Text', 'Google Sans', Roboto, Arial, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 500;
-  color: #1a73e8;
+  letter-spacing: 0.00625rem;
+  color: #0b57d0;
   text-decoration: none;
   white-space: nowrap;
+  transition: background-color 0.1s linear;
 }
 
-.set-signin-google__manage:hover,
-.set-signin-google__manage:focus-visible {
-  text-decoration: underline;
+.set-signin-google__button:hover {
+  background-color: rgba(11, 87, 208, 0.08);
+}
+
+.set-signin-google__button:focus-visible,
+.set-signin-google__button:active {
+  background-color: rgba(11, 87, 208, 0.12);
+  outline: none;
 }
 
 .set-signin-google__note {
   max-width: 62ch;
-  margin: 18px 0 0;
+  margin: 6px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid #e8eaed;
   font-size: 12.5px;
   font-weight: 300;
   line-height: 1.6;

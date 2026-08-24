@@ -123,18 +123,24 @@ describe("what production keeps is kept", () => {
   });
 });
 
-describe("rollback", () => {
-  test("down() restores every dropped column, then up() re-applies cleanly", async () => {
-    await migration.down(knex);
-    const restored = await profileColumns();
-    for (const column of ALL_DRIFTED) expect(restored).toContain(column);
+describe("rollback is deliberately one-way", () => {
+  /*
+   * The rehearsal against a branch of production caught why this must not
+   * restore. `up()` is a no-op on production — the columns are already gone —
+   * so a restoring `down()` would CREATE 34 columns production has never had,
+   * rebuilding the inference surface the compliance work removed. A rollback
+   * that adds a compliance surface is worse than no rollback.
+   */
+  test("down() restores nothing", async () => {
+    const before = await profileColumns();
+    await expect(migration.down(knex)).resolves.toBeUndefined();
+    expect(await profileColumns()).toEqual(before);
+    for (const column of ALL_DRIFTED) {
+      expect(await profileColumns()).not.toContain(column);
+    }
+  });
 
-    await migration.up(knex);
-    const reapplied = await profileColumns();
-    for (const column of ALL_DRIFTED) expect(reapplied).not.toContain(column);
-  }, 60000);
-
-  test("up() on an already-reconciled schema is a safe no-op", async () => {
+  test("up() is idempotent, so rollback-then-migrate still round-trips", async () => {
     const before = await profileColumns();
     await expect(migration.up(knex)).resolves.toBeUndefined();
     expect(await profileColumns()).toEqual(before);
