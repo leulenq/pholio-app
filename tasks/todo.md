@@ -147,3 +147,28 @@ Branch: `claude/launch-gap-stage-1`.
 ## Open question for the owner
 
 - Machine-readable comp card (§9.6 #6, embedded structured data) — not built, unscoped.
+
+## Migration rehearsal log (Neon branches off production)
+
+All six pending migrations rehearsed against forks of production. Production
+itself remains at 218 / batch 18 — nothing has been applied there.
+
+- 2026-08-24, `rehearse-launch-gap-clean-2026-08-24`: the first five. Caught a
+  real defect — `reconcile_profiles_ai_drift.down()` restored every column it
+  found missing, so on production (where `up()` is a no-op) a rollback would
+  have CREATED 34 columns production never had, rebuilding the inference
+  surface the compliance work removed. Made one-way.
+- 2026-08-24, `rehearse-decline-reason-2026-08-24`: all six including
+  `20260824100000_application_decline_reason`. Row counts identical across every
+  table before and after; the 6 pre-existing declined rows kept NULL rather than
+  being backfilled with a reason nobody chose; rollback + re-apply round-trips.
+  Ten functional checks against real Postgres rows, including that the reason
+  reaches both the HTML and plain-text emails and that the contradictory "they
+  don't give a reason" line disappears when one is given.
+  - Found: production has `applications.match_score` but NOT
+    `match_calculated_at` — another instance of the schema drift. The guards
+    handled it, but the log line claimed both were dropped. Fixed to name only
+    what it actually drops.
+
+Still to do before production: apply the six (owner's call), and decide the
+orphaned Elite trust-registry org key.

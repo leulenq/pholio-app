@@ -53,8 +53,16 @@ exports.up = async function up(knex) {
         if (hasMatchScore) table.dropColumn('match_score');
         if (hasMatchCalculatedAt) table.dropColumn('match_calculated_at');
       });
+      // Name only what was actually dropped. Production has `match_score` but
+      // not `match_calculated_at` — the guards above handle that correctly, but
+      // a log claiming both makes the next drift investigation harder, not
+      // easier.
+      const dropped = [
+        hasMatchScore ? 'match_score' : null,
+        hasMatchCalculatedAt ? 'match_calculated_at' : null,
+      ].filter(Boolean);
       console.log(
-        '[Migration] Dropped applications.match_score / match_calculated_at',
+        `[Migration] Dropped applications.${dropped.join(' / applications.')}`,
       );
     }
   }
