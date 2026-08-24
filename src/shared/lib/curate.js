@@ -10,7 +10,7 @@ function curateBio(input, firstName, lastName) {
   const plain = cleanString(input).replace(/&/g, 'and');
   const name = `${firstName} ${lastName}`.trim();
   if (!plain) {
-    return `${name} is represented by ZipSite.`;
+    return `${name} is on Pholio.`;
   }
   const sentence = plain.replace(/\s+/g, ' ');
   const capitalized = sentence.charAt(0).toUpperCase() + sentence.slice(1);

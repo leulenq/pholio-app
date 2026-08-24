@@ -320,6 +320,9 @@ describe("event casting schema (migrations M1–M5)", () => {
     test("the rebuild preserved every column and index", async () => {
       // `20260701111000` rebuilt this table from a hardcoded column list. If M1
       // had copied that mistake, the columns added after it would be gone.
+      // (`match_score` / `match_calculated_at` and their index are
+      // intentionally absent here — dropped by
+      // `20260820090000_drop_dormant_scoring_schema.js`, not lost by a rebuild.)
       const info = await db.raw("PRAGMA table_info('applications')");
       const columns = info.map((column) => column.name);
       expect(columns).toEqual(
@@ -329,7 +332,6 @@ describe("event casting schema (migrations M1–M5)", () => {
           "agency_id",
           "status",
           "board_id",
-          "match_score",
           "minor_at_submission",
           "guardian_consent_grant_id",
           "minor_access_revocation_reason",
@@ -347,7 +349,6 @@ describe("event casting schema (migrations M1–M5)", () => {
           "applications_profile_id_index",
           "applications_status_index",
           "applications_board_id_index",
-          "applications_match_score_index",
           "idx_applications_open_status_changed",
           "idx_applications_minor_access",
         ]),

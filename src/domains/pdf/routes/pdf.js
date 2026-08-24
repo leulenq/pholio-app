@@ -2413,7 +2413,7 @@ router.get("/pdf/:slug", async (req, res, next) => {
     if (req.query.download) {
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="ZipSite-${req.params.slug}-compcard.pdf"`,
+        `attachment; filename="Pholio-${req.params.slug}-compcard.pdf"`,
       );
     } else {
       res.setHeader("Content-Disposition", "inline");
