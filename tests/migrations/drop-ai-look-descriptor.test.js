@@ -47,10 +47,24 @@ describe("drop AI look descriptor", () => {
     expect(columns).not.toContain("vibe_score");
   });
 
-  test("fit_score_* (talent self-declared) survive untouched — only the AI look descriptor and its scoring input are in scope", async () => {
-    const columns = await columnNames("profiles");
-    expect(columns).toContain("fit_score_overall");
-    expect(columns).toContain("fit_score_runway");
+  /*
+   * This used to assert fit_score_* survived, on the reasoning that a talent
+   * declaring their own lanes is not a machine inferring them. That reasoning
+   * was sound and the premise was wrong: nothing in the client ever called
+   * POST /api/talent/profile/fit-scores, the Casting Reveal it served is gone,
+   * and the columns had already been removed from production. They are dropped
+   * by 20260824090000_reconcile_profiles_ai_drift.js.
+   *
+   * What still matters here is SCOPE — that this migration never owned them.
+   */
+  test("this migration does not own fit_score_* — its down() does not restore them", async () => {
+    await knex.migrate.down({ name: MIGRATION_NAME });
+    const restored = await columnNames("profiles");
+    expect(restored).toContain("look_descriptor");
+    expect(restored).not.toContain("fit_score_overall");
+    expect(restored).not.toContain("fit_score_runway");
+
+    await knex.migrate.up({ name: MIGRATION_NAME });
   });
 
   test("down() restores all three columns when up() dropped all three", async () => {

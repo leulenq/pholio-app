@@ -327,9 +327,6 @@ describe("talent settings contract", () => {
 
       const userImageId = uuidv4();
       const autoImageId = uuidv4();
-      await knex("profiles").where({ id: PROFILE_ID }).update({
-        fit_score_editorial: 97,
-      });
       await knex("images").insert([
         {
           id: userImageId,
@@ -387,7 +384,6 @@ describe("talent settings contract", () => {
       const profile = await knex("profiles").where({ id: PROFILE_ID }).first();
       expect(Boolean(profile.ai_processing_consent)).toBe(false);
       expect(Boolean(profile.embedding_processing_consent)).toBe(false);
-      expect(profile.fit_score_editorial).toBeNull();
       expect(
         await knex("talent_embedding_cache").where({ profile_id: PROFILE_ID }),
       ).toHaveLength(0);

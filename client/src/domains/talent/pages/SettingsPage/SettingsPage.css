@@ -1025,12 +1025,16 @@
    gold label, then the thing itself, then the consequence in prose. */
 .set-signin { padding: clamp(22px, 2.4vw, 30px); }
 
-/* ── Google-Native Sign-In Identity Card ─────────────────────── */
+/* ── Google-native sign-in row ────────────────────────────── */
+/* Modelled on the federated-identity list row Google itself uses on
+   myaccount.google.com — flat leading mark, two-line text block, a plain
+   link out to the account page Pholio doesn't own. No card, no shadow, no
+   status pill: this row sits directly on the settings surface, the same way
+   `.set-handle` does beside it. Only the row itself (mark, title, email,
+   the "Manage" link) carries Google's own type system and blue; the label
+   above and the disclaimer below stay in Pholio's voice. */
 
-.set-signin-google {
-  padding: clamp(22px, 2.4vw, 30px);
-  font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
+.set-signin-google { padding: clamp(22px, 2.4vw, 30px); }
 
 .set-card > .set-signin-google:not(:last-child) {
   border-bottom: 1px solid var(--set-hair);
@@ -1043,80 +1047,50 @@
   color: var(--set-text);
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 16px;
-  font-family: 'Inter', sans-serif;
+  margin-bottom: 18px;
 }
 
 .set-signin-google__label svg {
   color: var(--set-gold);
 }
 
-.set-signin-google__card {
-  background: #ffffff;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.08), 0 1px 3px 1px rgba(60, 64, 67, 0.04);
-}
-
-.set-signin-google__header {
+.set-signin-google__row {
   display: flex;
   align-items: center;
   gap: 16px;
+  font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Google's own flat icon-tile treatment: the mark on plain white with a
+   hairline, no elevation. The four-colour "G" is reproduced unmodified. */
 .set-signin-google__mark {
   flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: #ffffff;
   border: 1px solid #dadce0;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.1);
 }
 
-.set-signin-google__info {
+.set-signin-google__body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-.set-signin-google__title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 2px;
 }
 
 .set-signin-google__title {
-  font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: #202124;
-  line-height: 1.25;
-}
-
-.set-signin-google__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: 12px;
-  background: #e6f4ea;
-  color: #137333;
-  font-family: 'Google Sans', 'Roboto', sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  line-height: 1.3;
 }
 
 .set-signin-google__email {
-  font-family: 'Google Sans', 'Roboto', sans-serif;
   font-size: 13px;
   color: #5f6368;
   overflow: hidden;
@@ -1124,15 +1098,33 @@
   white-space: nowrap;
 }
 
+/* Google's standard link blue — this control belongs to Google's account
+   page, not Pholio's, so it does not borrow Pholio's gold. */
+.set-signin-google__manage {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a73e8;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.set-signin-google__manage:hover,
+.set-signin-google__manage:focus-visible {
+  text-decoration: underline;
+}
+
 .set-signin-google__note {
-  margin: 16px 0 0;
-  padding-top: 14px;
-  border-top: 1px solid #f1f3f4;
-  font-family: 'Google Sans', 'Roboto', sans-serif;
+  max-width: 62ch;
+  margin: 18px 0 0;
   font-size: 12.5px;
-  font-weight: 400;
-  line-height: 1.5;
-  color: #5f6368;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--set-text-soft);
+  text-wrap: pretty;
 }
 
 .set-card > .set-signin:not(:last-child) {

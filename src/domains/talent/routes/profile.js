@@ -85,8 +85,9 @@ const {
  */
 // Infra / AI / inference columns that must never reach the owner client, even if
 // one is (re)added to the allowlist below. Defense-in-depth over the allowlist.
-// (audit item 6 — conservative response hardening.) `fit_score_*` are intentionally
-// NOT blocked: the owner editor renders its own lane signal from them.
+// (audit item 6 — conservative response hardening.) `fit_score_*` used to be
+// exempted here for an owner lane signal; both the Casting Reveal that produced
+// them and their columns are gone (20260824090000), so there is nothing to exempt.
 const TALENT_PROFILE_API_BLOCKLIST = new Set([
   "vector_summary",
   "vector_summary_text",
@@ -132,13 +133,6 @@ const TALENT_PROFILE_API_KEYS = [
   "experience_level",
   "eye_color",
   "first_name",
-  "fit_score_commercial",
-  "fit_score_editorial",
-  "fit_score_lifestyle",
-  "fit_score_overall",
-  "fit_score_runway",
-  "fit_score_swim_fitness",
-  "fit_scores_calculated_at",
   "gender",
   "guardian_consent_at",
   "guardian_email",
@@ -490,15 +484,6 @@ function resolveMeasurementCm(data, cmKey, aliasKey) {
   }
   return null;
 }
-
-const fitScoresUpdateSchema = z.object({
-  runway: z.coerce.number().optional(),
-  editorial: z.coerce.number().optional(),
-  commercial: z.coerce.number().optional(),
-  lifestyle: z.coerce.number().optional(),
-  swim_fitness: z.coerce.number().optional(),
-  overall: z.coerce.number().optional(),
-});
 
 /**
  * GET /api/talent/profile
@@ -1428,70 +1413,5 @@ router.put(
   }),
 );
 
-/**
- * POST /api/talent/profile/fit-scores
- * Persist calculated fit scores from the Casting Reveal experience
- */
-router.post(
-  "/profile/fit-scores",
-  requireRole("TALENT"),
-  asyncHandler(async (req, res) => {
-    const userId = req.session.userId;
-    const parsedScores = fitScoresUpdateSchema.safeParse(req.body);
-    if (!parsedScores.success) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation failed",
-        errors: parsedScores.error.flatten().fieldErrors,
-      });
-    }
-    const profile = await knex("profiles").where({ user_id: userId }).first();
-    if (!profile) {
-      return res
-        .status(404)
-        .json({ success: false, error: "Profile not found" });
-    }
-
-    // Clamp scores to 0-100 range
-    const clamp = (v) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
-
-    const scoreFieldMap = [
-      ["runway", "fit_score_runway"],
-      ["editorial", "fit_score_editorial"],
-      ["commercial", "fit_score_commercial"],
-      ["lifestyle", "fit_score_lifestyle"],
-      ["swim_fitness", "fit_score_swim_fitness"],
-      ["overall", "fit_score_overall"],
-    ];
-    const scorePatch = {};
-    const responseScores = {};
-    for (const [payloadKey, dbKey] of scoreFieldMap) {
-      if (!Object.hasOwn(parsedScores.data, payloadKey)) continue;
-      const value = clamp(parsedScores.data[payloadKey]);
-      scorePatch[dbKey] = value;
-      responseScores[payloadKey] = value;
-    }
-    if (Object.keys(scorePatch).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "At least one fit score is required",
-      });
-    }
-
-    await knex("profiles")
-      .where({ id: profile.id })
-      .update({
-        ...scorePatch,
-        fit_scores_calculated_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
-      });
-
-    return res.json({
-      success: true,
-      message: "Fit scores saved",
-      scores: responseScores,
-    });
-  }),
-);
 
 module.exports = router;

@@ -9,6 +9,7 @@ import {
   Check,
   Copy,
   CreditCard,
+  ExternalLink,
   KeyRound,
   Link2,
   Loader2,
@@ -264,13 +265,18 @@ const PROVIDERS = {
  * Sign-in identity, kept distinct from the editable profile fields around it.
  * This used to be a disabled "Sign-in email" text input, which flattened an
  * OAuth identity you don't own into something that looked like an editable field
- * you'd forgotten the password to. Then it became a bordered row nested inside a
- * bordered card under a bordered header — three containers describing one fact.
+ * you'd forgotten the password to. Then it became a card nested inside a card —
+ * a shadowed circle logo, a green "Connected" pill, borders around borders —
+ * the visual dialect of a generated SaaS mockup rather than anything Google
+ * actually ships.
  *
- * It is now a single composed statement, built like the public-handle card it
- * sits beside: gold label, the identity itself, then the consequence in prose.
- * The provider name carries the serif the rest of the surface gives to names,
- * and the address is set in the same mono as the handle directly below it.
+ * This is the real one: a Material list-row, the shape Google itself uses on
+ * myaccount.google.com to list a federated identity — flat leading mark, two
+ * lines of text, a plain link out to the account Pholio doesn't own. No card,
+ * no shadow, no status pill; the row sits directly on the settings surface the
+ * way `.set-handle` beside it does. "Manage" is Google's own blue (#1a73e8)
+ * because it is Google's own control, not Pholio's — everything else here,
+ * including the disclaimer prose below it, stays in Pholio's voice.
  *
  * Three states, and the third matters: a provider we can't resolve is *unknown*,
  * not "email and password". Asserting a password login to a Google account is a
@@ -285,28 +291,29 @@ function GoogleSignInIdentity({ email, label = 'How you sign in' }) {
           <span>{label}</span>
         </div>
       )}
-      <div className="set-signin-google__card">
-        <div className="set-signin-google__header">
-          <div className="set-signin-google__mark">
-            <GoogleMark size={22} />
-          </div>
-          <div className="set-signin-google__info">
-            <div className="set-signin-google__title-row">
-              <span className="set-signin-google__title">Signed in with Google</span>
-              <span className="set-signin-google__chip">
-                <Check size={12} strokeWidth={2.5} aria-hidden="true" />
-                Connected
-              </span>
-            </div>
-            <span className="set-signin-google__email" title={email || undefined}>
-              {email || 'Account email unavailable'}
-            </span>
-          </div>
-        </div>
-        <p className="set-signin-google__note">
-          Your password and 2-step verification are managed directly by your Google Account. Pholio never sees or stores your Google password.
-        </p>
+      <div className="set-signin-google__row">
+        <span className="set-signin-google__mark">
+          <GoogleMark size={20} />
+        </span>
+        <span className="set-signin-google__body">
+          <span className="set-signin-google__title">Google</span>
+          <span className="set-signin-google__email" title={email || undefined}>
+            {email || 'Account email unavailable'}
+          </span>
+        </span>
+        <a
+          className="set-signin-google__manage"
+          href="https://myaccount.google.com/permissions"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Manage
+          <ExternalLink size={12} aria-hidden="true" />
+        </a>
       </div>
+      <p className="set-signin-google__note">
+        Your password and 2-step verification are managed directly by your Google Account. Pholio never sees or stores your Google password.
+      </p>
     </div>
   );
 }
