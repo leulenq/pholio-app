@@ -82,7 +82,7 @@ const DECISIONS = {
 };
 DECISIONS.passed = DECISIONS.declined;
 
-function buildApplicationStatusEmailHtml({ talentName, agencyName, status, board, staleDigitals, submittedOn } = {}) {
+function buildApplicationStatusEmailHtml({ talentName, agencyName, status, board, staleDigitals, submittedOn, detail } = {}) {
   const agency = agencyName || "The agency";
   const d = DECISIONS[status] || DECISIONS.declined;
 
@@ -99,7 +99,16 @@ function buildApplicationStatusEmailHtml({ talentName, agencyName, status, board
     );
   }
 
-  rows.push(B.prose(d.body(agency, board), { size: 15.5 }), space(26));
+  // A templated decline reason replaces the body rather than joining it. The
+  // default declined copy says "They don't give a reason, and there isn't one to
+  // read into it" — true of most declines, and a flat contradiction of an email
+  // that is about to state the reason. Only one of the two can ship.
+  const declineDetail =
+    detail && (status === "declined" || status === "passed") ? String(detail) : null;
+  rows.push(
+    B.prose(declineDetail || d.body(agency, board), { size: 15.5 }),
+    space(26),
+  );
 
   if (d.standing) rows.push(B.standing(d.standing));
 

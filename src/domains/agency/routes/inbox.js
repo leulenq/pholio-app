@@ -24,6 +24,11 @@ const {
 const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
 const { searchDiscoverableTalent } = require("../services/discover-search");
 const {
+  declineReasonOptions,
+  normalizeDeclineReason,
+  talentMessageFor,
+} = require("../services/decline-reasons");
+const {
   findInvitation,
   createInvitation,
 } = require("../services/agency-invitations");
@@ -1757,6 +1762,20 @@ router.patch(
   },
 );
 
+// GET /api/agency/decline-reasons - the templated decline vocabulary
+//
+// Served rather than duplicated in the client so there is exactly one
+// definition of what a decline can say. Each option carries the verbatim
+// talent-facing sentence, because a reviewer must be able to read the message
+// before sending it — nobody should send words they have not been shown.
+router.get(
+  "/api/agency/decline-reasons",
+  requireRole("AGENCY"),
+  async (_req, res) => {
+    return res.json({ reasons: declineReasonOptions() });
+  },
+);
+
 // POST /api/agency/applications/:applicationId/decline - Decline application
 router.post(
   "/api/agency/applications/:applicationId/decline",
@@ -1777,11 +1796,33 @@ router.post(
 
       const oldStatus = application.status;
 
+      // The optional templated reason (services/decline-reasons.js). Absent is
+      // a valid, first-class answer: an agency that will not say why still
+      // declines, and the talent still gets the answer, which is the part that
+      // matters. Only a reason that is present and unrecognised is an error.
+      const reasonCheck = normalizeDeclineReason(req.body?.decline_reason);
+      if (!reasonCheck.ok) {
+        return res.status(400).json({ error: reasonCheck.error });
+      }
+      const declineReasonId = reasonCheck.id;
+
+      // Deploy-before-migrate: the column arrives with 20260824100000. Until it
+      // does, decline keeps working and simply carries no reason — a decline
+      // that lands without its reason is far better than one that 500s.
+      const reasonColumnReady = await hasColumnCached(
+        knex,
+        "applications",
+        "decline_reason",
+      );
+
       // Update status
-      await knex("applications").where({ id: applicationId }).update({
-        status: "declined",
-        updated_at: knex.fn.now(),
-      });
+      await knex("applications")
+        .where({ id: applicationId })
+        .update({
+          status: "declined",
+          ...(reasonColumnReady ? { decline_reason: declineReasonId } : {}),
+          updated_at: knex.fn.now(),
+        });
 
       // Log activity
       await logActivity(
@@ -1791,7 +1832,11 @@ router.post(
         agencyId,
         "status_change",
         "Not moving forward",
-        { old_status: oldStatus, new_status: "declined" },
+        {
+          old_status: oldStatus,
+          new_status: "declined",
+          decline_reason: declineReasonId,
+        },
       );
 
       await notifyTalentForApplicationStatus({
@@ -1824,6 +1869,10 @@ router.post(
                 `${profile.first_name} ${profile.last_name}`.trim() || "there",
               agencyName: agency.name || "the agency",
               status: "declined",
+              // The whole point of the templated decline: the talent reads the
+              // reason, not just the outcome. Null when none was given, and the
+              // email then says only what it has always said.
+              detail: talentMessageFor(declineReasonId),
             });
           }
         } catch (emailError) {
@@ -2114,6 +2163,20 @@ router.post(
           .json({ error: "Application IDs array is required" });
       }
 
+      // Bulk is where the templated decline earns its keep: one reason, one
+      // click, applied to the whole selection. Still optional — a bulk decline
+      // with no reason is exactly what this endpoint has always sent.
+      const reasonCheck = normalizeDeclineReason(req.body?.decline_reason);
+      if (!reasonCheck.ok) {
+        return res.status(400).json({ error: reasonCheck.error });
+      }
+      const declineReasonId = reasonCheck.id;
+      const reasonColumnReady = await hasColumnCached(
+        knex,
+        "applications",
+        "decline_reason",
+      );
+
       // Verify all applications belong to this agency
       const applications = await knex("applications")
         .whereIn("id", applicationIds)
@@ -2124,10 +2187,13 @@ router.post(
       }
 
       // Update all to declined
-      await knex("applications").whereIn("id", applicationIds).update({
-        status: "declined",
-        updated_at: knex.fn.now(),
-      });
+      await knex("applications")
+        .whereIn("id", applicationIds)
+        .update({
+          status: "declined",
+          ...(reasonColumnReady ? { decline_reason: declineReasonId } : {}),
+          updated_at: knex.fn.now(),
+        });
 
       // Log activities for each
       for (const app of applications) {
@@ -2142,8 +2208,23 @@ router.post(
             old_status: app.status,
             new_status: "declined",
             bulk_operation: true,
+            decline_reason: declineReasonId,
           },
         );
+      }
+
+      // Tell the talent. Bulk decline used to log and stop, so the most common
+      // decline path on the platform — a reviewer clearing a session's pool in
+      // one action — notified nobody, while a single decline sent an email.
+      // That is the exact silence auto-close exists to end (plan §9.6 #4), and
+      // it made the trust feature true only for declines issued one at a time.
+      for (const application of applications) {
+        await notifyTalentForApplicationStatus({
+          application,
+          agencyId,
+          newStatus: "declined",
+          previousStatus: application.status,
+        });
       }
 
       return res.json({ success: true, count: applicationIds.length });
