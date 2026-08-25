@@ -333,13 +333,37 @@ async function expireMinorSubmissionAccessForAgency(knex, agencyId) {
   return expired.map((row) => row.id);
 }
 
+/**
+ * Application ids are UUIDs. Anything else in that path position is a
+ * COLLECTION ROUTE, not an id.
+ *
+ * This used to accept whatever followed `/applications/` and exclude the one
+ * known exception by prefix (`bulk-`). That denylist was the bug: every new
+ * sibling route silently became a fake application id, and on PostgreSQL —
+ * where `applications.id` is a real `uuid` column — querying for it throws
+ * `invalid input syntax for type uuid`, turning the route into a 500. SQLite is
+ * untyped and matches nothing, so the whole class of failure was invisible to
+ * the test suite and appeared only in production.
+ *
+ * Shape-matching inverts it: an id is recognised by being one, so `compare`,
+ * `bulk-decline` and anything added later are all correctly ignored without
+ * anyone having to remember this file exists.
+ */
+const UUID_SHAPE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function extractApplicationIds(req) {
   const ids = new Set();
   const path = String(req.originalUrl || req.url || "").split("?")[0];
   const single = path.match(/\/applications\/([^/]+)/);
-  if (single && !single[1].startsWith("bulk-")) ids.add(single[1]);
+  if (single && UUID_SHAPE.test(single[1])) ids.add(single[1]);
   const bodyIds = req.body?.application_ids || req.body?.applicationIds;
-  if (Array.isArray(bodyIds)) bodyIds.forEach((id) => ids.add(String(id)));
+  if (Array.isArray(bodyIds)) {
+    bodyIds
+      .map((id) => String(id))
+      .filter((id) => UUID_SHAPE.test(id))
+      .forEach((id) => ids.add(id));
+  }
   return [...ids].filter(Boolean);
 }
 
