@@ -9,6 +9,36 @@ const {
   sendEventSlotDeclinedEmail,
 } = require("../lib/email");
 
+/**
+ * Run `worker` over `items` with at most `concurrency` in flight at once.
+ *
+ * Resend (the SMTP provider behind `../lib/email`) rate-limits at roughly 2
+ * requests/second. `items.map(worker)` + `Promise.all` fires every recipient's
+ * send at once through the same unpooled transport — fine for a two-person
+ * agency, but a large roster trips the limit and later sends in the batch
+ * fail. A small fixed-size worker pool (same shape as
+ * `domains/pdf/composition/image-forensics.js`'s `forensicsForImages`) caps
+ * how many sends are ever in flight together; each worker only starts its
+ * next item once its previous one has settled (success or failure), so
+ * steady-state throughput stays at or under the limit without needing a
+ * fixed per-request delay.
+ */
+async function runWithConcurrency(items, worker, concurrency) {
+  const queue = [...items];
+  const poolSize = Math.max(1, Math.min(concurrency, queue.length));
+  async function run() {
+    while (queue.length) {
+      const item = queue.shift();
+      if (item === undefined) break;
+      await worker(item);
+    }
+  }
+  await Promise.all(Array.from({ length: poolSize }, run));
+}
+
+/** Sends are bounded to this many in flight, matching Resend's ~2 req/s cap. */
+const EMAIL_FANOUT_CONCURRENCY = 2;
+
 const AGENCY_NOTIFICATION_TYPES = {
   APPLICATION_RECEIVED: "application_received",
   APPLICATION_WITHDRAWN: "application_withdrawn",
@@ -189,8 +219,9 @@ async function notifyAgencyEventSlotResponse({
       const send = confirmed
         ? sendEventSlotConfirmedEmail
         : sendEventSlotDeclinedEmail;
-      await Promise.all(
-        recipients.map((recipient) =>
+      await runWithConcurrency(
+        recipients,
+        (recipient) =>
           send({
             to: recipient.email,
             recipientName: recipient.first_name || null,
@@ -200,7 +231,7 @@ async function notifyAgencyEventSlotResponse({
           }).catch((err) =>
             console.error("[Agency Notifications] Slot email failed:", err.message),
           ),
-        ),
+        EMAIL_FANOUT_CONCURRENCY,
       );
     }
   } catch (err) {

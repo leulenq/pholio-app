@@ -14,7 +14,7 @@ Pholio sends transactional email through `src/shared/lib/email.js` and the SMTP 
 | `EMAIL_APP_URL` | Public app URL used in email links; falls back to `APP_URL`. |
 | `EMAIL_MARKETING_SITE_URL` | Public marketing/legal URL; falls back to `MARKETING_SITE_URL`. |
 
-If `SMTP_HOST` is missing, development uses a mock transporter. Production logs a loud misconfiguration warning and does not send real email.
+If `SMTP_HOST` is missing, development uses a mock transporter. A deployed runtime logs a loud misconfiguration warning and now FAILS the send rather than silently succeeding — a mock that returns success let guardian consent report `email_sent: true` having sent nothing.
 
 ## Live email moments
 
