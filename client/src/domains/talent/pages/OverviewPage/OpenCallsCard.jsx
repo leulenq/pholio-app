@@ -44,7 +44,7 @@ export default function OpenCallsCard() {
             <h2 id="ov-calls-heading" className="ov-calls-title">
               Open <em>Calls.</em>
             </h2>
-            <Link to="/dashboard/talent/applications" className="ov-calls-all">
+            <Link to="/dashboard/talent/open-calls" className="ov-calls-all">
               All open calls <ArrowUpRight size={12} aria-hidden />
             </Link>
           </div>

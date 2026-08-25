@@ -1,0 +1,185 @@
+/**
+ * Open calls page.
+ *
+ * Deliberately the same register as the Overview card it continues from
+ * (`.ov-calls-*`): serif names, mono times in warm gold, hairline rules, no
+ * card chrome. It should read as the card opening out rather than as a
+ * different product.
+ */
+
+.oc-page {
+  --oc-text: #1a1815;
+  --oc-text-soft: #6b6560;
+  --oc-text-faint: #94908a;
+  --oc-gold: #b08d45;
+  --oc-border: rgba(26, 24, 21, 0.1);
+  --oc-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 28px 96px;
+}
+
+.oc-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(176, 141, 69, 0.75);
+  text-decoration: none;
+  transition: color 0.25s var(--oc-ease);
+}
+
+.oc-back:hover {
+  color: var(--oc-gold);
+}
+
+.oc-title {
+  margin: 0 0 40px;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 300;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--oc-text);
+}
+
+.oc-title em {
+  font-style: italic;
+  font-weight: 300;
+  color: var(--oc-gold);
+}
+
+.oc-state {
+  margin: 0;
+  max-width: 56ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--oc-text-soft);
+}
+
+.oc-day {
+  margin-top: 44px;
+}
+
+.oc-day:first-of-type {
+  margin-top: 0;
+}
+
+.oc-day__name {
+  margin: 0 0 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--oc-text-faint);
+}
+
+.oc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.oc-row {
+  padding: 20px 0;
+  border-top: 1px solid var(--oc-border);
+}
+
+.oc-row__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.oc-row__name {
+  margin: 0;
+  min-width: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 1.1875rem;
+  font-weight: 300;
+  line-height: 1.25;
+  color: var(--oc-text);
+}
+
+.oc-row__time {
+  margin: 0;
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: var(--oc-gold);
+}
+
+.oc-row__label {
+  margin: 6px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--oc-text-faint);
+}
+
+.oc-row__where,
+.oc-row__instructions {
+  margin: 10px 0 0;
+  max-width: 62ch;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--oc-text-soft);
+}
+
+/* The address is the one line someone reads twice on the way out the door. */
+.oc-row__where {
+  color: var(--oc-text);
+}
+
+.oc-row__provenance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  margin: 12px 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--oc-text-faint);
+}
+
+.oc-row__provenance a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: rgba(176, 141, 69, 0.8);
+  text-decoration: none;
+  transition: color 0.25s var(--oc-ease);
+}
+
+.oc-row__provenance a:hover {
+  color: var(--oc-gold);
+}
+
+@media (max-width: 640px) {
+  .oc-page {
+    padding: 28px 20px 72px;
+  }
+
+  .oc-row__head {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

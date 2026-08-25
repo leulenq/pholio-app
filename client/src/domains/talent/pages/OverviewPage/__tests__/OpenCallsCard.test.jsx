@@ -109,7 +109,13 @@ describe('the open calls card', () => {
     renderCard();
 
     const link = await screen.findByRole('link', { name: /all open calls/i });
-    expect(link).toHaveAttribute('href', '/dashboard/talent/applications');
+    // This asserted /dashboard/talent/applications until 2026-08-25 — the
+    // tracker, which has never queried a call window. The link promised a
+    // calendar and delivered a different page, and this test held that in
+    // place: the destination was pinned, so nothing failed when it was wrong.
+    // A link assertion is only worth having if it names a page that answers
+    // the link's own words.
+    expect(link).toHaveAttribute('href', '/dashboard/talent/open-calls');
   });
 
   test('renders nothing at all when Pholio holds no windows', async () => {
