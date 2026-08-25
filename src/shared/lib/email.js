@@ -181,6 +181,7 @@ async function sendApplicationStatusEmail({
   talentName,
   agencyName,
   status,
+  detail = null,
 }) {
   const messages = {
     accepted: {
@@ -202,13 +203,14 @@ async function sendApplicationStatusEmail({
     talentName,
     agencyName,
     status,
+    detail,
   });
 
   return sendEmail({
     to,
     subject,
     html,
-    text: emailText.applicationStatus({ agencyName, status }),
+    text: emailText.applicationStatus({ agencyName, status, detail }),
   });
 }
 

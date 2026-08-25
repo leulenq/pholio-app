@@ -148,18 +148,6 @@ const AGE_TERMS = {
   thirties: ["30s", "thirties"],
 };
 
-const LOOK_ARCHETYPE_VALUES = new Set([
-  "Editorial",
-  "Commercial",
-  "Runway",
-  "Fitness",
-  "Beauty",
-  "Lifestyle",
-  "Avant-garde",
-  "Classic",
-  "Fashion",
-]);
-
 const HAIR_COLOR_TERMS = {
   red: ["redhead", "red hair", "ginger", "auburn"],
   blonde: ["blonde", "blond"],
@@ -178,7 +166,6 @@ const CONSTRAINT_FIELD_MAP = {
   Location: "city",
   Gender: "gender",
   Heritage: "heritage",
-  Look: "archetype",
   Experience: "experience_level",
   Build: "height",
 };
@@ -260,7 +247,7 @@ function parseIntent(text) {
  * @param {string} q
  * @returns {{
  *   facets: Array,
- *   filters: { city?: string, gender?: string, archetype?: string, experience_level?: string, min_height?: number, max_height?: number },
+ *   filters: { city?: string, gender?: string, experience_level?: string, min_height?: number, max_height?: number },
  *   softQuery: string
  * }}
  */
@@ -277,11 +264,6 @@ function parseIntentToFilters(q) {
       filters.gender = GENDER_DB_MAP[facet.value] || facet.value;
     } else if (facet.kind === "Heritage") {
       filters.heritage = facet.value;
-    } else if (
-      facet.kind === "Look" &&
-      LOOK_ARCHETYPE_VALUES.has(facet.value)
-    ) {
-      filters.archetype = facet.value;
     } else if (facet.kind === "Experience") {
       filters.experience_level = facet.value;
     }
@@ -432,13 +414,6 @@ function buildSoftConstraints(q) {
         field: "heritage",
         value: facet.value,
         confidence: 0.85,
-        mode: "soft",
-      });
-    } else if (field === "archetype") {
-      constraints.push({
-        field: "archetype",
-        value: facet.value,
-        confidence: 0.7,
         mode: "soft",
       });
     } else if (field === "city") {

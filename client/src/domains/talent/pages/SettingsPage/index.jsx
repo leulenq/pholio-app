@@ -210,18 +210,35 @@ function SkeletonRows({ count = 3 }) {
 /* --- sign-in identity ---------------------------------------------- */
 
 /**
- * Google's four-colour "G", inline so it survives the CSP and needs no asset
- * pipeline. Reproduced at the official proportions and colours — Google's brand
- * guidelines require the mark be shown unmodified, so it is never recoloured,
- * outlined, or given a currentColor treatment.
+ * Google's "G", inline so it survives the CSP and needs no asset pipeline.
+ * This is Google's own asset, byte-for-byte — the path data and viewBox are
+ * copied verbatim from `fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg`,
+ * the same product-icon asset Google's own surfaces load for the mark. It is
+ * never recoloured, outlined, resized non-uniformly, or given a currentColor
+ * treatment — Google's brand guidelines require it shown unmodified.
  */
 function GoogleMark({ size = 18 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-      <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
-      <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z" />
-      <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z" />
-      <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z" />
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+  );
+}
+
+/**
+ * Material Symbols "open_in_new", inline for the same CSP reason as the G
+ * above. Path data copied verbatim from Google's Material Symbols CDN
+ * (`fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/open_in_new/default/24px.svg`)
+ * — this is the exact glyph Google's own products use for "this leaves the
+ * current app," not a stand-in from a third-party icon set.
+ */
+function OpenInNewIcon({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true" focusable="false">
+      <path d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z" />
     </svg>
   );
 }
@@ -262,15 +279,40 @@ const PROVIDERS = {
 
 /**
  * Sign-in identity, kept distinct from the editable profile fields around it.
- * This used to be a disabled "Sign-in email" text input, which flattened an
- * OAuth identity you don't own into something that looked like an editable field
- * you'd forgotten the password to. Then it became a bordered row nested inside a
- * bordered card under a bordered header — three containers describing one fact.
+ * This used to be a disabled "Sign-in email" text input, then a card nested
+ * inside a card with a shadowed circle logo and a green "Connected" pill —
+ * both visual interpretations of "Google-ish," not anything Google ships.
  *
- * It is now a single composed statement, built like the public-handle card it
- * sits beside: gold label, the identity itself, then the consequence in prose.
- * The provider name carries the serif the rest of the surface gives to names,
- * and the address is set in the same mono as the handle directly below it.
+ * This row is rebuilt from Google's own source, not from memory of what a
+ * Google row "looks like":
+ * - Geometry is Material 3's actual two-line list-item (`<md-list-item>` /
+ *   `<md-item>` in google/material-web) — 16px gap between leading element,
+ *   text block, and trailing action; 12px/16px block/inline padding; 72px
+ *   min height. None of that is eyeballed — it's the literal token values in
+ *   material-web's `tokens/versions/v0_192` package and the `:host` rules in
+ *   `list/internal/listitem/_list-item.scss` and `labs/item/internal/_item.scss`.
+ * - The leading element uses M3's *avatar* slot, not its plain icon slot —
+ *   the spec reserves avatar (40px, fully round) specifically for rows whose
+ *   leading content identifies a person or account, versus the 24px icon
+ *   slot for a row that merely triggers a control. This row identifies an
+ *   account, so avatar is the correct slot: `list-item-leading-avatar-size`
+ *   is 40px, `-shape` is `corner-full`. Avatars are normally filled with a
+ *   tonal colour, but Google's own brand guidelines require the G mark
+ *   specifically "on a white background," so the fill is white with a
+ *   1px `outline-variant` ring for contrast instead of a tonal fill — no
+ *   drop shadow; M3 avatars don't carry elevation of their own.
+ * - Colour and type are Google's actual production values, taken from the
+ *   live CSS Google's own accounts surface ships today: `#1f1f1f` headline /
+ *   `#444746` supporting text / `#0b57d0` primary (the current GM3 blue —
+ *   note this superseded the older `#1a73e8`) / `#e8eaed` divider and ring, in
+ *   "Google Sans Flex","Google Sans Text","Google Sans",Roboto,Arial.
+ * - The mark is Google's actual asset (`GoogleMark`, byte-for-byte from
+ *   `fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg`) — never
+ *   recoloured or reshaped, only ever resized uniformly.
+ * - "Manage" is a real Material 3 text button (40px, fully-rounded, 8px
+ *   icon/label gap, 0.08/0.12 hover/press state-layer opacity — again the
+ *   literal `md-sys-state` values) opening the identity's actual home,
+ *   `myaccount.google.com/permissions` — Pholio has no such screen of its own.
  *
  * Three states, and the third matters: a provider we can't resolve is *unknown*,
  * not "email and password". Asserting a password login to a Google account is a
@@ -285,28 +327,29 @@ function GoogleSignInIdentity({ email, label = 'How you sign in' }) {
           <span>{label}</span>
         </div>
       )}
-      <div className="set-signin-google__card">
-        <div className="set-signin-google__header">
-          <div className="set-signin-google__mark">
-            <GoogleMark size={22} />
-          </div>
-          <div className="set-signin-google__info">
-            <div className="set-signin-google__title-row">
-              <span className="set-signin-google__title">Signed in with Google</span>
-              <span className="set-signin-google__chip">
-                <Check size={12} strokeWidth={2.5} aria-hidden="true" />
-                Connected
-              </span>
-            </div>
-            <span className="set-signin-google__email" title={email || undefined}>
-              {email || 'Account email unavailable'}
-            </span>
-          </div>
-        </div>
-        <p className="set-signin-google__note">
-          Your password and 2-step verification are managed directly by your Google Account. Pholio never sees or stores your Google password.
-        </p>
+      <div className="set-signin-google__item">
+        <span className="set-signin-google__leading">
+          <GoogleMark size={22} />
+        </span>
+        <span className="set-signin-google__text">
+          <span className="set-signin-google__headline" title={email || undefined}>
+            {email || 'Account email unavailable'}
+          </span>
+          <span className="set-signin-google__supporting">Signed in with Google</span>
+        </span>
+        <a
+          className="set-signin-google__button"
+          href="https://myaccount.google.com/permissions"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Manage
+          <OpenInNewIcon size={18} />
+        </a>
       </div>
+      <p className="set-signin-google__note">
+        Your password and 2-step verification are managed directly by your Google Account. Pholio never sees or stores your Google password.
+      </p>
     </div>
   );
 }

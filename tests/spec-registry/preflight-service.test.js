@@ -216,7 +216,7 @@ describe("Spec Registry preflight service", () => {
 
     await db("spec_registry_agency_routes").insert({
       agency_id: agencyId,
-      series_id: "models1-uk:online",
+      series_id: "ford-models:selected-city-online",
       priority: 10,
     });
     const mapped = await preflightRegistry(
@@ -227,8 +227,8 @@ describe("Spec Registry preflight service", () => {
 
     expect(mapped).toMatchObject({ available: true, resolution: "resolved" });
     expect(mapped.results).toHaveLength(1);
-    expect(mapped.results[0].seriesId).toBe("models1-uk:online");
-    expect(mapped.results[0].organization.name).toBe("Models1");
+    expect(mapped.results[0].seriesId).toBe("ford-models:selected-city-online");
+    expect(mapped.results[0].organization.name).toBe("Ford Models");
   });
 
   test("surfaces source unknowns and unconfirmed image facts as manual confirmation, while still allowing submission", async () => {
@@ -236,7 +236,7 @@ describe("Spec Registry preflight service", () => {
       db,
       {
         profileId: TALENT_PROFILE_ID,
-        seriesId: "elite-model-management-global:online",
+        seriesId: "img-models-global:online",
         imageIds: [ELIGIBLE_IMAGE_ID],
       },
       { referenceDate: "2026-08-10" },
@@ -272,7 +272,7 @@ describe("Spec Registry preflight service", () => {
           db,
           {
             profileId: TALENT_PROFILE_ID,
-            seriesId: "models1-uk:online",
+            seriesId: "wilhelmina:selected-market-online",
             imageIds: [imageId],
           },
           { referenceDate: "2026-08-10" },
@@ -525,8 +525,8 @@ describe("Spec Registry preflight service", () => {
         db,
         {
           profileId: TALENT_PROFILE_ID,
-          seriesId: "models1-uk:online",
-          expectedRevisionId: "models1-uk:online@999",
+          seriesId: "ford-models:selected-city-online",
+          expectedRevisionId: "ford-models:selected-city-online@999",
         },
         { referenceDate: "2026-08-10" },
       ),
@@ -534,7 +534,7 @@ describe("Spec Registry preflight service", () => {
       name: "SpecRegistryServiceError",
       code: "SPEC_REGISTRY_REVISION_CHANGED",
       status: 409,
-      details: { currentRevisionId: "models1-uk:online@1" },
+      details: { currentRevisionId: "ford-models:selected-city-online@1" },
     }));
   });
 });

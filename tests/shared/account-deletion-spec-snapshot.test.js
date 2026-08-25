@@ -139,6 +139,6 @@ describe("account deletion with immutable Spec Registry snapshots", () => {
         .first(),
     ).resolves.toBeUndefined();
 
-    expect(await db("spec_registry_revisions").count("* as n").first()).toEqual({ n: 10 });
+    expect(await db("spec_registry_revisions").count("* as n").first()).toEqual({ n: 6 });
   });
 });

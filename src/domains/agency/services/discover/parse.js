@@ -28,7 +28,7 @@ const { CONTRACT_SCHEMA } = require("./contract-schema");
 const { validateContract } = require("./validate-contract");
 const { emptyContract, emptyHard } = require("./contract-schema");
 const { decomposeQueryFallback } = require("../../lib/intent-parser");
-const { GENDER_DB_MAP, BOARDS } = require("./field-whitelist");
+const { GENDER_DB_MAP } = require("./field-whitelist");
 
 const PARSE_MODEL = () => config.groq.textModel;
 const PARSE_TEMPERATURE = 0.1;
@@ -197,9 +197,6 @@ function fallbackContract(text) {
         span: text,
         confidence: 0.5,
       };
-    } else if (c.field === "archetype") {
-      const slug = String(c.value).toLowerCase();
-      if (BOARDS.includes(slug)) hard.boards = [slug];
     } else if (c.field === "city") {
       const slug = String(c.value).toLowerCase().replace(/\s+/g, "-");
       hard.location = { market: slug, local_only: null, travel_ok: null, span: c.value };

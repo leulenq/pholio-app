@@ -28,6 +28,7 @@ const PROTECTED_API_PREFIXES = [
 const HEADER_ONLY_API_PATHS = [
   "/api/login",
   "/api/logout",
+  "/api/auth/instagram/start",
   "/api/auth/password-reset",
 ];
 

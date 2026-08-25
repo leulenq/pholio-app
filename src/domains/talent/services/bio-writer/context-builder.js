@@ -78,10 +78,6 @@ function lanesFromProfile(profile) {
   const categories = parseJsonArray(profile.modeling_categories);
   if (categories.length) return categories.slice(0, MAX_LANES);
 
-  if (profile.archetype) {
-    return [String(profile.archetype).replace(/ Icon$/, "")];
-  }
-
   return [];
 }
 

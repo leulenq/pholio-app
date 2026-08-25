@@ -200,7 +200,6 @@ async function createSchema() {
     // submissions list (not just the export) can run against this fixture.
     table.string("slug", 120).nullable();
     table.string("gender", 30).nullable();
-    table.string("archetype", 50).nullable();
     table.string("stats_track", 30).nullable();
     table.integer("chest_cm").nullable();
     table.integer("inseam_cm").nullable();

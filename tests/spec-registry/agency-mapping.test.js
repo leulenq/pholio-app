@@ -74,12 +74,12 @@ describe("Spec Registry production agency mappings", () => {
     const initial = mapping([
       {
         agencyId: firstAgencyId,
-        seriesId: "models1-uk:online",
+        seriesId: "elite-models-na:online-general",
         priority: 10,
       },
       {
         agencyId: firstAgencyId,
-        seriesId: "storm-management-uk:online",
+        seriesId: "the-society-management-nyc:online",
         priority: 20,
       },
       {
@@ -104,7 +104,7 @@ describe("Spec Registry production agency mappings", () => {
     const replacement = mapping([
       {
         agencyId: firstAgencyId,
-        seriesId: "models1-uk:online",
+        seriesId: "elite-models-na:online-general",
         priority: 5,
       },
       {
@@ -120,7 +120,7 @@ describe("Spec Registry production agency mappings", () => {
     const expectedRows = [
       {
         agency_id: firstAgencyId,
-        series_id: "models1-uk:online",
+        series_id: "elite-models-na:online-general",
         priority: 5,
       },
       {
@@ -140,13 +140,13 @@ describe("Spec Registry production agency mappings", () => {
     const document = mapping([
       {
         agencyId: firstAgencyId,
-        seriesId: "models1-uk:online",
+        seriesId: "elite-models-na:online-general",
         priority: 10,
       },
     ]);
     await applyAgencyMappings(db, document);
     await db("spec_registry_agency_routes")
-      .where({ agency_id: firstAgencyId, series_id: "models1-uk:online" })
+      .where({ agency_id: firstAgencyId, series_id: "elite-models-na:online-general" })
       .update({ priority: 99 });
 
     await expect(
@@ -166,7 +166,7 @@ describe("Spec Registry production agency mappings", () => {
         mapping([
           {
             agencyId: crypto.randomUUID(),
-            seriesId: "models1-uk:online",
+            seriesId: "elite-models-na:online-general",
             priority: 10,
           },
         ]),
@@ -196,7 +196,7 @@ describe("Spec Registry production agency mappings", () => {
       validateMappingDocument(mapping([
         {
           agencyId: "not-a-uuid",
-          seriesId: "models1-uk:online",
+          seriesId: "elite-models-na:online-general",
           priority: 10,
         },
       ])),
@@ -209,7 +209,7 @@ describe("Spec Registry production agency mappings", () => {
           mapping([
             {
               agencyId: firstAgencyId,
-              seriesId: "models1-uk:online",
+              seriesId: "elite-models-na:online-general",
               priority: 10,
             },
           ]),

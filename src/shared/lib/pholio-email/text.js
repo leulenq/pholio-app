@@ -174,7 +174,7 @@ const trialEnding = ({ firstName, trialEndLabel, priceLabel, manageUrl }) => {
 
 /* ------------------------------------------------------------- submissions */
 
-const applicationStatus = ({ agencyName, status, board, staleDigitals, submittedOn }) => {
+const applicationStatus = ({ agencyName, status, board, staleDigitals, submittedOn, detail }) => {
   const agency = agencyName || "The agency";
   const copy = {
     kept_on_file: [`${agency} kept your book on file.`, "That's not a no.", `It means they'd consider you when a place opens${board ? ` on ${board}` : ""} — and when they look again, they'll see whatever's in your profile then, not what you sent before.`],
@@ -184,7 +184,13 @@ const applicationStatus = ({ agencyName, status, board, staleDigitals, submitted
     represented: [`You're represented by ${agency}.`, "The agreement is complete.", "They'll be in touch about onboarding \u2014 your book with them, how they want to be reached, and what they need from you first.\n\nKeep your measurements and digitals current here too. Agencies check them more often than they ask for them."],
     declined: [`${agency} passed on your submission.`, "", "They don't give a reason, and there isn't one to read into it. Agencies pass on board space, market and timing far more often than on the work itself."],
   };
-  const [head, rule, body] = copy[status] || copy.declined;
+  const [head, rule, defaultBody] = copy[status] || copy.declined;
+  // Same rule as the HTML: a stated reason replaces the "they don't give a
+  // reason" body, it does not sit beside it.
+  const body =
+    detail && (status === "declined" || status === "passed")
+      ? String(detail)
+      : defaultBody;
   return j(
     head, "", rule || null, rule ? "" : null, body,
     staleDigitals ? `\nYour digitals are ${staleDigitals} days old. Most agencies want a set from the last three months.\n${app()}/dashboard/talent/media` : null,

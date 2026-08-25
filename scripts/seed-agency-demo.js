@@ -164,18 +164,6 @@ const CITIES = [
   "Berlin",
 ];
 // Editorial-heavy mix with a thin Fitness tail (drives a "scout" recommendation).
-const ARCHETYPES = [
-  "Editorial",
-  "Editorial",
-  "Editorial",
-  "Runway",
-  "Runway",
-  "Commercial",
-  "Commercial",
-  "Lifestyle",
-  "Beauty",
-  "Fitness",
-];
 
 const DISCOVER_BIOS = [
   "Paris-based editorial new face with sharp cheekbones and luminous skin. Strong runway walk, versatile for avant-garde and luxury campaigns.",
@@ -309,7 +297,7 @@ const FILTER_PRESETS = [
   },
   {
     name: "Runway Ready",
-    filters: { min_height: 175, archetype: "Runway" },
+    filters: { min_height: 175 },
     is_default: false,
   },
   {
@@ -432,7 +420,6 @@ async function seedAgencyDemo(knex) {
       uid,
       first,
       last,
-      archetype: pick(ARCHETYPES),
       city: pick(CITIES),
       hasApp: i < 40,
       discoverable: discoverableNoApp,
@@ -473,7 +460,6 @@ async function seedAgencyDemo(knex) {
         ? DISCOVER_BIO_OVERRIDES[discoverIdx] ||
           DISCOVER_BIOS[discoverIdx % DISCOVER_BIOS.length]
         : "Demo talent profile.",
-      archetype: p.archetype,
       gender: isDiscoverable
         ? ["Female", "Male", "Female", "Female", "Male", "Non-binary"][
             discoverIdx % 6

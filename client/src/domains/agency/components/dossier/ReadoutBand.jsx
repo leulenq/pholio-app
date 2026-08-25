@@ -59,11 +59,14 @@ export function ReadoutBand({ dossier, onJump }) {
       }`
     : `Clear for ${calendar.windowDays} days`;
 
+  const freshness = pkg.freshness;
   const packageNote = pkg.set.missingSlots.length
     ? `missing ${pkg.missingLabels.join(', ').toLowerCase()}`
-    : pkg.digitalsAgeDays != null && pkg.digitalsAgeDays > 90
-      ? `oldest digital ${Math.round(pkg.digitalsAgeDays / 30)} mo old`
-      : `${pkg.frames} frame${pkg.frames === 1 ? '' : 's'} in the book`;
+    : freshness?.state === 'undated'
+      ? 'digitals undated'
+      : freshness && freshness.state !== 'current' && pkg.digitalsAgeDays != null
+        ? `oldest digital ${Math.round(pkg.digitalsAgeDays / 30)} mo old`
+        : `${pkg.frames} frame${pkg.frames === 1 ? '' : 's'} in the book`;
 
   return (
     <div className="dx-band" role="group" aria-label="Talent readouts">

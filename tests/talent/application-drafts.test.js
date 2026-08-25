@@ -154,7 +154,7 @@ describe("application drafts", () => {
     await knex("spec_registry_agency_routes").insert([
       {
         agency_id: agencyId,
-        series_id: "models1-uk:online",
+        series_id: "ford-models:selected-city-online",
         priority: 10,
       },
       {
@@ -361,7 +361,7 @@ describe("application drafts", () => {
               invented: imageId,
             },
             compCardPresetId: presetId,
-            specRegistryRevisionId: "models1-uk:online@1",
+            specRegistryRevisionId: "ford-models:selected-city-online@1",
             note: "x".repeat(1300),
             consent: true,
             accuracyConfirmed: true,
@@ -389,7 +389,7 @@ describe("application drafts", () => {
       seed: "draft-seed",
     });
     expect(res.body.data.payload.specRegistryRevisionId).toBe(
-      "models1-uk:online@1",
+      "ford-models:selected-city-online@1",
     );
     expect(res.body.data.payload.note).toHaveLength(1200);
     expect(res.body.data.payload.consent).toBe(true);
@@ -1161,7 +1161,7 @@ describe("application drafts", () => {
           headshot: imageId,
           full_length: fullLengthImageId,
         },
-        specRegistryRevisionId: "models1-uk:online@1",
+        specRegistryRevisionId: "ford-models:selected-city-online@1",
         imageIds: [imageId, fullLengthImageId],
         consentConfirmed: true,
       },
@@ -1270,13 +1270,13 @@ describe("application drafts", () => {
     );
     expect(packagePayload.imageIds).toEqual([imageId, fullLengthImageId]);
     expect(packagePayload.packageSchemaVersion).toBe(2);
-    expect(packagePayload.specRegistryRevisionId).toBe("models1-uk:online@1");
+    expect(packagePayload.specRegistryRevisionId).toBe("ford-models:selected-city-online@1");
     const registrySnapshot = await knex("application_spec_snapshots")
       .where({ application_id: submitted.body.id })
       .first();
     expect(registrySnapshot).toMatchObject({
-      revision_id: "models1-uk:online@1",
-      dataset_version: "2026.08.09.2",
+      revision_id: "ford-models:selected-city-online@1",
+      dataset_version: "2026.08.19.1",
     });
     expect(packagePayload.mediaSetName).toBe("Draft set");
     expect(packagePayload.images.map((image) => image.id)).toEqual([

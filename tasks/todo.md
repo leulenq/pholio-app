@@ -72,3 +72,179 @@ Q4 yes, Q5 event_ends_on+90d, Q6 yes, Q7 photos gate submit but come last, Q8 fu
   fix lane dispatched; one finding referenced a file absent from HEAD (moot).
 - Open before production: 7.1 anonymous-media moderation wiring; board-candidates endpoint
   identity fields; HEIC; minors policy (other workstream).
+
+---
+
+# Launch gap closure — verified against `docs/pholio-strategic-analysis-2026-08.md`
+
+Source: build-status audit 2026-08-23. Studio+ paid tier excluded by owner (§11 puts it at
+week 8+ anyway). Lead = Claude (Opus/Strong). Workers never commit; lead integrates.
+Branch: `claude/launch-gap-stage-1`.
+
+## Stage 1 — bleeding now — DONE
+
+- [x] **S1-LEAD (Strong)** Invite-to-Apply consent gate — `45b5b654`.
+      `inbox.js` and its drifted page-route twin in `roster.js` both recorded an agency's
+      interest as an `applications` row, which (a) satisfied the ownership check on
+      `/applications/:id/details` and so handed over the submission-grade dossier — exact
+      `date_of_birth` via `AGE_GATING_COLUMNS`, plus email — for a talent who had never
+      applied, and (b) made `alreadyAppliedToTarget` self-fulfilling, telling that talent
+      they had already applied. Now `agency_invitations`; `applications` row only on a real
+      apply; `invited_by_agency_id` kept but written at apply time so the dossier's
+      `invited` flag keeps its honest meaning. Guarded reads (deploy-before-migrate).
+      10 tests. No backfill — production held zero such rows.
+- [x] **S1-W1 (Standard)** Deletions — `7d2cec12`.
+      ZipSite removed from every shipping surface; `public/scripts/pdf-export.js` and
+      `render-pdf.js` deleted outright (unreferenced, carried a `bookings@zipsite.com`
+      contact and a "Refined by ZipSite" watermark). `board_scoring_weights` +
+      `applications.match_score` drop migration written, NOT applied.
+      `FIREBASE_PROJECT_ID=zipsite-78e85` deliberately untouched — live project id, an
+      infrastructure migration rather than a rename.
+- [ ] **DEFERRED by owner** — `social-oauth.js` mock verifier stays until Phyllo is set up.
+      It is production-gated but backs live dev/staging UI (`SocialSection`, `MockConsentPage`).
+- [ ] **S1-LEAD** Agency dossier digitals freshness, server-side.
+      `client/.../dossier/dossierModel.js:221-240` ages from `created_at` and takes the
+      *newest* frame, so a reviewer reads an undated or part-stale set as fresh. Compute in
+      `talent-dossier.js` so there is one source of truth, then thin the client.
+
+## Blocker found while verifying Stage 1
+
+- [ ] **Spec Registry suites are red on main** — 8 suites / 59 tests, all
+      `spec_registry_agency_routes` FOREIGN KEY violations during dataset seeding.
+      Confirmed PRE-EXISTING (reproduced with the Stage 1 source reverted). This is the
+      §7 centerpiece and the §9.6 #1 feature; it should not ship red. Investigate before
+      further feature work.
+
+## Stage 2 — the removals §9.2/§9.3 call for
+
+- [ ] Archetype & vibe AI: `analyzeProfileImage.js` still emits `lookType`/`marketSignals`/
+      `bookingStrengths`/`developmentNotes`/`castingNotes`, wired at `media.js:44,181` and
+      `comp-card-import.js:43`. Also retire `archetype` + `market_fit_rankings` as profile
+      columns and PDF composition inputs. Standard impl / Strong review.
+
+## Stage 3 — agency surfaces
+
+- [ ] Applicant inbox: wire the frontend to the sort/city/eligibility/date-range filters the
+      backend already supports (`ApplicantsPage.jsx` ignores all of them).
+- [ ] Comparison view (not built).
+- [ ] Auto-close: expose the per-agency review window in settings (exists in DB/API, no UI)
+      + one-click templated decline (no `decline_reason` anywhere).
+- [ ] "Request refresh", distinct from "request more materials".
+- [ ] Season memory: agency-facing re-application diffing.
+- [ ] Export webhook (CSV done; webhook is zero).
+
+## Stage 4 — talent surface
+
+- [ ] Per-recipient share tokens with open tracking: built server-side (`intel.js:104-190`,
+      `share_tokens`), consumed by zero client code. §9.2 calls this the single most
+      emotionally valuable analytics event Pholio can show.
+
+## Stage 5 — event mode (FWB-blocking)
+
+- [ ] Confirmations / RSVP / no-show handling.
+- [ ] Export-back-to-model payoff bundle — funnel event fires, deliverable not located.
+
+## Open question for the owner
+
+- Machine-readable comp card (§9.6 #6, embedded structured data) — not built, unscoped.
+
+## Migration rehearsal log (Neon branches off production)
+
+All six pending migrations rehearsed against forks of production. Production
+itself remains at 218 / batch 18 — nothing has been applied there.
+
+- 2026-08-24, `rehearse-launch-gap-clean-2026-08-24`: the first five. Caught a
+  real defect — `reconcile_profiles_ai_drift.down()` restored every column it
+  found missing, so on production (where `up()` is a no-op) a rollback would
+  have CREATED 34 columns production never had, rebuilding the inference
+  surface the compliance work removed. Made one-way.
+- 2026-08-24, `rehearse-decline-reason-2026-08-24`: all six including
+  `20260824100000_application_decline_reason`. Row counts identical across every
+  table before and after; the 6 pre-existing declined rows kept NULL rather than
+  being backfilled with a reason nobody chose; rollback + re-apply round-trips.
+  Ten functional checks against real Postgres rows, including that the reason
+  reaches both the HTML and plain-text emails and that the contradictory "they
+  don't give a reason" line disappears when one is given.
+  - Found: production has `applications.match_score` but NOT
+    `match_calculated_at` — another instance of the schema drift. The guards
+    handled it, but the log line claimed both were dropped. Fixed to name only
+    what it actually drops.
+
+### APPLIED TO PRODUCTION — 2026-08-24, batch 19
+
+All six applied on the owner's instruction. Restore point taken first:
+Neon branch `pre-migration-batch19-2026-08-24` (br-rough-block-a44lxze2),
+created with NO expiry so it outlives the rehearsal branches.
+
+Verified after: 218 -> 224 migrations, batch 19. Every row count identical to
+the pre-migration baseline — applications 47, profiles 62, users 67, images 71,
+agencies 22, notes 6, tags 42, onboarding_signals 3, sessions 26. The 6 existing
+declined applications kept decline_reason NULL. Ten schema assertions correct
+(agency_invitations created; decline_reason added; match_score,
+board_scoring_weights, archetype, vibe_score gone; invited_by_agency_id,
+ai_processing_consent and age_range all kept). profiles is 109 columns.
+Invitation service smoke-tested live: 9/9, and inviting still writes no
+applications row (47 -> 47).
+
+Rollback if ever needed: `npx knex migrate:rollback` reverses batch 19; the
+reconcile migration is deliberately one-way and restores nothing, by design.
+
+Still open: decide the orphaned Elite trust-registry org key (`elite-models` vs
+the delisted `elite-model-management`).
+
+---
+
+# Scoped: deduplicate the reference agency rows
+
+Found 2026-08-24 while mapping trust-registry verifications. NOT done — scoped
+here deliberately, because the first instinct (delete the empty twin) is wrong.
+
+## The defect
+
+Eight seeded reference agencies exist TWICE in production, created 2026-07-28,
+identical in name, website and REFERENCE status:
+
+  DNA Model Management · Elite Model Management · Ford Models · IMG Models
+  Marilyn Agency · Next Management · The Society Management · Wilhelmina Models
+
+Talent see each of them twice in the directory. That is the user-visible half.
+
+## Why it is not a five-minute cleanup
+
+- **40 foreign keys reference `agencies.id`, 22 of them ON DELETE CASCADE** —
+  applications, boards, application_tags, application_submission_consent_events,
+  guardian_consent_requests, open_call_submissions, roster_memberships,
+  spec_registry_series and more. Deleting a row silently destroys whatever
+  points at it. Only 3 of the 40 have been checked.
+- **The twins are not interchangeable.** In every pair one row carries a real
+  talent application and the other is empty (Elite ed82df8b / Ford f2b7bec8 /
+  IMG d1ffbc1c / Society fe9a146a / Wilhelmina ed5c17a4 each hold 1). Five real
+  applications hang off one arbitrary half.
+- **Root cause unknown.** `20260701110000` only UPDATEs by name, so it is not
+  the source. Whatever created them on 2026-07-28 has not been found, and until
+  it is, a dedupe may simply be undone by the next deploy.
+- **Name-keyed writes currently hit both rows** (`.where({ name }).update()` in
+  20260701110000). That is why the twins stay identical — and it means any other
+  name-keyed write needs auditing before one row disappears.
+
+## The work, in order
+
+1. Find what inserted the duplicates on 2026-07-28 and stop it recurring.
+   Until this is answered, do not delete anything.
+2. Audit all 40 FK references for rows pointing at each doomed id. Not a
+   spot-check — enumerate.
+3. Decide the survivor per pair: the applications-bearing row, which is also the
+   row the trust-registry mapping now points at (see the mapping section above).
+4. Write it as a MIGRATION, not ad-hoc SQL: re-point every reference, then
+   delete. Rehearse on a Neon branch off production, verifying row counts per
+   affected table before and after.
+5. Add a uniqueness constraint so it cannot recur. Note reference agencies have
+   `slug: null`, so the constraint cannot be on slug alone.
+6. Re-run `npm run release:trust-registry` afterwards if any survivor id changes.
+
+## Not blocking
+
+The verification mapping does not depend on this. Four verifications are mapped
+and live against the applications-bearing rows; the empty twins simply render no
+verification, which is what they rendered before.
+

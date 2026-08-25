@@ -11,6 +11,10 @@ const {
   getSessionAgencyId,
 } = require("../services/context");
 const { v4: uuidv4 } = require("uuid");
+const {
+  findInvitation,
+  createInvitation,
+} = require("../services/agency-invitations");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
 const {
   getApplicationAccessDecision,
@@ -176,28 +180,45 @@ router.post(
         return res.redirect("/dashboard/agency/discover");
       }
 
-      const existingApplication = await knex("applications")
-        .where({ profile_id: profileId, agency_id: agencyId })
-        .first();
+      // Page-route twin of the Discover invite in `inbox.js`. It recorded the
+      // invitation the same way and inherited the same two defects, so it takes
+      // the same fix: an invitation is its own record, never an application.
+      // See `20260820100000_create_agency_invitations.js`.
+      const [existingInvitation, existingApplication] = await Promise.all([
+        findInvitation(knex, { agencyId, profileId }),
+        knex("applications")
+          .where({ profile_id: profileId, agency_id: agencyId })
+          .first(),
+      ]);
 
-      if (existingApplication) {
+      if (existingInvitation || existingApplication) {
+        const message = existingInvitation
+          ? "You have already invited this talent"
+          : "This talent has already applied to your agency";
         if (req.headers.accept?.includes("application/json")) {
-          return res.status(409).json({ error: "Application already exists" });
+          return res.status(409).json({ error: message });
         }
-        addMessage(req, "error", "You have already invited this talent");
+        addMessage(req, "error", message);
         return res.redirect("/dashboard/agency/discover");
       }
 
-      const applicationId = uuidv4();
-      await knex("applications").insert({
-        id: applicationId,
-        profile_id: profileId,
-        agency_id: agencyId,
-        status: "pending",
-        invited_by_agency_id: agencyId,
-        created_at: knex.fn.now(),
-        updated_at: knex.fn.now(),
+      const invitationId = await createInvitation(knex, {
+        agencyId,
+        profileId,
+        id: uuidv4(),
       });
+
+      if (!invitationId) {
+        const message =
+          "Invitations are briefly unavailable while Pholio finishes an update.";
+        if (req.headers.accept?.includes("application/json")) {
+          return res
+            .status(503)
+            .json({ error: "invitations_unavailable", message });
+        }
+        addMessage(req, "error", message);
+        return res.redirect("/dashboard/agency/discover");
+      }
 
       try {
         const talentUser = await knex("users")

@@ -36,6 +36,10 @@ const {
 const logActivity = require("../../agency/routes/agency-log-activity");
 const { v4: uuidv4 } = require("uuid");
 const {
+  findInvitation,
+  latestInvitationForProfile,
+} = require("../../agency/services/agency-invitations");
+const {
   CURRENT_SUBMISSION_PROGRAM_VERSION,
   recordSubmissionProgramAcknowledgment,
   requireSubmissionProgramAcknowledgment,
@@ -775,23 +779,19 @@ router.get(
       }
     }
 
-    // Legacy invite source-of-truth: latest rows written before redirect-apply
-    // was retired. Keep these records readable without accepting new writes.
-    const latestRedirectSignal = await knex("applications as a")
-      .leftJoin("agencies as ag", "ag.id", "a.invited_by_agency_id")
-      .where("a.profile_id", profile.id)
-      .whereNotNull("a.invited_by_agency_id")
-      .select(
-        "a.invited_by_agency_id",
-        "a.created_at",
-        "ag.id as agency_id",
-        "ag.name as agency_name",
-        "ag.location as agency_location",
-        "ag.logo_path as agency_logo",
-        "ag.website as agency_website",
-      )
-      .orderBy("a.created_at", "desc")
-      .first();
+    // The most recent standing invitation, from `agency_invitations`.
+    //
+    // This used to read `applications` rows carrying `invited_by_agency_id`,
+    // which the invite endpoints wrote on the talent's behalf. That made
+    // `alreadyAppliedToTarget` below self-fulfilling: the invitation *was* the
+    // application row it then found, so an invited talent was told they had
+    // already applied to an agency they had never applied to. Since
+    // `20260820100000_create_agency_invitations.js` the two are separate
+    // records, and the question "have I applied here?" has an honest answer.
+    const latestRedirectSignal = await latestInvitationForProfile(
+      knex,
+      profile.id,
+    );
 
     const targetAgencyId = latestRedirectSignal?.invited_by_agency_id || null;
     let alreadyAppliedToTarget = false;
@@ -807,7 +807,7 @@ router.get(
       success: true,
       data: {
         hasRedirectSignal: !!latestRedirectSignal,
-        source: latestRedirectSignal ? "legacy_invite" : null,
+        source: latestRedirectSignal ? "agency_invitation" : null,
         targetAgency: latestRedirectSignal
           ? {
               id: latestRedirectSignal.agency_id,
@@ -1521,6 +1521,17 @@ router.post(
             { old_status: "withdrawn", new_status: "pending" },
           );
         } else {
+          // Provenance, written here and nowhere else: `invited_by_agency_id`
+          // now means "this real application followed an invitation we sent",
+          // which is what the agency dossier's `invited` flag has always
+          // claimed. It used to be set by the invite itself, on a row the
+          // talent never created — see
+          // `20260820100000_create_agency_invitations.js`.
+          const invitation = await findInvitation(trx, {
+            agencyId,
+            profileId: profile.id,
+          });
+
           applicationId = uuidv4();
           await trx("applications").insert({
             id: applicationId,
@@ -1528,6 +1539,7 @@ router.post(
             agency_id: agencyId,
             ...eventColumns,
             status: "pending",
+            invited_by_agency_id: invitation ? agencyId : null,
             minor_at_submission: minorSubmission,
             guardian_consent_grant_id: guardianConsentGrantId,
             guardian_consent_expires_at: guardianConsentExpiresAt,

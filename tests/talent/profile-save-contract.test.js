@@ -204,7 +204,6 @@ describe("Profile save remediation contract", () => {
       date_of_birth: "1990-01-01",
       ai_processing_consent: true,
       embedding_processing_consent: true,
-      archetype: "Provider archetype",
     });
     await knex("images").insert({
       id: imageId,
@@ -231,7 +230,6 @@ describe("Profile save remediation contract", () => {
     const row = await knex("profiles").where({ id: profileId }).first();
     expect(Boolean(row.ai_processing_consent)).toBe(false);
     expect(Boolean(row.embedding_processing_consent)).toBe(false);
-    expect(row.archetype).toBeNull();
     expect(
       await knex("talent_embedding_cache").where({ profile_id: profileId }),
     ).toHaveLength(0);

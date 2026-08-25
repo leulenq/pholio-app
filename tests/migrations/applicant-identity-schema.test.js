@@ -310,6 +310,9 @@ describe("applicant identity schema", () => {
     });
 
     test("the rebuild kept every column and every other index", async () => {
+      // `match_score` / `match_calculated_at` and their index are
+      // intentionally absent here — dropped by
+      // `20260820090000_drop_dormant_scoring_schema.js`, not lost by a rebuild.
       expect(await columnNames("applications")).toEqual(
         expect.arrayContaining([
           "id",
@@ -317,7 +320,6 @@ describe("applicant identity schema", () => {
           "agency_id",
           "status",
           "board_id",
-          "match_score",
           "minor_at_submission",
           "guardian_consent_grant_id",
           "minor_access_revocation_reason",
@@ -334,7 +336,6 @@ describe("applicant identity schema", () => {
           "applications_profile_id_index",
           "applications_status_index",
           "applications_board_id_index",
-          "applications_match_score_index",
           "idx_applications_open_status_changed",
           "idx_applications_minor_access",
           "idx_applications_open_call_link_status",

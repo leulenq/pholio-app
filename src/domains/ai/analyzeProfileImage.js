@@ -27,10 +27,6 @@ const fs = require("fs");
 const path = require("path");
 const Groq = require("groq-sdk");
 const config = require("../../config");
-const { scoreFromImageAnalysis, buildDescriptorPrompt } = require("./scoring");
-const {
-  buildTextCompletionParams,
-} = require("../../shared/lib/groq-text-model");
 const {
   hasRecordedDateOfBirth,
   isMinorProfile,
@@ -82,13 +78,6 @@ Return exactly this structure, no other text:
     "developmentNotes": "one sentence on what would most strengthen market position"
   }
 }`;
-
-// The look descriptor is a TEXT call, not a vision call: it reads the parsed
-// casting analysis, never the image. It resolves from config.groq.textModel
-// (never hardcoded — see the visionModel note above for why), and the
-// completion budget is sized by shared/lib/groq-text-model.js because the
-// configured text model is reasoning-class.
-const DESCRIPTOR_ANSWER_TOKENS = 100;
 
 /**
  * Has this talent granted image-processing consent, and can they?
@@ -243,32 +232,9 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
     });
     if (!analysisStored) return null;
 
-    // Generate look descriptor from casting analysis (Call 2)
-    const descriptor = await generateLookDescriptor(
-      castingAnalysis,
-      profileId,
-      knex,
-    );
-    if (descriptor) {
-      const descriptorStored = await persistProfileImageAiUpdate(
-        knex,
-        profileId,
-        {
-          look_descriptor: descriptor,
-          look_descriptor_generated_at: knex.fn.now(),
-        },
-      );
-      if (!descriptorStored) return null;
-    }
-
-    // Do not perform downstream writes after a withdrawal that happened while
-    // descriptor generation was in flight.
-    if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
-
     console.log(`[MasterVision] ✓ Profile ${profileId} analyzed:`, {
       boneStructure: castingAnalysis.boneStructure,
       lookType: castingAnalysis.lookType,
-      descriptor: descriptor ? "Generated" : "Failed",
     });
 
     // Return the sanitized casting analysis (no consumer prefills
@@ -287,64 +253,6 @@ async function masterVisionAnalysis(knex, imageBuffer, profileId) {
       // Preserve the provider's fail-soft contract when the eligibility
       // re-read itself fails.
     }
-    return null;
-  }
-}
-
-/**
- * Given a casting analysis block, calculate scores and hit Llama 3 for a one-line description.
- */
-async function generateLookDescriptor(castingAnalysis, profileId, knex) {
-  const groq = getGroq();
-  if (!groq) return null;
-
-  try {
-    // Calculate scores to feed into descriptor prompt
-    const scores = scoreFromImageAnalysis(castingAnalysis);
-
-    // Find top market and overall readiness
-    const sortedMarkets = Object.entries(scores).sort((a, b) => b[1] - a[1]);
-    const topCategory = sortedMarkets[0][0];
-    const overallScore = Math.round(
-      (scores.runway +
-        scores.editorial +
-        scores.commercial +
-        scores.lifestyle +
-        scores.swimFitness) /
-        5,
-    );
-
-    const descriptorPrompt = buildDescriptorPrompt(
-      castingAnalysis,
-      topCategory,
-      overallScore,
-    );
-
-    if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
-
-    const descCompletion = await groq.chat.completions.create(
-      buildTextCompletionParams({
-        messages: [{ role: "user", content: descriptorPrompt }],
-        temperature: 0.4,
-        maxTokens: DESCRIPTOR_ANSWER_TOKENS,
-      }),
-    );
-
-    if (!(await currentImageAiProcessingAllowed(knex, profileId))) return null;
-
-    let lookDescriptor =
-      descCompletion.choices[0]?.message?.content?.trim() || null;
-    if (lookDescriptor) {
-      // Strip quotes if model added them
-      lookDescriptor = lookDescriptor.replace(/^["']|["']$/g, "");
-    }
-
-    return lookDescriptor;
-  } catch (descError) {
-    console.error(
-      `[MasterVision] Failed to generate descriptor for profile ${profileId}:`,
-      descError.message,
-    );
     return null;
   }
 }

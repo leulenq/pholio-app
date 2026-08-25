@@ -7371,7 +7371,7 @@ body.filmstrip-hover {
   color: rgba(201, 165, 90, 0.9);
 }
 
-.feature-demo__portfolio-brand-zipsite {
+.feature-demo__portfolio-brand-pholio {
   font-family: var(--font-sans);
   font-size: 1rem;
   color: #64748b;
@@ -7381,7 +7381,7 @@ body.filmstrip-hover {
   transform: translateX(0) scale(1);
 }
 
-.feature-demo__portfolio-frame[data-state="pro"] .feature-demo__portfolio-brand-zipsite {
+.feature-demo__portfolio-frame[data-state="pro"] .feature-demo__portfolio-brand-pholio {
   opacity: 0;
   transform: translateX(-10px) scale(0.9);
   position: absolute;

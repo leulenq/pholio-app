@@ -2,6 +2,7 @@ const path = require("path");
 
 const {
   collectSemanticErrors,
+  readJson,
   validateRegistry,
 } = require("../../scripts/validate-spec-registry");
 
@@ -14,6 +15,24 @@ const registryRoot = path.join(
   "v1",
 );
 const specSchema = require("../../data/spec-registry/v1/schemas/spec-revision.schema.json");
+
+// These four routes were delisted from the US-only launch dataset (see
+// data/spec-registry/archive/2026-08-19-international-delisted/README.md)
+// but the files are kept verbatim as prior art. A few tests below assert on
+// their exact historical content, so they read the archive directly instead
+// of going through the live (US-only) registry.
+const archiveRoot = path.join(
+  __dirname,
+  "..",
+  "..",
+  "data",
+  "spec-registry",
+  "archive",
+  "2026-08-19-international-delisted",
+);
+function archivedSpec(fileName) {
+  return readJson(path.join(archiveRoot, fileName));
+}
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -37,12 +56,12 @@ describe("Spec Registry v1 data package", () => {
 
   test("validates every schema and cross-record invariant", () => {
     expect(registry.summary).toEqual({
-      currentSeries: 10,
-      revisions: 10,
+      currentSeries: 6,
+      revisions: 6,
       taxonomyFields: 88,
       unknownFacts: 28,
     });
-    expect(registry.manifest.records).toHaveLength(10);
+    expect(registry.manifest.records).toHaveLength(6);
   });
 
   test("keeps public-source revisions reviewed but advisory", () => {
@@ -95,7 +114,8 @@ describe("Spec Registry v1 data package", () => {
   });
 
   test("does not turn Elite global's three named views into an invented minimum", () => {
-    const spec = bySeries.get("elite-model-management-global:online");
+    // Delisted from the launch dataset; asserting on the archived file (see note above).
+    const spec = archivedSpec("elite-model-management-global-online--r1.json");
     expect(spec.rules.shots.count).toMatchObject({ minimum: null, maximum: 3 });
     expect(spec.rules.shots.slots).toHaveLength(3);
     expect(spec.unknowns).toEqual(
@@ -113,7 +133,8 @@ describe("Spec Registry v1 data package", () => {
   });
 
   test("preserves Elite Japan's open-ended count and scoped height floors", () => {
-    const spec = bySeries.get("elite-japan-tokyo:online");
+    // Delisted from the launch dataset; asserting on the archived file (see note above).
+    const spec = archivedSpec("elite-japan-tokyo-online--r1.json");
     expect(spec.rules.shots.count).toMatchObject({ minimum: 5, maximum: null });
     expect(spec.rules.shots.slots).toHaveLength(0);
 
@@ -138,7 +159,8 @@ describe("Spec Registry v1 data package", () => {
   });
 
   test("captures Models1's presentation prohibitions and conditional guardian flow", () => {
-    const spec = bySeries.get("models1-uk:online");
+    // Delisted from the launch dataset; asserting on the archived file (see note above).
+    const spec = archivedSpec("models1-uk-online--r1.json");
     expect(spec.rules.shots.count).toMatchObject({ minimum: 3, maximum: 3 });
     expect(spec.rules.shots.slots.map((slot) => slot.id)).toEqual([
       "headshot",
@@ -207,7 +229,8 @@ describe("Spec Registry v1 data package", () => {
   });
 
   test("keeps Storm's required slots separate from its conflicting guardian boundary", () => {
-    const spec = bySeries.get("storm-management-uk:online");
+    // Delisted from the launch dataset; asserting on the archived file (see note above).
+    const spec = archivedSpec("storm-management-uk-online--r1.json");
     expect(spec.rules.shots.count).toMatchObject({ minimum: 3, maximum: 3 });
     expect(spec.rules.shots.slots.map((slot) => [slot.id, slot.modality])).toEqual([
       ["headshot", "required"],
@@ -415,15 +438,15 @@ describe("Spec Registry v1 data package", () => {
 
   test("semantic validation rejects bad bounds, missing unknowns, and inverted prohibitions", () => {
     const mutated = clone(registry);
-    const global = mutated.specs.find(
-      (spec) => spec.seriesId === "elite-model-management-global:online",
-    );
-    global.rules.shots.count.minimum = 4;
-    global.unknowns = global.unknowns.filter(
+    const img = mutated.specs.find((spec) => spec.seriesId === "img-models-global:online");
+    img.rules.shots.count.minimum = 4;
+    img.unknowns = img.unknowns.filter(
       (unknown) => unknown.fact !== "shots.image_reuse",
     );
-    const models1 = mutated.specs.find((spec) => spec.seriesId === "models1-uk:online");
-    models1.rules.setWide.find((rule) => rule.id === "no-filters").constraint.value = false;
+    const eliteNa = mutated.specs.find(
+      (spec) => spec.seriesId === "elite-models-na:online-general",
+    );
+    eliteNa.rules.setWide.find((rule) => rule.id === "no-smiles").constraint.value = false;
 
     const errors = collectSemanticErrors({
       manifest: mutated.manifest,
@@ -465,11 +488,13 @@ describe("Spec Registry v1 data package", () => {
 
   test("requires agency confirmation on every blocking assertion", () => {
     const mutated = clone(registry);
-    const models1 = mutated.specs.find((spec) => spec.seriesId === "models1-uk:online");
-    models1.evaluationMode = "blocking";
-    models1.review.authority = "agency_confirmed";
-    models1.review.method = "agency_confirmation";
-    models1.evidence[0].authority = "agency_confirmed";
+    // Ford has three evidence records and most rules cite the second one, so
+    // confirming only the first still leaves assertions unsupported.
+    const ford = mutated.specs.find((spec) => spec.seriesId === "ford-models:selected-city-online");
+    ford.evaluationMode = "blocking";
+    ford.review.authority = "agency_confirmed";
+    ford.review.method = "agency_confirmation";
+    ford.evidence[0].authority = "agency_confirmed";
 
     const errors = collectSemanticErrors({
       manifest: mutated.manifest,
@@ -488,11 +513,16 @@ describe("Spec Registry v1 data package", () => {
 
   test("rejects uncontrolled unknowns, stale verified records, and single-pass verification", () => {
     const mutated = clone(registry);
-    const japan = mutated.specs.find((spec) => spec.seriesId === "elite-japan-tokyo:online");
-    japan.unknowns[0].fact = "files.uncontrolled_fact";
-    japan.review.method = "single_reviewer";
-    japan.review.reviewers = [japan.review.reviewers[0]];
-    japan.lifecycle.nextReviewOn = null;
+    // "stale-status" doesn't come from this spec (nulling its own
+    // nextReviewOn takes it out of that check) — it comes from other verified
+    // specs in the registry whose deadlines this far-future asOf has passed.
+    const target = mutated.specs.find(
+      (spec) => spec.seriesId === "elite-models-na:online-general",
+    );
+    target.unknowns[0].fact = "files.uncontrolled_fact";
+    target.review.method = "single_reviewer";
+    target.review.reviewers = [target.review.reviewers[0]];
+    target.lifecycle.nextReviewOn = null;
 
     const errors = collectSemanticErrors({
       manifest: mutated.manifest,
@@ -514,9 +544,11 @@ describe("Spec Registry v1 data package", () => {
 
   test("does not accept an unsubstantiated agency-confirmation review", () => {
     const mutated = clone(registry);
-    const japan = mutated.specs.find((spec) => spec.seriesId === "elite-japan-tokyo:online");
-    japan.review.method = "agency_confirmation";
-    japan.review.reviewers = [];
+    const society = mutated.specs.find(
+      (spec) => spec.seriesId === "the-society-management-nyc:online",
+    );
+    society.review.method = "agency_confirmation";
+    society.review.reviewers = [];
 
     const errors = collectSemanticErrors({
       manifest: mutated.manifest,
@@ -557,8 +589,8 @@ describe("Spec Registry v1 data package", () => {
 
   test("normalizes both MB and KB source units deterministically", () => {
     const mutated = clone(registry);
-    const models1 = mutated.specs.find((spec) => spec.seriesId === "models1-uk:online");
-    const fileLimit = models1.rules.files[0];
+    const ford = mutated.specs.find((spec) => spec.seriesId === "ford-models:selected-city-online");
+    const fileLimit = ford.rules.files[0];
     fileLimit.sourceValue = {
       value: 500,
       unit: "KB",

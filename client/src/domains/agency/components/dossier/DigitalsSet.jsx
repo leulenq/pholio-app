@@ -24,7 +24,17 @@ export function DigitalsSet({ dossier, onOpenFrame, onRequestMore, canRequest, r
     (slot) => !(pkg.suppressBodyImagery && slot.body),
   );
 
-  const stale = pkg.digitalsAgeDays != null && pkg.digitalsAgeDays > 90;
+  // Four states, not a boolean. "Undated" is its own answer: a set nobody can
+  // date is not the same as a set known to be old, and a booker deciding whether
+  // to trust these frames needs the difference stated rather than guessed at.
+  const freshness = pkg.freshness;
+  const freshnessNote =
+    freshness?.state === 'undated'
+      ? 'These digitals carry no capture date, so their age is unknown — the trade expects digitals shot within the last three months.'
+      : (freshness?.state === 'aging' || freshness?.state === 'stale') &&
+          pkg.digitalsAgeDays != null
+        ? `The oldest frame in this set is ${Math.round(pkg.digitalsAgeDays / 30)} months old — the trade expects digitals shot within the last three.`
+        : null;
 
   return (
     <div className="dx-digitals">
@@ -77,11 +87,8 @@ export function DigitalsSet({ dossier, onOpenFrame, onRequestMore, canRequest, r
             Body frames are withheld for an under-18 talent without guardian authorisation on file.
           </p>
         )}
-        {stale && (
-          <p className="dx-digitals__note is-warn">
-            Even the newest digital is {Math.round(pkg.digitalsAgeDays / 30)} months old — the
-            trade expects digitals shot within the last three.
-          </p>
+        {freshnessNote && (
+          <p className="dx-digitals__note is-warn">{freshnessNote}</p>
         )}
         {onRequestMore && canRequest && pkg.set.missingSlots.length > 0 && (
           <button
