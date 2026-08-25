@@ -870,3 +870,37 @@
   Suite account and record the business portfolio ID, Instagram account ID, and owning app
   ID before changing developer settings. Names alone are not sufficient: verify the full
   chain from the Instagram asset to its portfolio and the exact app listed under Accounts.
+
+## 2026-08-25 — A file existing is not evidence the feature is reachable
+
+Asked "are all the new screens and features built?", I answered by checking which
+component files existed. That check passed for a feature nobody could use, and it missed a
+second one entirely.
+
+Two failures found immediately afterwards, both invisible to a file-existence check:
+
+1. The likeness consent ledger had a service, an applied migration and two routes, and no
+   UI at all. Nothing on the client called it, so no talent could grant or withdraw
+   consent. The API was complete and the feature did not exist.
+2. The agency review room DID have a decline-reason picker — with seven ids matching none
+   of the server's five, sending a `reason` field the route does not read (it reads
+   `decline_reason`). A reviewer picked a reason, saw it accepted, and the talent got a
+   generic decline. A control that appears to work and does nothing is the worst case: it
+   also stops anyone noticing the feature is missing.
+
+Both were server-complete. That is the pattern — this codebase builds the service first, so
+"the server is done" is the state a feature sits in while looking finished, and the file
+listing agrees with it.
+
+Rules:
+
+1. To claim a feature is built, trace the whole path: user action → client handler → API
+   client method → the exact request body → the field the route actually reads. Anything
+   short of that is a claim about files, not about the feature.
+2. Grep the SERVER field name (`decline_reason`) across the client, not the client's own
+   variable name. The dead picker was invisible to every search for "decline" because it
+   used its own vocabulary throughout.
+3. Any hardcoded copy of a server-owned list is a defect on sight, however correct it looks
+   today. Fetch it, or the two drift silently and nothing fails loudly.
+4. When reporting status, distinguish "server capability exists" from "a human can do this".
+   They are different claims and only the second is what was asked.
