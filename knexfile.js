@@ -249,7 +249,13 @@ const pg = {
   client: 'pg',
   connection: {
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    /* Verification ON. `rejectUnauthorized: false` used to sit here, and since
+       `pg` gives an explicit `ssl` object precedence over the URL's sslmode, it
+       silently defeated the `verify-full` that normalizePostgresSslMode above
+       works to enforce — the file arguing with itself, with the insecure half
+       winning. Neon presents a valid publicly-trusted certificate, so there is
+       nothing to relax. */
+    ssl: { rejectUnauthorized: true }
   },
   // Connection pool configuration for serverless environments
   // This helps handle connection termination issues with pooled connections (e.g., Neon)

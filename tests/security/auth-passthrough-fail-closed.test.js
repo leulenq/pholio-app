@@ -109,3 +109,49 @@ describe("the credential-free gates honour it", () => {
     expect(isDevSeedAuthEnabled()).toBe(false);
   });
 });
+
+describe("the mock social verifier is gated the same way", () => {
+  /* It fabricates handles and follower/engagement metrics, and
+     `is_oauth_connected` is the only column that can set `verified = true`. A
+     fail-open gate here means fake verified reach shown to agencies, so it
+     belongs to the same class as the credential-free sign-in gates. */
+  const ORIGINAL = { ...process.env };
+  afterEach(() => {
+    process.env = { ...ORIGINAL };
+    jest.resetModules();
+  });
+
+  function mountedRoutes(nodeEnv) {
+    jest.resetModules();
+    process.env = {
+      ...ORIGINAL,
+      NODE_ENV: nodeEnv,
+      // config.js refuses to boot under production without this — a fail-closed
+      // guard in its own right, and one the fixture has to satisfy to get far
+      // enough to inspect the router.
+      SESSION_SECRET: ORIGINAL.SESSION_SECRET || "test-secret-for-mount-check",
+    };
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    const router = require("../../src/domains/talent/routes/index");
+    return router.stack
+      .map((layer) => (layer.regexp ? layer.regexp.source : ""))
+      .join("|");
+  }
+
+  const MOCK_VERIFIER = "socials";
+
+  test.each([["production"], ["Production"], ["staging"], [undefined]])(
+    "%p does not mount the mock verifier",
+    (nodeEnv) => {
+      const mounted = mountedRoutes(nodeEnv);
+      // The Phyllo router also matches "socials", so the mock is identified by
+      // the oauth segment specifically.
+      expect(mounted).not.toContain("oauth");
+      expect(mounted).toContain(MOCK_VERIFIER);
+    },
+  );
+
+  test("development does mount it", () => {
+    expect(mountedRoutes("development")).toContain("oauth");
+  });
+});

@@ -1,4 +1,7 @@
 const express = require("express");
+const {
+  isDevelopmentRuntime,
+} = require("../../../shared/lib/runtime-environment");
 const router = express.Router();
 const path = require("path");
 const { requireRole } = require("../../auth/middleware/require-auth");
@@ -64,10 +67,18 @@ router.use("/api/talent/submission-note", submissionNoteRouter);
 router.use("/api/talent/training-summary", trainingSummaryRouter);
 router.use("/api/talent", notificationsRouter);
 router.use("/api/talent/message-polish", messagePolishRouter);
-// Mock/simulated OAuth verification (fabricates handles + follower/engagement metrics).
-// Dev/staging only — never mount in production. Real verification goes through the
-// Phyllo-backed router below.
-if (process.env.NODE_ENV !== "production") {
+/* Mock/simulated OAuth verification: it FABRICATES handles and follower and
+   engagement metrics, and `is_oauth_connected` is the only column that can set
+   `verified = true` (shared/lib/social-accounts.js:14-25). So mounting it in
+   front of real users lets fake verified reach be shown to agencies.
+
+   The gate was `NODE_ENV !== "production"`, which reads as "off in production"
+   and means "on unless the environment says exactly production" — unset,
+   "Production", "prod", "staging" all mount it. Same fail-open shape as the
+   credential-free sign-in gates, and the same fix: available only when the
+   runtime SAYS development or test. Real verification goes through the
+   Phyllo-backed router below. */
+if (isDevelopmentRuntime()) {
   router.use("/api/talent/socials/oauth", socialOauthRouter);
 }
 router.use("/api/talent/socials/phyllo", phylloRouter);
