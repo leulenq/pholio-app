@@ -554,3 +554,45 @@
   .ap-row:hover .ap-pic-img { transform: none; }
   .ap-card-acts { transform: none; }
 }
+
+/* Server-backed filter controls.
+   These query the whole pool rather than the returned page, so they sit in the
+   same popover as the checkboxes and read the same way — no chips, no counters,
+   no glass (all banned on agency surfaces). Rectangular with the agency's
+   moderate radius; Inter throughout, since these are controls, not mastheads. */
+.ap-filter-input,
+.ap-filter-select {
+  width: 100%;
+  font-family: var(--ag-font-body);
+  font-size: 12.5px;
+  color: var(--ag-text-0, #1A1815);
+  background: var(--ag-surface-1, #FFFFFF);
+  border: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+  border-radius: 4px;
+  padding: 6px 8px;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ap-filter-input:focus,
+.ap-filter-select:focus {
+  outline: none;
+  border-color: var(--ag-gold, #B8956A);
+}
+
+.ap-filter-input::placeholder { color: var(--ag-text-3, #8A847C); }
+
+/* Two fields reading as one range. */
+.ap-filter-range { display: flex; align-items: center; gap: 6px; }
+.ap-filter-range .ap-filter-input { min-width: 0; }
+.ap-filter-range-sep { color: var(--ag-text-3, #8A847C); font-size: 12px; }
+
+/* The truncation notice. Plain sentence above the results, stated once — a
+   reviewer filtering a capped pool must not read the result as complete. */
+.ap-truncation-note {
+  margin: 0 0 14px;
+  font-family: var(--ag-font-body);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ag-text-2, #6B6560);
+  max-width: 68ch;
+}

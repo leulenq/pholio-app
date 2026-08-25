@@ -53,7 +53,50 @@ const INITIAL_FILTERS = {
   talent: [],
   source: [],
   locations: [],
+  // Server-backed. `GET /api/agency/applications` has always accepted these;
+  // the desk simply never sent them, so it filtered whatever the endpoint
+  // happened to return — and that pool is truncated at SUBMISSIONS_HARD_CAP.
+  // Anything answerable authoritatively is now answered by the server.
+  city: '',
+  gender: '',
+  minHeight: '',
+  maxHeight: '',
+  dateFrom: '',
+  dateTo: '',
+  sort: 'az',
 };
+
+/** Mirrors SUBMISSIONS_HARD_CAP in src/domains/agency/routes/inbox.js. */
+const SUBMISSIONS_SHOWN_CAP = 2000;
+
+/** Sorts the endpoint implements. `az` is its own default. */
+const SORT_OPTIONS = [
+  { value: 'az', label: 'Name A–Z' },
+  { value: 'newest', label: 'Newest first' },
+  { value: 'city', label: 'City' },
+];
+
+/**
+ * The filters the SERVER owns. Sent as query params and keyed into the React
+ * Query cache, so changing one refetches rather than re-slicing a stale array.
+ *
+ * Lifecycle tabs stay client-side on purpose: they group several application
+ * statuses into one reading ("in flight", "represented") and the endpoint's
+ * `status` param takes a single status, so pushing them down would narrow the
+ * pool to less than the tab means.
+ */
+function serverFilterParams(filters, search) {
+  const params = {};
+  if (filters.city) params.city = filters.city;
+  if (filters.gender) params.gender = filters.gender;
+  if (filters.minHeight) params.min_height = filters.minHeight;
+  if (filters.maxHeight) params.max_height = filters.maxHeight;
+  if (filters.dateFrom) params.date_from = filters.dateFrom;
+  if (filters.dateTo) params.date_to = filters.dateTo;
+  if (search && search.trim()) params.search = search.trim();
+  if (filters.sort && filters.sort !== 'az') params.sort = filters.sort;
+  return params;
+}
 
 function mapRow(p) {
   const img = p.images?.[0];
@@ -418,9 +461,29 @@ function ApplicationsPage({
 
   // The call id is part of the key: two calls are two working sets, and one
   // must never serve the other's rows out of cache.
+  // Debounced so typing does not fire a request per keystroke now that the
+  // search term reaches the server.
+  const [debouncedQ, setDebouncedQ] = useState('');
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQ(q), 250);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  const serverParams = useMemo(
+    () => serverFilterParams(filters, debouncedQ),
+    [filters, debouncedQ],
+  );
+
   const allQuery = useQuery({
-    queryKey: ['applicants', openCallLinkId],
-    queryFn: () => getApplicants(scopedToCall ? { openCallLinkId } : {}),
+    // The params are part of the key: a filter change is a different question,
+    // not a different view of the same answer.
+    queryKey: ['applicants', openCallLinkId, serverParams],
+    queryFn: () =>
+      getApplicants({
+        ...(scopedToCall ? { openCallLinkId } : {}),
+        ...serverParams,
+      }),
+    placeholderData: (previous) => previous,
     staleTime: 30000,
     enabled: boardId == null,
   });
@@ -607,13 +670,17 @@ function ApplicationsPage({
       list = list.filter((a) => a.city && filters.locations.includes(a.city));
     }
 
-    // Search query
-    if (q.trim()) {
-      const s = q.toLowerCase();
-      list = list.filter((a) => a.name.toLowerCase().includes(s) || (a.city || '').toLowerCase().includes(s));
-    }
+    // Search, city, gender, height and date range are NOT re-applied here.
+    // The server has already applied them to the whole pool; re-running them
+    // over the returned page would be redundant at best, and at worst would
+    // hide the difference between "no matches" and "the pool was truncated
+    // before your filter ran" — which is the bug this page had.
     return [...list].sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
-  }, [applicants, tab, filters, q, lifecycleTabs]);
+  }, [applicants, tab, filters, lifecycleTabs]);
+
+  // The endpoint truncates at SUBMISSIONS_HARD_CAP and says so. Left unsaid, a
+  // reviewer reads a filtered list as the complete answer to their question.
+  const isPoolTruncated = Boolean(activeApplicantsQuery.data?.capped);
 
   const total = applicants.length;
   // The lead hero figure = what's actually on the desk: submissions still
@@ -1185,6 +1252,81 @@ function ApplicationsPage({
                     </label>
                   </div>
 
+                  {/* SERVER-BACKED GROUP — these query the whole pool, not
+                      the page. Plain fields, no chips: CLAUDE.md bans corner
+                      chips and count bubbles on agency surfaces. */}
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">SORT</span>
+                    <select
+                      className="ap-filter-select"
+                      aria-label="Sort submissions"
+                      value={filters.sort}
+                      onChange={(e) => setFilters((f) => ({ ...f, sort: e.target.value }))}
+                    >
+                      {SORT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">CITY</span>
+                    <input
+                      className="ap-filter-input"
+                      type="text"
+                      aria-label="Filter by city"
+                      placeholder="Any city"
+                      value={filters.city}
+                      onChange={(e) => setFilters((f) => ({ ...f, city: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">HEIGHT (CM)</span>
+                    <div className="ap-filter-range">
+                      <input
+                        className="ap-filter-input"
+                        type="number"
+                        inputMode="numeric"
+                        aria-label="Minimum height in centimetres"
+                        placeholder="Min"
+                        value={filters.minHeight}
+                        onChange={(e) => setFilters((f) => ({ ...f, minHeight: e.target.value }))}
+                      />
+                      <span className="ap-filter-range-sep" aria-hidden="true">–</span>
+                      <input
+                        className="ap-filter-input"
+                        type="number"
+                        inputMode="numeric"
+                        aria-label="Maximum height in centimetres"
+                        placeholder="Max"
+                        value={filters.maxHeight}
+                        onChange={(e) => setFilters((f) => ({ ...f, maxHeight: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="ap-filter-group">
+                    <span className="ap-filter-group-label">SUBMITTED</span>
+                    <div className="ap-filter-range">
+                      <input
+                        className="ap-filter-input"
+                        type="date"
+                        aria-label="Submitted on or after"
+                        value={filters.dateFrom}
+                        onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+                      />
+                      <span className="ap-filter-range-sep" aria-hidden="true">–</span>
+                      <input
+                        className="ap-filter-input"
+                        type="date"
+                        aria-label="Submitted on or before"
+                        value={filters.dateTo}
+                        onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
                   {/* LOCATION GROUP */}
                   {availableCities.length > 0 && (
                     <div className="ap-filter-group">
@@ -1210,6 +1352,14 @@ function ApplicationsPage({
       </div>
 
       {activeBoard && <BoardBand board={activeBoard} />}
+
+      {isPoolTruncated && (
+        <p className="ap-truncation-note">
+          This desk is showing the first {SUBMISSIONS_SHOWN_CAP.toLocaleString()} submissions.
+          There are more than that on file — narrow by city, date or search and the
+          whole pool is searched, not just what is listed here.
+        </p>
+      )}
 
       <div className="ap-results" id="ap-results" role="tabpanel" aria-label="Submissions">
       {isGenuineEmpty && (
