@@ -2,6 +2,14 @@ const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
+const {
+  LikenessConsentError,
+  consentHistory,
+  consentState,
+  grantConsent,
+  withdrawConsent,
+} = require("../services/likeness-consent");
+
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { ensureAuthProvider } = require("../../auth/services/auth-provider");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
@@ -933,6 +941,79 @@ router.get(
       version: CURRENT_LEGAL_VERSION,
       changes: changelogFor(),
     });
+  }),
+);
+
+/* ── Likeness consent (plan C6, §9.6 #7) ─────────────────────────────────────
+   Marketing use and AI-replica likeness. Two independent permissions, granted
+   and withdrawn one at a time on purpose: C6 requires them separate and never
+   bundled, so there is no endpoint that sets both. */
+
+router.get(
+  "/settings/likeness-consent",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await knex("profiles")
+      .where({ user_id: req.session.userId })
+      .first("id");
+    if (!profile) {
+      return apiResponse.error(res, "Profile not found", 404);
+    }
+    const [state, history] = await Promise.all([
+      consentState(knex, profile.id),
+      consentHistory(knex, profile.id),
+    ]);
+    // The history is the talent's own record of what they agreed to. Theirs to
+    // read is half of why it is kept.
+    return apiResponse.success(res, { state, history });
+  }),
+);
+
+router.post(
+  "/settings/likeness-consent",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    const profile = await knex("profiles")
+      .where({ user_id: req.session.userId })
+      .first("id");
+    if (!profile) {
+      return apiResponse.error(res, "Profile not found", 404);
+    }
+
+    const granting = req.body?.granted === true;
+    const shared = {
+      profileId: profile.id,
+      purpose: req.body?.purpose,
+      actorUserId: req.session.userId,
+      actorType: "talent",
+      requestIp: req.clientIp || req.ip || null,
+      userAgent: req.get("user-agent") || null,
+    };
+
+    try {
+      if (granting) {
+        await grantConsent(knex, {
+          ...shared,
+          scope: req.body?.scope,
+          usePurpose: req.body?.usePurpose,
+          compensation: req.body?.compensation,
+          startsOn: req.body?.startsOn,
+          endsOn: req.body?.endsOn,
+        });
+      } else {
+        await withdrawConsent(knex, shared);
+      }
+    } catch (error) {
+      if (error instanceof LikenessConsentError) {
+        // The refusals explain themselves in terms the talent can act on —
+        // especially the Fashion Workers Act one — so they are passed through.
+        return apiResponse.error(res, error.message, error.code === "unavailable" ? 503 : 400);
+      }
+      throw error;
+    }
+
+    const state = await consentState(knex, profile.id);
+    return apiResponse.success(res, { state });
   }),
 );
 

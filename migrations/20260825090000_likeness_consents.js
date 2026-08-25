@@ -38,7 +38,18 @@ exports.up = async function up(knex) {
   if (await knex.schema.hasTable("talent_likeness_consents")) return;
 
   await knex.schema.createTable("talent_likeness_consents", (table) => {
-    table.uuid("id").primary();
+    /* A monotonic tiebreaker, as `ai_processing_consent_events` has. Ordering an
+       append-only ledger by timestamp alone is unsafe: a grant and a withdrawal
+       recorded in the same millisecond tie, and "which came last" is then
+       undefined — which for this table means a withdrawal that may not take
+       effect. Insertion order is the only thing that can answer it.
+
+       `sequence` is the primary key and `id` a unique uuid — the same shape
+       `ai_processing_consent_events` uses, and the only one SQLite accepts,
+       since it makes an autoincrement column the primary key regardless of
+       what knex is asked for. */
+    table.increments("sequence").primary();
+    table.uuid("id").notNullable().unique();
     table
       .uuid("profile_id")
       .notNullable()
@@ -75,7 +86,7 @@ exports.up = async function up(knex) {
     table.uuid("supersedes_id").nullable();
     table.timestamp("occurred_at").notNullable().defaultTo(knex.fn.now());
 
-    table.index(["profile_id", "purpose", "occurred_at"], "idx_likeness_profile_purpose");
+    table.index(["profile_id", "purpose", "sequence"], "idx_likeness_profile_purpose");
   });
 };
 

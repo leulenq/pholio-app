@@ -211,7 +211,7 @@ async function withdrawConsent(db, input) {
 
   const current = await db(TABLE)
     .where({ profile_id: profileId, purpose })
-    .orderBy("occurred_at", "desc")
+    .orderBy("sequence", "desc")
     .first("id");
 
   const id = crypto.randomUUID();
@@ -258,7 +258,9 @@ async function isConsented(db, profileId, purpose, now = new Date()) {
 
   const latest = await db(TABLE)
     .where({ profile_id: profileId, purpose })
-    .orderBy("occurred_at", "desc")
+    // Insertion order, not wall clock: two events in the same
+    // millisecond must still resolve in the order they happened.
+    .orderBy("sequence", "desc")
     .first();
 
   if (!latest || latest.event_type !== EVENT.GRANTED) return false;
@@ -285,7 +287,7 @@ async function consentHistory(db, profileId) {
   if (!(await hasLikenessSchema(db))) return [];
   return db(TABLE)
     .where({ profile_id: profileId })
-    .orderBy("occurred_at", "desc")
+    .orderBy("sequence", "desc")
     .select(
       "id",
       "purpose",
