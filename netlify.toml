@@ -30,6 +30,11 @@
   included_files = [
     "views/**",
     "migrations/**",
+    # The Spec Registry and Trust Registry packs. Read at runtime by
+    # taxonomy-labels.js and the registry validator; without them agency
+    # requirement labels render as raw slug ids in production, and both modules
+    # are fail-soft so nothing errors to say why. 368K.
+    "data/**",
     "src/domains/pdf/templates/**",
     "public/agency-logos/**",
     "public/assets/**",
@@ -225,7 +230,72 @@
   to = "/dashboard-app/index.html"
   status = 200
 
+# The QR / NFC target printed on every comp card. Server-rendered, so it must
+# reach the function — without this rule every printed card scans to a 404.
+[[redirects]]
+  from = "/p/*"
+  to = "/.netlify/functions/server"
+  status = 200
+
+# SPA routes that had no rule. `/login` was matched EXACTLY, so
+# `/login/forgot-password` 404'd — password reset was unreachable in production.
+[[redirects]]
+  from = "/login/*"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/reset-password"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/apply"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/agency"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/messages"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/activity"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/internal"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/internal/*"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/auth/instagram/callback"
+  to = "/dashboard-app/index.html"
+  status = 200
+
 [[redirects]]
   from = "/"
+  to = "/dashboard-app/index.html"
+  status = 200
+
+# Last rule, and a safety net rather than a substitute for the explicit ones
+# above. Netlify takes the FIRST match, so every server route and asset rule has
+# already had its chance by the time anything reaches this. Its job is that a
+# client route added later reaches the SPA instead of a Netlify 404 — which is
+# how password reset and the comp-card QR came to be broken in the first place.
+# The SPA renders its own not-found for a genuinely unknown path.
+[[redirects]]
+  from = "/*"
   to = "/dashboard-app/index.html"
   status = 200

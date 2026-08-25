@@ -13,12 +13,12 @@ const path = require("path");
 const Ajv2020 = require("ajv/dist/2020");
 const addFormats = require("ajv-formats");
 
+/* Under Netlify, esbuild collapses src/ to the zip root so `__dirname` is
+   /var/task and the relative walk resolves outside the bundle. Both readers are
+   fail-soft, so the symptom was agency requirement labels rendering as raw slug
+   ids in production with nothing logged. Same branch app.js uses for views. */
 const DEFAULT_REGISTRY_ROOT = path.join(
-  __dirname,
-  "..",
-  "..",
-  "..",
-  "..",
+  process.env.LAMBDA_TASK_ROOT || path.join(__dirname, "..", "..", "..", ".."),
   "data",
   "spec-registry",
   "v1",

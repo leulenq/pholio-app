@@ -18,7 +18,18 @@ const path = require("path");
 const { FAMILIES, advanceEm, familyAxes } = require("../font-library");
 const { loadFont, advanceEmFor } = require("./text-metrics");
 
-const FONT_DIR = path.join(__dirname, "..", "..", "..", "..", "..", "public", "fonts", "compcard");
+/* Netlify's esbuild collapses src/ to the zip root, so `__dirname` is
+   /var/task and the relative walk above resolves to `/public/fonts/compcard` —
+   which does not exist. The 41 vendored TTFs ARE shipped (netlify.toml
+   included_files), they were simply never found, and this module is fail-soft:
+   production comp cards fell back to ESTIMATED type metrics while every local
+   preview used real HarfBuzz shaping. Output silently differed from everything
+   anyone reviewed. Same LAMBDA_TASK_ROOT branch app.js already uses for views. */
+const APP_ROOT = process.env.LAMBDA_TASK_ROOT
+  ? process.env.LAMBDA_TASK_ROOT
+  : path.join(__dirname, "..", "..", "..", "..", "..");
+
+const FONT_DIR = path.join(APP_ROOT, "public", "fonts", "compcard");
 
 const slugify = (family) => String(family || "").toLowerCase().replace(/\s+/g, "-");
 

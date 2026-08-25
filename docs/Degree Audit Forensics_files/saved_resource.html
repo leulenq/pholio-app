@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<!-- saved from url=(0253)https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/?__frame_t=aUGi0u2yv2bcvPBtP4wS3-aG.64e40fb1-3ded-44a9-a00f-8c40e8397b36.e0278421-515b-483d-89b0-1bc9f9210a3c.1787621545&__frame_v=manifest.17cb09dc36825632.json -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><!-- frame-runtime --><!--<base href="/_f/1787604894-cc73/">--><base href="."><script>window.__FRAME_PREAMBLE={"capabilities":{"artifact":"artifact.oqIe8shs.js","assets":"assets.CQ2zE6bO.js","comments":"comments.GLuHR3zP.js","db":"db.CRhVHzSt.js","downloads":"downloads.C3GSvEDP.js","embed":"embed.CZsbekoQ.js","mcp":"mcp.D3B2EyQu.js","permissions":"permissions.BNySkLV5.js","room":"room.DE7EMui-.js","sample":"sample.BW2Uysoh.js","self":"artifact.oqIe8shs.js","user":"user.BpKav-Rf.js"},"transforms":"_transforms.h3_8GSUa.js","comments":"_comments.BOgkE6qU.js","translate":"_translate.5HCW4BJh.js"}</script><script>(function(){"use strict";var Y=["light","dark","system"],X=/^[A-Za-z0-9_-]{1,64}$/,D=/^[a-zA-Z_:][a-zA-Z0-9_:.-]{0,127}$/,G=new Set(["class","hidden","value","checked"]);function V(e){const t=e.toLowerCase();return t.startsWith("data-")||t.startsWith("aria-")||G.has(t)}var be="http://www.w3.org/1999/xhtml",Z="http://www.w3.org/2000/svg",J=new Set(["script","style","iframe","noscript","noframes","noembed","xmp","plaintext","template","title","textarea","object","embed"]),Q=new Set(["script","style"]);function ee(e){const t=e.localName.toLowerCase();return e.namespaceURI==="http://www.w3.org/1999/xhtml"?!J.has(t):e.namespaceURI===Z?!Q.has(t):!1}var te=new Set(["html","head","body","frameset"]);function re(e){return e.namespaceURI==="http://www.w3.org/1999/xhtml"&&te.has(e.localName)}function ne(e){if(e===null||typeof e!="object")return!1;const t=e;if(typeof t.target!="string"||!X.test(t.target)||t.text!==void 0&&typeof t.text!="string")return!1;if(t.attrsSet!==void 0){if(t.attrsSet===null||typeof t.attrsSet!="object")return!1;for(const[n,s]of Object.entries(t.attrsSet))if(!D.test(n)||typeof s!="string")return!1}if(t.attrsRemoved!==void 0){if(!Array.isArray(t.attrsRemoved))return!1;for(const n of t.attrsRemoved)if(typeof n!="string"||!D.test(n))return!1}return!0}function se(e,t){if(e===null||typeof e!="object")return!1;const{seq:n,elements:s}=e;if(typeof n!="number"||!Number.isSafeInteger(n)||!Array.isArray(s)||s.length===0||s.length>64)return!1;for(let o=0;o<s.length;o++)if(!t(s[o]))return!1;return!0}function ae(e){return e===null||typeof e!="object"?!1:se(e.__frame_patch,ne)}function oe(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_init;return t!==null&&typeof t=="object"}function ie(e){return e!==null&&typeof e=="object"&&e.__frame_size_poke===!0}function le(e){if(e===null||typeof e!="object")return!1;const t=e.__frame_theme;if(t===null||typeof t!="object")return!1;const n=t.theme;return typeof n=="string"&&Y.includes(n)}var O="__frame_scroll",ce=150,ue=310,fe=160,pe=3e4;function de(){let e=0,t=!1,n=!1,s=!1,o=0,l=null;const c=i=>{try{sessionStorage.setItem(O,JSON.stringify({y:i}))}catch{}},f=()=>{if(clearTimeout(e),l===null)return;const i=l;l=null,c(i)},S=()=>{if(t){t=!1;return}n=!0,l=scrollY,clearTimeout(e),e=setTimeout(f,ce)};try{addEventListener("scroll",S,{passive:!0}),addEventListener("pagehide",f)}catch{}const v=()=>{let i;try{i=sessionStorage.getItem(O)}catch{return null}if(i===null)return null;let d;try{d=JSON.parse(i)}catch{d=null}const u=d?.y;if(!(typeof u=="number"&&Number.isFinite(u)&&u>=0)){try{sessionStorage.removeItem(O)}catch{}return null}return u};let b=!1;const m=i=>{try{const d=scrollY;scrollTo({top:i,left:0,behavior:"instant"}),o=i,s=!0,clearTimeout(e),l=null,c(i);const u=scrollY;u!==d&&(t=!0),u!==i&&!b&&(b=!0,addEventListener("load",()=>{try{if(scrollY===u){const h=v();m(h!==null?h:o)}}catch{}},{once:!0}))}catch{}},y=()=>{try{return!!location.hash}catch{return!0}};let g=!1;const E=()=>{try{if(g||innerWidth>ue||innerHeight>fe)return;g=!0;const i=Date.now(),d=()=>{try{removeEventListener("resize",d)}catch{}if(Date.now()-i>pe||n||y())return;const u=v();m(u!==null?u:o)};addEventListener("resize",d)}catch{}};let r=!1,p=!1;return{restore(){if(r||(r=!0,y()))return;const i=v();i!==null&&(m(i),E())},promoted(){if(p||(p=!0,y()))return;const i=v();i!==null?(m(i),E()):s&&m(o)}}}var Ee="modulepreload",Ae=function(e){return"/"+e},Re={},me=function(t,n,s){let o=Promise.resolve();function l(c){const f=new Event("vite:preloadError",{cancelable:!0});if(f.payload=c,window.dispatchEvent(f),!f.defaultPrevented)throw c}return o.then(c=>{for(const f of c||[])f.status==="rejected"&&l(f.reason);return t().catch(l)})};(function(){const e=Object.defineProperty,t=globalThis,n=["RTCPeerConnection","webkitRTCPeerConnection","RTCDataChannel","RTCIceCandidate","RTCSessionDescription","RTCRtpSender","RTCRtpReceiver"];let s=0;for(let o=0;o<n.length;o++){const l=n[o];try{e(t,l,{value:void 0,writable:!1,configurable:!1})}catch{try{delete t[l]}catch{}try{e(t,l,{value:void 0,writable:!1,configurable:!0})}catch{}}typeof t[l]=="function"&&s++}if(s&&window!==top)try{parent.postMessage({__frame_rtc_lockdown_failed:s},"*")}catch{}})();var he=1e4,_e=Object.freeze([...window.__FRAME_PREAMBLE?.origins??["https://claude.ai","https://preview.claude.ai"]]);function F(e){for(const t of _e)if(t.endsWith(":*"))try{const n=new URL(e);if(`${n.protocol}//${n.hostname}:*`===t)return!0}catch{}else if(e===t)return!0;return!1}var M=Object.freeze({...window.__FRAME_PREAMBLE?.capabilities}),j=window.__FRAME_PREAMBLE?.transforms,N=window.__FRAME_PREAMBLE?.comments,I=window.__FRAME_PREAMBLE?.translate,L=/^[\w.-]+\.js$/;function T(e){return me(()=>import("/_runtime/"+e),void 0)}function z(e,t){return{contract:e.contract,changes:new Set(e.changes??[]),flags:new Set(e.flags??[]),capabilities:e.capabilities??{},capBudgets:e.capBudgets??{},transforms:new Map,shellOrigin:t,mount:W,pipe:()=>({wrap:(n,s)=>(...o)=>{try{return s(...o)}catch(l){return Promise.reject(l)}}})}}var P=null,w=null;function q(e,t,n){try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!1,enumerable:!0})}catch{try{Object.defineProperty(e,t,{value:n,writable:!1,configurable:!0,enumerable:!0})}catch{}}}var B=!1;function ve(e,t){const n=[];for(const s of e.elements){const o=document.querySelector(`[data-id="${s.target}"]`);if(!o){parent.postMessage({__frame_patch_miss:{seq:e.seq}},t);return}if([...Object.keys(s.attrsSet??{}),...s.attrsRemoved??[]].some(l=>!V(l))){parent.postMessage({__frame_patch_miss:{seq:e.seq}},t);return}if(s.text!==void 0&&(!ee(o)||re(o))){parent.postMessage({__frame_patch_miss:{seq:e.seq}},t);return}for(const[l,c]of Object.entries(s.attrsSet??{}))if(!$(o,l)){try{o.setAttribute(l,c)}catch{}H(o,l,c)}for(const l of s.attrsRemoved??[])$(o,l)||(o.removeAttribute(l),H(o,l,null));typeof s.text=="string"&&(o.textContent=s.text),n.push(s.target)}try{document.dispatchEvent(new CustomEvent("claude:edit",{detail:{seq:e.seq,targets:n}}))}catch{}}function H(e,t,n){if(!(e instanceof HTMLInputElement))return;const s=t.toLowerCase();s==="checked"?e.checked=n!==null:s==="value"&&e.type!=="file"&&(e.value=n??"")}function $(e,t){const n=t.toLowerCase(),s=e;return n==="data-id"||(n==="value"||n==="checked")&&(s.__artifactSecret===!0||/^(password|hidden|file)$/.test(s.type??"")||/(^|\s)(cc-|one-time-code|current-password|new-password)/i.test(`${e.getAttribute("autocomplete")??""} ${s.autocomplete??""}`))}function K(e){const t=document.documentElement;e==="light"||e==="dark"?(t.dataset.theme=e,t.style.colorScheme=e,B=!0):B&&(delete t.dataset.theme,t.style.colorScheme="",B=!1)}var R=new Map;function ye(){let e;const t={u:new Promise(n=>{e=n}),r:n=>{t.done=!0,e(n)},done:!1,nulled:!1};return t}var ge=Object.freeze(Object.assign(Object.create(null),{call:Function.prototype.call,apply:Function.prototype.apply,bind:Function.prototype.bind})),W=(e,t)=>{const n=R.get(e);if(!n||n.done){n?.nulled&&w&&parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:e}},w);return}const s=typeof t=="function"?Object.setPrototypeOf(t,ge):Object.assign(Object.create(null),t);typeof s.then=="function"&&delete s.then,n.r(Object.freeze(s))},U=Object.getOwnPropertyDescriptor(window,"claude");if(window!==top&&!(U&&U.writable===!1)){const e=j&&L.test(j)?T(j).catch(()=>{}):Promise.resolve(void 0),t=r=>{if(r.type==="auxclick"&&r.button!==1)return;const p=r.target,i=p&&p.closest?p.closest("a[href],area[href]"):null;if(!i)return;const d=i.getAttribute("href");if(!d)return;let u,h;try{u=new URL(d,document.baseURI),h=new URL(document.baseURI).origin}catch{return}if((u.protocol==="http:"||u.protocol==="https:")&&u.origin!==h){r.preventDefault();const _=(i.getAttribute("target")??"").toLowerCase(),C=r.type==="auxclick"||r.metaKey||r.ctrlKey||r.shiftKey||r.altKey||!["","_self","_top","_parent"].includes(_);parent.postMessage({__frame_nav:!0,url:u.href,newTab:C},"*")}};addEventListener("click",t,!0),addEventListener("auxclick",t,!0);const n={},s=r=>{r.isTrusted&&(n.pointer=!0)},o=r=>{r.isTrusted&&(n.click=!0)};addEventListener("pointermove",s,{capture:!0,passive:!0}),addEventListener("click",o,{capture:!0,passive:!0}),e.then(r=>{r?.wireNav&&(r.wireNav(),removeEventListener("click",t,!0),removeEventListener("auxclick",t,!0),removeEventListener("pointermove",s,!0),removeEventListener("click",o,!0),r.wireEngagement?.(n))});let l=null;try{l=de()}catch{}const c=U?.value??{};q(window,"claude",c);for(const r of Object.keys(M)){if(c[r]!==void 0){q(c,r,c[r]);continue}R.set(r,ye())}if(c.use===void 0){const r=p=>{if(typeof p!="string"||!Object.hasOwn(M,p))return Promise.resolve(null);const i=R.get(p);return i?i.u:Promise.resolve(c[p]??null)};try{Object.defineProperty(c,"use",{value:r,writable:!0,configurable:!0,enumerable:!1})}catch{}}let f=null,S=null,v=0;const b=r=>{r.source!==parent||!F(r.origin)||oe(r.data)&&(f=r.data.__frame_init,w=r.origin,removeEventListener("message",b),clearTimeout(v),S?.())};addEventListener("message",b),parent.postMessage({__frame_connect:!0},"*");const m=new Promise(r=>{S=r,v=setTimeout(()=>{removeEventListener("message",b),r()},he)}),y=document.readyState==="loading"?new Promise(r=>document.addEventListener("DOMContentLoaded",()=>r(),{once:!0})):Promise.resolve();y.then(()=>{try{l?.restore()}catch{}});const g={cb:null},E=r=>{if(!(r.source!==parent||!F(r.origin))&&ie(r.data)){try{l?.promoted()}catch{}g.cb?.()}};addEventListener("message",E),m.then(async()=>{if(!f||!w){for(const a of R.values())a.nulled=!0,a.r(null);return}K(f.theme);const r=w;let p=!1,i=!1;addEventListener("message",a=>{if(a.source!==parent||a.origin!==r)return;le(a.data)&&K(a.data.__frame_theme.theme),ae(a.data)&&ve(a.data.__frame_patch,r);const k=a.data?.__fc_mode;k&&typeof k=="object"&&!p&&N&&L.test(N)&&(p=!0,T(N).then(x=>x.install?.(r,k.on===!0)).catch(()=>{}));const A=a.data?.__ft_cmd;A&&typeof A=="object"&&!i&&I&&L.test(I)&&(i=!0,T(I).then(x=>x.install?.(r,A)).catch(()=>{}))});const d=Object.keys(f.capabilities??{}).filter(a=>Object.hasOwn(M,a)).map(a=>[a,M[a]]).filter(a=>typeof a[1]=="string"&&L.test(a[1])),u=await Promise.allSettled(d.map(([,a])=>T(a))),h=await e,_=w;if(h?.buildBoot||parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:"_transforms"}},_),h?.buildBoot)try{P=h.buildBoot(f,h.TRANSFORMS??{},{shellOrigin:_,mount:W},a=>parent.postMessage({__frame_cap_telemetry:a},_))}catch{parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:"_transforms"}},_),P=z(f,_)}else P=z(f,_);const C=a=>parent.postMessage({__frame_cap_telemetry:{kind:"cap-load-error",cap:a}},_),we=P;u.forEach((a,k)=>{const A=d[k][0];if(a.status!=="fulfilled"){C(A);return}try{a.value?.install?.(we)}catch{C(A)}});for(const a of R.values())a.done||(a.nulled=!0,a.r(null));await y,parent.postMessage({__frame_ready:!0},w),e.then(a=>a?.installSizeReporter?.(_,g))})}})();</script><!-- /frame-runtime --><meta name="viewport" content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<title>Degree Audit Forensics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com/">
+<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+<link rel="stylesheet" href="./css2">
+
+<style>
+:root{
+  --ground:#F6F7F9;
+  --surface:#FFFFFF;
+  --surface-2:#EEF0F4;
+  --line:#D9DDE5;
+  --line-soft:#E7EAF0;
+  --ink:#141A26;
+  --ink-2:#3C4557;
+  --ink-3:#697487;
+  --accent:#2E5AAC;
+  --accent-soft:#E4EAF7;
+  --clear:#1F6E5C;
+  --clear-soft:#DFEDE8;
+  --warn:#9A6410;
+  --warn-soft:#F6EBD8;
+  --crit:#9C3327;
+  --crit-soft:#F7E3DF;
+  --shadow:0 1px 2px rgba(20,26,38,.05),0 8px 24px -16px rgba(20,26,38,.28);
+  --measure:68ch;
+}
+</style>
+
+<style>
+/* Dark palette declared explicitly for both the un-stamped and stamped states. */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1119;
+    --surface:#151A25;
+    --surface-2:#1D2331;
+    --line:#2B3242;
+    --line-soft:#232A38;
+    --ink:#E8EBF1;
+    --ink-2:#B7BFCE;
+    --ink-3:#8892A3;
+    --accent:#7EA3E8;
+    --accent-soft:#1B2740;
+    --clear:#6DC0A8;
+    --clear-soft:#16302B;
+    --warn:#DFA94F;
+    --warn-soft:#33280F;
+    --crit:#E88A7C;
+    --crit-soft:#37201C;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -18px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1119;
+  --surface:#151A25;
+  --surface-2:#1D2331;
+  --line:#2B3242;
+  --line-soft:#232A38;
+  --ink:#E8EBF1;
+  --ink-2:#B7BFCE;
+  --ink-3:#8892A3;
+  --accent:#7EA3E8;
+  --accent-soft:#1B2740;
+  --clear:#6DC0A8;
+  --clear-soft:#16302B;
+  --warn:#DFA94F;
+  --warn-soft:#33280F;
+  --crit:#E88A7C;
+  --crit-soft:#37201C;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 96px}
+
+/* ---------- masthead ---------- */
+.mast{border-bottom:1px solid var(--line);padding:56px 0 28px;margin-bottom:40px}
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 14px;
+}
+h1{
+  font-family:Spectral,Georgia,"Times New Roman",serif;
+  font-weight:600;font-size:clamp(34px,5.2vw,52px);line-height:1.08;
+  letter-spacing:-.015em;margin:0 0 16px;text-wrap:balance;
+}
+.dek{max-width:var(--measure);color:var(--ink-2);font-size:17px;margin:0}
+
+/* ---------- number strip ---------- */
+.strip{
+  display:grid;gap:1px;background:var(--line);
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  border:1px solid var(--line);border-radius:3px;overflow:hidden;margin:32px 0 0;
+}
+.stat{background:var(--surface);padding:16px 18px}
+.stat .n{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-variant-numeric:tabular-nums;
+  font-size:27px;font-weight:500;line-height:1.1;letter-spacing:-.02em;
+}
+.stat .l{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+.stat.is-crit .n{color:var(--crit)}
+.stat.is-warn .n{color:var(--warn)}
+
+/* ---------- contents ---------- */
+nav.toc{
+  background:var(--surface);border:1px solid var(--line);border-radius:3px;
+  padding:18px 22px;margin:32px 0 0;
+}
+nav.toc ol{margin:0;padding:0;list-style:none;display:grid;gap:2px;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));counter-reset:toc}
+nav.toc li{counter-increment:toc}
+nav.toc a{
+  display:flex;gap:10px;text-decoration:none;color:var(--ink-2);
+  padding:5px 0;font-size:14.5px;border-radius:2px;
+}
+nav.toc a::before{
+  content:counter(toc,decimal-leading-zero);
+  font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-3);
+  padding-top:2px;
+}
+nav.toc a:hover{color:var(--accent)}
+
+/* ---------- sections ---------- */
+section{margin-top:64px;scroll-margin-top:24px}
+h2{
+  font-family:Spectral,Georgia,serif;font-weight:600;
+  font-size:clamp(24px,3vw,31px);line-height:1.2;letter-spacing:-.01em;
+  margin:0 0 8px;text-wrap:balance;
+  padding-bottom:12px;border-bottom:2px solid var(--ink);
+}
+h3{
+  font-family:Spectral,Georgia,serif;font-weight:600;font-size:20px;
+  margin:38px 0 10px;letter-spacing:-.005em;text-wrap:balance;
+}
+h4{
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);
+  margin:28px 0 10px;
+}
+p{max-width:var(--measure);margin:0 0 14px}
+.lede{font-size:17px;color:var(--ink-2);margin-bottom:22px}
+strong{font-weight:600}
+code,.cc{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.88em;font-weight:500;letter-spacing:-.01em;
+  white-space:nowrap;
+}
+a{color:var(--accent)}
+ul.plain{max-width:var(--measure);padding-left:20px;margin:0 0 16px}
+ul.plain li{margin-bottom:7px}
+
+/* ---------- finding cards ---------- */
+.findings{display:grid;gap:14px;margin-top:24px}
+.finding{
+  background:var(--surface);border:1px solid var(--line);border-radius:3px;
+  box-shadow:var(--shadow);display:grid;grid-template-columns:6px 1fr;overflow:hidden;
+}
+.finding .bar{background:var(--ink-3)}
+.finding.sev-crit .bar{background:var(--crit)}
+.finding.sev-warn .bar{background:var(--warn)}
+.finding.sev-good .bar{background:var(--clear)}
+.finding .body{padding:18px 22px 20px}
+.finding h3{margin:6px 0 8px;font-size:19px}
+.finding p{margin-bottom:0;max-width:none}
+.finding p + p{margin-top:10px}
+
+.chip{
+  display:inline-block;font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border-radius:2px;vertical-align:2px;
+}
+.chip.crit{background:var(--crit-soft);color:var(--crit)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.good{background:var(--clear-soft);color:var(--clear)}
+.chip.info{background:var(--accent-soft);color:var(--accent)}
+.chip.mute{background:var(--surface-2);color:var(--ink-3)}
+
+/* ---------- tables ---------- */
+.tw{
+  overflow-x:auto;border:1px solid var(--line);border-radius:3px;
+  background:var(--surface);margin:16px 0 4px;box-shadow:var(--shadow);
+}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:640px}
+thead th{
+  text-align:left;font-family:"IBM Plex Mono",monospace;font-weight:600;
+  font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+  padding:11px 14px;border-bottom:1px solid var(--line);background:var(--surface-2);
+  white-space:nowrap;
+}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--ink-2)}
+tbody tr:last-child td{border-bottom:none}
+tbody td:first-child{color:var(--ink);font-weight:500}
+td.num,th.num{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:hover td{background:var(--surface-2)}
+caption{
+  caption-side:bottom;text-align:left;font-size:12.5px;color:var(--ink-3);
+  padding:10px 14px;border-top:1px solid var(--line-soft);
+}
+.tnote{font-size:12.5px;color:var(--ink-3);max-width:var(--measure);margin:8px 0 0}
+
+/* ---------- chain diagram ---------- */
+.chain{
+  display:flex;gap:0;flex-wrap:wrap;align-items:stretch;
+  margin:18px 0 6px;overflow-x:auto;padding-bottom:4px;
+}
+.node{
+  background:var(--surface);border:1px solid var(--line);border-radius:3px;
+  padding:10px 14px;min-width:132px;flex:0 0 auto;
+}
+.node .t{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:600;color:var(--ink)}
+.node .s{font-size:11px;color:var(--ink-3);margin-top:3px;letter-spacing:.03em}
+.node.blocked{border-color:var(--crit);background:var(--crit-soft)}
+.node.blocked .t{color:var(--crit)}
+.node.done{border-color:var(--clear);background:var(--clear-soft)}
+.node.done .t{color:var(--clear)}
+.arrow{
+  align-self:center;flex:0 0 auto;padding:0 10px;color:var(--ink-3);
+  font-family:"IBM Plex Mono",monospace;font-size:15px;
+}
+
+/* ---------- callout ---------- */
+.call{
+  border-left:3px solid var(--accent);background:var(--surface);
+  padding:16px 20px;margin:22px 0;border-radius:0 3px 3px 0;
+  border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.call.crit{border-left-color:var(--crit)}
+.call.warn{border-left-color:var(--warn)}
+.call p{margin:0;max-width:none}
+.call p + p{margin-top:10px}
+.call .h{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;display:block;
+}
+
+footer{
+  margin-top:72px;padding-top:20px;border-top:1px solid var(--line);
+  font-size:13px;color:var(--ink-3);max-width:var(--measure);
+}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+@media (max-width:640px){
+  .wrap{padding:0 16px 72px}
+  .mast{padding-top:36px}
+}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Phase 1 · Requirement &amp; course inventory · Audit read 24 Aug 2026</p>
+  <h1>Degree Audit Forensics</h1>
+  <p class="dek">A full accounting of what stands between you and a B.S. in Statistics &amp; Data Science — plus the Cognitive Science minor, Lewis Honors, and the AI certificate you are not currently enrolled in. No semester plan yet. This is the parts list and the constraint set.</p>
+
+  <div class="strip">
+    <div class="stat"><div class="n">55</div><div class="l">Credits completed</div></div>
+    <div class="stat"><div class="n">16</div><div class="l">Registered, Fall 26</div></div>
+    <div class="stat"><div class="n">49</div><div class="l">Left to reach 120</div></div>
+    <div class="stat is-warn"><div class="n">118</div><div class="l">Where your draft ends</div></div>
+    <div class="stat is-crit"><div class="n">~130</div><div class="l">Realistic floor</div></div>
+  </div>
+
+  <nav class="toc" aria-label="Contents">
+    <ol>
+      <li><a href="https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/#findings">Findings that change the plan</a></li>
+      <li><a href="https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/#ledger">Complete requirement ledger</a></li>
+      <li><a href="https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/#options">Outstanding requirements &amp; options</a></li>
+      <li><a href="https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/#overlap">Double-count map</a></li>
+      <li><a href="https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/#chains">Prerequisite chains</a></li>
+      <li><a href="https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/#avail">Availability evidence</a></li>
+      <li><a href="https://7e23fd92-6a9f-406d-9410-5565a77d8e39.frame.claudeusercontent.com/_f/1787604894-cc73/#questions">Open questions before Phase 2</a></li>
+    </ol>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<section id="findings">
+  <h2>Findings that change the plan</h2>
+  <p class="lede">Ordered by how much they move the outcome, not by how the audit lists them. The first two invalidate your current draft outright.</p>
+
+  <div class="findings">
+
+    <article class="finding sev-crit">
+      <div class="bar"></div>
+      <div class="body">
+        <span class="chip crit">Blocker</span>
+        <h3>Four of your five remaining major-core courses have never been taught</h3>
+        <p>I pulled the myUK <em>Course Offering History</em> for each. <span class="cc">STA 415</span> and <span class="cc">STA 425</span> show <strong>zero sections in every term back to 2009</strong>. <span class="cc">STA 310</span> has run exactly once (Spring 2026) and <span class="cc">STA 315</span> exactly once (Fall 2026). <span class="cc">STA 495</span> shows no confirmed section either.</p>
+        <p>This is consistent with the major being new — the first cohort is only now reaching the 400 level — but it means the back half of your degree depends on courses whose schedule does not yet exist. You cannot plan around an offering pattern that has no history. The Director of Undergraduate Studies is the only source of truth here, and this is the single highest-value email you can send.</p>
+      </div>
+    </article>
+
+    <article class="finding sev-crit">
+      <div class="bar"></div>
+      <div class="body">
+        <span class="chip crit">Blocker</span>
+        <h3>Your draft violates prerequisites in two places</h3>
+        <p><span class="cc">STA 415</span> requires <span class="cc">MA 322</span>, <span class="cc">STA 310</span> <em>and</em> <span class="cc">STA 315</span>. Your draft has STA 315 and STA 415 in the same term (Fall 2027). <span class="cc">STA 495</span> requires <em>completion of all Major Core and Other Courses requirements</em> — your draft has it alongside <span class="cc">STA 425</span> in Spring 2028.</p>
+        <p>Useful corollary: <span class="cc">STA 425</span> does <strong>not</strong> depend on STA 415. Both become legal after Fall 2027, so they can run in parallel rather than in series — that recovers one semester if the department offers them concurrently.</p>
+      </div>
+    </article>
+
+    <article class="finding sev-crit">
+      <div class="bar"></div>
+      <div class="body">
+        <span class="chip crit">Gap</span>
+        <h3>Your plan ends at 118 credits with four requirements untouched</h3>
+        <p>Switching the audit to <em>Completed, Registered, and Planned</em> shows 96% progress and <strong>118.00 credit hours</strong> — two short of 120. Four requirements remain unmet with everything you have planned already counted: <strong>A&amp;S Foreign Language</strong>, <strong>Honors Elective</strong> (3), <strong>Honors Experiences</strong> (6), and <strong>Honors Thesis</strong> (3).</p>
+        <p>That is 12 Honors credits plus 0–14 language credits on top of the 118. Your realistic total is <strong>130–142 credits</strong>, not 120. Spring 2028 graduation is not reachable from here on either the credit count or the STA sequence.</p>
+      </div>
+    </article>
+
+    <article class="finding sev-good">
+      <div class="bar"></div>
+      <div class="body">
+        <span class="chip good">Free win</span>
+        <h3>You are one course away from the AI certificate — and not enrolled in it</h3>
+        <p>UK's <strong>Undergraduate Certificate in Artificial Intelligence</strong> (CS dept, Pigman College of Engineering, 12 hours) does not appear anywhere in your audit, which means you have not declared it. You have already satisfied three quarters of it:</p>
+        <ul class="plain">
+          <li>Intro to AI — <span class="cc">CS 263</span> ✓ completed, A</li>
+          <li>Machine learning — <span class="cc">CS 465</span> ✓ registered, Fall 2026</li>
+          <li>Ethics — <span class="cc">ICT 205</span> or <span class="cc">CS 509</span> · <strong>not taken</strong></li>
+          <li>Elective — <span class="cc">STA 415</span> and <span class="cc">STA 495</span> are both on the approved list, and both are already in your major core</li>
+        </ul>
+        <p>Net cost: <strong>one 3-credit course</strong>, most likely ICT 205, which has no prerequisites. Declare it through <em>Menu → Request a major/minor/certificate change</em> in myUK; the program confirms that courses taken before admission still count. Verify with the director (Brent Harrison) whether the elective may double-count with your major.</p>
+      </div>
+    </article>
+
+    <article class="finding sev-warn">
+      <div class="bar"></div>
+      <div class="body">
+        <span class="chip warn">Time-critical</span>
+        <h3>Foreign language may cost 0 credits or 11 — and the cheap door has a September deadline</h3>
+        <p>Your <span class="cc">OTH 091 / OTH 092</span> high-school language credit satisfied the <em>UK Core</em> expectation but carries 0.00 hours and does not satisfy the separate <em>A&amp;S college</em> requirement. Both college options are open and both are unmet.</p>
+        <p>UK's Modern &amp; Classical Languages department runs a proficiency evaluation for <strong>languages not taught at UK</strong> — a BYU test ($50, 60+ languages) or a Penn Language Center test ($175). It grants <strong>equivalency, not credit hours</strong>, but equivalency is what the A&amp;S requirement is checking. Tests run twice a year: the <strong>second Friday in October</strong> and the <strong>first Friday in March</strong>, and registration closes <strong>three weeks prior</strong>.</p>
+        <p>That puts the next deadline around <strong>18 September 2026</strong>. Contact Liliana Drucker (lilo@uky.edu) and confirm with your A&amp;S advisor first, since the policy is applied per college. If this route fails, the fallback is Option 2 — three levels of a new language, e.g. <span class="cc">SPA 101</span> (4) + <span class="cc">102</span> (4) + <span class="cc">201</span> (3) = <strong>11 credits</strong>.</p>
+      </div>
+    </article>
+
+    <article class="finding sev-warn">
+      <div class="bar"></div>
+      <div class="body">
+        <span class="chip warn">Fragile</span>
+        <h3>PSY 312 is your only viable psychology course, and it has a gate</h3>
+        <p>Nearly every PSY course on the Cognitive Science elective list requires <span class="cc">PSY 215</span>/<span class="cc">216</span> plus a declared Psychology major (<span class="cc">PSY 427</span>, <span class="cc">456</span>, and the 56x seminars are effectively closed to you). <span class="cc">PSY 312 — Brain and Behavior</span> is the exception: its prerequisite reads <em>"PSY 100 or equivalent and PSY 215 or PSY 216 <strong>or STA 296</strong> and declared major or minor."</em> Your STA 296 satisfies the middle clause.</p>
+        <p>Two risks remain: whether a <em>Cognitive Science</em> minor counts as the "declared minor," and that registration is restricted to psychology and neuroscience majors during the priority window. PSY 312 does triple duty for you, so confirm it early and hold a backup (see §3).</p>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ledger">
+  <h2>Complete requirement ledger</h2>
+  <p class="lede">Every requirement in the audit, at the <em>Completed and Registered</em> baseline — that is, Fall 2026 counted, nothing planned counted. Status reflects what the audit itself asserts.</p>
+
+  <h4>University · UK Core &amp; graduation</h4>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Requirement</th><th>Status</th><th>Satisfied by</th><th>What remains</th></tr></thead>
+    <tbody>
+      <tr><td>Arts &amp; Creativity</td><td><span class="chip good">Met</span></td><td>Prior coursework</td><td>—</td></tr>
+      <tr><td>Humanities</td><td><span class="chip good">Met</span></td><td>PHI 130</td><td>—</td></tr>
+      <tr><td>Social Sciences</td><td><span class="chip crit">Open</span></td><td>—</td><td>3 hrs · 75 eligible courses</td></tr>
+      <tr><td>Natural, Physical, Math. Sciences</td><td><span class="chip crit">Open</span></td><td>—</td><td>3 hrs · 60 eligible courses</td></tr>
+      <tr><td>Composition &amp; Communication I</td><td><span class="chip good">Met</span></td><td>ENG 101</td><td>—</td></tr>
+      <tr><td>Composition &amp; Communication II</td><td><span class="chip good">Met</span></td><td>ENG 102</td><td>—</td></tr>
+      <tr><td>Quantitative Foundations</td><td><span class="chip good">Met</span></td><td>MA 109 / MA 113</td><td>—</td></tr>
+      <tr><td>Statistical Inferential Reasoning</td><td><span class="chip good">Met</span></td><td>STA 296</td><td>—</td></tr>
+      <tr><td>Community, Culture &amp; Citizenship</td><td><span class="chip good">Met</span></td><td>PS 101</td><td>—</td></tr>
+      <tr><td>Global Dynamics</td><td><span class="chip good">Met</span></td><td>ANT 160</td><td>—</td></tr>
+      <tr><td>UK Foreign Language</td><td><span class="chip good">Met</span></td><td>OTH 091 / 092</td><td>—</td></tr>
+      <tr><td>UK Cumulative Hours &amp; GPA</td><td><span class="chip crit">Open</span></td><td>71.00 hrs · GPA 3.536</td><td><strong>49 credit hours</strong></td></tr>
+      <tr><td>UK Residence (30 in last 36)</td><td><span class="chip good">Met</span></td><td>—</td><td>—</td></tr>
+      <tr><td>Application for Degree</td><td><span class="chip warn">Action</span></td><td>—</td><td>File once at 85+ hrs; deadlines 1 Apr / 1 Jun / 1 Nov</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>College of Arts &amp; Sciences · B.S.</h4>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Requirement</th><th>Status</th><th class="num">Have</th><th class="num">Need</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>A&amp;S 120 Hours</td><td><span class="chip crit">Open</span></td><td class="num">71</td><td class="num">120</td><td>Same shortfall as the university hours</td></tr>
+      <tr><td>A&amp;S 90 Hours (A&amp;S coursework)</td><td><span class="chip crit">Open</span></td><td class="num">67</td><td class="num">90</td><td>FIN 250, TEK 100, AN 250 do <em>not</em> count</td></tr>
+      <tr><td>A&amp;S 60 hrs Science / Math</td><td><span class="chip crit">Open</span></td><td class="num">37</td><td class="num">60</td><td>ANA AST BCH BIO CHE CS EES MA PGY PHY STA + PHI 120/320, PSY 215/216/312/393/456/459/565, ECO 391</td></tr>
+      <tr><td>A&amp;S Natural Sciences (BS)</td><td><span class="chip crit">Open</span></td><td class="num">0</td><td class="num">3</td><td>Must differ from the UK Core science course</td></tr>
+      <tr><td>A&amp;S Social Sciences (BS)</td><td><span class="chip crit">Open</span></td><td class="num">0</td><td class="num">3</td><td>Must differ from the UK Core social science course</td></tr>
+      <tr><td>A&amp;S Humanities (BS)</td><td><span class="chip good">Met</span></td><td class="num">—</td><td class="num">—</td><td>—</td></tr>
+      <tr><td>A&amp;S Many People, One Community</td><td><span class="chip good">Met</span></td><td class="num">—</td><td class="num">—</td><td>—</td></tr>
+      <tr><td>A&amp;S Lab or Field Work</td><td><span class="chip crit">Open</span></td><td class="num">0</td><td class="num">1</td><td>One course from a 20-course list</td></tr>
+      <tr><td>A&amp;S Electives</td><td><span class="chip good">Met</span></td><td class="num">—</td><td class="num">—</td><td>—</td></tr>
+      <tr><td>A&amp;S Foreign Language</td><td><span class="chip crit">Open</span></td><td class="num">0</td><td class="num">1&nbsp;of&nbsp;2</td><td>Option 1: one language through 202. Option 2: three levels of a new language</td></tr>
+    </tbody>
+    <caption>The A&amp;S rule is explicit: <em>"Students cannot use the same course to satisfy both UK Core and Arts and Sciences area requirements."</em> Science and social science each cost you two distinct courses.</caption>
+  </table>
+  </div>
+
+  <h4>Major · Statistics and Data Science</h4>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Requirement</th><th>Status</th><th>Done</th><th>Remaining</th></tr></thead>
+    <tbody>
+      <tr><td>Pre-Major</td><td><span class="chip good">Met</span></td><td>MA 113, MA 114</td><td>—</td></tr>
+      <tr><td>Major Core (9 courses)</td><td><span class="chip crit">Open</span></td><td>MA 322, STA 296, STA 300, STA 305</td><td><span class="cc">STA 310</span> · <span class="cc">STA 315</span> · <span class="cc">STA 415</span> · <span class="cc">STA 425</span> · <span class="cc">STA 495</span> = <strong>16 hrs</strong></td></tr>
+      <tr><td>Specialization (12 hrs)</td><td><span class="chip warn">Partial</span></td><td>CS 263, CS 3‑‑‑, CS 465 (9 hrs)</td><td><strong>3 hrs</strong> from AN/CS/MA 200–500 level, or PS 372</td></tr>
+      <tr><td>GCCR</td><td><span class="chip crit">Open</span></td><td>—</td><td><span class="cc">STA 495</span> with a C or better</td></tr>
+      <tr><td>Major GPA ≥ 2.0</td><td><span class="chip good">On track</span></td><td>3.300</td><td>—</td></tr>
+    </tbody>
+    <caption>Major GPA is 3.300 against a cumulative 3.536 — the major is currently your weakest GPA pocket, driven by the B in STA 296. Worth watching as the 400-level load arrives.</caption>
+  </table>
+  </div>
+
+  <h4>Minor · Cognitive Science (18 hrs total)</h4>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Requirement</th><th>Status</th><th>Done</th><th>Remaining</th></tr></thead>
+    <tbody>
+      <tr><td>Required course</td><td><span class="chip crit">Open</span></td><td>—</td><td><span class="cc">PHI 375</span> — Philosophy of Cognitive Science (3)</td></tr>
+      <tr><td>Electives (15 hrs)</td><td><span class="chip warn">Partial</span></td><td>CS 263, CS 465 (6 hrs)</td><td><strong>9 hrs</strong> — and the CS prefix is now capped out</td></tr>
+    </tbody>
+    <caption>Rules: at least 6 hrs must share a prefix (CS already satisfies this), and <strong>no more than 6 hrs per prefix will count</strong>. Your remaining 9 hrs must therefore split across at least two non-CS prefixes.</caption>
+  </table>
+  </div>
+
+  <h4>Lewis Honors College (30 hrs)</h4>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Component</th><th>Status</th><th class="num">Have</th><th class="num">Need</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Foundational seminar</td><td><span class="chip good">Met</span></td><td class="num">3</td><td class="num">3</td><td>HON 140</td></tr>
+      <tr><td>Composition &amp; Communication</td><td><span class="chip good">Met</span></td><td class="num">—</td><td class="num">—</td><td>—</td></tr>
+      <tr><td>Lower-level Honors</td><td><span class="chip warn">Partial</span></td><td class="num">3</td><td class="num">6</td><td>HON 252 registered; needs one more of HON 151/152/201/251/252</td></tr>
+      <tr><td>Upper-level Honors</td><td><span class="chip warn">Partial</span></td><td class="num">3</td><td class="num">6</td><td>HON 301 done; repeatable under a new subtitle to 6 hrs</td></tr>
+      <tr><td>Honors Elective</td><td><span class="chip crit">Open</span></td><td class="num">0</td><td class="num">3</td><td>Any HON course, departmental honors, grad course, or surplus experiential hours</td></tr>
+      <tr><td>Honors Experiences</td><td><span class="chip crit">Open</span></td><td class="num">0</td><td class="num">6</td><td>Research, education abroad, internship, or service learning — for credit, DUS-approved</td></tr>
+      <tr><td>Honors Thesis</td><td><span class="chip crit">Open</span></td><td class="num">0</td><td class="num">3</td><td>HON 491 or a departmental equivalent</td></tr>
+      <tr><td>Honors GPA ≥ 3.4</td><td><span class="chip good">On track</span></td><td class="num">3.536</td><td class="num">3.4</td><td>Margin is 0.136 — thin</td></tr>
+    </tbody>
+    <caption>Statistics does not appear on the A&amp;S list of departments offering departmental honors, so <span class="cc">HON 491</span> is most likely your thesis vehicle rather than an STA capstone. Verify with Lewis Honors.</caption>
+  </table>
+  </div>
+
+  <div class="call warn">
+    <span class="h">Not in the audit at all</span>
+    <p><strong>Undergraduate Certificate in Artificial Intelligence — 12 hrs.</strong> Because it is undeclared, it appears in no audit section and none of your planning tools account for it. See §1 and §3.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="options">
+  <h2>Outstanding requirements &amp; course options</h2>
+  <p class="lede">For each open requirement: the realistic candidates, weighted toward what you would actually want to sit in. Fixed requirements are listed first because they consume the space everything else has to fit around.</p>
+
+  <h3>Fixed — no choice available</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Prerequisites</th><th>Satisfies</th><th>Availability</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">STA 310</span></td><td>Intro Probability and Inference</td><td class="num">3</td><td>MA 114</td><td>Major Core · A&amp;S 60</td><td><span class="chip warn">1 section ever</span> Spring 2026</td></tr>
+      <tr><td><span class="cc">STA 315</span></td><td>Applied Stat Modeling &amp; Experimental Design</td><td class="num">3</td><td>STA 305</td><td>Major Core · A&amp;S 60</td><td><span class="chip warn">1 section ever</span> Fall 2026</td></tr>
+      <tr><td><span class="cc">STA 415</span></td><td>Predictive Modeling &amp; Intro Machine Learning</td><td class="num">4</td><td>MA 322, STA 310, STA 315</td><td>Major Core · A&amp;S 60 · <strong>AI cert elective</strong></td><td><span class="chip crit">Never offered</span></td></tr>
+      <tr><td><span class="cc">STA 425</span></td><td>Computational Bayesian Statistics</td><td class="num">3</td><td>STA 305 (+ STA 315)</td><td>Major Core · A&amp;S 60</td><td><span class="chip crit">Never offered</span></td></tr>
+      <tr><td><span class="cc">STA 495</span></td><td>Stat &amp; Data Science in Context: Practicum</td><td class="num">3</td><td>All Major Core + Other Courses complete</td><td>Major Core · <strong>GCCR</strong> · <strong>AI cert elective</strong></td><td><span class="chip crit">No section found</span></td></tr>
+      <tr><td><span class="cc">PHI 375</span></td><td>Philosophy of Cognitive Science</td><td class="num">3</td><td>None listed</td><td>Cog Sci required course · UK Core Humanities</td><td><span class="chip info">Confirmed Fall 2026</span></td></tr>
+    </tbody>
+    <caption>Availability drawn from myUK's Course Offering History, which reaches back to 2009. "Never offered" is a literal reading of that record, not an inference.</caption>
+  </table>
+  </div>
+
+  <h3>UK Core · Social Sciences — 3 hrs, 75 eligible</h3>
+  <p>Ranked by strategic value rather than ease, though the top pick is both.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Why it earns the slot</th><th>Caveat</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">HON 251</span></td><td>Honors Social Sciences (subtitle)</td><td class="num">3</td><td><strong>Best pick.</strong> UK Core Social Sciences <em>and</em> Honors Elective in one course. Your advisor already pushed a Fall 2026 section — "Dark Side of…" — to your planner.</td><td>Confirm Honors will apply it to the Elective rather than Lower-level (already filled)</td></tr>
+      <tr><td><span class="cc">PSY 100</span></td><td>Intro to Psychology</td><td class="num">4</td><td>Gateway prerequisite to PSY 312 for the minor; also appears on the A&amp;S Lab or Field Work list</td><td>Consumed here, it can't also serve A&amp;S Social Sciences</td></tr>
+      <tr><td><span class="cc">GEO 210</span></td><td>How the Internet Works</td><td class="num">3</td><td>Technology-adjacent, low overhead</td><td>No downstream value</td></tr>
+      <tr><td><span class="cc">ICT 120</span></td><td>Technology and the Human Experience</td><td class="num">3</td><td>Same department as your AI-certificate ethics course</td><td>ICT hours don't count toward A&amp;S 90</td></tr>
+      <tr><td><span class="cc">EGR 120</span></td><td>Technology: Blessing or Curse</td><td class="num">3</td><td>Tech-ethics framing that pairs with CS 263</td><td>Engineering prefix; not A&amp;S</td></tr>
+      <tr><td><span class="cc">LIN 211</span></td><td>Introduction to the Study of Language</td><td class="num">3</td><td>Opens the linguistics side of cognitive science</td><td>LIN 211 ≠ LIN 221, which is the minor's gateway</td></tr>
+    </tbody>
+    <caption>Also on this list: <span class="cc">CS 263</span>, which you have already completed with an A — see §7, question 1.</caption>
+  </table>
+  </div>
+
+  <h3>UK Core · Natural, Physical, Mathematical Sciences — 3 hrs, 60 eligible</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Why</th><th>Caveat</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">HON 152</span></td><td>Honors STEM (subtitle)</td><td class="num">3</td><td><strong>Best pick.</strong> UK Core science + Honors Lower-level. Already in your draft — keep it.</td><td>Subtitle rotates; check the topic before committing</td></tr>
+      <tr><td><span class="cc">ANT 105</span></td><td>Human Origins</td><td class="num">3</td><td>Appears on three lists at once (UK Core science, A&amp;S Natural Sciences, A&amp;S Social Sciences as "any ANT")</td><td>Only one of the three can claim it</td></tr>
+      <tr><td><span class="cc">PHY 140</span></td><td>Quantum Theory for Everyone</td><td class="num">3</td><td>PHY counts toward A&amp;S 60 science/math; conceptually adjacent to your interests</td><td>Verify no math prerequisite</td></tr>
+      <tr><td><span class="cc">MUS 140</span></td><td>Acoustics of Music</td><td class="num">3</td><td>The reliably light option on this list</td><td>Zero downstream value; MUS not in A&amp;S 60</td></tr>
+      <tr><td><span class="cc">EES 190</span></td><td>A Climate for Change</td><td class="num">3</td><td>EES counts toward A&amp;S 60 science/math</td><td>—</td></tr>
+    </tbody>
+    <caption>Note the combination rule: <span class="cc">CHE 105+111</span>, <span class="cc">CHE 109+110+111</span>, or <span class="cc">PHY 231+241</span> only satisfy this requirement as complete sets.</caption>
+  </table>
+  </div>
+
+  <h3>A&amp;S Natural Sciences (BS) — 3 hrs, must differ from the UK Core science course</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Overlap value</th><th>Caveat</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">PSY 312</span></td><td>Brain and Behavior</td><td class="num">3</td><td><strong>Triple count:</strong> A&amp;S Natural Sciences + Cognitive Science minor + A&amp;S 60 science/math</td><td>Needs PSY 100 first; "declared major or minor" gate — see §1</td></tr>
+      <tr><td><span class="cc">CGS 500</span></td><td>Cognitive Science in Theory and Practice</td><td class="num">3</td><td>On <em>both</em> the A&amp;S Natural Sciences and A&amp;S Social Sciences lists — the literal cognitive science survey course</td><td>Upper-class standing; taught each Spring only; not on the minor's elective list</td></tr>
+      <tr><td><span class="cc">ANT 230</span></td><td>Introduction to Biological Anthropology</td><td class="num">3</td><td>A&amp;S Natural Sciences <em>and</em> A&amp;S Lab or Field Work</td><td>Already in your draft; keep unless PSY 312 covers the science slot</td></tr>
+      <tr><td><span class="cc">PSY 360</span></td><td>Behavioral Genetics</td><td class="num">3</td><td>A&amp;S Natural Sciences; PSY prefix</td><td>Prerequisites unverified; likely the same major gate</td></tr>
+      <tr><td><span class="cc">ANA 209</span></td><td>Principles of Human Anatomy</td><td class="num">3</td><td>ANA counts toward A&amp;S 60 science/math</td><td>Heavy memorization load, no strategic payoff</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>A&amp;S Social Sciences (BS) — 3 hrs, must differ from the UK Core social science course</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Overlap value</th><th>Caveat</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">CGS 500</span></td><td>Cognitive Science in Theory and Practice</td><td class="num">3</td><td>Directly on-theme; satisfies either A&amp;S area</td><td>Spring only; can't serve both A&amp;S areas at once</td></tr>
+      <tr><td><span class="cc">PSY 100</span></td><td>Intro to Psychology</td><td class="num">4</td><td>"PSY (any PSY course)" qualifies; also unlocks PSY 312 and appears on the A&amp;S Lab list</td><td>Can't also be your UK Core social science</td></tr>
+      <tr><td><span class="cc">ANT 105</span></td><td>Human Origins</td><td class="num">3</td><td>"ANT (any ANT course)" qualifies — currently how your draft uses it</td><td>Least interesting of the viable options</td></tr>
+      <tr><td><span class="cc">GEO 210</span></td><td>How the Internet Works</td><td class="num">3</td><td>"GEO (any GEO course)" qualifies</td><td>Only if not spent on UK Core</td></tr>
+      <tr><td><span class="cc">ECO 391</span></td><td>Economic Statistics / econometrics track</td><td class="num">3</td><td>ECO qualifies here <em>and</em> ECO 391 is explicitly named on the A&amp;S 60 science/math list</td><td>Verify prerequisites and current title</td></tr>
+    </tbody>
+    <caption>Excluded from this requirement: ANT 354 and ANT 355 (Fall 2023 or later), GWS 201, PSY 459.</caption>
+  </table>
+  </div>
+
+  <h3>A&amp;S Lab or Field Work — one course, 20 eligible</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Overlap value</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">PS 372</span></td><td>Intro Political Analysis</td><td class="num">3</td><td><strong>Sharpest overlap:</strong> the only course on both the Lab/Field list and the major's Specialization list — one course closes two requirements</td></tr>
+      <tr><td><span class="cc">PSY 100</span></td><td>Intro to Psychology</td><td class="num">4</td><td>Lab requirement + a UK Core or A&amp;S social science slot + PSY 312 prerequisite</td></tr>
+      <tr><td><span class="cc">ANT 230</span></td><td>Introduction to Biological Anthropology</td><td class="num">3</td><td>Lab requirement + A&amp;S Natural Sciences (BS)</td></tr>
+      <tr><td><span class="cc">SOC 303</span></td><td>Quantitative Sociological Analysis</td><td class="num">3</td><td>Methods-heavy, aligns with your quantitative work</td></tr>
+      <tr><td><span class="cc">CHE 111</span></td><td>General Chemistry I Laboratory</td><td class="num">1</td><td>Cheapest in credit hours, but only pairs with CHE 105/109/110</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Cognitive Science minor — 9 elective hrs remaining</h3>
+  <p>CS is capped at 6 hours and already full. The remaining 9 hours must come from at least two other prefixes, none exceeding 6 hours.</p>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Prerequisites</th><th>Offering pattern</th><th>Other requirements served</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">PHI 575</span></td><td>Philosophy of Mind</td><td class="num">3</td><td>PHI 100 or 350, or instructor consent</td><td><span class="chip crit">Spring, odd years only</span></td><td>—</td></tr>
+      <tr><td><span class="cc">PHI 320</span></td><td>Symbolic Logic I</td><td class="num">3</td><td>None</td><td><span class="chip good">Every Fall, most Springs</span></td><td>A&amp;S 60 science/math</td></tr>
+      <tr><td><span class="cc">PSY 312</span></td><td>Brain and Behavior</td><td class="num">3</td><td>PSY 100 + (PSY 215/216 <em>or</em> STA 296) + declared major/minor</td><td>Unverified</td><td>A&amp;S Natural Sciences · A&amp;S 60</td></tr>
+      <tr><td><span class="cc">LIN 221</span> → <span class="cc">LIN 511</span></td><td>Intro Linguistics → Computational Linguistics</td><td class="num">6</td><td>LIN 511 requires LIN 221</td><td>Unverified</td><td><strong>Backup pair if PSY 312 falls through</strong> — NLP-adjacent</td></tr>
+      <tr><td><span class="cc">COM 350</span></td><td>Language and Communication</td><td class="num">3</td><td>None; closed to those with a 300+ linguistics course</td><td>Unverified</td><td>Listed under the minor's Linguistics group despite the COM prefix — confirm how it counts against the prefix cap</td></tr>
+      <tr><td><span class="cc">PHI 560</span></td><td>Philosophy of Scientific Method</td><td class="num">3</td><td>PHI 100, 120, or 350, or consent</td><td><span class="chip warn">Fall only</span></td><td>Only if you drop PHI 575 or PHI 320 — PHI caps at 6</td></tr>
+    </tbody>
+    <caption><strong>PHI 575 is the hard constraint on this entire minor.</strong> Spring of odd years means Spring 2027 or Spring 2029 — nothing in between. Your draft has it in Spring 2027; do not move it.</caption>
+  </table>
+  </div>
+
+  <h3>Major Specialization — 3 hrs remaining</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Title</th><th class="num">Cr</th><th>Overlap value</th><th>Caveat</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">MA 323</span></td><td>Mathematical Introduction to Data Science</td><td class="num">3</td><td><strong>Triple:</strong> Specialization + AI certificate elective + A&amp;S 60 science/math</td><td>Existence and prerequisites need confirming in the live catalog</td></tr>
+      <tr><td><span class="cc">MA 213</span></td><td>Calculus III</td><td class="num">4</td><td>Specialization + A&amp;S 60 + A&amp;S 90; real groundwork for ML</td><td>Requires C or better in MA 114 — you have an A</td></tr>
+      <tr><td><span class="cc">PS 372</span></td><td>Intro Political Analysis</td><td class="num">3</td><td>Specialization + A&amp;S Lab or Field Work</td><td>Political science framing, not statistics</td></tr>
+      <tr><td><span class="cc">AN 250</span></td><td>Business Data Analysis</td><td class="num">3</td><td>Currently in your draft</td><td><span class="chip warn">Not offered</span> Fall 2025 or Spring 2026; Gatton prefix, so it does <em>not</em> count toward A&amp;S 90</td></tr>
+      <tr><td><span class="cc">MA 421G</span></td><td>Mathematical Introduction to Deep Learning</td><td class="num">3</td><td>Specialization + AI certificate elective</td><td>400G level; verify prerequisites</td></tr>
+    </tbody>
+    <caption>Excluded from Specialization: MA 201, 202, 241, 308, 310, 330, 375. Specialization hours must be proposed by you and approved by the Director of Undergraduate Studies — so the choice is a conversation, not a form.</caption>
+  </table>
+  </div>
+
+  <h3>Lewis Honors — 12 hrs remaining</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Vehicle</th><th class="num">Cr</th><th>Fills</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">HON 395</span> — Honors Independent Work</td><td class="num">1–6</td><td>Experiences</td><td>Faculty-supervised research; repeatable to 6. <strong>The obvious move: an AI/ML project with a STA or CS faculty member</strong> that also seeds your thesis</td></tr>
+      <tr><td><span class="cc">HON 399</span> — Service Learning &amp; Community Engagement</td><td class="num">1–15</td><td>Experiences · surplus → Elective</td><td>Requires a learning agreement and director consent</td></tr>
+      <tr><td><span class="cc">HON 352</span> — Study and Travel Abroad</td><td class="num">3</td><td>Experiences or Elective</td><td>Prereq: sophomore standing + two of HON 151/152/251/252</td></tr>
+      <tr><td><span class="cc">HON 386</span> — Internship Experience</td><td class="num">—</td><td>Experiences</td><td>Credits unverified; would pair naturally with an aviation or AI internship</td></tr>
+      <tr><td><span class="cc">HON 251</span> — Honors Social Sciences</td><td class="num">3</td><td><strong>Elective + UK Core Social Sciences</strong></td><td>The cheapest way to close the Elective — see §4</td></tr>
+      <tr><td><span class="cc">HON 491</span> — Honors Thesis</td><td class="num">3</td><td>Thesis</td><td>Proposal filed the semester <em>before</em> enrollment; final proposal due 2nd Friday of the thesis term; requires a faculty mentor</td></tr>
+      <tr><td><span class="cc">HON 301/302/310/330/350/360</span></td><td class="num">3</td><td>Upper-level (2nd course)</td><td>HON 301 repeats under a new subtitle — already in your draft</td></tr>
+    </tbody>
+    <caption>Honors policy states that "most of your Honors requirements will also count towards your major requirements," and no explicit prohibition on double-counting was found. Absence of a prohibition is not permission — confirm edge cases with your Honors advisor.</caption>
+  </table>
+  </div>
+
+  <h3>AI Certificate — 3 hrs remaining</h3>
+  <div class="tw">
+  <table>
+    <thead><tr><th>Slot</th><th>Options</th><th class="num">Cr</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Intro to AI</td><td><span class="cc">CS 263</span> · CS 463G</td><td class="num">3</td><td><span class="chip good">Done — A</span></td></tr>
+      <tr><td>Machine learning</td><td><span class="cc">CS 465</span> · CS 460G</td><td class="num">3</td><td><span class="chip good">Registered Fall 26</span></td></tr>
+      <tr><td>Computing / data ethics</td><td><span class="cc">ICT 205</span> · CS 509</td><td class="num">3</td><td><span class="chip crit">Needed</span> — ICT 205 has no prerequisites and no engineering-standing gate</td></tr>
+      <tr><td>Elective</td><td>STA 415 · STA 495 · MA 323 · MA 421G · AN 420G · DS 501 · EE/ME 578</td><td class="num">3</td><td><span class="chip warn">Verify double-count</span> — STA 415 and 495 are already required for your major</td></tr>
+    </tbody>
+    <caption>CS 463G, CS 460G, CS 375 and CS 575 all carry an <em>engineering standing</em> restriction plus a CS 315 / CS 275 chain you do not have. The certificate was deliberately designed with a no-programming-prerequisite path — CS 263 / CS 465 / ICT 205 — which is exactly the path you are already on.</caption>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="overlap">
+  <h2>Double-count map</h2>
+  <p class="lede">The requirements above sum to far more than 49 credits. Overlap is not an optimization here — it is the only way the degree closes. Every row below is a course doing more than one job.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th class="num">Cr</th><th>Requirements satisfied</th><th class="num">Jobs</th><th>Confidence</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">PSY 312</span></td><td class="num">3</td><td>A&amp;S Natural Sciences (BS) · Cognitive Science minor · A&amp;S 60 science/math</td><td class="num">3</td><td><span class="chip warn">Prereq gate</span></td></tr>
+      <tr><td><span class="cc">HON 251</span></td><td class="num">3</td><td>UK Core Social Sciences · Honors Elective · A&amp;S 90</td><td class="num">3</td><td><span class="chip info">Confirm with Honors</span></td></tr>
+      <tr><td><span class="cc">HON 152</span></td><td class="num">3</td><td>UK Core Nat/Phys/Math · Honors Lower-level · A&amp;S 90</td><td class="num">3</td><td><span class="chip good">Audit-confirmed</span></td></tr>
+      <tr><td><span class="cc">MA 323</span></td><td class="num">3</td><td>Major Specialization · AI certificate elective · A&amp;S 60 science/math</td><td class="num">3</td><td><span class="chip warn">Course unverified</span></td></tr>
+      <tr><td><span class="cc">STA 495</span></td><td class="num">3</td><td>Major Core · GCCR · AI certificate elective · A&amp;S 60</td><td class="num">4</td><td><span class="chip warn">Cert double-count unconfirmed</span></td></tr>
+      <tr><td><span class="cc">STA 415</span></td><td class="num">4</td><td>Major Core · AI certificate elective · A&amp;S 60</td><td class="num">3</td><td><span class="chip warn">Cert double-count unconfirmed</span></td></tr>
+      <tr><td><span class="cc">ANT 230</span></td><td class="num">3</td><td>A&amp;S Natural Sciences (BS) · A&amp;S Lab or Field Work · A&amp;S 60</td><td class="num">3</td><td><span class="chip good">Both lists confirmed</span></td></tr>
+      <tr><td><span class="cc">PS 372</span></td><td class="num">3</td><td>Major Specialization · A&amp;S Lab or Field Work · A&amp;S 90</td><td class="num">3</td><td><span class="chip good">Both lists confirmed</span></td></tr>
+      <tr><td><span class="cc">PSY 100</span></td><td class="num">4</td><td>UK Core <em>or</em> A&amp;S Social Sciences · A&amp;S Lab or Field Work · PSY 312 prerequisite</td><td class="num">2–3</td><td><span class="chip info">One area only</span></td></tr>
+      <tr><td><span class="cc">PHI 320</span></td><td class="num">3</td><td>Cognitive Science minor · A&amp;S 60 science/math · A&amp;S 90</td><td class="num">3</td><td><span class="chip good">Named on the A&amp;S 60 list</span></td></tr>
+      <tr><td><span class="cc">HON 395</span></td><td class="num">3–6</td><td>Honors Experiences · surplus → Honors Elective · A&amp;S 90 · research for the thesis</td><td class="num">3</td><td><span class="chip info">DUS approval</span></td></tr>
+      <tr><td><span class="cc">CGS 500</span></td><td class="num">3</td><td>A&amp;S Natural Sciences <em>or</em> A&amp;S Social Sciences · A&amp;S 60 (if used as science)</td><td class="num">2</td><td><span class="chip info">One area only</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="call">
+    <span class="h">The one hard wall</span>
+    <p>"Students cannot use the same course to satisfy both UK Core and Arts and Sciences area requirements." Science and social science each cost two distinct courses — four courses, roughly 13 credits, that buy you nothing beyond breadth. The strategy is therefore to make each of those four carry a <em>second</em> job: an Honors slot (HON 152, HON 251), a minor elective (PSY 312), or the lab requirement (ANT 230, PSY 100).</p>
+  </div>
+
+  <h4>Where overlap is not available</h4>
+  <ul class="plain">
+    <li><strong>Honors Thesis (3 hrs)</strong> — Statistics has no departmental honors track, so HON 491 has no second job. Pure cost.</li>
+    <li><strong>Foreign language (0 or 11 hrs)</strong> — language credits count toward the 120 and toward A&amp;S 90, but nothing else. Either waive it or absorb it.</li>
+    <li><strong>ICT 205 (3 hrs)</strong> — buys the AI certificate and counts toward the 120, but ICT is outside A&amp;S, so it does not help the 90-hour or 60-hour requirements.</li>
+    <li><strong>Honors Experiences (6 hrs)</strong> — the only way to make these productive is to route them through research that becomes your thesis, rather than treating them as a separate box.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="chains">
+  <h2>Prerequisite chains</h2>
+  <p class="lede">Three chains govern the shape of every remaining semester. Two of them are long enough to decide your graduation term on their own.</p>
+
+  <h3>Chain 1 · The major core — the binding constraint</h3>
+  <div class="chain">
+    <div class="node done"><div class="t">STA 305</div><div class="s">Fall 26 · registered</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="t">STA 310</div><div class="s">Spring only</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="t">STA 315</div><div class="s">Fall only</div></div>
+    <div class="arrow">→</div>
+    <div class="node blocked"><div class="t">STA 415</div><div class="s">never offered</div></div>
+    <div class="arrow">+</div>
+    <div class="node blocked"><div class="t">STA 425</div><div class="s">never offered</div></div>
+    <div class="arrow">→</div>
+    <div class="node blocked"><div class="t">STA 495</div><div class="s">all core first</div></div>
+  </div>
+  <p class="tnote">STA 310 and STA 315 each have exactly one historical section, in opposite terms — so the sequence advances one course per semester with no way to double up. STA 415 and STA 425 are siblings, not a chain: 425 needs 305 and 315, not 415. If both run in the same term you save a semester; if not, the sequence runs four terms past Fall 2026 and lands STA 495 in <strong>Spring 2029</strong>.</p>
+
+  <h3>Chain 2 · Cognitive Science minor</h3>
+  <div class="chain">
+    <div class="node"><div class="t">PSY 100</div><div class="s">no prereq</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="t">PSY 312</div><div class="s">+ STA 296 ✓</div></div>
+    <div class="arrow">&nbsp;</div>
+    <div class="node blocked"><div class="t">PHI 575</div><div class="s">Spring, odd yrs</div></div>
+    <div class="arrow">&nbsp;</div>
+    <div class="node"><div class="t">PHI 320</div><div class="s">no prereq</div></div>
+    <div class="arrow">&nbsp;</div>
+    <div class="node"><div class="t">PHI 375</div><div class="s">required course</div></div>
+  </div>
+  <p class="tnote">PHI 575's Spring-odd-year rotation is the trap: Spring 2027, then nothing until Spring 2029. If you skip it in Spring 2027, PHI 320 + PHI 560 cannot replace it — the PHI prefix caps at 6 hours, and dropping PHI 575 forces you into a LIN 221 → LIN 511 pair instead. Backup chain, one semester longer:</p>
+  <div class="chain">
+    <div class="node"><div class="t">LIN 221</div><div class="s">gateway</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="t">LIN 511</div><div class="s">computational ling.</div></div>
+  </div>
+
+  <h3>Chain 3 · Honors thesis</h3>
+  <div class="chain">
+    <div class="node"><div class="t">Find mentor</div><div class="s">2 terms out</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="t">HON 395</div><div class="s">research, 3–6 cr</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="t">File proposal</div><div class="s">term before</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="t">HON 491</div><div class="s">final term</div></div>
+  </div>
+  <p class="tnote">This chain is three semesters long and none of it is registrable on demand — it starts with a conversation. If graduation lands in Spring 2029, the mentor conversation belongs in <strong>2027</strong>, not 2028.</p>
+
+  <h3>Chains that are closed to you</h3>
+  <p>Worth knowing so you stop treating them as options: <span class="cc">CS 375</span>, <span class="cc">CS 460G</span>, <span class="cc">CS 463G</span> and <span class="cc">CS 575</span> all require <em>engineering standing</em> plus <span class="cc">CS 215</span> → <span class="cc">CS 275</span> → <span class="cc">CS 315</span>. As an A&amp;S student that is a four-course detour before the first useful class, and your CS hours are already capped at 6 for the minor. Similarly, <span class="cc">PSY 427</span>, <span class="cc">PSY 456</span> and the PSY 56x seminars require <span class="cc">PSY 195</span>, <span class="cc">PSY 215</span>, <span class="cc">PSY 216</span> and a declared Psychology major.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="avail">
+  <h2>Availability evidence</h2>
+  <p class="lede">Drawn from myUK's Course Offering History (sections per term, back to 2009), UK department rotation plans, and the live course catalog. Nothing here is assumed from "most courses run every semester."</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Course</th><th>Evidence</th><th>Read</th><th>Confidence</th></tr></thead>
+    <tbody>
+      <tr><td><span class="cc">STA 310</span></td><td>1 section total — Spring 2026</td><td>Spring course, new</td><td><span class="chip warn">Thin</span></td></tr>
+      <tr><td><span class="cc">STA 315</span></td><td>1 section total — Fall 2026</td><td>Fall course, new</td><td><span class="chip warn">Thin</span></td></tr>
+      <tr><td><span class="cc">STA 415</span></td><td>0 sections in every term 2009→2026</td><td>Not yet taught</td><td><span class="chip good">Direct record</span></td></tr>
+      <tr><td><span class="cc">STA 425</span></td><td>0 sections in every term 2009→2026</td><td>Not yet taught</td><td><span class="chip good">Direct record</span></td></tr>
+      <tr><td><span class="cc">STA 495</span></td><td>No section found across terms checked</td><td>Likely not yet taught</td><td><span class="chip warn">Indirect</span></td></tr>
+      <tr><td><span class="cc">PHI 320</span></td><td>Every Fall since 2010; Spring in most years; 2 sections Fall 2026</td><td>Both terms, reliable</td><td><span class="chip good">Strong</span></td></tr>
+      <tr><td><span class="cc">PHI 575</span></td><td>Department two-year plan: <em>Spring (odd)</em></td><td>Spring 2027, then Spring 2029</td><td><span class="chip good">Published rotation</span></td></tr>
+      <tr><td><span class="cc">PHI 565</span></td><td>Department two-year plan: <em>Spring (even)</em></td><td>Spring 2028</td><td><span class="chip good">Published rotation</span></td></tr>
+      <tr><td><span class="cc">PHI 560</span></td><td>Department two-year plan: <em>Fall</em></td><td>Fall only</td><td><span class="chip good">Published rotation</span></td></tr>
+      <tr><td><span class="cc">PHI 520</span></td><td>Department two-year plan: <em>Spring</em></td><td>Spring only; needs PHI 320 first</td><td><span class="chip good">Published rotation</span></td></tr>
+      <tr><td><span class="cc">PHI 375</span></td><td>Listed in Philosophy's Fall 2026 course descriptions</td><td>Confirmed Fall 2026</td><td><span class="chip info">Spring unknown</span></td></tr>
+      <tr><td><span class="cc">CGS 500</span></td><td>Cognitive Science program page: "taught each spring semester"</td><td>Spring only</td><td><span class="chip good">Program statement</span></td></tr>
+      <tr><td><span class="cc">AN 250</span></td><td>Not offered Fall 2025 or Spring 2026</td><td>Irregular</td><td><span class="chip warn">Risk</span></td></tr>
+      <tr><td><span class="cc">MA 322</span> · <span class="cc">MA 213</span> · <span class="cc">CS 215</span> · <span class="cc">CS 275</span></td><td>Offered Fall 2025</td><td>Regular offerings</td><td><span class="chip good">Confirmed</span></td></tr>
+      <tr><td>Spring 2027 generally</td><td>myUK returns "Schedule not yet released for Spring Semester 2027"</td><td>Nothing is confirmable yet</td><td><span class="chip mute">Pending</span></td></tr>
+    </tbody>
+    <caption>PSY, LIN, BIO and ANT rotation schedules are not published in any source I could reach. Treat those as unknown rather than assuming both terms.</caption>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="questions">
+  <h2>Open questions before Phase 2</h2>
+  <p class="lede">Seven answers change the plan's shape. Four of them are single emails. I would not build the semester sequence until the first three are settled, because each one moves your graduation term.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Question</th><th>Ask</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>When will STA 415, 425 and 495 actually be scheduled, and can 415 and 425 run concurrently?</td>
+        <td>Statistics DUS — Dr. Anna Smith, stat-dus@uky.edu</td>
+        <td>Decides whether you finish Fall 2028 or Spring 2029. Nothing else in the plan matters more.</td>
+      </tr>
+      <tr>
+        <td>Can the OTH 091/092 language be run through the MCL proficiency evaluation to satisfy the A&amp;S requirement?</td>
+        <td>Liliana Drucker, lilo@uky.edu · your A&amp;S advisor</td>
+        <td>An 11-credit swing, with a registration deadline around <strong>18 Sept 2026</strong>.</td>
+      </tr>
+      <tr>
+        <td>Can STA 415 or STA 495 count as the AI certificate elective while also serving the major?</td>
+        <td>AI certificate director — Brent Harrison</td>
+        <td>Decides whether the certificate costs 3 credits or 6.</td>
+      </tr>
+      <tr>
+        <td>Why does UK Core Social Sciences show 0 completed when CS 263 — a course on its eligible list — is finished with an A?</td>
+        <td>A&amp;S advisor</td>
+        <td>If it can be applied, a 3-credit requirement disappears at no cost.</td>
+      </tr>
+      <tr>
+        <td>Does a Cognitive Science <em>minor</em> satisfy PSY 312's "declared major or minor" clause, and can you get in outside the priority window?</td>
+        <td>Psychology undergraduate office</td>
+        <td>PSY 312 is a triple-count. Its backup (LIN 221 → LIN 511) costs 6 credits instead of 3.</td>
+      </tr>
+      <tr>
+        <td>Will Honors apply HON 251 to the Elective rather than Lower-level, and can HON 395 hours beyond 6 roll into the Elective?</td>
+        <td>Lewis Honors advisor</td>
+        <td>Determines whether the Honors gap is 12 credits or effectively 9.</td>
+      </tr>
+      <tr>
+        <td>Is HON 491 your thesis vehicle, given that Statistics has no departmental honors track?</td>
+        <td>Lewis Honors advisor</td>
+        <td>Sets the mentor-and-proposal timeline, which starts two semesters before you enroll.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="call crit">
+    <span class="h">The thing to internalize</span>
+    <p>Your draft plan is not badly built — the course selections are shrewd and the overlaps you found are mostly the right ones. What it does is compress a five-semester structural sequence into three and omit 12–26 credits of requirements that the audit only surfaces when you switch it to the planned view.</p>
+    <p>The honest read: <strong>Spring 2029 is the realistic graduation term</strong>, Fall 2028 is reachable if STA 415 and 425 run concurrently and the language requirement is waived, and Spring 2028 is not reachable under any combination of assumptions I could construct.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Built from your myUK degree audit (Bachelor of Science, College of Arts &amp; Sciences, 2025–2026 Bulletin, read 24 Aug 2026 at both the <em>Completed and Registered</em> and <em>Completed, Registered, and Planned</em> settings), your Course Planner draft, myUK Course Offering History, and published UK department rotation plans. Items marked unverified could not be confirmed against a primary source and should be checked before you rely on them. This is an inventory, not advice from an advisor — the audit is the record, but your DUS and A&amp;S advisor are the authority.</p>
+</footer>
+
+</div>
+
+</body></html>

@@ -21,11 +21,12 @@ const path = require("path");
  * rather resolve labels against the dataset a given revision belongs to.
  */
 
+/* Under Netlify, esbuild collapses src/ to the zip root so `__dirname` is
+   /var/task and the relative walk resolves outside the bundle. Both readers are
+   fail-soft, so the symptom was agency requirement labels rendering as raw slug
+   ids in production with nothing logged. Same branch app.js uses for views. */
 const TAXONOMY_PATH = path.join(
-  __dirname,
-  "..",
-  "..",
-  "..",
+  process.env.LAMBDA_TASK_ROOT || path.join(__dirname, "..", "..", ".."),
   "data",
   "spec-registry",
   "v1",
