@@ -23,6 +23,12 @@ netlify/function-built/
 .superpowers/
 
 # Scratch DBs from integration tests
+# Any local sqlite artifact, however it is named. `test-*.sqlite3` alone missed
+# `test.sqlite3` (the hyphen), and `dev.sqlite3` missed `dev.sqlite` (the 3) —
+# which is how both came to be tracked. Match the extension, not a guess at the
+# stem.
+*.sqlite3
+*.sqlite
 test-*.sqlite3
 
 # Comp-card gallery rig artifacts (regenerate with npm run gallery)
