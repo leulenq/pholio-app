@@ -78,6 +78,7 @@ const {
 const {
   redactExpiredSubmissionPackages,
 } = require("../../../shared/lib/submission-retention");
+const { loadSeasonMemory } = require("./season-memory");
 
 /**
  * Digitals freshness for the reviewer, computed here rather than on the client.
@@ -101,6 +102,23 @@ function buildDigitalsFreshness(rawImages) {
   const images = Array.isArray(rawImages) ? rawImages : [];
   if (!images.some((img) => img && img.image_type)) return null;
   return digitalsFreshness(images);
+}
+
+/**
+ * Season memory — this applicant's history with THIS agency (season-memory.js).
+ * Isolated behind its own try/catch: a booker opening a dossier must never see
+ * a 500 because an optional recall feature hit a shape it did not expect.
+ * `loadSeasonMemory` already returns `null` for a first-time applicant, so
+ * `null` here means either "never applied before" or "could not be computed"
+ * — both render the same way client-side (nothing), which is the correct
+ * behavior for both: neither asserts a history that isn't confidently known.
+ */
+async function buildSeasonMemory(db, { agencyId, applicationId }) {
+  try {
+    return await loadSeasonMemory(db, { agencyId, applicationId });
+  } catch {
+    return null;
+  }
 }
 
 /** Activity rows carried into the record ledger. */
@@ -588,7 +606,10 @@ async function buildIdentityDossier(db, { application, agencyId }) {
   const rawImages = frozen?.images?.length ? frozen.images : dto.images || [];
   const images = rawImages.map(buildAgencyImageDTO).filter(Boolean);
 
-  const standing = await buildStanding(db, { agencyId, application });
+  const [standing, seasonMemory] = await Promise.all([
+    buildStanding(db, { agencyId, application }),
+    buildSeasonMemory(db, { agencyId, applicationId: application.id }),
+  ]);
 
   const contact = { email: dto.email || null, phone: dto.phone || null };
 
@@ -651,6 +672,7 @@ async function buildIdentityDossier(db, { application, agencyId }) {
       commitments: [],
     },
     standing,
+    seasonMemory,
     compliance: {
       is_minor: false,
       age_band: snapshot.age_band || null,
@@ -793,10 +815,11 @@ async function buildTalentDossier(db, { application, agencyId }) {
     representationRows,
   );
 
-  const [standing, availability, truth] = await Promise.all([
+  const [standing, availability, truth, seasonMemory] = await Promise.all([
     buildStanding(db, { agencyId, application }),
     buildAvailability(db, { agencyId, profile }),
     buildProfileTruthFields(db, application, profile),
+    buildSeasonMemory(db, { agencyId, applicationId: application.id }),
   ]);
 
   const contact = minor
@@ -836,6 +859,7 @@ async function buildTalentDossier(db, { application, agencyId }) {
     },
     availability,
     standing,
+    seasonMemory,
     compliance: {
       is_minor: minor,
       age_band: snapshot.age_band || null,

@@ -10,6 +10,7 @@ import { DossierPlate, StatLine } from '../components/dossier/DossierPlate';
 import { ReadoutBand } from '../components/dossier/ReadoutBand';
 import { CalendarLine } from '../components/dossier/CalendarLine';
 import { DigitalsSet } from '../components/dossier/DigitalsSet';
+import { SeasonMemory } from '../components/dossier/SeasonMemory';
 import { TheBook } from '../components/dossier/TheBook';
 import {
   ProfessionalRecord,
@@ -228,6 +229,8 @@ export default function TalentFullView() {
 
         <div className="dx-body">
           <div className="dx-main">
+            <SeasonMemory dossier={data} />
+
             <Sheet
               id="dx-package"
               title="The digitals set"

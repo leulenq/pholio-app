@@ -1324,6 +1324,16 @@
   .dx-card__preview { width: 100%; max-width: 220px; }
 }
 
+/* ---------------------------------------------------------- season memory */
+
+.dx-season__lede {
+  margin: 0 0 14px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--dx-body);
+}
+
 @media (max-width: 620px) {
   .dx-band { grid-template-columns: minmax(0, 1fr); }
   .dx-readout { border-left: 0; padding-left: 0; border-top: 1px solid var(--dx-rule); }
