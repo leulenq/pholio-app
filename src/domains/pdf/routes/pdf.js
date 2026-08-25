@@ -2318,6 +2318,15 @@ router.get("/pdf/:slug", async (req, res, next) => {
     }
 
     const rawPdf = await renderCompCard(req.params.slug, themeKey, {
+      /* Facts for the embedded machine-readable payload (§9.6 #6). Passed from
+         here because the generator drives Puppeteer against a URL and never
+         sees the row. Only what the card itself prints — the payload must
+         never disclose more than the artifact it rides on. */
+      machineReadable: {
+        profile,
+        images: data.images || [],
+        minor: Boolean(profile?.is_minor),
+      },
       seed: req.query.seed,
       layoutFamily: req.query.layoutFamily,
       styleVariant: req.query.styleVariant,

@@ -661,6 +661,33 @@ async function renderCompCard(slug, theme = null, opts = null) {
           );
         }
 
+        /* The machine-readable payload (strategic analysis §9.6 #6). The card
+           already emits the correct 5.5x8.5 trim; this attaches the same facts
+           as data so an agency receiving the PDF can read it rather than
+           retype it. Fail-soft by construction — a card that rendered must
+           never be lost to a metadata step. */
+        try {
+          const {
+            buildCompCardPayload,
+            embedMachineReadablePayload,
+          } = require("./machine-readable");
+          const headers = viewResponse ? viewResponse.headers() : {};
+          buffer = await embedMachineReadablePayload(
+            buffer,
+            buildCompCardPayload({
+              profile: opts?.machineReadable?.profile || {},
+              portfolioUrl: headers["x-compcard-portfolio-url"] || null,
+              minor: Boolean(opts?.machineReadable?.minor),
+              images: opts?.machineReadable?.images || [],
+            }),
+          );
+        } catch (payloadError) {
+          console.warn(
+            "[comp-card] machine-readable payload skipped:",
+            payloadError.message,
+          );
+        }
+
         console.log(
           "[renderCompCard] PDF generated, size:",
           buffer.length,
