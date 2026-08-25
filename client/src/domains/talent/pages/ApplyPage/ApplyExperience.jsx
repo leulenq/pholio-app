@@ -110,6 +110,7 @@ import {
   submissionConsentPackageKey,
 } from './submissionConsentBinding';
 import { EventIntakeScene, pagesForCall, useEventIntake } from './event';
+import SubmissionTerms from './SubmissionTerms';
 import compCardDimensions from '../../../../../../shared/comp-card-dimensions.json';
 import applicationDraftSchema from '../../../../../../shared/application-draft-schema.json';
 
@@ -4026,8 +4027,6 @@ function MessagePage({
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
-const SUBMISSION_TERMS_LABEL = 'Submission Terms';
-
 // Linked social accounts from the talent's Pholio profile (icons, not a typed string).
 function profileSocials(profile) {
   const clean = (h) => String(h || '').replace(/^@+/, '').trim();
@@ -4361,152 +4360,28 @@ function ReviewSendPage({
       </article>
 
       <div className="apply-review__rail">
-        <aside className="apply-seal" aria-label="Submission terms">
-        <span className="apply-seal__flow">{SUBMISSION_TERMS_LABEL}</span>
-        <p className="apply-seal__handling">
-          Your package is delivered to <strong>{name}</strong> as a separate recipient for
-          representation review.
-        </p>
-        <p className="apply-seal__handling">
-          {minor
-            ? 'Shared data includes your name, under-18 age band, city, nationality, languages, guardian-authorized measurements, selected images and book, and comp card. Direct contact, social links, portfolio URL, optional note, and raw date of birth are omitted; the agency can communicate through Pholio.'
-            : 'Shared data includes your name, age, city, contact details, measurements, selected images and book, comp card, note, and linked social profiles included in the package.'}
-        </p>
-        <p className="apply-seal__handling">
-          Pholio retains the package for up to 24 months. Withdrawal revokes access in Pholio,
-          redacts the platform snapshot, and deletes the platform message thread, but cannot recall
-          copies already downloaded or recorded by the agency. Read the{' '}
-          <a href={`${MARKETING_SITE_URL}/terms`} target="_blank" rel="noopener noreferrer">
-            Terms
-          </a>{' '}
-          and{' '}
-          <a href={`${MARKETING_SITE_URL}/privacy`} target="_blank" rel="noopener noreferrer">
-            Privacy Notice
-          </a>
-          .
-        </p>
-
-        <ul className="apply-seal__acks" aria-label="Submission facts">
-          {openCallClaim && (
-            <li>
-              This is an invited open call submission to {name}. It does not
-              count toward your monthly discovery limit and is recorded with
-              your consent receipt.
-            </li>
-          )}
-          {minor && (
-            <li>Digitals marked as retouched are blocked from submission.</li>
-          )}
-          {minor && (
-            <li>
-              {
-              !accountGuardianConsent ? (
-                <>
-                  Guardian consent not yet recorded —{' '}
-                  <PholioButton
-                    type="button"
-                    variant="meta"
-                    className="apply-seal__acks-link"
-                    onClick={onOpenIdentity}
-                  >
-                    Record it here
-                  </PholioButton>{' '}
-                  before submitting.
-                </>
-              ) : minorAgencyAuthorized ? (
-                `A parent or guardian authorized this submission to ${name}.`
-              ) : (
-                `Guardian authorization for ${name} has not been verified.`
-              )
-              }
-            </li>
-          )}
-          <li>A submission is a request for review and does not guarantee representation.</li>
-        </ul>
-
-        <ul className="apply-readyline" aria-label="Profile readiness">
-          {checks.map((check) => (
-            <li key={check.label} className={check.complete ? 'is-ok' : 'is-need'}>
-              {check.complete ? <Check size={12} aria-hidden /> : <X size={12} aria-hidden />}
-              {check.label}
-            </li>
-          ))}
-        </ul>
-
-        {packageAudit?.advisories?.length > 0 && (
-          <ul className="apply-package-audit" aria-label="Package notes">
-            {packageAudit.advisories.map((item) => (
-              <li key={`${item.id}-${item.imageIds?.[0] || 'global'}`}>{item.message}</li>
-            ))}
-          </ul>
-        )}
-
-        {minor ? (
-          <div className="apply-seal__guardian" role="status">
-            {minorAgencyAuthorized ? (
-              <p>Guardian authorization verified specifically for {name}.</p>
-            ) : guardianAgencyConsent?.status === 'pending' ? (
-              <p>
-                Authorization sent to {guardianAgencyConsent.guardian_email || 'your guardian'}.
-                Submission stays locked until they confirm.
-              </p>
-            ) : guardianAgencyConsent?.account_consent_verified === false ? (
-              <>
-                <p>Complete account-level guardian consent before requesting agency authorization.</p>
-                <PholioButton type="button" variant="meta" onClick={onOpenIdentity}>
-                  Open identity settings <ArrowUpRight size={13} aria-hidden />
-                </PholioButton>
-              </>
-            ) : (
-              <>
-                <p>Your guardian must authorize disclosure to {name}. This permission will not apply to another agency.</p>
-                <PholioButton
-                  type="button"
-                  variant="meta"
-                  onClick={onRequestGuardianConsent}
-                  disabled={requestingGuardianConsent}
-                >
-                  {requestingGuardianConsent ? 'Sending…' : 'Request guardian authorization'}
-                  {!requestingGuardianConsent && <ArrowUpRight size={13} aria-hidden />}
-                </PholioButton>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="apply-seal__attestations" aria-label="Required attestations">
-            <label className="apply-seal__consent">
-              <input
-                type="checkbox"
-                checked={accuracyConfirmed}
-                onChange={(event) => onAccuracyChange(event.target.checked)}
-              />
-              <span>
-                I confirm my statistics are accurate and current, and my agency digitals are
-                unretouched.
-              </span>
-            </label>
-            <label className="apply-seal__consent">
-              <input
-                type="checkbox"
-                checked={adultAuthorityConfirmed}
-                onChange={(event) => onAdultAuthorityChange(event.target.checked)}
-              />
-              <span>I confirm I am 18 or older and authorised to submit my own work.</span>
-            </label>
-            <label className="apply-seal__consent">
-              <input
-                type="checkbox"
-                checked={consent}
-                disabled={consentBindingPending}
-                onChange={(event) => onConsentChange(event.target.checked)}
-              />
-              <span>
-                I have reviewed this package and consent to submitting it to {name} through Pholio.
-              </span>
-            </label>
-          </div>
-        )}
-        </aside>
+        <SubmissionTerms
+          agencyName={agency?.name}
+          call={openCallClaim?.call || null}
+          marketingSiteUrl={MARKETING_SITE_URL}
+          minor={minor}
+          minorAgencyAuthorized={minorAgencyAuthorized}
+          accountGuardianConsent={accountGuardianConsent}
+          openCallClaim={openCallClaim}
+          checks={checks}
+          packageAudit={packageAudit}
+          consent={consent}
+          accuracyConfirmed={accuracyConfirmed}
+          onAccuracyChange={onAccuracyChange}
+          adultAuthorityConfirmed={adultAuthorityConfirmed}
+          onAdultAuthorityChange={onAdultAuthorityChange}
+          consentBindingPending={consentBindingPending}
+          onConsentChange={onConsentChange}
+          guardianAgencyConsent={guardianAgencyConsent}
+          requestingGuardianConsent={requestingGuardianConsent}
+          onRequestGuardianConsent={onRequestGuardianConsent}
+          onOpenIdentity={onOpenIdentity}
+        />
 
         <PholioButton
           type="button"

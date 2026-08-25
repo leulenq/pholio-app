@@ -110,6 +110,28 @@ const EVENT_CASTING_DISCLOSURE_CONTENT = {
     "Designers see your name, digitals, height, measurements, availability and walk video through a read-only link. They cannot see your email, phone, socials or date of birth, and they have no Pholio account.",
   adultDataCategories:
     "Shared with the organizer: your name, age, city, contact details, measurements, digitals and selected images, comp card, stated availability, walk video link, and note included in the package.",
+  /*
+   * UNREACHABLE for new submissions, and deliberately kept.
+   *
+   * Event calls are 18+ (R8). `pick-share.js` has always enforced it at the
+   * read end via `applyMinorSubmissionFilter({force: true})`, and since
+   * 2026-08-25 `applications.js` refuses a minor at submit with
+   * `event_call_adults_only` — so no new event snapshot can select this branch.
+   *
+   * It stays for two reasons. `buildSnapshot` picks
+   * `isMinor ? minorDataCategories : adultDataCategories` for EVERY purpose,
+   * so the key is part of a shared shape rather than event-specific dead code —
+   * representation minors use the equivalent branch constantly. And any event
+   * snapshot recorded before the gate landed cites this wording; deleting it
+   * would leave those records naming a disclosure whose text no longer exists,
+   * which is the failure the versioned archive in
+   * `talent/services/likeness-consent.js` exists to prevent.
+   *
+   * If minor event casting is ever supported, this is not the only thing that
+   * would need to change: the client mirror in
+   * `client/src/domains/opencall/components/consentCopy.js` carries the adult
+   * branch only.
+   */
   minorDataCategories:
     "Shared data includes the minor's name, under-18 age band, city, guardian-authorized measurements, digitals and selected images, comp card and stated availability. Direct contact, social links, portfolio URL, optional note, and raw date of birth are omitted.",
   retentionTemplate:

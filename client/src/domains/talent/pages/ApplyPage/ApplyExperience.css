@@ -4166,6 +4166,14 @@
   gap: clamp(14px, 1.6vw, 20px);
 }
 
+/* Event casting terms run to six clauses where representation runs to three.
+   A sticky column taller than the viewport hides its own lower half — here the
+   consent checkboxes and the send button — so the event rail scrolls with the
+   page instead. The terms stay at full body size; nothing is put in a scroll box. */
+.apply-review__rail:has(.apply-seal--event) {
+  position: static;
+}
+
 /* Submission terms rail — handling copy, acknowledgements, and consent. */
 .apply-seal {
   min-width: 0;
@@ -4202,6 +4210,14 @@
   font-size: 13px;
   font-weight: 300;
   line-height: 1.6;
+}
+
+/* The compensation restatement — the one sentence an applicant most often
+   remembers wrongly, so it reads at full text weight rather than as body copy.
+   Same treatment the anonymous event flow gives it (`oc-consent__body--strong`). */
+.apply-seal__handling--restated {
+  color: var(--app-text);
+  font-weight: 400;
 }
 
 .apply-seal__acks {

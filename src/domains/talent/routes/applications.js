@@ -1025,6 +1025,34 @@ router.post(
     const callPurpose = eventCall
       ? CALL_PURPOSES.EVENT_CASTING
       : DEFAULT_CALL_PURPOSE;
+
+    /*
+     * Event calls are 18+ (ruling R8), and until now only the back of the
+     * pipeline knew it. `pick-share.js` runs `applyMinorSubmissionFilter` with
+     * `force: true` precisely because "a designer can never hold the guardian
+     * authorization that would make an exception valid" — so a minor who
+     * submitted here was accepted, stored, and then silently excluded from
+     * every designer pick list. They would wait out an event they were never
+     * going to be shown for, with nothing anywhere telling them why. Silence
+     * like that is the thing this product exists to remove, not produce.
+     *
+     * The anonymous intake path has always enforced this (`open-call-intake.js`
+     * requires an adult attestation at the apply stage for event kinds). The
+     * logged-in path — the only one anybody actually reaches, since
+     * `identity_policy` never leaves `account_required` — did not.
+     *
+     * Refused rather than filtered: an event application from a minor cannot
+     * succeed, so accepting it would only be a politer way of losing it. 403
+     * with a reason the talent can read.
+     */
+    if (eventCall && minorSubmission) {
+      return res.status(403).json({
+        success: false,
+        error: "event_call_adults_only",
+        message:
+          "Event casting calls are open to applicants aged 18 and over. This does not affect applying to agencies for representation.",
+      });
+    }
     const eventFields = normalizeEventSubmissionFields(submissionPackage);
 
     // 2. Check if already applied. A previously withdrawn application can be

@@ -676,3 +676,94 @@ describe("the organizer can never record the applicant's answer", () => {
     },
   );
 });
+
+describe("event calls are 18+ at the front door, not just at the designer's", () => {
+  /*
+   * Ruling R8 makes event calls adults-only, and until now only the far end of
+   * the pipeline acted on it: `pick-share.js` runs `applyMinorSubmissionFilter`
+   * with `force: true`, because a designer can never hold the guardian
+   * authorization that would make an exception valid.
+   *
+   * So a minor could submit, be stored, and then be silently absent from every
+   * designer pick list — waiting out an event they were never going to be shown
+   * for, with nothing telling them why. The anonymous intake path enforced the
+   * rule all along; the logged-in path, which is the only one anybody reaches,
+   * did not.
+   */
+
+  const ADULT_DOB = "1999-04-02";
+
+  /*
+   * A minor WITH guardian authorization is the case that matters. Without it,
+   * the existing `minor_guardian_consent_required` check refuses first and this
+   * gate is never reached — so a test on an unauthorized minor would pass
+   * whether or not the gate exists, and prove nothing. The applicant who
+   * previously slipped through to the silent-exclusion state is the authorized
+   * one.
+   */
+  async function setMinor() {
+    const sixteen = new Date();
+    sixteen.setFullYear(sixteen.getFullYear() - 16);
+    await knex("profiles").where({ user_id: TALENT_USER_ID }).update({
+      date_of_birth: sixteen.toISOString().slice(0, 10),
+      guardian_email: "guardian@example.test",
+      guardian_consent_at: new Date().toISOString(),
+    });
+  }
+
+  async function setAdult() {
+    await knex("profiles").where({ user_id: TALENT_USER_ID }).update({
+      date_of_birth: ADULT_DOB,
+      guardian_email: null,
+      guardian_consent_at: null,
+    });
+  }
+
+  afterEach(async () => {
+    await setAdult();
+  });
+
+  test("a minor is refused, with a reason naming representation as unaffected", async () => {
+    await setMinor();
+
+    const response = await submitToCall(BROOKLYN_LINK_ID);
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe("event_call_adults_only");
+    // A minor told only "you cannot apply" would reasonably conclude Pholio is
+    // closed to them. It is not — only event calls are.
+    expect(response.body.message).toMatch(/does not affect applying to agencies/i);
+  });
+
+  test("nothing is written — the refusal is a refusal, not a quiet filter", async () => {
+    await setMinor();
+
+    const before = await knex("applications")
+      .where({ open_call_link_id: BROOKLYN_LINK_ID })
+      .count({ n: "*" })
+      .first();
+    await submitToCall(BROOKLYN_LINK_ID);
+    const after = await knex("applications")
+      .where({ open_call_link_id: BROOKLYN_LINK_ID })
+      .count({ n: "*" })
+      .first();
+
+    expect(Number(after.n)).toBe(Number(before.n));
+  });
+
+  test("an adult is never refused by this gate", async () => {
+    await setAdult();
+    const response = await submitToCall(QUEENS_LINK_ID);
+
+    /*
+     * Asserting the absence of THIS refusal rather than a 200: by the time this
+     * runs, earlier tests in the file have already submitted to both calls, so
+     * a fresh adult submission legitimately answers 409 already-applied. That a
+     * 200 is reachable for an adult is proved by the first test in the suite;
+     * what is proved here is that the adults-only gate is scoped to minors and
+     * does not fire on the ordinary path.
+     */
+    expect(response.body.error).not.toBe("event_call_adults_only");
+    expect(response.status).not.toBe(403);
+  });
+});
