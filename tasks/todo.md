@@ -270,3 +270,23 @@ needed an agency link.
 
 Five of six verifications now render. Muse renders nothing, which is the
 designed behaviour for an unmatched agency (never "unverified").
+
+### BATCH 20 APPLIED TO PRODUCTION — 2026-08-24
+
+`20260824110000_material_request_kind` and `20260824120000_agency_export_webhooks`.
+Rehearsed on `rehearse-batch20-2026-08-24` (br-broad-firefly-a4wjciu2), a fork of
+production: migrate, rollback, re-apply — clean round-trip, row counts identical.
+
+Nine functional checks against real Postgres rows: the webhook FK holds, one
+endpoint per agency is enforced, the failure ceiling auto-disables at 10, a
+disabled endpoint stops being active, a success resets the run, and
+`last_delivered_at` comes back as a Date rather than a string (the pg/SQLite
+difference that has broken date handling in this repo before). Dispatch with no
+configured endpoint reports rather than throws.
+
+Production: 226 migrations, batch 20. `open_call_material_requests.kind` defaults
+to 'materials', so every pre-existing row keeps the meaning it was written with.
+The export webhook panel stops reporting "briefly unavailable" now its table
+exists.
+
+Restore point from batch 19 (`pre-migration-batch19-2026-08-24`) is retained.
