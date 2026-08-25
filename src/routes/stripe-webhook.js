@@ -1,4 +1,5 @@
 const knex = require('../shared/db/knex');
+const { claimEvent, markApplied } = require('../shared/lib/stripe-events');
 const { verifyWebhookSignature, getSubscription } = require('../shared/lib/stripe');
 const {
   updateSubscription,
@@ -31,6 +32,23 @@ async function handleStripeWebhook(req, res) {
     const event = await verifyWebhookSignature(req.body, sig);
 
     console.log(`[Stripe Webhook] Received event: ${event.type} (id: ${event.id})`);
+
+    /* Stripe delivers at least once and in no guaranteed order. A duplicate is
+       Stripe doing its job; a STALE event is the dangerous one — an `updated`
+       carrying status "active" arriving after a `deleted` would rewrite the row
+       back to active and flip profiles.is_pro on again, restoring a paid
+       entitlement to someone who cancelled, with nothing afterwards to correct
+       it. Both are recorded either way, so a skipped event is visible to
+       whoever asks later why nothing happened. */
+    const claim = await claimEvent(knex, event);
+    if (!claim.process) {
+      console.log(
+        `[Stripe Webhook] Skipping ${event.type} (${event.id}): ${claim.reason}`,
+      );
+      // 200: the event was received and deliberately not applied. A non-2xx
+      // would make Stripe retry something we have already decided about.
+      return res.json({ received: true, skipped: claim.reason });
+    }
 
     // Handle different event types
     switch (event.type) {
@@ -149,6 +167,10 @@ async function handleStripeWebhook(req, res) {
     }
 
     // Return 200 to acknowledge receipt
+    // Applied. Advance the high-water mark so anything older that arrives
+    // later is recognised as stale rather than replayed over newer state.
+    await markApplied(knex, event);
+
     return res.json({ received: true });
   } catch (error) {
     console.error('[Stripe Webhook] Error processing webhook:', error);
