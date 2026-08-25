@@ -170,6 +170,15 @@ const ROUTE_PERMISSION_RULES = [
     pattern: /^\/api\/agency\/applications\/bulk-accept$/,
     permission: "applications.bulk_accept",
   },
+  // Comparison reads the submissions the agency already holds; POST only
+  // because the selection is a list. Same entitlement as viewing them.
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/applications\/compare$/,
+    // Same entitlement as opening the submissions individually — comparison
+    // shows nothing a reviewer could not already see one at a time.
+    permission: "applications.view_detail",
+  },
   {
     method: "POST",
     pattern: /^\/api\/agency\/applications\/bulk-decline$/,

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight, ChevronDown } from 'lucide-react';
+import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight, ChevronDown, Columns3 } from 'lucide-react';
 import {
   getApplicants, getBoards, getCastingBoardPipeline,
   acceptApplication, shortlistApplication, declineApplication,
@@ -33,6 +33,7 @@ import {
   isInFlightState,
   isNewStatus as isNew,
 } from '../constants/applicantLifecycle';
+import ComparisonOverlay from '../components/ComparisonOverlay';
 import './ApplicantsPage.css';
 
 const PAGE_SIZE = 60;
@@ -430,6 +431,7 @@ function ApplicationsPage({
   const [helpOpen, setHelpOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const rowRefs = useRef([]);
   const sentinelRef = useRef(null);
@@ -1353,6 +1355,13 @@ function ApplicationsPage({
 
       {activeBoard && <BoardBand board={activeBoard} />}
 
+      {compareOpen && (
+        <ComparisonOverlay
+          applicationIds={[...selectedIds]}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
+
       {isPoolTruncated && (
         <p className="ap-truncation-note">
           This desk is showing the first {SUBMISSIONS_SHOWN_CAP.toLocaleString()} submissions.
@@ -1460,6 +1469,16 @@ function ApplicationsPage({
             <button type="button" className="ap-bulk-act ap-bulk-act--pass" disabled={bulkBusy} onClick={() => runBulk('decline')}>
               <X size={15} aria-hidden="true" /> {bulkVerbs.decline}
             </button>
+            {selectedIds.size >= 2 && selectedIds.size <= 6 && (
+              <button
+                type="button"
+                className="ap-bulk-act"
+                disabled={bulkBusy}
+                onClick={() => setCompareOpen(true)}
+              >
+                <Columns3 size={15} aria-hidden="true" /> Compare
+              </button>
+            )}
             <button type="button" className="ap-bulk-clear" disabled={bulkBusy} onClick={clearSelection}>Clear</button>
           </motion.div>
         )}

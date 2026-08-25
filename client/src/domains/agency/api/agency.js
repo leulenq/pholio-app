@@ -208,6 +208,14 @@ export async function requestMoreApplication(applicationId) {
  * when the digitals are still current, so an agency cannot use this to demand a
  * reshoot of a set from last week.
  */
+/**
+ * Side-by-side comparison of selected submissions. POST because the selection
+ * is a list of ids; it reads, it does not write.
+ */
+export async function compareApplications(applicationIds) {
+  return apiClient.post('/applications/compare', { applicationIds });
+}
+
 export async function requestDigitalsRefresh(applicationId) {
   return apiClient.post(`/applications/${applicationId}/request-materials`, {
     kind: 'refresh',
@@ -858,6 +866,7 @@ export default {
   keepOnFileApplication,
   requestMoreApplication,
   requestDigitalsRefresh,
+  compareApplications,
   requestMeetingApplication,
   archiveApplication,
   getDiscoverableTalent,

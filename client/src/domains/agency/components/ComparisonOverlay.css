@@ -1,0 +1,169 @@
+/* Comp cards on a table.
+   Uniform column width, uniform row height, uniform crop — the layout is what
+   makes a glance across a row mean anything. Nothing is highlighted, bolded or
+   ordered by value: a table that quietly emphasises the tallest applicant is a
+   ranking with extra steps, and A1 forbids ranking. */
+
+.cmp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 48px);
+  /* Full-screen functional scrim — the one place blur is permitted. */
+  background: rgba(26, 24, 21, 0.5);
+  backdrop-filter: blur(3px);
+}
+
+.cmp-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1180px;
+  max-height: 90vh;
+  background: var(--ag-surface-1, #FFFFFF);
+  border-radius: 8px;
+  box-shadow: 0 24px 64px rgba(26, 24, 21, 0.28);
+  overflow: hidden;
+}
+
+.cmp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+}
+
+.cmp-title {
+  margin: 0;
+  font-family: var(--ag-font-display, 'Playfair Display', Georgia, serif);
+  font-size: 21px;
+  font-weight: 500;
+  color: var(--ag-text-0, #1A1815);
+}
+
+.cmp-close {
+  display: inline-flex;
+  padding: 6px;
+  color: var(--ag-text-2, #6B6560);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.cmp-close:hover { border-color: var(--ag-rule); color: var(--ag-text-0); }
+
+.cmp-state,
+.cmp-note {
+  margin: 0;
+  padding: 22px;
+  font-family: var(--ag-font-body);
+  font-size: 13px;
+  color: var(--ag-text-2, #6B6560);
+}
+.cmp-note { padding-top: 4px; max-width: 72ch; }
+
+/* Wide content scrolls in here, never the page. */
+.cmp-scroll { overflow: auto; padding: 4px 22px 22px; }
+
+.cmp-table { border-collapse: collapse; width: 100%; }
+
+.cmp-caption {
+  caption-side: top;
+  text-align: left;
+  padding: 12px 0;
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  color: var(--ag-text-3, #8A847C);
+}
+
+.cmp-rowhead-col { width: 108px; }
+
+.cmp-col-head {
+  /* Identical width for every applicant: the comparison depends on it. */
+  width: 168px;
+  min-width: 168px;
+  padding: 8px 10px 12px;
+  text-align: left;
+  vertical-align: bottom;
+  border-bottom: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+}
+
+.cmp-name {
+  display: block;
+  font-family: var(--ag-font-body);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ag-text-0, #1A1815);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmp-age {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--ag-font-body);
+  font-size: 11.5px;
+  color: var(--ag-text-3, #8A847C);
+}
+
+.cmp-rowhead {
+  padding: 9px 12px 9px 0;
+  text-align: left;
+  font-family: var(--ag-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ag-text-3, #8A847C);
+  white-space: nowrap;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--ag-rule-soft, rgba(26, 24, 21, 0.07));
+}
+
+.cmp-cell {
+  padding: 9px 10px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--ag-rule-soft, rgba(26, 24, 21, 0.07));
+}
+.cmp-cell--frame { padding: 10px; }
+
+.cmp-value {
+  font-family: var(--ag-font-body);
+  font-size: 13.5px;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--ag-text-0, #1A1815);
+}
+.cmp-unit { font-size: 11.5px; color: var(--ag-text-3, #8A847C); }
+
+/* Same crop for every frame — an inconsistent aspect makes two bodies
+   incomparable no matter how well the rest lines up. */
+.cmp-frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: var(--ag-surface-2, rgba(26, 24, 21, 0.04));
+  border-radius: 3px;
+}
+.cmp-frame--empty { border: 1px dashed var(--ag-rule, rgba(26, 24, 21, 0.14)); }
+
+.cmp-sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .cmp-scrim { padding: 0; }
+  .cmp-sheet { max-height: 100vh; border-radius: 0; }
+}

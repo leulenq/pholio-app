@@ -23,6 +23,7 @@ const {
 } = require("../services/context");
 const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
 const { searchDiscoverableTalent } = require("../services/discover-search");
+const { buildComparison } = require("../services/comparison");
 const {
   declineReasonOptions,
   normalizeDeclineReason,
@@ -1758,6 +1759,35 @@ router.patch(
       return res
         .status(500)
         .json({ error: "Failed to update application status" });
+    }
+  },
+);
+
+// POST /api/agency/applications/compare - side-by-side comparison
+//
+// POST rather than GET because the selection is a list of ids and can be long;
+// it reads, it does not write. Scoped to the session agency inside the service.
+router.post(
+  "/api/agency/applications/compare",
+  requireRole("AGENCY"),
+  async (req, res, next) => {
+    try {
+      const applicationIds = Array.isArray(req.body?.applicationIds)
+        ? req.body.applicationIds
+        : null;
+      if (!applicationIds || applicationIds.length === 0) {
+        return res
+          .status(400)
+          .json({ error: "Select at least two submissions to compare." });
+      }
+      const comparison = await buildComparison(knex, {
+        agencyId: getSessionAgencyId(req),
+        applicationIds,
+      });
+      return res.json(comparison);
+    } catch (error) {
+      console.error("[API/Agency/Compare] Error:", error);
+      return next(error);
     }
   },
 );
