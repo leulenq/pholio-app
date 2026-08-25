@@ -8,6 +8,7 @@ import {
 import { getBoards } from '../../api/agency';
 import { useTalentActions } from '../../hooks/useTalentActions';
 import { useAgencyPermissions } from '../../hooks/useAgencyPermissions';
+import { DeclineReasonModal } from '../decline/DeclineReasonModal';
 import {
   isOfferedApplicationStatus,
   isRepresentedApplicationStatus,
@@ -73,10 +74,11 @@ function Menu({ label, icon: Icon, children, align = 'right' }) {
   );
 }
 
-export function DecisionDock({ applicationId, status, slug, compact = false }) {
+export function DecisionDock({ applicationId, talentName, status, slug, compact = false }) {
   const { can } = useAgencyPermissions();
   const actions = useTalentActions(applicationId);
   const [downloading, setDownloading] = useState(false);
+  const [passOpen, setPassOpen] = useState(false);
 
   const { data: boards = [] } = useQuery({
     queryKey: ['agency', 'boards'],
@@ -184,7 +186,7 @@ export function DecisionDock({ applicationId, status, slug, compact = false }) {
           type="button"
           className="dx-btn dx-btn--quiet"
           disabled={actions.isPending}
-          onClick={() => actions.decline.mutate()}
+          onClick={() => setPassOpen(true)}
         >
           <X size={15} aria-hidden /> Pass
         </button>
@@ -215,6 +217,16 @@ export function DecisionDock({ applicationId, status, slug, compact = false }) {
           </button>
         )
       )}
+
+      <DeclineReasonModal
+        open={passOpen}
+        talentName={talentName}
+        busy={actions.decline.isPending}
+        onClose={() => setPassOpen(false)}
+        onConfirm={(declineReason) => {
+          actions.decline.mutate(declineReason, { onSuccess: () => setPassOpen(false) });
+        }}
+      />
     </div>
   );
 }

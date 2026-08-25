@@ -1,17 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { AgencyModal } from '../ui/AgencyModal';
 import { AgencyButton } from '../ui/AgencyButton';
+import { useDeclineReasons } from '../../hooks/useDeclineReasons';
+import { DeclineReasonFields } from '../decline/DeclineReasonFields';
 import './DecisionConfirmation.css';
-
-const PASS_REASONS = [
-  { key: 'board_fit', label: 'Not current board fit' },
-  { key: 'measurements', label: 'Measurements' },
-  { key: 'already_represented', label: 'Look already represented' },
-  { key: 'location', label: 'Location' },
-  { key: 'digitals_insufficient', label: 'Digitals insufficient' },
-  { key: 'reconsider_later', label: 'Reconsider later' },
-  { key: 'other', label: 'Other' },
-];
 
 /**
  * DecisionConfirmation — the action layer before an irreversible or structured
@@ -34,6 +26,9 @@ export function DecisionConfirmation({
   const [selectedBoardId, setSelectedBoardId] = useState('');
   const [passReason, setPassReason] = useState('');
   const [passNote, setPassNote] = useState('');
+  const { reasons, isLoading: reasonsLoading, isError: reasonsError } = useDeclineReasons({
+    enabled: mode === 'pass',
+  });
 
   const isOpen = Boolean(mode);
 
@@ -60,7 +55,7 @@ export function DecisionConfirmation({
     if (mode === 'pass') {
       onConfirm?.({
         action: 'decline',
-        reason: passReason || 'other',
+        reason: passReason || null,
         note: passNote.trim() || null,
       });
       reset();
@@ -144,27 +139,15 @@ export function DecisionConfirmation({
               <p className="dc-lead">
                 This will mark <strong>{talentName}</strong> as not moving forward.
               </p>
-              <fieldset className="dc-fieldset">
-                <legend className="dc-legend">Reason (optional)</legend>
-                <div className="dc-reasons">
-                  {PASS_REASONS.map((r) => (
-                    <label
-                      key={r.key}
-                      className={`dc-reason${passReason === r.key ? ' is-selected' : ''}`}
-                    >
-                      <input
-                        type="radio"
-                        name="pass-reason"
-                        value={r.key}
-                        checked={passReason === r.key}
-                        onChange={() => setPassReason(r.key)}
-                        disabled={busy}
-                      />
-                      <span>{r.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+              <DeclineReasonFields
+                reasons={reasons}
+                isLoading={reasonsLoading}
+                isError={reasonsError}
+                value={passReason}
+                onChange={setPassReason}
+                disabled={busy}
+                name="pass-reason"
+              />
               <label className="dc-note-label">
                 <span>Note (optional)</span>
                 <textarea
@@ -184,7 +167,7 @@ export function DecisionConfirmation({
       default:
         return { title: '', body: null, confirmLabel: 'Confirm', confirmVariant: 'primary' };
     }
-  }, [mode, talentName, boards, selectedBoardId, passReason, passNote, busy]);
+  }, [mode, talentName, boards, selectedBoardId, passReason, passNote, busy, reasons, reasonsLoading, reasonsError]);
 
   return (
     <AgencyModal

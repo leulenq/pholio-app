@@ -1,0 +1,104 @@
+.drf {
+  display: grid;
+  gap: 16px;
+}
+
+.drf-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.drf-legend {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ag-text-2, #6B6560);
+}
+
+.drf-list {
+  display: grid;
+  gap: 8px;
+}
+
+.drf-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.1));
+  border-radius: 8px;
+  background: var(--ag-surface-1, #FFFFFF);
+  cursor: pointer;
+  transition: border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+              background 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drf-option:hover {
+  border-color: var(--ag-border-strong, rgba(26, 24, 21, 0.16));
+}
+
+.drf-option.is-selected {
+  border-color: var(--ag-gold, #B8956A);
+  background: var(--ag-gold-tint, rgba(184, 149, 106, 0.08));
+}
+
+.drf-option input {
+  margin: 0;
+  accent-color: var(--ag-gold, #B8956A);
+}
+
+.drf-option-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.drf-option-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ag-text-0, #1A1815);
+}
+
+.drf-option-sub {
+  font-size: 0.75rem;
+  color: var(--ag-text-2, #6B6560);
+}
+
+.drf-status {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: var(--ag-text-2, #6B6560);
+}
+
+/* The talent-facing preview. A plain bordered panel — no accent stripe, no
+   badge — because this is a quote the reviewer is being shown, not a status. */
+.drf-preview {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--ag-border, rgba(26, 24, 21, 0.1));
+  border-radius: 8px;
+  background: var(--ag-surface-0, #FAF8F5);
+}
+
+.drf-preview-label {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ag-text-2, #6B6560);
+}
+
+.drf-preview-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--ag-text-0, #1A1815);
+  font-style: italic;
+}

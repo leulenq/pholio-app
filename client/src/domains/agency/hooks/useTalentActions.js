@@ -32,7 +32,13 @@ export function useTalentActions(applicationId) {
     ...opts('Representation agreement complete'),
   });
   const shortlist = useMutation({ mutationFn: () => shortlistApplication(applicationId), ...opts('Added to shortlist') });
-  const decline = useMutation({ mutationFn: () => declineApplication(applicationId), ...opts('Not moving forward') });
+  // Accepts an optional templated decline reason id (services/decline-reasons.js
+  // on the server; see useDeclineReasons on the client) — null/undefined
+  // declines without one, which is a valid, first-class outcome.
+  const decline = useMutation({
+    mutationFn: (declineReason) => declineApplication(applicationId, { declineReason }),
+    ...opts('Not moving forward'),
+  });
   const keepOnFile = useMutation({ mutationFn: () => keepOnFileApplication(applicationId), ...opts('Kept on file') });
   const requestMore = useMutation({ mutationFn: () => requestMoreApplication(applicationId), ...opts('Requested more materials') });
   const requestMeeting = useMutation({ mutationFn: () => requestMeetingApplication(applicationId), ...opts('Meeting requested') });

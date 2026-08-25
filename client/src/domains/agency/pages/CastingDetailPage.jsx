@@ -14,6 +14,7 @@ import {
 import { TalentPanel } from '../components/TalentPanel';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import BoardIdentityEditor from '../components/BoardIdentityEditor';
+import { DeclineReasonModal } from '../components/decline/DeclineReasonModal';
 import { StatusText } from '../components/ui';
 import { DivisionMark } from '../components/status';
 import {
@@ -227,6 +228,7 @@ function CastingDetailPage() {
   const qc = useQueryClient();
   const [selected, setSelected] = useState(null);
   const [identityOpen, setIdentityOpen] = useState(false);
+  const [passTarget, setPassTarget] = useState(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['board-candidates', boardId],
@@ -277,10 +279,14 @@ function CastingDetailPage() {
   const offer = useMutation({ mutationFn: (id) => acceptApplication(id), onSuccess: () => { refresh(); toast.success('Representation offered'); }, onError: () => toast.error('Action failed') });
   const represent = useMutation({ mutationFn: (id) => updateCastingApplicationStage(id, { status: 'represented' }), onSuccess: () => { refresh(); toast.success(vocab.toast); }, onError: () => toast.error('Action failed') });
   const newFace = useMutation({ mutationFn: (id) => updateCastingApplicationStage(id, { status: 'development' }), onSuccess: () => { refresh(); toast.success('Development offer — New Face'); }, onError: () => toast.error('Action failed') });
-  const pass = useMutation({ mutationFn: (id) => declineApplication(id), onSuccess: () => { refresh(); toast.success('Passed'); }, onError: () => toast.error('Action failed') });
+  const pass = useMutation({
+    mutationFn: ({ id, declineReason }) => declineApplication(id, { declineReason }),
+    onSuccess: () => { refresh(); toast.success('Passed'); },
+    onError: () => toast.error('Action failed'),
+  });
   const busyId = (shortlist.isPending && shortlist.variables) || (offer.isPending && offer.variables)
     || (represent.isPending && represent.variables)
-    || (newFace.isPending && newFace.variables) || (pass.isPending && pass.variables)
+    || (newFace.isPending && newFace.variables) || (pass.isPending && pass.variables?.id)
     || (stageMove.isPending && stageMove.variables?.applicationId) || null;
 
   // Bucket every candidate once; the backend supplies a stable chronology.
@@ -317,7 +323,7 @@ function CastingDetailPage() {
     onOffer: (c) => offer.mutate(c.applicationId ?? c.id),
     onRepresent: (c) => represent.mutate(c.applicationId ?? c.id),
     onNewFace: (c) => newFace.mutate(c.applicationId ?? c.id),
-    onPass: (c) => pass.mutate(c.applicationId ?? c.id),
+    onPass: (c) => setPassTarget(c),
   };
 
   // Drag a card onto a column to move it. 8px activation preserves clicks.
@@ -450,6 +456,19 @@ function CastingDetailPage() {
           <TalentPanel key={selected.applicationId} talent={selected} context="applicants" onClose={() => setSelected(null)} />
         )}
       </AnimatePresence>
+
+      <DeclineReasonModal
+        open={Boolean(passTarget)}
+        talentName={passTarget?.name}
+        busy={pass.isPending}
+        onClose={() => setPassTarget(null)}
+        onConfirm={(declineReason) => {
+          pass.mutate(
+            { id: passTarget.applicationId ?? passTarget.id, declineReason },
+            { onSuccess: () => setPassTarget(null) },
+          );
+        }}
+      />
     </div>
   );
 }

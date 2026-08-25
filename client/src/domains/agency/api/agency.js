@@ -173,11 +173,23 @@ export async function confirmRepresentationApplication(applicationId) {
 }
 
 /**
- * Decline application. Optionally accepts a reason/note payload for structured
- * pass reasons; the endpoint accepts the body even before storage is wired.
+ * Decline application. `declineReason` is one of the ids served by
+ * `getDeclineReasons()` (services/decline-reasons.js is the source of truth) —
+ * omit it, or pass null, to decline without a reason, which the server treats
+ * as an equally valid, first-class outcome.
  */
-export async function declineApplication(applicationId, payload) {
-  return apiClient.post(`/applications/${applicationId}/decline`, payload || {});
+export async function declineApplication(applicationId, { declineReason = null } = {}) {
+  return apiClient.post(`/applications/${applicationId}/decline`, { decline_reason: declineReason });
+}
+
+/**
+ * The templated decline vocabulary (services/decline-reasons.js). Each option
+ * carries the verbatim talent-facing sentence so a reviewer can see exactly
+ * what will be sent before picking it.
+ */
+export async function getDeclineReasons() {
+  const data = await apiClient.get('/decline-reasons');
+  return Array.isArray(data?.reasons) ? data.reasons : [];
 }
 
 /**
@@ -581,10 +593,12 @@ export async function bulkAcceptApplications(applicationIds) {
 }
 
 /**
- * Bulk decline applications
+ * Bulk decline applications. One `declineReason` (or none) applies to the
+ * whole batch — that is the intended shape of the bulk-decline route, not a
+ * loop of single declines.
  */
-export async function bulkDeclineApplications(applicationIds) {
-  return apiClient.post('/applications/bulk-decline', { applicationIds });
+export async function bulkDeclineApplications(applicationIds, declineReason = null) {
+  return apiClient.post('/applications/bulk-decline', { applicationIds, decline_reason: declineReason });
 }
 
 /**
@@ -862,6 +876,7 @@ export default {
   acceptApplication,
   confirmRepresentationApplication,
   declineApplication,
+  getDeclineReasons,
   shortlistApplication,
   keepOnFileApplication,
   requestMoreApplication,

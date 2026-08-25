@@ -203,6 +203,7 @@ export default function TalentFullView() {
 
         <DecisionDock
           applicationId={applicationId}
+          talentName={name}
           status={application?.status}
           slug={talent?.slug}
           compact={condensed}

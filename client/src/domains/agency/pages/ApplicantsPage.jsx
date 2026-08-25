@@ -6,13 +6,14 @@ import { toast } from 'sonner';
 import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight, ChevronDown, Columns3 } from 'lucide-react';
 import {
   getApplicants, getBoards, getCastingBoardPipeline,
-  acceptApplication, shortlistApplication, declineApplication,
+  acceptApplication, shortlistApplication, declineApplication, bulkDeclineApplications,
   keepOnFileApplication, requestMoreApplication, getApplicationDetails,
   assignToBoard,
 } from '../api/agency';
 import BoardSelect from '../components/BoardSelect';
 import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
 import ReviewRoom from '../components/review/ReviewRoom';
+import { DeclineReasonModal } from '../components/decline/DeclineReasonModal';
 import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, StatusCell } from '../components/ui';
 import { DivisionMark } from '../components/status';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
@@ -432,6 +433,11 @@ function ApplicationsPage({
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  // Single-row decline confirmation (the mouse-driven "Pass" affordance).
+  // The 'x' keyboard shortcut stays instant/reason-less — that fast lane is
+  // the point of keyboard triage — this is only the deliberate click path.
+  const [declineTarget, setDeclineTarget] = useState(null);
+  const [bulkDeclineOpen, setBulkDeclineOpen] = useState(false);
 
   const rowRefs = useRef([]);
   const sentinelRef = useRef(null);
@@ -566,12 +572,17 @@ function ApplicationsPage({
 
   const shortlist = useMutation(triageOptions('shortlist', shortlistApplication, actionLabels.shortlist.toast));
   const accept = useMutation(triageOptions('accept', acceptApplication, actionLabels.accept.toast));
-  // Decline supports an optional structured reason/note. The backend currently
-  // accepts the body; when reason storage lands it will already be sent.
+  // Decline supports an optional templated reason id (services/decline-reasons.js
+  // is the source of truth — see useDeclineReasons). `vars` is either a bare
+  // applicationId (instant decline, no reason) or { applicationId, declineReason }.
   const decline = useMutation({
-    mutationFn: (vars) => declineApplication(vars.applicationId || vars, { reason: vars.reason, note: vars.note }),
+    mutationFn: (vars) => {
+      const id = vars?.applicationId || vars;
+      const declineReason = (vars && typeof vars === 'object') ? vars.declineReason : null;
+      return declineApplication(id, { declineReason });
+    },
     onMutate: async (vars) => {
-      const id = vars.applicationId || vars;
+      const id = vars?.applicationId || vars;
       await qc.cancelQueries({ queryKey: activeKey() });
       return applyOptimistic(id, STATUS_FOR.decline);
     },
@@ -771,7 +782,7 @@ function ApplicationsPage({
     }
 
     if (action === 'decline') {
-      decline.mutate({ applicationId: rid, reason: payload?.reason, note: payload?.note });
+      decline.mutate({ applicationId: rid, declineReason: payload?.reason || null });
     } else {
       const mutation = { shortlist, accept, kept_on_file: keepOnFile, requested_more: requestMore }[action];
       if (!mutation) return;
@@ -819,14 +830,18 @@ function ApplicationsPage({
     decline: actionLabels.decline.bulk,
   };
 
-  const runBulk = useCallback(async (kind) => {
+  const selectableIds = useCallback(() => {
     const list = triageRef.current.filtered;
-    const ids = [...triageRef.current.selectedIds].filter((id) => {
+    return [...triageRef.current.selectedIds].filter((id) => {
       const row = list.find((a) => a.applicationId === id);
       return row && !isDecided(row.status);
     });
+  }, []);
+
+  const runBulk = useCallback(async (kind) => {
+    const ids = selectableIds();
     if (!ids.length) return;
-    const fn = { shortlist: shortlistApplication, accept: acceptApplication, decline: declineApplication }[kind];
+    const fn = { shortlist: shortlistApplication, accept: acceptApplication }[kind];
     if (!fn) return;
     // Flip the whole batch optimistically; the settle path reconciles from
     // server truth (and we hard-roll-back if the entire batch fails).
@@ -843,7 +858,31 @@ function ApplicationsPage({
     else toast.success(`${verb} ${ok}`);
     clearSelection();
     refresh();
-  }, [clearSelection, refresh, qc, activeKey, applyOptimistic, rollback, actionLabels]);
+  }, [selectableIds, clearSelection, refresh, qc, activeKey, applyOptimistic, rollback, actionLabels]);
+
+  // Bulk decline is one request carrying one optional reason for the whole
+  // batch (POST /applications/bulk-decline) — not a loop of single declines —
+  // so the reason picker's confirm goes straight to bulkDeclineApplications.
+  const confirmBulkDecline = useCallback(async (declineReason) => {
+    const ids = selectableIds();
+    setBulkDeclineOpen(false);
+    if (!ids.length) return;
+    await qc.cancelQueries({ queryKey: activeKey() });
+    const snapshot = applyOptimistic(new Set(ids), STATUS_FOR.decline);
+    setBulkBusy(true);
+    try {
+      const result = await bulkDeclineApplications(ids, declineReason);
+      const count = result?.count ?? ids.length;
+      toast.success(`${actionLabels.decline?.toast || 'Passed'} ${count}`);
+    } catch (e) {
+      rollback(snapshot);
+      toast.error(e?.message || 'Action failed');
+    } finally {
+      setBulkBusy(false);
+      clearSelection();
+      refresh();
+    }
+  }, [selectableIds, clearSelection, refresh, qc, activeKey, applyOptimistic, rollback, actionLabels]);
 
   // List-mode keyboard triage. Mirrors the review room's advance: act, then if
   // the row leaves the current filtered view, move focus (index + real DOM) to
@@ -1045,7 +1084,7 @@ function ApplicationsPage({
     actionLabels,
     onShortlist: () => shortlist.mutate(a.applicationId),
     onAccept: () => accept.mutate(a.applicationId),
-    onDecline: () => decline.mutate(a.applicationId),
+    onDecline: () => setDeclineTarget(a),
   });
 
   return (
@@ -1466,7 +1505,7 @@ function ApplicationsPage({
             <button type="button" className="ap-bulk-act ap-bulk-act--sign" disabled={bulkBusy} onClick={() => runBulk('accept')}>
               <Check size={15} aria-hidden="true" /> {bulkVerbs.accept}
             </button>
-            <button type="button" className="ap-bulk-act ap-bulk-act--pass" disabled={bulkBusy} onClick={() => runBulk('decline')}>
+            <button type="button" className="ap-bulk-act ap-bulk-act--pass" disabled={bulkBusy} onClick={() => setBulkDeclineOpen(true)}>
               <X size={15} aria-hidden="true" /> {bulkVerbs.decline}
             </button>
             {selectedIds.size >= 2 && selectedIds.size <= 6 && (
@@ -1502,6 +1541,27 @@ function ApplicationsPage({
       </AnimatePresence>
 
       <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      <DeclineReasonModal
+        open={Boolean(declineTarget)}
+        talentName={declineTarget?.name}
+        busy={decline.isPending}
+        onClose={() => setDeclineTarget(null)}
+        onConfirm={(declineReason) => {
+          decline.mutate(
+            { applicationId: declineTarget.applicationId, declineReason },
+            { onSuccess: () => setDeclineTarget(null) },
+          );
+        }}
+      />
+
+      <DeclineReasonModal
+        open={bulkDeclineOpen}
+        count={selectedIds.size}
+        busy={bulkBusy}
+        onClose={() => setBulkDeclineOpen(false)}
+        onConfirm={confirmBulkDecline}
+      />
     </div>
   );
 }

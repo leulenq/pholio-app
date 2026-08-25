@@ -1,0 +1,23 @@
+.drm-body {
+  display: grid;
+  gap: 18px;
+  color: var(--ag-text-0, #1A1815);
+  font-family: var(--ag-font-body, Inter, sans-serif);
+}
+
+.drm-lead {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ag-text-0, #1A1815);
+}
+
+.drm-lead strong {
+  font-weight: 600;
+}
+
+.drm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
