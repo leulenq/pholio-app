@@ -109,11 +109,16 @@ Branch: `claude/launch-gap-stage-1`.
 
 ## Blocker found while verifying Stage 1
 
-- [ ] **Spec Registry suites are red on main** — 8 suites / 59 tests, all
-      `spec_registry_agency_routes` FOREIGN KEY violations during dataset seeding.
-      Confirmed PRE-EXISTING (reproduced with the Stage 1 source reverted). This is the
-      §7 centerpiece and the §9.6 #1 feature; it should not ship red. Investigate before
-      further feature work.
+- [x] **Spec Registry suites are red on main** — RESOLVED, and this entry was stale.
+      Re-run 2026-08-25: `tests/spec-registry/` is 15 suites / 201 tests, all green.
+      The FK violations were real historically — old `seeds/seed.js` inserted 8 real
+      agencies into `spec_registry_agency_routes` — and were fixed by
+      `migrations/20260815103000_reference_agency_conversion.js`, which converts those
+      rows to REFERENCE and deletes the routes; the current seed no longer writes that
+      table. Left checked rather than deleted because "this blocker was stale" is the
+      useful record: it sat here unverified while the feature it blocked was already
+      shipped and tested. See the 2026-08-25 correction note at the top of
+      `docs/pholio-strategic-analysis-2026-08.md`.
 
 ## Stage 2 — the removals §9.2/§9.3 call for
 

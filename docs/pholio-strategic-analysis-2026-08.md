@@ -8,6 +8,45 @@
 
 ---
 
+## Correction — 2026-08-25
+
+**The analysis below is preserved as written on 2026-08-15. This note records where it is now known to be factually wrong, and is dated separately so the original reasoning stays legible as what was believed at the time.**
+
+### §7 and §9.6 #1 — "No ZIP, no re-encode, no delivery artifact exists"
+
+**This was already untrue when it was written.** The conforming export shipped on **2026-08-14** (`5e0df823`), the day before this document was dated (`560e20da`, 2026-08-15). The §6 codebase-inventory pass missed it.
+
+Verified in the working tree on 2026-08-25, by tracing the whole path rather than checking that files exist:
+
+- **Re-encode is real.** `src/domains/spec-registry/export/spec-export-service.js` walks a quality ladder — 4000px/q92 down through 1200px/q66 — trying pairs in order until the file lands under that agency's published per-file cap, dropping scale before quality. HEIC decode failure has its own error code (`heic_decode_unsupported`).
+- **The ZIP is real**, not a tarball or a directory: `export/zip.js` implements CRC32, local headers, central directory and EOCD by hand, with no `archiver`/`jszip` dependency. Deliberate.
+- **The bundle carries `README.txt`, `STATS.txt`, and `EMAIL.txt`** — the last being the pre-composed draft §7 item 3 asks for on email-only channels.
+- **Preflight exists and is rendered**, at `ApplyExperience.jsx:3204` → `POST /api/talent/spec-registry/preflight`, showing per-shot pass/fail before export.
+- **The user-facing chain is reachable**: `/dashboard/talent/applications/apply` (`client/src/App.jsx:123`) → `ApplyExperience` → `useOffPholioTarget` → `talentApi.exportSpecRegistrySet` → `POST /api/talent/spec-registry/export` (mounted at `src/domains/talent/routes/index.js:45`).
+- **`tests/spec-registry/` is 15 suites / 201 tests, all green.** `tasks/todo.md` still carries a blocker reading "Spec Registry suites are red on main — 8 suites / 59 tests, all `spec_registry_agency_routes` FOREIGN KEY violations." That was real historically and was fixed by `migrations/20260815103000_reference_agency_conversion.js`; the checkbox is stale documentation, not a live defect.
+
+What genuinely remains of §7: the **public, unauthenticated per-agency requirement pages** (item 5's SEO surface) — those do not exist in either repo; `pholio-landing`'s `app/agencies/page.tsx` is a stub. And the off-Pholio half of the tracker/auto-lapse convention (item 4).
+
+**Consequence for sequencing:** §11 step 3 and §9.6's #1 ranking both budget weeks against work that is already shipped and tested. Anything resourced off those lines without reading this note will be misallocated.
+
+### §9.6 #3 — Event mode
+
+Substantially built, not greenfield: two-stage selection (pool → designer pick lists, including the no-login `/picks/:token` designer page), the 18+ gate, and offer/confirm/decline with auto-expiry all work. Remaining gaps are narrower than the doc assumes — but one is not cosmetic:
+
+**The event-specific consent copy is unreachable.** `identity_policy` defaults to `account_required` and **nothing in the codebase ever writes any other value**, so the anonymous flow that renders the event terms (compensation restatement, third-party access, retention) bails before displaying them. Every real applicant takes the logged-in flow, which shows three generic attestations. Meanwhile the server correctly forks on purpose and records the consent under `EVENT_CASTING_DISCLOSURE_VERSION` — a version whose content includes the three clauses the applicant was never shown. The third-party clause is not hypothetical: pick lists publish applicant data to designers over an unauthenticated link.
+
+That is a record asserting consent to text that was never displayed, and it is the item on this list with a real deadline attached, since FWB casting ramps now.
+
+### §9.6 #2 — Verification rail
+
+Split, and the doc's "cheap, unclaimed" framing applies only to the unbuilt half. The platform-curated trust core is live: NY DOL registry ingestion, `agency_verifications`, reference-agency impersonation defence with the not-affiliated line repeated in both the UI and the export bundle. What is not started is the public SEO layer (same gap as §7 item 5) and agency self-claiming of official links — the latter deliberately, since the schema's design comment rejects self-declared certificates.
+
+### §9.6 #5 — Open-call calendar
+
+The hard part is done: `agency_call_windows` models real recurrence (weekday, minute offsets, IANA timezone) and a cross-agency read API works. What is missing is the page. `OpenCallsCard` caps at three rows and its "All open calls" link points at `/dashboard/talent/applications`, which never queries call windows — the link promises a calendar that does not exist at the destination. There is also no write path: rows are hand-curated, as the migration's own comment states.
+
+---
+
 ## 1. Executive summary
 
 **The verdict: the current thesis is directionally right but built backwards.** The August plan treats agency open-call links as the engine and the talent product as the conversion surface. The evidence says the opposite: **the talent-side toolkit is the engine — because it works whether or not a single agency joins — and agency links are an accelerant.** The submission-package idea, currently a footnote, is actually the escape hatch from the two-sided cold start and should be promoted to the core of the product. Fashion Week Brooklyn is a real but modest distribution channel that requires a thin event-casting mode to work at all, and it validates almost nothing about the agency-representation thesis.
