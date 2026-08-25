@@ -203,6 +203,18 @@ export async function requestMoreApplication(applicationId) {
 }
 
 /**
+ * Ask for a CURRENT set of digitals — distinct from asking for materials the
+ * applicant never sent. The server refuses with 409 `refresh_not_warranted`
+ * when the digitals are still current, so an agency cannot use this to demand a
+ * reshoot of a set from last week.
+ */
+export async function requestDigitalsRefresh(applicationId) {
+  return apiClient.post(`/applications/${applicationId}/request-materials`, {
+    kind: 'refresh',
+  });
+}
+
+/**
  * Invite the talent to a meeting / go-see — the advancing step before a signing decision.
  */
 export async function requestMeetingApplication(applicationId) {
@@ -845,6 +857,7 @@ export default {
   shortlistApplication,
   keepOnFileApplication,
   requestMoreApplication,
+  requestDigitalsRefresh,
   requestMeetingApplication,
   archiveApplication,
   getDiscoverableTalent,

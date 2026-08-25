@@ -241,6 +241,8 @@ export default function TalentFullView() {
                 dossier={data}
                 onOpenFrame={(frame) => setLightboxIndex(images.indexOf(frame))}
                 onRequestMore={() => actions.requestMore.mutate()}
+                onRequestRefresh={() => actions.requestRefresh.mutate()}
+                refreshing={actions.requestRefresh.isPending}
                 canRequest={can('applications.update_status')}
                 requesting={actions.requestMore.isPending}
               />

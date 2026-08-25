@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import {
   acceptApplication, confirmRepresentationApplication, declineApplication, shortlistApplication,
   keepOnFileApplication, requestMoreApplication, requestMeetingApplication,
+  requestDigitalsRefresh,
   offerDevelopmentApplication, archiveApplication, assignToBoard,
 } from '../api/agency';
 
@@ -35,6 +36,15 @@ export function useTalentActions(applicationId) {
   const keepOnFile = useMutation({ mutationFn: () => keepOnFileApplication(applicationId), ...opts('Kept on file') });
   const requestMore = useMutation({ mutationFn: () => requestMoreApplication(applicationId), ...opts('Requested more materials') });
   const requestMeeting = useMutation({ mutationFn: () => requestMeetingApplication(applicationId), ...opts('Meeting requested') });
+  /* Distinct from requestMore: this asks for the digitals to be SHOT AGAIN. The
+     server refuses when the set is still current, and its refusal explains why
+     in terms a reviewer can act on, so it is surfaced verbatim rather than
+     replaced with a generic failure. */
+  const requestRefresh = useMutation({
+    mutationFn: () => requestDigitalsRefresh(applicationId),
+    onSuccess: () => { invalidate(); toast.success('Asked for a current set of digitals'); },
+    onError: (e) => toast.error(e?.message || 'Could not ask for a refresh'),
+  });
   const offerDevelopment = useMutation({ mutationFn: () => offerDevelopmentApplication(applicationId), ...opts('Development offer sent') });
   const archive = useMutation({ mutationFn: () => archiveApplication(applicationId), ...opts('Archived') });
   const addToBoard = useMutation({ mutationFn: (boardId) => assignToBoard(applicationId, boardId), ...opts('Added to board') });
@@ -42,6 +52,7 @@ export function useTalentActions(applicationId) {
   const isPending =
     accept.isPending || confirmRepresentation.isPending || shortlist.isPending || decline.isPending ||
     keepOnFile.isPending || requestMore.isPending || requestMeeting.isPending ||
+    requestRefresh.isPending ||
     offerDevelopment.isPending || archive.isPending || addToBoard.isPending;
 
   return {
@@ -52,6 +63,7 @@ export function useTalentActions(applicationId) {
     keepOnFile,
     requestMore,
     requestMeeting,
+    requestRefresh,
     offerDevelopment,
     archive,
     addToBoard,

@@ -17,7 +17,7 @@ import './dossier.css';
  * A minor without guardian consent is never asked for body frames, so those
  * slots are withheld rather than shown as failures.
  */
-export function DigitalsSet({ dossier, onOpenFrame, onRequestMore, canRequest, requesting }) {
+export function DigitalsSet({ dossier, onOpenFrame, onRequestMore, onRequestRefresh, canRequest, requesting, refreshing }) {
   const pkg = packageRead(dossier);
   const images = dossier.images || [];
   const slots = DIGITAL_SLOTS.filter(
@@ -89,6 +89,22 @@ export function DigitalsSet({ dossier, onOpenFrame, onRequestMore, canRequest, r
         )}
         {freshnessNote && (
           <p className="dx-digitals__note is-warn">{freshnessNote}</p>
+        )}
+        {/* Two different asks, and they are not interchangeable. Missing frames
+            were never sent; an aged or undated set was sent and has expired.
+            The second is only offered when the freshness engine says the set is
+            actually not current — the server enforces the same rule, so an
+            agency cannot demand a reshoot of last week's digitals. */}
+        {onRequestRefresh && canRequest && freshnessNote && (
+          <button
+            type="button"
+            className="dx-textbtn"
+            onClick={onRequestRefresh}
+            disabled={refreshing}
+          >
+            <Camera size={14} aria-hidden />
+            {refreshing ? 'Asking…' : 'Ask for a current set'}
+          </button>
         )}
         {onRequestMore && canRequest && pkg.set.missingSlots.length > 0 && (
           <button
