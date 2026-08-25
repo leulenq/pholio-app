@@ -378,3 +378,92 @@ body.is-agency textarea.st-textarea,
   color: var(--ag-text-2, #6B6560);
   max-width: 62ch;
 }
+
+/* Export destination.
+   Plain fields and a monospace secret. The secret is displayed once and reads
+   as a value to be copied, not decoration — mono, selectable, with the copy
+   affordance beside it rather than replacing it. */
+.st-hook-field { display: flex; flex-direction: column; gap: 5px; }
+
+.st-hook-label {
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ag-text-1, #3A352F);
+}
+
+.st-hook-input {
+  width: 100%;
+  font-family: var(--ag-font-body);
+  font-size: 13px;
+  color: var(--ag-text-0, #1A1815);
+  background: var(--ag-surface-1, #FFFFFF);
+  border: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+  border-radius: 4px;
+  padding: 8px 10px;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.st-hook-input:focus { outline: none; border-color: var(--ag-gold, #B8956A); }
+.st-hook-input:disabled { color: var(--ag-text-3, #8A847C); background: transparent; }
+
+.st-hook-hint,
+.st-hook-health {
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ag-text-2, #6B6560);
+  max-width: 64ch;
+}
+.st-hook-health { margin: 10px 0 0; }
+
+.st-hook-secret {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.st-hook-secret-value {
+  flex: 1;
+  min-width: 0;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--ag-text-0, #1A1815);
+  background: var(--ag-surface-2, rgba(26, 24, 21, 0.04));
+  border-radius: 4px;
+  padding: 9px 11px;
+}
+
+.st-hook-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  color: var(--ag-text-1, #3A352F);
+  background: transparent;
+  border: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+  border-radius: 4px;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.st-hook-copy:hover { border-color: var(--ag-gold, #B8956A); }
+
+.st-hook-rotate {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-family: var(--ag-font-body);
+  font-size: 13px;
+  color: var(--ag-text-0, #1A1815);
+  cursor: pointer;
+}
+.st-hook-rotate-note {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ag-text-2, #6B6560);
+  margin-top: 2px;
+}

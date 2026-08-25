@@ -408,6 +408,23 @@ export async function updateAgencySettings(settings) {
 }
 
 /**
+ * Export webhook — where submissions are pushed (plan §9.4, the exit ramp out
+ * of "Pholio is a second inbox"). The secret is returned exactly once, when it
+ * is generated; every read after that reports only whether one is set.
+ */
+export async function getExportWebhook() {
+  return apiClient.get('/export-webhook');
+}
+
+export async function saveExportWebhook(body) {
+  return apiClient.put('/export-webhook', body);
+}
+
+export async function deleteExportWebhook() {
+  return apiClient.delete('/export-webhook');
+}
+
+/**
  * Get agency team members
  */
 export async function getAgencyTeam() {
@@ -848,6 +865,9 @@ export default {
   updateAgencyProfile,
   updateAgencyBranding,
   updateAgencySettings,
+  getExportWebhook,
+  saveExportWebhook,
+  deleteExportWebhook,
   getNotes,
   createNote,
   updateNote,

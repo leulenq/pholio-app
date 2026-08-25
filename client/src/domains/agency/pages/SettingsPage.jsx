@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Palette, Bell, Shield, Link2, ClipboardList } from 'lucide-react';
+import { User, Palette, Bell, Shield, Link2, ClipboardList, Share2 } from 'lucide-react';
 import { getAgencyProfile } from '../api/agency';
 import { useAgencyTeam } from '../hooks/useAgencyTeam';
 import { useCanManageOrg } from '../hooks/useAgencyPermissions';
@@ -14,6 +14,7 @@ import NotificationsPanel from './settings/NotificationsPanel';
 import SecurityPanel from './settings/SecurityPanel';
 import OpenCallPanel from './settings/OpenCallPanel';
 import SpecBuilderPanel from './settings/SpecBuilderPanel';
+import ExportWebhookPanel from './settings/ExportWebhookPanel';
 import './SettingsPage.css';
 
 const GROUPS = [
@@ -29,6 +30,7 @@ const GROUPS = [
     items: [
       { id: 'open-call', label: 'Open Call Links', icon: Link2, desc: 'Invite links for your website and scouting emails' },
       { id: 'requirements', label: 'Requirements', icon: ClipboardList, desc: 'What applicants arriving through your open call should send' },
+      { id: 'export', label: 'Export', icon: Share2, desc: 'Send submissions straight into the system you already use' },
       { id: 'notifications', label: 'Notifications', icon: Bell, desc: 'Submission and pipeline alerts' },
     ],
   },
@@ -82,6 +84,7 @@ export default function SettingsPage() {
       case 'branding': return <BrandingPanel profile={profile} canManage={canManage} />;
       case 'open-call': return <OpenCallPanel canManage={canManage} />;
       case 'requirements': return <SpecBuilderPanel canManage={canManage} />;
+      case 'export': return <ExportWebhookPanel canManage={canManage} />;
       case 'notifications': return <NotificationsPanel profile={profile} canManage={canManage} />;
       case 'security': return <SecurityPanel profile={profile} canManage={canManage} />;
       default: return <ProfilePanel profile={profile} canManage={canManage} />;
