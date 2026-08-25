@@ -117,20 +117,33 @@ function eligibilityDto(rule) {
   };
 }
 
-/** File constraints, the ones that silently reject an iPhone photo. */
-function filesDto(files) {
-  if (!files || typeof files !== "object") return null;
+/**
+ * File constraints — the ones that silently reject an iPhone photo.
+ *
+ * Shaped like `eligibility`: an array of constraint rules, not an object of
+ * named caps. The first version of this assumed the latter, returned an object
+ * of nulls, and the page quietly rendered no file section at all — which lost
+ * Ford's 3MB limit and IMG's format list, the two most useful facts either page
+ * had. Read the schema; do not infer it.
+ *
+ * `value` is a scalar for a size cap and an array for a format list, so both
+ * pass through rather than being flattened into one assumed shape.
+ */
+function fileRuleDto(rule) {
+  const c = rule?.constraint || {};
+  const value = Array.isArray(c.value)
+    ? c.value.map((v) => text(v, 60)).filter(Boolean)
+    : typeof c.value === "number" || typeof c.value === "string"
+      ? c.value
+      : null;
   return {
-    // Named explicitly rather than spread: a new internal key added to `files`
-    // upstream must not become public merely by existing.
-    allowedFormats: Array.isArray(files.allowedFormats)
-      ? files.allowedFormats.map((f) => text(f, 24)).filter(Boolean)
-      : null,
-    maxBytesPerFile: Number.isFinite(files.maxBytesPerFile) ? files.maxBytesPerFile : null,
-    maxBytesTotal: Number.isFinite(files.maxBytesTotal) ? files.maxBytesTotal : null,
-    minLongestEdgePx: Number.isFinite(files.minLongestEdgePx) ? files.minLongestEdgePx : null,
-    maxLongestEdgePx: Number.isFinite(files.maxLongestEdgePx) ? files.maxLongestEdgePx : null,
-    sourceLabel: text(files.sourceLabel),
+    id: text(rule?.id, 80),
+    modality: text(rule?.modality, 24),
+    field: text(c.field, 80),
+    operator: text(c.operator, 24),
+    value,
+    unit: text(c.unit, 16),
+    sourceLabel: text(rule?.sourceLabel),
   };
 }
 
@@ -181,7 +194,7 @@ function publicAgencyDto(route, spec) {
         maximum: Number.isFinite(shots?.count?.maximum) ? shots.count.maximum : null,
       },
       slots: Array.isArray(shots.slots) ? shots.slots.map((s) => slotDto(s, labels)) : [],
-      files: filesDto(rules.files),
+      files: Array.isArray(rules.files) ? rules.files.map(fileRuleDto) : [],
       eligibility: Array.isArray(rules.eligibility)
         ? rules.eligibility.map(eligibilityDto)
         : [],

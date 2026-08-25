@@ -51,6 +51,7 @@ const SPEC = {
   revision: 1,
   status: "verified",
   evaluationMode: "advisory",
+  secretInternalKnob: "nope",
   scope: {
     organization: { id: "test-house", name: "Test House" },
     office: { id: "nyc", name: "New York" },
@@ -63,6 +64,20 @@ const SPEC = {
     nextReviewOn: "2026-11-07",
   },
   rules: {
+    // An ARRAY of constraint rules, matching the real schema. The first version
+    // of the projection assumed an object of named caps, returned an object of
+    // nulls, and the public page silently rendered no file section at all —
+    // losing Ford's 3MB limit and IMG's format list, the two most useful facts
+    // either page had. Read the schema; do not infer it.
+    files: [
+      {
+        id: "max-size",
+        modality: "required",
+        constraint: { field: "file.size_bytes", operator: "lt", value: 3000000, unit: "byte" },
+        sourceLabel: "File sizes must be less than 3MB.",
+        matchability: "automatic",
+      },
+    ],
     shots: {
       count: { minimum: 3, maximum: null },
       slots: [
@@ -81,7 +96,6 @@ const SPEC = {
         },
       ],
     },
-    files: { allowedFormats: ["jpeg"], maxBytesPerFile: 1048576, secretInternalKnob: "nope" },
     eligibility: [
       {
         id: "preferred-minimum-height",
@@ -143,7 +157,6 @@ describe("the public projection is an allowlist", () => {
     ["a reviewer identity", "SECRET-REVIEWER-ID"],
     ["an internal editorial note", "SECRET-INTERNAL-EDITORIAL-NOTE"],
     ["an unrecognised internal key", "secretInternalKnob"],
-    ["its value", "nope"],
   ])("never republishes %s", (_label, value) => {
     expect(serialized).not.toContain(value);
   });
@@ -177,6 +190,13 @@ describe("the public projection keeps what makes the page honest", () => {
       reviewedOn: "2026-08-09",
       nextReviewOn: "2026-11-07",
     });
+  });
+
+  test("file constraints survive the projection with their source words", () => {
+    const [rule] = dto.requirements.files;
+    expect(rule.field).toBe("file.size_bytes");
+    expect(rule.value).toBe(3000000);
+    expect(rule.sourceLabel).toBe("File sizes must be less than 3MB.");
   });
 
   test("cites its sources without copying them", () => {
