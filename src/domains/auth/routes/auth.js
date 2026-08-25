@@ -5,6 +5,9 @@ const { v4: uuidv4 } = require("uuid");
 const config = require("../../../config");
 const knex = require("../../../shared/db/knex");
 const {
+  isDevelopmentRuntime,
+} = require("../../../shared/lib/runtime-environment");
+const {
   loginSchema,
 } = require("../../../shared/lib/validation");
 const { clearCookieOptions } = require("../../../shared/lib/cookie-domain");
@@ -195,9 +198,10 @@ router.post("/api/auth/password-reset", async (req, res, next) => {
 // page works locally with credentials like agency@example.com / password123.
 // Gated behind AUTH_PASSTHROUGH_ENABLED=1 and never active in production.
 function isDevLoginEnabled() {
+  // Fail closed — same reasoning as isDevSeedAuthEnabled. This endpoint signs a
+  // caller in from a seeded email with no password check.
   return (
-    process.env.NODE_ENV !== "production" &&
-    process.env.AUTH_PASSTHROUGH_ENABLED === "1"
+    isDevelopmentRuntime() && process.env.AUTH_PASSTHROUGH_ENABLED === "1"
   );
 }
 

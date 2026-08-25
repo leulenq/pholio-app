@@ -23,6 +23,9 @@ const cookieParser = require("cookie-parser");
 const { baseCookieOptions } = require("./shared/lib/cookie-domain");
 const devAutoAuth = require("./shared/middleware/dev-auto-auth");
 const {
+  isDevelopmentRuntime,
+} = require("./shared/lib/runtime-environment");
+const {
   requireActiveAccount,
   requireTalentDashboardEligibility,
 } = require("./domains/auth/middleware/require-auth");
@@ -562,8 +565,14 @@ app.use(async (req, res, next) => {
 // Initialize Firebase Admin SDK
 initializeFirebaseAdmin();
 
-// Dev auto-auth middleware (must come after session and before routes)
-if (process.env.AUTH_PASSTHROUGH_ENABLED === "1") {
+// Dev auto-auth middleware (must come after session and before routes).
+// Mounted only in a runtime that declares itself development or test — the
+// middleware checks again internally, but an unmountable bypass is better than
+// a mounted one that happens to return early.
+if (
+  isDevelopmentRuntime() &&
+  process.env.AUTH_PASSTHROUGH_ENABLED === "1"
+) {
   app.use(devAutoAuth);
 }
 

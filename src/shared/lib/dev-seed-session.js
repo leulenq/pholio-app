@@ -1,5 +1,9 @@
 "use strict";
 
+const {
+  isDevelopmentRuntime,
+} = require("./runtime-environment");
+
 const { randomUUID } = require("crypto");
 const knex = require("../db/knex");
 const {
@@ -8,9 +12,11 @@ const {
 const { ensureUniqueSlug } = require("./slugify");
 
 function isDevSeedAuthEnabled() {
+  // Fail closed. This mints a session with no credentials, so it requires the
+  // runtime to SAY it is development or test — an unset or unrecognised
+  // NODE_ENV is treated as a deployment. See shared/lib/runtime-environment.js.
   return (
-    process.env.NODE_ENV !== "production" &&
-    process.env.AUTH_PASSTHROUGH_ENABLED === "1"
+    isDevelopmentRuntime() && process.env.AUTH_PASSTHROUGH_ENABLED === "1"
   );
 }
 
