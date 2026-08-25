@@ -136,6 +136,27 @@ describe("trust registry", () => {
     await seedSession();
     await publishRegistry(knex, validateRegistry());
     pack = validateTrustRegistry({ registryRoot: TRUST_PACK_ROOT });
+
+    /* The pack now carries `agencyId` for the verifications that have been
+       mapped to a reference-directory row, and `agency_verifications.agency_id`
+       is a foreign key. A suite that syncs the real pack therefore has to have
+       those rows, or the sync fails on a constraint that is doing its job.
+       Seeded from the pack itself so this cannot drift as more are mapped. */
+    const mappedAgencyIds = [
+      ...new Set(
+        pack.verifications.map((entry) => entry.agencyId).filter(Boolean),
+      ),
+    ];
+    if (mappedAgencyIds.length > 0) {
+      await knex("agencies").insert(
+        mappedAgencyIds.map((id, index) => ({
+          id,
+          name: `Mapped Reference Agency ${index + 1}`,
+          slug: `mapped-reference-${index + 1}`,
+          status: "REFERENCE",
+        })),
+      );
+    }
   }, 180000);
 
   afterAll(async () => {
