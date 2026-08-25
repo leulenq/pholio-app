@@ -29,28 +29,27 @@ function getModeratorIds() {
 /**
  * Returns true if the given user object qualifies as a platform moderator.
  *
- * Moderator resolution order:
- * 1. user.id is in the MODERATOR_USER_IDS env var (comma-separated UUIDs).
- * 2. user.email ends with @pholio.studio.
+ * Moderator status comes from ONE place: an explicit allowlist of user ids in
+ * MODERATOR_USER_IDS.
+ *
+ * It used to also grant moderator to any address ending in @pholio.studio, with
+ * no verification requirement. Anyone who could register that address in
+ * Firebase — and sign-in does not require a verified email — obtained the
+ * moderation queue, which holds CSAM-flagged imagery and every abuse report on
+ * the platform. A claim about an email domain is not an authorisation, and the
+ * gap between "typed this address" and "works here" is the entire attack.
+ *
+ * The allowlist is deliberately not backed by a role column: adding a moderator
+ * should require a deploy, because the thing being granted is access to the
+ * worst material the platform ever holds.
  *
  * @param {{ id?: string, email?: string }|null|undefined} user
  * @returns {boolean}
  */
 function isModerator(user) {
   if (!user) return false;
-
-  const ids = getModeratorIds();
-  if (user.id && ids.has(user.id)) return true;
-
-  if (
-    user.email &&
-    typeof user.email === 'string' &&
-    user.email.toLowerCase().endsWith('@pholio.studio')
-  ) {
-    return true;
-  }
-
-  return false;
+  if (!user.id) return false;
+  return getModeratorIds().has(user.id);
 }
 
 function isSelfTargetReport({ reporterUserId, targetType, targetId }) {

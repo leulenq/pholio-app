@@ -74,10 +74,46 @@ function getPuppeteer() {
   return puppeteerPromise;
 }
 
-async function loadProfile(slug) {
+/**
+ * Load a profile for an outward-facing document.
+ *
+ * REFUSES A PRIVATE PROFILE BY DEFAULT. Every caller of this function is
+ * building a comp card or a digitals sheet — documents that leave Pholio — and
+ * the four `/pdf/*` slug routes that call it carry no authentication at all.
+ * This function filtered IMAGES by visibility but never checked whether the
+ * PROFILE was public, so a private talent's name, height, bust, waist and hips
+ * were readable by anyone who could guess a `firstname-lastname` slug.
+ * `src/routes/portfolio.js:454` had the correct check all along; this is the
+ * same check, moved to the one place all four routes pass through so a fifth
+ * route cannot reintroduce the hole.
+ *
+ * `allowPrivate` exists for internal callers that are not serving a request —
+ * `freezePresetPlan` composes a plan for the owner's own stored preset — and is
+ * deliberately opt-IN, so the dangerous case has to be asked for by name.
+ *
+ * @param {string} slug
+ * @param {{ allowPrivate?: boolean }} [options]
+ */
+async function loadProfile(slug, options = {}) {
   try {
     const profile = await knex("profiles").where({ slug }).first();
     if (!profile) return null;
+    /* Explicitly-set-and-falsy means private. NOT `=== false`: SQLite returns
+       booleans as 0/1 while PostgreSQL returns real booleans, so a strict
+       comparison closed this hole on production and left it open under SQLite —
+       driver-dependent security, which is no security, and exactly what the
+       first run of the regression test caught.
+
+       NULL/undefined is left alone: a legacy row has never been made private,
+       and treating it as private would silently break existing public cards. */
+    const explicitlyPrivate =
+      profile.is_public !== null &&
+      profile.is_public !== undefined &&
+      !profile.is_public;
+    if (explicitlyPrivate && options.allowPrivate !== true) {
+      console.log("[PDF] Refusing a private profile for slug:", slug);
+      return null;
+    }
     const imagesQuery = knex("images")
       .leftJoin("image_rights", "image_rights.image_id", "images.id")
       .where({ "images.profile_id": profile.id });

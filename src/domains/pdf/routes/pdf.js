@@ -2531,7 +2531,10 @@ async function freezePresetPlan(slug, presetRow) {
     const { composeCompCard, ENGINE_VERSION } = require("../composition");
     const { isDirectionStructure, boardAdvice } = require("../composition/directions");
     const { isEditionId } = require("../composition/editions");
-    const data = await loadProfile(slug);
+    /* Internal: composing the owner's own stored preset, not serving a
+       request. Opt-in explicitly, since loadProfile refuses private profiles
+       by default. */
+    const data = await loadProfile(slug, { allowPrivate: true });
     if (!data || !data.profile) return;
     const { profile, images } = data;
     const forensicsById = await loadCompCardForensics(images, { isDemo: false });

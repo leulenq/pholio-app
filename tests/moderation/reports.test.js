@@ -52,12 +52,18 @@ describe('isModerator()', () => {
     expect(isModerator({ id: 'uuid-z', email: 'user@example.com' })).toBe(false);
   });
 
-  it('returns true for @pholio.studio email regardless of env var', () => {
-    expect(isModerator({ id: 'some-id', email: 'admin@pholio.studio' })).toBe(true);
+  /* These two used to assert that an @pholio.studio address granted moderator.
+     That was the vulnerability: sign-in does not require a verified email, so
+     anyone who could register the address obtained the queue holding
+     CSAM-flagged imagery and every abuse report. The assertions are inverted
+     rather than deleted — "an email domain is not an authorisation" is the
+     property now worth protecting. */
+  it('does NOT grant moderator for an @pholio.studio email', () => {
+    expect(isModerator({ id: 'some-id', email: 'admin@pholio.studio' })).toBe(false);
   });
 
-  it('is case-insensitive for @pholio.studio email check', () => {
-    expect(isModerator({ id: 'some-id', email: 'TRUST@PHOLIO.STUDIO' })).toBe(true);
+  it('does not grant moderator for any casing of the domain either', () => {
+    expect(isModerator({ id: 'some-id', email: 'TRUST@PHOLIO.STUDIO' })).toBe(false);
   });
 
   it('returns false for a subdomain of pholio.studio', () => {

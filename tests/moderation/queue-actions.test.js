@@ -17,6 +17,17 @@ const SESSION_SECRET = require("../../src/config").sessionSecret;
 
 describe("moderation queue API", () => {
   const MODERATOR_ID = uuidv4();
+  /* Moderator status now comes only from the MODERATOR_USER_IDS allowlist — an
+     @pholio.studio address grants nothing, since sign-in never required a
+     verified email. The fixture is authorised the way a real moderator is. */
+  const ORIGINAL_MODERATOR_IDS = process.env.MODERATOR_USER_IDS;
+  beforeAll(() => {
+    process.env.MODERATOR_USER_IDS = MODERATOR_ID;
+  });
+  afterAll(() => {
+    if (ORIGINAL_MODERATOR_IDS === undefined) delete process.env.MODERATOR_USER_IDS;
+    else process.env.MODERATOR_USER_IDS = ORIGINAL_MODERATOR_IDS;
+  });
   const TALENT_ID = uuidv4();
   const PROFILE_ID = uuidv4();
   const IMAGE_ID = uuidv4();
