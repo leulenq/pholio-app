@@ -339,3 +339,42 @@ body.is-agency textarea.st-textarea,
   border-top: 1px solid #ece4d4;
 }
 .st-opencall-brief-edit-actions { display: flex; gap: 8px; }
+
+/* Response window — the auto-close control.
+   A number and a unit, then a sentence that states what the number does in
+   plain terms, including the off case. The window governs what a talent is
+   told and when, so the copy changes with the value rather than sitting
+   static beneath it. */
+.st-window { display: flex; flex-direction: column; gap: 10px; }
+
+.st-window-field { display: inline-flex; align-items: baseline; gap: 8px; }
+
+.st-window-input {
+  width: 84px;
+  font-family: var(--ag-font-body);
+  font-size: 14px;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--ag-text-0, #1A1815);
+  background: var(--ag-surface-1, #FFFFFF);
+  border: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+  border-radius: 4px;
+  padding: 7px 9px;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.st-window-input:focus { outline: none; border-color: var(--ag-gold, #B8956A); }
+.st-window-input:disabled { color: var(--ag-text-3, #8A847C); background: transparent; }
+
+.st-window-unit {
+  font-family: var(--ag-font-body);
+  font-size: 13px;
+  color: var(--ag-text-2, #6B6560);
+}
+
+.st-window-note {
+  margin: 0;
+  font-family: var(--ag-font-body);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ag-text-2, #6B6560);
+  max-width: 62ch;
+}

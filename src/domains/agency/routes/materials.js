@@ -80,7 +80,48 @@ const REQUESTED_MORE_STATUS = "requested_more";
 /** How long a materials token lives. The design's chasing window, in days. */
 const MATERIALS_TOKEN_TTL_DAYS = 21;
 
+const {
+  DIGITALS_KEYS,
+  refreshEligibility,
+} = require("../services/refresh-requests");
+
 const TABLE = "open_call_material_requests";
+
+/**
+ * Freshness for a submission, read from the frames the agency can actually see.
+ *
+ * Prefers the frozen submission package — the images the talent SENT — over the
+ * live profile, because a refresh is a judgement about what was submitted, not
+ * about whatever the talent has uploaded since.
+ *
+ * @param {import('knex')} db
+ * @param {object} application
+ */
+async function refreshEligibilityForApplication(db, application) {
+  let rows = [];
+
+  if (application.profile_id) {
+    rows = await db("images")
+      .where({ profile_id: application.profile_id })
+      .select("id", "image_type", "set_id", "captured_at", "created_at");
+  } else if (await db.schema.hasTable("open_call_submission_media")) {
+    rows = await db("open_call_submission_media")
+      .where({ application_id: application.id })
+      .select("id", "field_key as image_type", "created_at");
+    // Anonymous submission media carries a field key, not an image_type, and no
+    // capture date at all — which is exactly the `undated` case.
+    rows = rows.map((row) => ({
+      ...row,
+      image_type: String(row.image_type || "").startsWith("digital")
+        ? "digital"
+        : row.image_type,
+      captured_at: null,
+    }));
+  }
+
+  return refreshEligibility(rows);
+}
+
 
 function fail(res, status, code, message, extra = {}) {
   return res.status(status).json({
@@ -206,7 +247,34 @@ router.post(
       );
     }
 
-    const requestedKeys = Array.isArray(req.body?.requestedKeys)
+    /* Two asks share this endpoint (plan §9.3 "more materials / refresh").
+       They differ in exactly two ways, so they are one handler rather than two:
+       a refresh names the apply-stage digitals instead of shortlist-stage
+       fields, and it is permitted only when those digitals have actually aged
+       out. Everything else — the tokenised reply for an unclaimed applicant,
+       the fulfilment page, the chase email — is identical, and duplicating it
+       to vary a label would be the worse trade. */
+    const requestKind = req.body?.kind === "refresh" ? "refresh" : "materials";
+
+    if (requestKind === "refresh") {
+      const eligibility = await refreshEligibilityForApplication(
+        knex,
+        application,
+      );
+      if (!eligibility.allowed) {
+        return fail(
+          res,
+          409,
+          "refresh_not_warranted",
+          eligibility.reason,
+          { freshnessState: eligibility.state },
+        );
+      }
+    }
+
+    const requestedKeys = requestKind === "refresh"
+      ? [...DIGITALS_KEYS]
+      : Array.isArray(req.body?.requestedKeys)
       ? [
           ...new Set(
             req.body.requestedKeys.filter(
@@ -226,7 +294,12 @@ router.post(
 
     let allowedKeys;
     try {
-      allowedKeys = allowedShortlistKeys(link);
+      // A refresh asks for what the talent already sent at apply stage, so the
+      // shortlist-stage allowlist — the check that makes a materials request
+      // safe — would reject every valid refresh. Eligibility above is its gate.
+      allowedKeys = requestKind === "refresh"
+        ? [...DIGITALS_KEYS]
+        : allowedShortlistKeys(link);
     } catch (error) {
       // A call whose stored spec no longer validates is an organizer-visible
       // problem, not a 500.
@@ -268,6 +341,10 @@ router.post(
        row, so an existing row keeps its id and its already-emailed links stay
        pointed at the right ask; a first request reserves the id the insert
        below will use. */
+    // Deploy-before-migrate: the column arrives with 20260824110000. Until it
+    // does the request still lands, carrying the default meaning.
+    const kindColumnReady = await knex.schema.hasColumn(TABLE, "kind");
+
     const existing = await knex(TABLE)
       .where({ application_id: applicationId })
       .first("id");
@@ -345,6 +422,10 @@ router.post(
     if (existing) {
       await knex(TABLE).where({ id: requestId }).update({
         requested_keys: requestedKeysJson,
+        // A re-request may change what kind of ask this is — an organizer who
+        // asked for materials and now needs current digitals is making a
+        // different request against the same applicant.
+        ...(kindColumnReady ? { kind: requestKind } : {}),
         due_at: dueAt ? dueAt.toISOString() : null,
         requested_by_user_id: getSessionActorUserId(req) || null,
         fulfilled_at: null,
@@ -355,6 +436,7 @@ router.post(
         id: requestId,
         application_id: applicationId,
         requested_keys: requestedKeysJson,
+        ...(kindColumnReady ? { kind: requestKind } : {}),
         due_at: dueAt ? dueAt.toISOString() : null,
         requested_by_user_id: getSessionActorUserId(req) || null,
         fulfilled_at: null,

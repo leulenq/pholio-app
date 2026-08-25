@@ -10,6 +10,14 @@ const LIVE = [
   { id: 'notify_new_applications', label: 'New talent submissions', desc: 'When talent is scouted or applies to your board.' },
   { id: 'notify_status_changes', label: 'Pipeline movement', desc: 'When talent advances a stage — shortlisted, offered, represented.' },
 ];
+/**
+ * The review window governs auto-close: once a submission has gone this long
+ * without a decision, Pholio closes it and tells the talent plainly. 0 turns it
+ * off. The server validates 0-365 and resolves the default, so this control
+ * only has to be honest about what each value means.
+ */
+const REVIEW_WINDOW_DEFAULT = 30;
+
 const VIEWS = [
   { value: 'overview', label: 'Overview' },
   { value: 'applicants', label: 'Submissions' },
@@ -24,6 +32,8 @@ export default function NotificationsPanel({ profile, canManage }) {
     default_view: VIEWS.some(({ value }) => value === profile?.default_view)
       ? profile.default_view
       : 'overview',
+    application_review_window_days:
+      profile?.application_review_window_days ?? REVIEW_WINDOW_DEFAULT,
   }), [profile]);
   const [form, setForm] = useState(initial);
   const ro = !canManage;
@@ -31,10 +41,16 @@ export default function NotificationsPanel({ profile, canManage }) {
   const dirty =
     form.notify_new_applications !== initial.notify_new_applications ||
     form.notify_status_changes !== initial.notify_status_changes ||
-    form.default_view !== initial.default_view;
+    form.default_view !== initial.default_view ||
+    Number(form.application_review_window_days) !==
+      Number(initial.application_review_window_days);
 
   const save = useMutation({
-    mutationFn: () => updateAgencySettings(form),
+    mutationFn: () =>
+      updateAgencySettings({
+        ...form,
+        application_review_window_days: Number(form.application_review_window_days),
+      }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['agency-profile'] }); toast.success('Preferences saved'); },
     onError: (e) => toast.error(e?.message || 'Could not save preferences'),
   });
@@ -86,6 +102,40 @@ export default function NotificationsPanel({ profile, canManage }) {
               {v.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="st-fieldset">
+        <div className="st-fieldset-head">
+          <h3 className="st-fieldset-title">Response window</h3>
+          <p className="st-fieldset-sub">
+            How long a submission waits for a decision before Pholio closes it and
+            tells the talent. Nobody is left guessing, and your desk stops carrying
+            submissions you have already moved past.
+          </p>
+        </div>
+        <div className="st-window">
+          <label className="st-window-field">
+            <input
+              type="number"
+              min="0"
+              max="365"
+              step="1"
+              className="st-window-input"
+              aria-label="Review window in days"
+              disabled={ro}
+              value={form.application_review_window_days}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, application_review_window_days: e.target.value }))
+              }
+            />
+            <span className="st-window-unit">days</span>
+          </label>
+          <p className="st-window-note">
+            {Number(form.application_review_window_days) === 0
+              ? 'Auto-close is off. Submissions stay open until someone decides, and talent hear nothing in the meantime.'
+              : `A submission with no decision after ${Number(form.application_review_window_days)} days closes itself, and the talent is told it was not taken forward.`}
+          </p>
         </div>
       </div>
 
