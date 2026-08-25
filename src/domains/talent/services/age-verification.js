@@ -263,20 +263,28 @@ async function applyProviderSession(session) {
   });
 
   if (!record.redaction_requested_at) {
-    await knex("age_verifications").where({ id: record.id }).update({
-      redaction_requested_at: knex.fn.now(),
-      updated_at: knex.fn.now(),
-    });
-    stripe.identity.verificationSessions.redact(session.id).then(
-      () => undefined,
-      async (error) => {
-        await knex("age_verifications").where({ id: record.id }).update({
-          redaction_requested_at: null,
-          updated_at: knex.fn.now(),
-        });
-        console.error("[AgeVerification] Stripe redaction failed:", error.message);
-      },
-    );
+    /* Redaction of a government ID is a compliance action, so the record must
+       not claim it happened until it has.
+
+       This used to mark `redaction_requested_at` first and fire the redaction
+       unawaited, with the compensating rollback ALSO inside the dropped
+       promise. Under Lambda the container freezes when the handler resolves, so
+       both the call and its rollback were liable to vanish — leaving a row
+       permanently asserting that someone's ID had been redacted from Stripe
+       when it had not, and no error anywhere.
+
+       Awaited, and the mark is written only on success. A failure is logged and
+       left unmarked so a retry is still possible, which is the safer direction
+       for a record about deleting identity documents. */
+    try {
+      await stripe.identity.verificationSessions.redact(session.id);
+      await knex("age_verifications").where({ id: record.id }).update({
+        redaction_requested_at: knex.fn.now(),
+        updated_at: knex.fn.now(),
+      });
+    } catch (error) {
+      console.error("[AgeVerification] Stripe redaction failed:", error.message);
+    }
   }
   return getVerificationStatus(profile.id);
 }

@@ -1635,7 +1635,15 @@ router.post(
       });
 
       // Send email notification (async, non-blocking)
-      (async () => {
+      /* Awaited, not fire-and-forget. Lambda freezes the container the moment
+         the handler resolves, so an unawaited promise still mid-await when
+         `res.json` returns never finishes — and this one is the email telling a
+         talent whether an agency wants to sign them. roster.js has always
+         awaited its equivalent; this is the same shape.
+
+         The try/catch stays: a failed send must not fail a decision already
+         committed to the database. */
+      await (async () => {
         try {
           // Get talent info — applications have no talent_id column, only
           // profile_id, so resolve the recipient through profiles.user_id
@@ -1877,7 +1885,15 @@ router.post(
       });
 
       // Send email notification (async, non-blocking)
-      (async () => {
+      /* Awaited, not fire-and-forget. Lambda freezes the container the moment
+         the handler resolves, so an unawaited promise still mid-await when
+         `res.json` returns never finishes — and this one is the email telling a
+         talent whether an agency wants to sign them. roster.js has always
+         awaited its equivalent; this is the same shape.
+
+         The try/catch stays: a failed send must not fail a decision already
+         committed to the database. */
+      await (async () => {
         try {
           // Get talent info — applications have no talent_id column, only
           // profile_id, so resolve the recipient through profiles.user_id

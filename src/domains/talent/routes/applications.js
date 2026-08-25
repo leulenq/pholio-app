@@ -1938,10 +1938,18 @@ router.post(
     }
 
     /* Export hand-off (plan §9.4): push the submission into whatever the agency
-       already uses, so Pholio does not become the second inbox. Deliberately
-       not awaited into the response — the delivery swallows its own failures,
-       but it must not add an agency's endpoint latency to the talent's send. */
-    dispatchSubmission(knex, {
+       already uses, so Pholio does not become the second inbox.
+
+       AWAITED. I originally left this unawaited to keep an agency's endpoint
+       latency off the talent's send, which is sound reasoning on a long-lived
+       server and wrong under Lambda: the container freezes when the handler
+       resolves, so the delivery simply never happened. A submission that never
+       reaches the agency's system is the precise failure this feature exists to
+       prevent, and it would have failed silently.
+
+       The cost is bounded — delivery carries its own 5s timeout and swallows
+       its own errors, and only agencies that configured an endpoint pay it. */
+    await dispatchSubmission(knex, {
       agencyId,
       application: {
         id: applicationId,

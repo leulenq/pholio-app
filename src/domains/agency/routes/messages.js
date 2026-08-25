@@ -296,7 +296,15 @@ router.post(
       }
 
       // Send email notification with magic reply link (async, non-blocking)
-      (async () => {
+      /* Awaited, not fire-and-forget. Lambda freezes the container the moment
+         the handler resolves, so an unawaited promise still mid-await when
+         `res.json` returns never finishes — and this one is the email telling a
+         talent whether an agency wants to sign them. roster.js has always
+         awaited its equivalent; this is the same shape.
+
+         The try/catch stays: a failed send must not fail a decision already
+         committed to the database. */
+      await (async () => {
         try {
           /* DELIBERATELY PROFILE-ONLY, same reason as the thread list above:
              this resolves the *account* that receives the magic reply link. An
