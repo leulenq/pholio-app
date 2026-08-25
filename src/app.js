@@ -635,6 +635,24 @@ const onboardingLimiter = rateLimit({
   validate: { ip: false },
 });
 
+/*
+ * The public agency registry.
+ *
+ * Generous, because this is meant to be crawled and server-rendered by the
+ * marketing site — the point of the pages is to be indexed. It is a limiter
+ * against a scrape that would cost real function-invocation money, not against
+ * a reader. Responses are cached for half an hour, so a well-behaved client
+ * reaches the origin once per window regardless.
+ */
+const publicRegistryLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { ip: false },
+});
+
 const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: rateLimitMax.upload,
@@ -877,6 +895,10 @@ app.use("/", internalAgencyRequestRoutes);
 app.use("/", require("./domains/internal/routes/event-funnel"));
 app.use("/api", apiRoutes);
 app.use("/api/public/opencall", require("./domains/opencall/routes"));
+app.use("/api/public/registry", publicRegistryLimiter);
+// Mounted before the general public router so its own 404 handling, if any,
+// cannot swallow a registry path.
+app.use("/api/public/registry", require("./routes/api/public-registry"));
 app.use("/api/public", publicRoutes);
 app.use("/api", moderationRoutes);
 // Guardian consent (token-verified). Mounted before onboarding-gated routes so the
