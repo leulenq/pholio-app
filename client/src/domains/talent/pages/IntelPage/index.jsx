@@ -11,6 +11,7 @@ import MaterialsBlock from './blocks/MaterialsBlock';
 import AttentionBlock from './blocks/AttentionBlock';
 import BookBlock from './blocks/BookBlock';
 import MomentumBlock from './blocks/MomentumBlock';
+import ShareLinksBlock from './blocks/ShareLinksBlock';
 import './IntelPage.css';
 
 const RANGES = [
@@ -126,6 +127,10 @@ export default function IntelPage() {
           {!minor && <BookBlock book={data.book} tier={tier} />}
 
           {!minor && <MomentumBlock momentum={data.momentum} tier={tier} />}
+
+          {/* Minor-gated with the other outward-facing blocks: a shareable
+              public link to a minor's book is not a feature to surface here. */}
+          {!minor && <ShareLinksBlock />}
 
         </>
       )}

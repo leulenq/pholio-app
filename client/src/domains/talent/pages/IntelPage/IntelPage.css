@@ -1059,3 +1059,108 @@
     animation: none;
   }
 }
+
+/* ── Per-recipient share links ──────────────────────────────────────────────
+   §9.2's "did Marilyn open my book". A ledger of rows, one per recipient, in
+   the page's own vocabulary: mono for the label, ink-3 for the state, no
+   badges and no chips. A link nobody has opened says so in the quiet ink
+   rather than as a red or amber signal — an unopened link is the ordinary
+   case and must not read as a fault. */
+.iv-share-mint {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding-bottom: 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--iv-rule-soft);
+}
+
+.iv-share-mint-field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+
+.iv-share-mint-hint {
+  font-family: var(--iv-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--iv-ink-3);
+}
+
+.iv-share-input {
+  width: 100%;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--iv-ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--iv-rule);
+  padding: 5px 0;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.iv-share-input:focus { outline: none; border-bottom-color: var(--iv-gold); }
+.iv-share-input::placeholder { color: var(--iv-ink-3); opacity: 0.7; }
+
+.iv-share-list { display: flex; flex-direction: column; }
+
+.iv-share-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--iv-rule-soft);
+}
+.iv-share-row:last-child { border-bottom: 0; }
+
+.iv-share-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.iv-share-label {
+  font-size: 13.5px;
+  color: var(--iv-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iv-share-kind {
+  font-family: var(--iv-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--iv-ink-3);
+}
+
+.iv-share-opened {
+  font-family: var(--iv-mono, 'JetBrains Mono', ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--iv-gold-deep);
+  white-space: nowrap;
+}
+/* Never opened: stated, not flagged. */
+.iv-share-opened.is-quiet { color: var(--iv-ink-3); }
+
+.iv-share-actions { display: flex; align-items: center; gap: 6px; }
+
+.iv-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--iv-ink-2);
+  background: transparent;
+  border: 1px solid var(--iv-rule);
+  border-radius: 4px;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.iv-share-btn:hover:not(:disabled) { border-color: var(--iv-gold); color: var(--iv-ink); }
+.iv-share-btn:disabled { opacity: 0.45; cursor: default; }
+.iv-share-btn--quiet { border-color: transparent; color: var(--iv-ink-3); }
+.iv-share-btn--quiet:hover:not(:disabled) { color: var(--iv-ink); border-color: var(--iv-rule); }
+.iv-share-btn--go { border-color: var(--iv-gold); color: var(--iv-gold-deep); }
+
+@media (max-width: 640px) {
+  .iv-share-row { grid-template-columns: 1fr; gap: 6px; }
+  .iv-share-mint { flex-direction: column; align-items: stretch; }
+}

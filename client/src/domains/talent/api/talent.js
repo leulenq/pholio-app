@@ -111,6 +111,15 @@ export const talentApi = {
     return apiClient.get(`/intel${params.size ? `?${params.toString()}` : ''}`);
   },
   getIntelDay: (date) => apiClient.get(`/intel/day/${encodeURIComponent(date)}`),
+
+  /* Per-recipient share links. The server has carried this whole surface for a
+     while — mint, list with open counts, revoke — with nothing on the client
+     calling it (strategic analysis §9.2: "already built, buried"). */
+  getShareTokens: () => apiClient.get('/intel/share-tokens'),
+  createShareToken: (body) => apiClient.post('/intel/share-tokens', body),
+  revokeShareToken: (id) =>
+    apiClient.delete(`/intel/share-tokens/${encodeURIComponent(id)}`),
+
   getActivity: () => apiClient.get('/activity'),
 
   // Notifications (high-signal bell center)
