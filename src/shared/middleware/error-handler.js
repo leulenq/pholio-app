@@ -6,6 +6,7 @@
  */
 
 const config = require("../../config");
+const { reportError } = require("../lib/error-reporting");
 
 /**
  * Helper to determine if a request is an API request
@@ -55,10 +56,16 @@ function renderErrorPage(req, res, statusCode, view, locals = {}) {
  * @param {Function} next - Express next function
  */
 function errorHandler(err, req, res, next) {
-  // Log error with context
+  /* The stack goes to the SERVER LOG in every environment.
+     It used to be `NODE_ENV === "development" ? err.stack : undefined`, which
+     conflates two different questions. What the HTTP RESPONSE discloses is a
+     security decision and stays environment-gated below. What the operator's
+     own log records is not — and stripping it meant a production 500 gave a
+     message and a path with no way to find the line, which is most of why
+     several bugs this week were silent. */
   console.error("[Error Handler]", {
     message: err.message,
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    stack: err.stack,
     status: err.status || err.statusCode || 500,
     code: err.code,
     path: req.path,
@@ -66,6 +73,15 @@ function errorHandler(err, req, res, next) {
     userId: req.session?.userId,
     userAgent: req.get("user-agent"),
     timestamp: new Date().toISOString(),
+  });
+
+  // Hand the error to whatever reporting is configured. No-ops when nothing is,
+  // so this costs nothing until someone wires a destination up.
+  reportError(err, {
+    path: req.path,
+    method: req.method,
+    status: err.status || err.statusCode || 500,
+    userId: req.session?.userId || null,
   });
 
   // Determine error type and status code

@@ -296,3 +296,23 @@ describe("Pholio application", () => {
     expect(deleteResponse.body.ok).toBe(true);
   });
 });
+
+/**
+ * The health endpoint. There was none, so nothing outside the process could
+ * answer whether production was serving — which is the precondition for any
+ * uptime alerting at all.
+ */
+describe("GET /health", () => {
+  it("answers without a session, and discloses nothing", async () => {
+    const res = await request(app).get("/health");
+
+    expect([200, 503]).toContain(res.status);
+    expect(res.body.status).toMatch(/^(ok|degraded)$/);
+    expect(res.body.database).toMatch(/^(ok|unreachable)$/);
+
+    // A monitor needs liveness, not an inventory. No version, no commit, no
+    // dependency list, no configuration.
+    const keys = Object.keys(res.body).sort();
+    expect(keys).toEqual(["at", "database", "status"]);
+  });
+});

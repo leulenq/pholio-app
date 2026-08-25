@@ -576,6 +576,30 @@ if (
   app.use(devAutoAuth);
 }
 
+/* Liveness and readiness, unauthenticated on purpose — an uptime check that
+   needed a session could not tell "the app is down" from "my credentials
+   expired". There was no such endpoint at all, so nothing outside the process
+   could answer whether production was serving.
+
+   It discloses nothing: no version, no commit, no dependency list, no
+   configuration. Just whether the process answers and whether it can reach its
+   database, which is the whole question a monitor asks. */
+app.get("/health", async (_req, res) => {
+  let database = "unknown";
+  try {
+    await knex.raw("select 1");
+    database = "ok";
+  } catch {
+    database = "unreachable";
+  }
+  const healthy = database === "ok";
+  return res.status(healthy ? 200 : 503).json({
+    status: healthy ? "ok" : "degraded",
+    database,
+    at: new Date().toISOString(),
+  });
+});
+
 app.use(attachLocals);
 
 // Rate limiters: always enabled. Serverless uses higher per-instance limits because
