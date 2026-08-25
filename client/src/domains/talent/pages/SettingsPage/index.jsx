@@ -41,6 +41,8 @@ import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCus
 import { useBrandedStripeCheckout } from '../../../../shared/hooks/useBrandedStripeCheckout';
 import { formatPhoneDisplay } from '../../../../shared/lib/phone-format';
 import { identityFormFromProfile } from './identityForm';
+import { Movement, Row, SkeletonRows } from './primitives';
+import LikenessMovement from './LikenessMovement';
 import { STUDIO_LEDE, portalReturnStatus } from './studioCopy';
 import './SettingsPage.css';
 
@@ -68,6 +70,7 @@ const MOVEMENTS = [
   { id: 'security', label: 'Security', summary: 'Sign-in and devices' },
   { id: 'privacy', label: 'Data', summary: 'Cookies and export' },
   { id: 'legal', label: 'Standing', summary: 'Consent and protection' },
+  { id: 'likeness', label: 'Likeness', summary: 'Marketing and AI use' },
   { id: 'account', label: 'Account', summary: 'Pause or close' },
 ];
 
@@ -132,30 +135,6 @@ function downloadJson(filename, payload) {
 
 /* --- shared primitives --------------------------------------------- */
 
-function Movement({ id, title, lede, children }) {
-  return (
-    <article className="set-movement" id={`movement-${id}`} aria-labelledby={`${id}-title`}>
-      <header className="set-movement__head">
-        <h2 className="set-movement__title" id={`${id}-title`}>{title}</h2>
-        {lede && <p className="set-movement__lede">{lede}</p>}
-      </header>
-      {children}
-    </article>
-  );
-}
-
-function Row({ title, description, children, muted = false }) {
-  return (
-    <div className={`set-row${muted ? ' set-row--muted' : ''}`}>
-      <div className="set-row__copy">
-        <h3>{title}</h3>
-        {description && <p>{description}</p>}
-      </div>
-      <div className="set-row__control">{children}</div>
-    </div>
-  );
-}
-
 function Toggle({ checked, disabled, label, onChange }) {
   return (
     <button
@@ -196,14 +175,6 @@ function Field({ label, hint, children }) {
       {children}
       {hint && <span className="set-field__hint">{hint}</span>}
     </label>
-  );
-}
-
-function SkeletonRows({ count = 3 }) {
-  return (
-    <div className="set-skeleton" aria-label="Loading" aria-busy="true">
-      {Array.from({ length: count }).map((_, i) => <span key={i} />)}
-    </div>
   );
 }
 
@@ -407,6 +378,8 @@ export default function SettingsPage() {
     membership: 'studio',
     billing: 'studio',
     plan: 'studio',
+    consent: 'likeness',
+    rights: 'likeness',
   };
   const resolvedSection = SECTION_ALIASES[section] || section;
   const active = MOVEMENT_IDS.includes(resolvedSection) ? resolvedSection : 'identity';
@@ -431,6 +404,8 @@ export default function SettingsPage() {
         return <PrivacyMovement settings={settings} isLoading={isLoading} />;
       case 'legal':
         return <LegalMovement />;
+      case 'likeness':
+        return <LikenessMovement />;
       case 'account':
         return <AccountMovement settings={settings} />;
       default:

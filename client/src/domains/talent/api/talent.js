@@ -304,6 +304,16 @@ export const talentApi = {
   updateSettings: (data) => apiClient.put('/settings', data),
   getLegalStatus: (options) => apiClient.get('/settings/legal-status', options),
   acceptLegalTerms: (body) => apiClient.post('/settings/legal-acceptance', body),
+  // Likeness/rights ledger. Marketing use and AI replica are independent
+  // permissions: this call carries exactly one `purpose` per request because
+  // the server has no endpoint that sets both, and bundling them is the thing
+  // the Fashion Workers Act prohibits. Body:
+  //   { purpose: 'marketing_use' | 'ai_replica', granted: boolean,
+  //     scope?, usePurpose?, compensation?, startsOn?, endsOn? }
+  // The five term fields are required by the server for an `ai_replica` grant
+  // and are meaningless on a withdrawal.
+  getLikenessConsent: (options) => apiClient.get('/settings/likeness-consent', options),
+  setLikenessConsent: (body) => apiClient.post('/settings/likeness-consent', body),
   requestDataExport: () => apiClient.post('/settings/data-export', {}),
   deactivateAccount: () => apiClient.post('/settings/deactivate', {}),
   deleteAccount: () => apiClient.delete('/settings/account'),

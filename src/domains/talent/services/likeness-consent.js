@@ -52,25 +52,54 @@ const EVENT = Object.freeze({ GRANTED: "granted", WITHDRAWN: "withdrawn" });
 const TABLE = "talent_likeness_consents";
 
 /**
- * The exact words shown for each purpose, versioned.
+ * The exact words shown for each purpose, kept as a VERSIONED ARCHIVE.
  *
  * Versioned because a dispute must be about a fixed text rather than about what
- * the page happened to say that month. Changing the wording means a new version
- * and a new hash; it never edits what someone already agreed to.
+ * the page happened to say that month. Changing the wording means adding a new
+ * version below; it never edits an existing one, because an existing one is
+ * what somebody already agreed to.
+ *
+ * The archive is the reason this is a map of maps rather than a single object.
+ * A ledger row stores its `disclosure_version`, and without the matching text
+ * that version is a label pointing at nothing — the row can say a version was
+ * shown but not what it said, which is precisely what a dispute turns on. Old
+ * wordings therefore stay here forever. They are a few hundred bytes and they
+ * are the difference between a record that proves consent and one that merely
+ * asserts it.
  */
 const DISCLOSURE_VERSION = "2026-08-25";
 
-const DISCLOSURES = Object.freeze({
-  [PURPOSES.MARKETING]:
-    "Allow Pholio to use your name and images in its own marketing — the website, social posts, success stories and investor materials. This is separate from applying to agencies, and you can withdraw it at any time.",
-  [PURPOSES.AI_REPLICA]:
-    "Allow the creation or use of an AI-generated or AI-enhanced likeness of you. This does not cover routine colour correction or minor retouching. It must state what it covers, what it is for, what you are paid, and how long it lasts, and you can withdraw it at any time.",
+const DISCLOSURE_ARCHIVE = Object.freeze({
+  "2026-08-25": Object.freeze({
+    [PURPOSES.MARKETING]:
+      "Allow Pholio to use your name and images in its own marketing — the website, social posts, success stories and investor materials. This is separate from applying to agencies, and you can withdraw it at any time.",
+    [PURPOSES.AI_REPLICA]:
+      "Allow the creation or use of an AI-generated or AI-enhanced likeness of you. This does not cover routine colour correction or minor retouching. It must state what it covers, what it is for, what you are paid, and how long it lasts, and you can withdraw it at any time.",
+  }),
 });
 
-function disclosureHash(purpose) {
+/** The current wording — what a new grant is taken against. */
+const DISCLOSURES = DISCLOSURE_ARCHIVE[DISCLOSURE_VERSION];
+
+/**
+ * The words shown under a given version, or null if that version is not
+ * archived. Null rather than the current text, always: showing today's wording
+ * beside an older entry would misrepresent what that person read.
+ *
+ * @param {string} purpose
+ * @param {string} version
+ * @returns {string|null}
+ */
+function disclosureText(purpose, version) {
+  return DISCLOSURE_ARCHIVE[version]?.[purpose] || null;
+}
+
+function disclosureHash(purpose, version = DISCLOSURE_VERSION) {
+  const body = disclosureText(purpose, version);
+  if (!body) return null;
   return crypto
     .createHash("sha256")
-    .update(`${DISCLOSURE_VERSION}\n${DISCLOSURES[purpose]}`, "utf8")
+    .update(`${version}\n${body}`, "utf8")
     .digest("hex");
 }
 
@@ -285,7 +314,7 @@ async function isConsented(db, profileId, purpose, now = new Date()) {
  */
 async function consentHistory(db, profileId) {
   if (!(await hasLikenessSchema(db))) return [];
-  return db(TABLE)
+  const rows = await db(TABLE)
     .where({ profile_id: profileId })
     .orderBy("sequence", "desc")
     .select(
@@ -298,9 +327,29 @@ async function consentHistory(db, profileId) {
       "starts_on",
       "ends_on",
       "disclosure_version",
+      "disclosure_hash",
       "actor_type",
       "occurred_at",
     );
+
+  // Each entry carries the words it was agreed under, not today's words.
+  //
+  // And only when they hash to what was stored. A row's `disclosure_hash` was
+  // computed at the moment of consent; if the archived text no longer matches
+  // it, the archive has been edited and the text is no longer evidence of
+  // anything. Showing it anyway would be worse than showing nothing, so an
+  // unverifiable entry reports its version and withholds the text.
+  return rows.map((row) => {
+    const archived = disclosureText(row.purpose, row.disclosure_version);
+    const verified =
+      Boolean(archived) &&
+      disclosureHash(row.purpose, row.disclosure_version) === row.disclosure_hash;
+    return {
+      ...row,
+      disclosure_text: verified ? archived : null,
+      disclosure_verified: verified,
+    };
+  });
 }
 
 /**
@@ -324,6 +373,7 @@ async function consentState(db, profileId) {
 
 module.exports = {
   DISCLOSURES,
+  DISCLOSURE_ARCHIVE,
   DISCLOSURE_VERSION,
   EVENT,
   LikenessConsentError,
@@ -332,6 +382,7 @@ module.exports = {
   consentHistory,
   consentState,
   disclosureHash,
+  disclosureText,
   grantConsent,
   hasLikenessSchema,
   isConsented,

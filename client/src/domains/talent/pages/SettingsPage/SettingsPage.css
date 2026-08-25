@@ -1681,3 +1681,281 @@
   .talent-settings *::before { transition: none !important; }
   .set-rail button.is-active::before { height: 26px; }
 }
+
+/* ── Likeness / rights consent ────────────────────────────── */
+/* Two permissions, each in its own card, each with the server's exact wording
+   above its own action. Nothing here colours one answer as the good one:
+   "granted" and "not granted" are the same mono ledger mark, because which one
+   is right is the talent's call and not the interface's. */
+
+.set-consent {
+  animation: set-entrance 0.5s var(--set-ease) both;
+}
+
+.set-movement .set-consent:nth-of-type(2) { animation-delay: 0.06s; }
+.set-movement .set-consent:nth-of-type(3) { animation-delay: 0.12s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .set-consent { animation: none; }
+}
+
+.set-consent__body {
+  padding: clamp(18px, 2vw, 24px) clamp(20px, 2.2vw, 28px);
+}
+
+/* The text of record, set apart as a pressed-paper inset so it reads as the
+   thing being agreed to rather than as page copy. Rendered verbatim from the
+   server — nothing in this stylesheet truncates or clamps it. */
+.set-consent__disclosure {
+  max-width: 64ch;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid var(--set-hair);
+  border-radius: 2px;
+  background: var(--set-cream-warm);
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.65;
+  color: var(--set-text);
+  text-wrap: pretty;
+}
+
+.set-consent__disclosure--missing {
+  background: transparent;
+  color: var(--set-text-soft);
+}
+
+.set-consent__version {
+  margin: 10px 0 0;
+  font-family: var(--set-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--set-text-faint);
+}
+
+.set-consent__note,
+.set-consent__meta,
+.set-consent__empty {
+  max-width: 60ch;
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--set-text-soft);
+}
+
+.set-consent__empty { margin: 0; }
+
+.set-consent__actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+/* ── Recorded terms ───────────────────────────────────────── */
+
+.set-consent__terms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 28px;
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--set-hair);
+}
+
+.set-consent__terms dt {
+  font-family: var(--set-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--set-text-faint);
+}
+
+.set-consent__terms dd {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--set-text);
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+/* ── The AI-likeness terms step ───────────────────────────── */
+
+.set-consent__form {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--set-hair);
+}
+
+.set-consent__form-lede {
+  max-width: 60ch;
+  margin: 0 0 20px;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--set-text-soft);
+}
+
+.set-consent__form .set-field + .set-field,
+.set-consent__form .set-field + .set-fields,
+.set-consent__form .set-fields + .set-field { margin-top: 18px; }
+
+.set-consent__form textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--set-hair);
+  border-radius: 2px;
+  background: #fff;
+  color: var(--set-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.5;
+  /* Never draggable. */
+  resize: none;
+  transition: border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.set-consent__form textarea:hover:not(:focus) { border-color: var(--set-hair-strong); }
+
+.set-consent__form textarea:focus {
+  outline: none;
+  border-color: rgba(201, 165, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(201, 165, 90, 0.12);
+}
+
+.set-consent__form textarea::placeholder {
+  color: var(--set-text-faint);
+  font-weight: 300;
+}
+
+.set-consent__hint,
+.set-consent__error {
+  max-width: 60ch;
+  margin: 18px 0 0;
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.55;
+}
+
+.set-consent__hint { color: var(--set-text-soft); }
+.set-consent__error { color: var(--set-danger); }
+
+.set-consent__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.set-consent__confirm p {
+  max-width: 52ch;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--set-text);
+}
+
+.set-consent__confirm .set-consent__actions { margin-top: 0; }
+
+/* ── The record ───────────────────────────────────────────── */
+
+.set-ledger {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.set-ledger__entry {
+  padding: clamp(16px, 1.9vw, 20px) clamp(20px, 2.2vw, 28px);
+  border-bottom: 1px solid var(--set-hair);
+}
+
+.set-ledger__entry:last-child { border-bottom: none; }
+
+.set-ledger__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+}
+
+.set-ledger__what {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  color: var(--set-text);
+}
+
+.set-ledger__when {
+  font-family: var(--set-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--set-text-faint);
+  white-space: nowrap;
+}
+
+.set-ledger__entry .set-consent__terms {
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.set-ledger__version {
+  margin: 12px 0 0;
+  font-family: var(--set-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--set-text-faint);
+}
+
+@media (max-width: 720px) {
+  .set-consent__terms { grid-template-columns: minmax(0, 1fr); }
+
+  .set-consent__actions {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .set-consent__form textarea { font-size: 16px; }
+}
+
+/* An older wording, opened on request. Closed by default because the current
+   text is already on the page; openable because what someone actually read is
+   the only thing the record is for. */
+.set-ledger__wording {
+  margin-top: 6px;
+}
+
+.set-ledger__wording > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--set-text-faint);
+  letter-spacing: 0.01em;
+  transition: color 0.2s var(--set-ease);
+}
+
+.set-ledger__wording > summary:hover {
+  color: var(--set-text-soft);
+}
+
+.set-ledger__wording > p {
+  margin: 8px 0 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--set-hair);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--set-text-soft);
+}

@@ -11,6 +11,8 @@
  */
 
 const {
+  DISCLOSURES,
+  DISCLOSURE_ARCHIVE,
   DISCLOSURE_VERSION,
   EVENT,
   LikenessConsentError,
@@ -18,6 +20,7 @@ const {
   TABLE,
   consentHistory,
   consentState,
+  disclosureText,
   grantConsent,
   isConsented,
   resetLikenessSchemaCache,
@@ -275,5 +278,58 @@ describe("state for a settings screen", () => {
     expect(state[PURPOSES.MARKETING]).toBe(true);
     expect(state[PURPOSES.AI_REPLICA]).toBe(false);
     expect(state.disclosures[PURPOSES.AI_REPLICA]).toMatch(/colour correction/i);
+  });
+});
+
+describe("the disclosure archive — an entry carries the words it was agreed under", () => {
+  /* A ledger row stores its `disclosure_version`. Without the matching text
+     that version is a label pointing at nothing: the row can say a wording was
+     shown but not what it said, which is the one thing a dispute turns on. The
+     archive exists so old wordings stay retrievable after the live text moves
+     on, and the hash exists so a retrieved wording can be proven to be the one
+     that was signed rather than merely the one filed under that name. */
+
+  test("history hands back the text, verified against the hash stored at the time", async () => {
+    await grantConsent(knex, { profileId: PROFILE_ID, purpose: PURPOSES.MARKETING });
+    const [entry] = await consentHistory(knex, PROFILE_ID);
+
+    expect(entry.disclosure_version).toBe(DISCLOSURE_VERSION);
+    expect(entry.disclosure_verified).toBe(true);
+    expect(entry.disclosure_text).toBe(DISCLOSURES[PURPOSES.MARKETING]);
+  });
+
+  test("an unarchived version withholds the text rather than substituting today's", async () => {
+    /* The failure this guards against is silent and plausible-looking: an entry
+       from an older wording rendered beside the current words, reading as proof
+       that somebody agreed to text they never saw. */
+    await grantConsent(knex, { profileId: PROFILE_ID, purpose: PURPOSES.MARKETING });
+    await knex(TABLE)
+      .where({ profile_id: PROFILE_ID })
+      .update({ disclosure_version: "2019-01-01" });
+
+    const [entry] = await consentHistory(knex, PROFILE_ID);
+    expect(entry.disclosure_version).toBe("2019-01-01");
+    expect(entry.disclosure_text).toBeNull();
+    expect(entry.disclosure_verified).toBe(false);
+  });
+
+  test("a hash that no longer matches withholds the text too", async () => {
+    // i.e. the archived wording was edited in place after the fact. The text is
+    // then no longer evidence of anything, so it is not shown as though it were.
+    await grantConsent(knex, { profileId: PROFILE_ID, purpose: PURPOSES.MARKETING });
+    await knex(TABLE)
+      .where({ profile_id: PROFILE_ID })
+      .update({ disclosure_hash: "0".repeat(64) });
+
+    const [entry] = await consentHistory(knex, PROFILE_ID);
+    expect(entry.disclosure_text).toBeNull();
+    expect(entry.disclosure_verified).toBe(false);
+  });
+
+  test("the current version is archived, so today's grants are always verifiable", () => {
+    expect(DISCLOSURE_ARCHIVE[DISCLOSURE_VERSION]).toBeDefined();
+    for (const purpose of Object.values(PURPOSES)) {
+      expect(disclosureText(purpose, DISCLOSURE_VERSION)).toEqual(expect.any(String));
+    }
   });
 });
