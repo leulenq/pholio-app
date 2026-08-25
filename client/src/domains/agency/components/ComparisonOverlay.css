@@ -1,157 +1,291 @@
-/* Comp cards on a table.
-   Uniform column width, uniform row height, uniform crop — the layout is what
-   makes a glance across a row mean anything. Nothing is highlighted, bolded or
-   ordered by value: a table that quietly emphasises the tallest applicant is a
-   ranking with extra steps, and A1 forbids ranking. */
+/* ── Compare: comp cards on a table ─────────────────────────────────────────
+   An ink-deep room; each applicant a white paper card; every card locked to one
+   shared row grid so a glance across any row lands on the same field at the
+   same height.
 
-.cmp-scrim {
+   The whole design investment sits in MATERIAL rather than emphasis, because
+   emphasis is forbidden here: every conventional way to make a comparison feel
+   considered — highlight the delta, hero the leader, colour the outlier, sort by
+   a column — is a ranking with extra steps, and A1 rules them all out. Paper on
+   ink, a serif name, mono figures, one perfect grid. Luxury through sameness.
+
+   The ink ground is not a new invention: dossier.css already established the
+   deep-ink plate as the agency's review register. Compare is the same register
+   for several people at once. */
+
+.cmp {
+  --cmp-ink: #141210;
+  --cmp-on-ink: #f6f1e8;
+  --cmp-on-ink-2: rgba(246, 241, 232, 0.72);
+  --cmp-on-ink-3: rgba(246, 241, 232, 0.52);
+  --cmp-on-ink-rule: rgba(246, 241, 232, 0.14);
+  --cmp-row: 36px;
+
   position: fixed;
   inset: 0;
   z-index: 60;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(16px, 4vw, 48px);
-  /* Full-screen functional scrim — the one place blur is permitted. */
-  background: rgba(26, 24, 21, 0.5);
-  backdrop-filter: blur(3px);
+  flex-direction: column;
+  background: var(--cmp-ink);
+  animation: cmp-room-in 150ms var(--ag-ease, cubic-bezier(0.4, 0, 0.2, 1));
 }
 
-.cmp-sheet {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 1180px;
-  max-height: 90vh;
-  background: var(--ag-surface-1, #FFFFFF);
-  border-radius: 8px;
-  box-shadow: 0 24px 64px rgba(26, 24, 21, 0.28);
-  overflow: hidden;
-}
+@keyframes cmp-room-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Head ───────────────────────────────────────────────────────────────── */
 
 .cmp-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 18px 22px 14px;
-  border-bottom: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+  gap: 24px;
+  padding: 20px clamp(20px, 4vw, 56px) 18px;
+  border-bottom: 1px solid var(--cmp-on-ink-rule);
 }
 
-.cmp-title {
+.cmp-masthead {
   margin: 0;
-  font-family: var(--ag-font-display, 'Playfair Display', Georgia, serif);
-  font-size: 21px;
+  margin-right: auto;
+  font-family: var(--ag-font-display);
+  font-size: 1.5rem;
   font-weight: 500;
-  color: var(--ag-text-0, #1A1815);
+  color: var(--cmp-on-ink);
+}
+
+/* One control, every card. Mixed crops across cards is precisely the
+   non-uniformity the spec exists to prevent, so the switch is global by
+   construction rather than by discipline. */
+.cmp-slots { display: flex; gap: 2px; }
+
+.cmp-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--ag-font-body);
+  font-size: 0.8125rem;
+  color: var(--cmp-on-ink-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--ag-radius-sm);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: color 150ms var(--ag-ease), border-color 150ms var(--ag-ease);
+}
+.cmp-slot:hover { color: var(--cmp-on-ink); }
+.cmp-slot.is-on {
+  color: var(--cmp-on-ink);
+  /* Gold's whole budget on this surface: the active slot and focus. Nothing
+     else is pointed at, which is the point. */
+  border-color: var(--ag-gold);
+}
+.cmp-slot-key {
+  font-family: var(--ag-font-mono);
+  font-size: 0.625rem;
+  color: var(--cmp-on-ink-3);
 }
 
 .cmp-close {
   display: inline-flex;
-  padding: 6px;
-  color: var(--ag-text-2, #6B6560);
+  padding: 7px;
+  color: var(--cmp-on-ink-2);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--ag-radius-sm);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 150ms var(--ag-ease), border-color 150ms var(--ag-ease);
 }
-.cmp-close:hover { border-color: var(--ag-rule); color: var(--ag-text-0); }
+.cmp-close:hover { color: var(--cmp-on-ink); border-color: var(--cmp-on-ink-rule); }
 
-.cmp-state,
-.cmp-note {
+.cmp :focus-visible { outline: 2px solid var(--ag-gold); outline-offset: 2px; }
+
+.cmp-state {
   margin: 0;
-  padding: 22px;
+  padding: 40px clamp(20px, 4vw, 56px);
   font-family: var(--ag-font-body);
-  font-size: 13px;
-  color: var(--ag-text-2, #6B6560);
-}
-.cmp-note { padding-top: 4px; max-width: 72ch; }
-
-/* Wide content scrolls in here, never the page. */
-.cmp-scroll { overflow: auto; padding: 4px 22px 22px; }
-
-.cmp-table { border-collapse: collapse; width: 100%; }
-
-.cmp-caption {
-  caption-side: top;
-  text-align: left;
-  padding: 12px 0;
-  font-family: var(--ag-font-body);
-  font-size: 12px;
-  color: var(--ag-text-3, #8A847C);
+  font-size: 0.875rem;
+  color: var(--cmp-on-ink-2);
 }
 
-.cmp-rowhead-col { width: 108px; }
+/* ── The table ──────────────────────────────────────────────────────────── */
 
-.cmp-col-head {
-  /* Identical width for every applicant: the comparison depends on it. */
-  width: 168px;
-  min-width: 168px;
-  padding: 8px 10px 12px;
-  text-align: left;
-  vertical-align: bottom;
-  border-bottom: 1px solid var(--ag-rule, rgba(26, 24, 21, 0.14));
+.cmp-room {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: clamp(20px, 3vw, 40px) clamp(20px, 4vw, 56px) 56px;
 }
 
-.cmp-name {
-  display: block;
+/* Subgrid is load-bearing: it makes identical row rhythm structural rather than
+   a coincidence of matching content heights. */
+.cmp-table {
+  display: grid;
+  grid-template-columns: 118px repeat(var(--cmp-n, 2), minmax(212px, 320px));
+  grid-template-rows:
+    [name] auto [frame] auto [strip] auto
+    repeat(12, [field] var(--cmp-row)) [foot] auto;
+  gap: 0 16px;
+  /* Two cards sit centred and generous; six compress and scroll. */
+  justify-content: center;
+  min-width: min-content;
+}
+
+.cmp-rail,
+.cmp-card {
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: subgrid;
+}
+
+.cmp-rail {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--cmp-ink);
+  align-items: center;
+}
+
+.cmp-rail-label {
   font-family: var(--ag-font-body);
-  font-size: 13.5px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--ag-text-0, #1A1815);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cmp-on-ink-3);
+  white-space: nowrap;
+  padding-right: 14px;
+}
+
+/* ── The card ───────────────────────────────────────────────────────────── */
+
+.cmp-card {
+  background: var(--ag-surface-1, #ffffff);
+  border-radius: var(--ag-radius-sm);
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  animation: cmp-card-in 160ms var(--ag-ease) backwards;
+  /* Selection order, left to right — "your cards, in your order". */
+  animation-delay: calc(var(--cmp-i, 0) * 30ms);
+}
+
+@keyframes cmp-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.cmp-card-name { padding: 14px 14px 12px; }
+
+/* A deliberate bend of "no serif below masthead": the name is not data and not
+   a cell — it is the card's own masthead, one per card, identical on every card,
+   and it is the single typographic move that makes a column read as a comp card
+   instead of a spreadsheet stripe. */
+.cmp-name {
+  margin: 0;
+  font-family: var(--ag-font-display);
+  font-size: 1.1875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ag-text-0);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.cmp-age {
-  display: block;
-  margin-top: 2px;
+.cmp-meta {
+  margin: 3px 0 0;
   font-family: var(--ag-font-body);
-  font-size: 11.5px;
-  color: var(--ag-text-3, #8A847C);
+  font-size: 0.75rem;
+  color: var(--ag-text-3);
 }
 
-.cmp-rowhead {
-  padding: 9px 12px 9px 0;
-  text-align: left;
-  font-family: var(--ag-font-body);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ag-text-3, #8A847C);
-  white-space: nowrap;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--ag-rule-soft, rgba(26, 24, 21, 0.07));
-}
-
-.cmp-cell {
-  padding: 9px 10px;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--ag-rule-soft, rgba(26, 24, 21, 0.07));
-}
-.cmp-cell--frame { padding: 10px; }
-
-.cmp-value {
-  font-family: var(--ag-font-body);
-  font-size: 13.5px;
-  font-variant-numeric: lining-nums tabular-nums;
-  color: var(--ag-text-0, #1A1815);
-}
-.cmp-unit { font-size: 11.5px; color: var(--ag-text-3, #8A847C); }
-
-/* Same crop for every frame — an inconsistent aspect makes two bodies
-   incomparable no matter how well the rest lines up. */
+/* Printed to the card's edge: the card is the object, the photo is on it. */
 .cmp-frame {
   display: block;
   width: 100%;
   aspect-ratio: 3 / 4;
   object-fit: cover;
-  background: var(--ag-surface-2, rgba(26, 24, 21, 0.04));
-  border-radius: 3px;
+  background: var(--ag-surface-2, rgba(26, 24, 21, 0.05));
+  transition: opacity 150ms var(--ag-ease);
 }
-.cmp-frame--empty { border: 1px dashed var(--ag-rule, rgba(26, 24, 21, 0.14)); }
+
+.cmp-frame--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ag-font-body);
+  font-size: 0.75rem;
+  color: var(--ag-text-3);
+}
+
+.cmp-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 10px 14px 12px;
+}
+
+.cmp-thumb {
+  padding: 0;
+  aspect-ratio: 3 / 4;
+  background: var(--ag-surface-2, rgba(26, 24, 21, 0.05));
+  border: 0;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 150ms var(--ag-ease);
+}
+.cmp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cmp-thumb.is-on { border-bottom-color: var(--ag-gold); }
+.cmp-thumb-empty { display: block; width: 100%; height: 100%; }
+
+/* ── Figures ────────────────────────────────────────────────────────────── */
+
+.cmp-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 14px;
+  /* The rule runs through empty cells too, so a blank reads as a place a value
+     would be rather than as broken layout. */
+  border-top: 1px solid var(--ag-rule-soft, rgba(26, 24, 21, 0.07));
+}
+
+.cmp-value {
+  font-family: var(--ag-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ag-text-0);
+}
+
+.cmp-unit,
+.cmp-sub {
+  font-family: var(--ag-font-body);
+  font-size: 0.6875rem;
+  color: var(--ag-text-3);
+}
+.cmp-sub::before { content: '·'; margin-right: 5px; }
+
+.cmp-card-foot { padding: 0 14px; }
+.cmp-card-foot:not(:empty) { padding: 12px 14px 14px; }
+
+.cmp-withheld {
+  margin: 0;
+  font-family: var(--ag-font-body);
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--ag-text-2);
+}
+
+/* The finger run across the table: the whole row tints, never one cell, so it
+   aids scanning without emphasising any applicant. */
+@media (hover: hover) {
+  .cmp-card:hover .cmp-figure:hover,
+  .cmp-figure:hover { background: rgba(26, 24, 21, 0.04); transition: background 120ms var(--ag-ease); }
+}
+
+.cmp-card--skeleton { opacity: 0.5; }
+.cmp-card--skeleton .cmp-card-name,
+.cmp-card--skeleton .cmp-strip,
+.cmp-card--skeleton .cmp-figure { background: var(--ag-surface-2, rgba(26, 24, 21, 0.05)); }
 
 .cmp-sr {
   position: absolute;
@@ -163,7 +297,14 @@
   border: 0;
 }
 
-@media (max-width: 640px) {
-  .cmp-scrim { padding: 0; }
-  .cmp-sheet { max-height: 100vh; border-radius: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .cmp, .cmp-card { animation: none; }
+  .cmp-frame, .cmp-thumb, .cmp-slot, .cmp-close, .cmp-figure { transition: none; }
+}
+
+@media (max-width: 720px) {
+  .cmp-head { gap: 12px; padding: 14px 16px; flex-wrap: wrap; }
+  .cmp-masthead { font-size: 1.25rem; }
+  .cmp-room { padding: 16px; }
+  .cmp-table { grid-template-columns: 92px repeat(var(--cmp-n, 2), minmax(180px, 240px)); }
 }

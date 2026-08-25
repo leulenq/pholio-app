@@ -58,10 +58,16 @@ describe('ComparisonOverlay', () => {
 
     await waitFor(() => expect(screen.getByText('Ada Editorial')).toBeInTheDocument());
     expect(screen.getByText('Bo Runway')).toBeInTheDocument();
-    // Row headers exist once each — the fields are the table's spine.
-    expect(screen.getByRole('rowheader', { name: 'Height' })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: 'Waist' })).toBeInTheDocument();
-    expect(screen.getByRole('rowheader', { name: 'Full length' })).toBeInTheDocument();
+
+    // The guarantee is that field labels exist ONCE, on the rail, rather than
+    // being repeated per card — that is what makes every card's rows the same
+    // rows. (They live on the rail now; the surface is cards on a grid, not a
+    // <table>, so this asserts the invariant rather than the old markup.)
+    expect(screen.getByText('Height')).toBeInTheDocument();
+    expect(screen.getByText('Waist')).toBeInTheDocument();
+    // Both applicants render every field row, so the count of value cells is a
+    // multiple of the field count — uniformity, structurally.
+    expect(screen.getAllByText(/not given/i).length).toBeGreaterThan(0);
   });
 
   test('a missing measurement is blank, never a dash or a zero', async () => {
@@ -79,7 +85,10 @@ describe('ComparisonOverlay', () => {
     expect(screen.getByText('Not given')).toBeInTheDocument();
   });
 
-  test('says outright that nothing is ranked', async () => {
+  test('states to assistive tech that nothing is ranked, without printing a disclaimer', async () => {
+    /* The visible caption was cut deliberately: a surface that announces its own
+       even-handedness reads as a disclaimer, and the uniformity demonstrates it.
+       The claim still has to be made to anyone who cannot see the layout. */
     compareApplications.mockResolvedValue({
       fields: FIELDS,
       slots: SLOTS,
@@ -87,8 +96,36 @@ describe('ComparisonOverlay', () => {
     });
     renderOverlay();
 
-    await waitFor(() =>
-      expect(screen.getByText(/Nothing here is ranked/i)).toBeInTheDocument(),
+    await waitFor(() => expect(screen.getByText('Ada')).toBeInTheDocument());
+    const dialog = screen.getByRole('dialog');
+    const described = document.getElementById(
+      dialog.getAttribute('aria-describedby'),
+    );
+    expect(described.textContent).toMatch(/nothing is ranked/i);
+    expect(described.textContent).toMatch(/identical fields and crops/i);
+  });
+
+  test('one control switches the frame on every card at once', async () => {
+    // Mixed crops across cards is the exact non-uniformity the spec exists to
+    // prevent, so the control is global by construction.
+    compareApplications.mockResolvedValue({
+      fields: FIELDS,
+      slots: SLOTS,
+      records: [record('a1', 'Ada'), record('a2', 'Bo')],
+    });
+    const user = userEvent.setup();
+    renderOverlay();
+
+    await waitFor(() => expect(screen.getByText('Ada')).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /^Full length/ }));
+
+    expect(screen.getByRole('button', { name: /^Full length/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: /^Headshot/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
     );
   });
 
