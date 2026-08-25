@@ -202,6 +202,24 @@ const uploadAgencyLogo = multer({
  * @param {Object} [passedOptions] - Optional options if identifier is string
  * @returns {Promise<{path: string, storageKey: string, publicUrl: string, absolutePath: string|null, deliveryMimeType?: string, deliverySizeBytes?: number, deliveryWidthPx?: number|null, deliveryHeightPx?: number|null}>}
  */
+/**
+ * An upload that could not be processed.
+ *
+ * `status = 422` so the central error handler answers with "we could not use
+ * this file" rather than "something broke" — the request was well-formed, the
+ * file was not usable, and those deserve different words. `cause` keeps the
+ * underlying sharp/R2 error for the logs without putting it in front of a user.
+ */
+class ImageProcessingError extends Error {
+  constructor(message, cause) {
+    super(message);
+    this.name = "ImageProcessingError";
+    this.status = 422;
+    this.code = "IMAGE_PROCESSING_FAILED";
+    this.cause = cause;
+  }
+}
+
 async function processImage(file, identifierOrOptions, passedOptions = {}) {
   let id = "unknown";
   let type = "profiles";
@@ -372,20 +390,53 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       processedBuffer,
     };
   } catch (err) {
-    console.error("[Uploader] Error processing image:", err.message, {
+    /*
+     * FAIL CLOSED. This used to swallow every error and return a success-shaped
+     * object pointing at the ORIGINAL file, which is wrong in three ways and
+     * silent in all of them:
+     *
+     * 1. The webp re-encode is what strips EXIF. Serving the original means
+     *    serving whatever the camera wrote into it — including GPS
+     *    coordinates, on photographs of a person, frequently a minor. There is
+     *    no version of that which is an acceptable degraded mode.
+     * 2. No caller could tell processing had failed, because the return shape
+     *    was indistinguishable from success. `deliveryWidthPx`,
+     *    `deliverySizeBytes` and `imageIntel` simply arrived null, and the
+     *    composition engine quietly worked from nothing.
+     * 3. On a buffered upload the original was never actually written to R2 —
+     *    the PutObject calls live further down this same try block — so the
+     *    "fallback" URL pointed at a key that does not exist.
+     *
+     * Moderation is not the reason for this change; `analyzeImageBuffer`
+     * already returns REVIEW on a missing buffer, so the CSAM path was
+     * defended. The reason is the metadata leak and the silence.
+     *
+     * 422 rather than 500: the request was well-formed, the file was not
+     * usable. The caller sees a real failure and the talent is told to try a
+     * different file, which is the honest outcome.
+     */
+    console.error("[Uploader] Image processing failed — refusing the upload:", {
+      message: err.message,
       key: file.key,
       hasBuffer: Boolean(file.buffer?.length),
       mimetype: file.mimetype,
+      stack: err.stack,
     });
-    const fallbackUrl = isR2
-      ? r2PublicUrlForKey(originalKey)
-      : `/uploads/${file.filename}`;
-    return {
-      path: fallbackUrl,
-      storageKey: isR2 ? originalKey : null,
-      publicUrl: fallbackUrl,
-      absolutePath: isR2 ? null : file.path,
-    };
+
+    // Best-effort cleanup of the local temp file. A failed upload should not
+    // also leave litter, but a cleanup failure must not mask the real error.
+    if (!isR2 && file.path) {
+      try {
+        fs.unlinkSync(file.path);
+      } catch {
+        /* already gone, or never written */
+      }
+    }
+
+    throw new ImageProcessingError(
+      "That image could not be processed. It may be corrupt or in an unsupported format — try re-saving it as a JPEG or PNG and uploading again.",
+      err,
+    );
   }
 }
 
@@ -491,6 +542,7 @@ async function processAgencyLogo(
 module.exports = {
   upload,
   uploadAgencyLogo,
+  ImageProcessingError,
   processImage,
   processAgencyLogo,
   s3,

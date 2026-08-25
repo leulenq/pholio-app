@@ -2496,9 +2496,15 @@ router.post(
     try {
       processed = await processImage(req.file, image.profile_id);
     } catch (err) {
-      return res
-        .status(500)
-        .json({ success: false, message: "Failed to process uploaded file" });
+      // processImage now fails closed rather than handing back the unprocessed
+      // original, and it says why. Pass its own words and status through — "we
+      // could not use this file, try another" is actionable, where a blanket
+      // 500 tells the person nothing they can do anything about.
+      return res.status(err.status || 500).json({
+        success: false,
+        message:
+          err.status === 422 ? err.message : "Failed to process uploaded file",
+      });
     }
 
     // Track whether the current (pre-replace) file needs to be cleaned up after the DB update.

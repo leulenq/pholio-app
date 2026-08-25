@@ -73,7 +73,32 @@ const FORBIDDEN_VALUES = Object.freeze({
   portfolioSlug: "ada-lovelace-nyc",
   compCardSeed: "compcard-seed-9f21",
   bio: "Ada is represented in Milan and reachable on ada@example.test.",
-  weight: "58",
+  // A weight, but a distinctive one. This was "58", and a two-character
+  // sentinel substring-matched against a body full of crypto.randomUUID()s
+  // fails roughly one run in four purely by chance — ~9% of UUIDs contain
+  // "58", and `applicationId` is an allowlisted key, so one is always in
+  // there. A privacy test that cries wolf every fourth run is one somebody
+  // eventually mutes, and then it is protecting nothing.
+  weight: "58.4471",
+});
+
+/*
+ * The sentinels have to be long enough not to collide with the random ids in
+ * the payload, and nothing else enforces that — the assertion below is a
+ * substring search over the whole serialised body, so a short value silently
+ * becomes a coin flip rather than a test. Fail loudly at definition time
+ * instead of intermittently at assertion time.
+ */
+describe("the forbidden-value sentinels are usable as sentinels", () => {
+  test.each(Object.entries(FORBIDDEN_VALUES))(
+    "%s is distinctive enough to substring-match on",
+    (label, value) => {
+      expect(typeof value).toBe("string");
+      // Six characters of non-hex-collidable text. A UUID is 32 hex digits, so
+      // anything shorter than this can and does turn up in one by accident.
+      expect(value.length).toBeGreaterThanOrEqual(6);
+    },
+  );
 });
 
 function submissionPayload({ profileId, extra = {} }) {
