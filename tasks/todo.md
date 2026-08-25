@@ -248,3 +248,25 @@ The verification mapping does not depend on this. Four verifications are mapped
 and live against the applications-bearing rows; the empty twins simply render no
 verification, which is what they rendered before.
 
+## Trust-registry mapping — decisions taken 2026-08-24
+
+**Elite: MAPPED.** The criterion used for every other entry is organizationId ->
+the agency row of that name, and by that criterion Elite is unambiguous:
+`elite-model-management` -> the "Elite Model Management" row. Worth noting the
+criterion is NOT legal-name matching — The Society Management maps to "SCTY
+Management, LLC", an entirely different registered name — so requiring Elite's
+domains to line up would have been a stricter test than any other entry passed.
+The `elitemodel.com` on the agency row matches neither spec and is seed-data
+noise, not evidence of a distinct entity. What is asserted is "Elite Model
+Management holds NY DOL registration 26-69YIX-LSFW", which the register says.
+
+**Muse: DEFERRED, on purpose.** Muse has a live certificate and an active call
+window but no `agencies` row. Creating one by hand would mean hand-inserting a
+reference agency into production — which is exactly the operation that produced
+the eight duplicate rows nobody can account for. Muse belongs to the dedupe
+work: find the process that creates reference agencies, fix it, and let it
+create Muse. Its call window already renders regardless, since that path never
+needed an agency link.
+
+Five of six verifications now render. Muse renders nothing, which is the
+designed behaviour for an unmatched agency (never "unverified").
