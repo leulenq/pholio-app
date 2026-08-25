@@ -17,5 +17,6 @@ router.use(require("./activity"));
 router.use(require("./open-call"));
 router.use(require("./events"));
 router.use(require("./spec-builder"));
+router.use(require("./export-webhook"));
 
 module.exports = router;

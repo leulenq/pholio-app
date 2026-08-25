@@ -36,6 +36,9 @@ const {
 const logActivity = require("../../agency/routes/agency-log-activity");
 const { v4: uuidv4 } = require("uuid");
 const {
+  dispatchSubmission,
+} = require("../../agency/services/export-webhook-dispatch");
+const {
   findInvitation,
   latestInvitationForProfile,
 } = require("../../agency/services/agency-invitations");
@@ -1933,6 +1936,21 @@ router.post(
     } catch (notifyErr) {
       console.error("[Applications] Agency notification failed:", notifyErr);
     }
+
+    /* Export hand-off (plan §9.4): push the submission into whatever the agency
+       already uses, so Pholio does not become the second inbox. Deliberately
+       not awaited into the response — the delivery swallows its own failures,
+       but it must not add an agency's endpoint latency to the talent's send. */
+    dispatchSubmission(knex, {
+      agencyId,
+      application: {
+        id: applicationId,
+        status: "pending",
+        created_at: new Date().toISOString(),
+        profile_id: profile.id,
+      },
+      profile,
+    }).catch(() => {});
 
     res.json({ success: true, id: applicationId });
   }),

@@ -34,6 +34,19 @@ const ROUTE_PERMISSION_RULES = [
     pattern: /^\/api\/agency\/settings$/,
     permission: "org.edit_settings",
   },
+  // The export webhook decides where submissions are pushed, so it is settings
+  // in the same sense the response window is — an org-level configuration, not
+  // an applicant action.
+  {
+    method: "PUT",
+    pattern: /^\/api\/agency\/export-webhook$/,
+    permission: "org.edit_settings",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/agency\/export-webhook$/,
+    permission: "org.edit_settings",
+  },
   {
     method: "POST",
     pattern: /^\/api\/agency\/onboarding\/complete$/,
