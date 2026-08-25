@@ -290,3 +290,23 @@ The export webhook panel stops reporting "briefly unavailable" now its table
 exists.
 
 Restore point from batch 19 (`pre-migration-batch19-2026-08-24`) is retained.
+
+### BATCH 21 APPLIED TO PRODUCTION — 2026-08-25
+
+`20260825090000_likeness_consents` and `20260825100000_stripe_webhook_events`.
+Rehearsed on `rehearse-batch21-2026-08-25` (br-small-glade-a47ka6fh): migrate,
+rollback, re-apply — clean round-trip, row counts identical.
+
+Eight functional checks against real Postgres: marketing consent grants and
+grants nothing about AI replica; a replica grant without its statutory terms is
+refused with the Fashion Workers Act message; withdrawal takes effect; the
+ledger is append-only and ordered by sequence; a duplicate Stripe event is
+refused; and an older event is refused as stale — the guard that stops a
+cancelled subscription being resurrected.
+
+Production: 228 migrations, batch 21.
+
+Note on ordering: the code shipped BEFORE these migrations, which is the safe
+direction — both services carry deploy-before-migrate guards, so reads denied
+and writes refused loudly rather than 500ing. The reverse (batch 19) is what
+briefly left deployed code selecting a dropped column.
