@@ -51,6 +51,19 @@ Pholio has separate dashboard instruction and design files. Before editing a das
 
 Do not average the talent and agency systems into one generic dashboard language. If a shared component is used by both dashboards, preserve the intentional differences documented in both domain design files.
 
+## Product Language
+
+`.claude/skills/pholio-app-language/` is this repo's versioned language
+system and the authority on all user-facing wording in the product: labels,
+errors, empty states, consent, statuses, notifications, emails, plan copy.
+Invoke it before writing or reviewing any user-facing string. Marketing
+language must not leak into functional UI (the skill defines the tests).
+On industry domain truth it defers to the `industry` skill; marketing-site
+copy belongs to `pholio-site`'s `pholio-site-language` skill. The skill's
+`references/` shared layer is kept byte-identical with
+`pholio-site/.claude/skills/pholio-site-language/`; edit both copies
+together.
+
 ## AI Agent Operating Rule (GLOBAL — all agents)
 
 **Mandatory for Claude, Cursor, Codex, and any future coding agent.**  
