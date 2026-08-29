@@ -2,9 +2,21 @@
   "$schema": "./schemas/manifest.schema.json",
   "schemaVersion": "1.0.0",
   "taxonomyVersion": "1.0.0",
-  "datasetVersion": "2026.08.19.1",
-  "publishedOn": "2026-08-19",
+  "datasetVersion": "2026.08.29.1",
+  "publishedOn": "2026-08-29",
   "records": [
+    {
+      "seriesId": "bicoastal:online",
+      "currentRevisionId": "bicoastal:online@1",
+      "path": "specs/bicoastal-online--r1.json",
+      "status": "verified"
+    },
+    {
+      "seriesId": "curv:online",
+      "currentRevisionId": "curv:online@1",
+      "path": "specs/curv-online--r1.json",
+      "status": "verified"
+    },
     {
       "seriesId": "elite-models-na:online-general",
       "currentRevisionId": "elite-models-na:online-general@1",
@@ -24,9 +36,33 @@
       "status": "provisional"
     },
     {
+      "seriesId": "jag:online",
+      "currentRevisionId": "jag:online@1",
+      "path": "specs/jag-online--r1.json",
+      "status": "verified"
+    },
+    {
       "seriesId": "muse-model-management-nyc:email",
       "currentRevisionId": "muse-model-management-nyc:email@1",
       "path": "specs/muse-model-management-nyc-email--r1.json",
+      "status": "verified"
+    },
+    {
+      "seriesId": "one-management:online",
+      "currentRevisionId": "one-management:online@1",
+      "path": "specs/one-management-online--r1.json",
+      "status": "verified"
+    },
+    {
+      "seriesId": "q-management:online",
+      "currentRevisionId": "q-management:online@1",
+      "path": "specs/q-management-online--r1.json",
+      "status": "verified"
+    },
+    {
+      "seriesId": "state:online",
+      "currentRevisionId": "state:online@1",
+      "path": "specs/state-online--r1.json",
       "status": "verified"
     },
     {

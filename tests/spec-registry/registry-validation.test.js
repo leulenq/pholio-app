@@ -56,12 +56,12 @@ describe("Spec Registry v1 data package", () => {
 
   test("validates every schema and cross-record invariant", () => {
     expect(registry.summary).toEqual({
-      currentSeries: 6,
-      revisions: 6,
+      currentSeries: 12,
+      revisions: 12,
       taxonomyFields: 88,
       unknownFacts: 28,
     });
-    expect(registry.manifest.records).toHaveLength(6);
+    expect(registry.manifest.records).toHaveLength(12);
   });
 
   test("keeps public-source revisions reviewed but advisory", () => {
@@ -72,8 +72,14 @@ describe("Spec Registry v1 data package", () => {
       );
       expect(spec.review.method).toBe("dual_reviewer");
       expect(spec.review.reviewers).toHaveLength(2);
-      expect(spec.lifecycle.observedOn).toBe("2026-08-09");
-      expect(spec.lifecycle.reviewedOn).toBe("2026-08-09");
+      // The pack now carries two research vintages, so the assertion is the
+      // invariant rather than one date: a revision is observed on or before it
+      // is reviewed, and every evidence retrieval sits on or before the
+      // observation it supports.
+      expect(spec.lifecycle.observedOn <= spec.lifecycle.reviewedOn).toBe(true);
+      for (const evidence of spec.evidence) {
+        expect(evidence.retrievedOn <= spec.lifecycle.observedOn).toBe(true);
+      }
       if (spec.status === "verified") {
         expect(spec.lifecycle.nextReviewOn).not.toBeNull();
       }

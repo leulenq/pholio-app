@@ -1,0 +1,91 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "state:online",
+  "revisionId": "state:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": { "id": "state-management", "name": "State Management", "legalName": "State Artist Management LLC", "officialDomains": ["statemgmt.com"] },
+    "office": { "id": null, "name": null },
+    "market": { "kind": "country", "code": "us", "countryCodes": ["US"], "city": null },
+    "channel": { "id": "state-become-a-model-form", "type": "official_web_form", "url": "https://www.statemgmt.com/become-a-model" },
+    "divisions": { "mode": "unspecified", "values": [] },
+    "applicantTracks": { "mode": "unspecified", "values": [] },
+    "evidenceIds": ["state-become-a-model-form-dom", "state-become-a-model-instructions", "state-about"]
+  },
+  "lifecycle": { "observedOn": "2026-08-19", "effectiveFrom": null, "effectiveUntil": null, "reviewedOn": "2026-08-29", "nextReviewOn": "2026-11-17" },
+  "rules": {
+    "shots": {
+      "count": { "minimum": 4, "maximum": 4, "basis": "explicit_text", "evidenceIds": ["state-become-a-model-instructions", "state-become-a-model-form-dom"] },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        { "id": "close-up", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "UPLOAD CLOSE-UP *", "match": { "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null }, "appliesWhen": null, "evidenceIds": ["state-become-a-model-form-dom"], "matchability": "hybrid" },
+        { "id": "waist-up", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "UPLOAD WAIST-UP *", "match": { "field": "shot.frame", "operator": "equals", "value": "waist_up", "unit": null }, "appliesWhen": null, "evidenceIds": ["state-become-a-model-form-dom"], "matchability": "hybrid" },
+        { "id": "full-length", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "UPLOAD FULL-LENGTH *", "match": { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null }, "appliesWhen": null, "evidenceIds": ["state-become-a-model-form-dom"], "matchability": "hybrid" },
+        { "id": "three-quarter-profile", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "UPLOAD 3/4 PROFILE *", "match": { "all": [{ "field": "shot.frame", "operator": "equals", "value": "three_quarter_length", "unit": null }, { "field": "shot.view", "operator": "equals", "value": "profile", "unit": null }] }, "appliesWhen": null, "evidenceIds": ["state-become-a-model-form-dom"], "matchability": "hybrid" }
+      ]
+    },
+    "setWide": [
+      { "id": "natural-daylight", "modality": "encouraged", "basis": "explicit_text", "constraint": { "field": "capture.lighting", "operator": "equals", "value": "natural_light", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "Digitals shot in natural daylight (not direct sunlight)", "evidenceIds": ["state-become-a-model-instructions"], "matchability": "hybrid" },
+      { "id": "no-makeup", "modality": "encouraged", "basis": "explicit_text", "constraint": { "field": "appearance.makeup_level", "operator": "equals", "value": "none", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "with no makeup", "evidenceIds": ["state-become-a-model-instructions"], "matchability": "hybrid" },
+      { "id": "hair-down", "modality": "encouraged", "basis": "explicit_text", "constraint": { "field": "appearance.hair_state", "operator": "equals", "value": "down", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "hair down", "evidenceIds": ["state-become-a-model-instructions"], "matchability": "hybrid" },
+      { "id": "neutral-face", "modality": "encouraged", "basis": "explicit_text", "constraint": { "field": "expression.style", "operator": "equals", "value": "neutral", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "and neutral face", "evidenceIds": ["state-become-a-model-instructions"], "matchability": "hybrid" }
+    ],
+    "files": [],
+    "eligibility": [
+      { "id": "independent-application-age", "modality": "required", "basis": "explicit_text", "constraint": { "field": "applicant.age_years", "operator": "gte", "value": 18, "unit": "year" }, "appliesWhen": null, "sourceLabel": "You must be 18 years of age or older to submit a talent application independently.", "evidenceIds": ["state-privacy-age-requirement"], "matchability": "automatic" },
+      { "id": "under-18-guardian-consent", "modality": "required", "basis": "explicit_text", "constraint": { "field": "guardian.written_consent", "operator": "equals", "value": true, "unit": null }, "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" }, "sourceLabel": "For applicants under 18, we require written parental or guardian consent before processing the application. Please contact us at scouting@statemgmt.com for the appropriate consent form.", "evidenceIds": ["state-privacy-age-requirement"], "matchability": "manual_confirmation" }
+    ],
+    "applicationFields": [
+      { "id": "gender", "field": "applicant.gender", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Gender*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "first-name", "field": "applicant.first_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "First Name*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "last-name", "field": "applicant.last_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Last Name*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "date-of-birth", "field": "applicant.date_of_birth", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Date of Birth*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "city", "field": "contact.city", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "City*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "state", "field": "contact.state_region", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "State*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "country", "field": "contact.country", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Country*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "phone", "field": "contact.phone", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Phone*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "email", "field": "contact.email", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Email*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "height", "field": "measurements.height", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Height*", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "bust", "field": "measurements.bust", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Bust", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "waist", "field": "measurements.waist", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Waist", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "hips", "field": "measurements.hips", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Hips", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "shoe", "field": "measurements.shoe_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Shoe", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "instagram", "field": "social.instagram", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Instagram", "evidenceIds": ["state-become-a-model-form-dom"] },
+      { "id": "tiktok", "field": "social.tiktok", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "TikTok", "evidenceIds": ["state-become-a-model-form-dom"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "scope.receiving_office", "appliesWhen": null, "reason": "not_published", "note": "State publishes offices in New York, Chicago and Los Angeles; one form serves them all and has no office field.", "evidenceIds": ["state-about"] },
+    { "fact": "scope.destination_markets", "appliesWhen": null, "reason": "not_published", "note": "The About page describes divisions from kids to classic, petite to plus, fit and lifestyle. The form has no division field; routing happens after review.", "evidenceIds": ["state-become-a-model-form-dom"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.clothing", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.accessories", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.color_mode", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": "The instruction asks for natural beauty to shine through, which is encouragement rather than a stated retouching rule.", "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.image_style", "appliesWhen": null, "reason": "not_published", "note": "Sample photographs are shown beside each slot; the page asks for those poses and publishes no styling text beyond the daylight, makeup, hair and expression line.", "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "presentation.image_quality", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-instructions"] },
+    { "fact": "files.mime_types", "appliesWhen": null, "reason": "ambiguous", "note": "The four photo inputs accept image/*, image/heic, image/heif: any image format, with HEIC and HEIF named rather than filtered out. No format list is published, so none is asserted.", "evidenceIds": ["state-become-a-model-form-dom"] },
+    { "fact": "files.per_file_size", "appliesWhen": null, "reason": "not_published", "note": "No size limit appears on this form, in its markup or in its page text. State's separate Snapcast-hosted form does enforce 3MB per file, so silence here is not the same rule.", "evidenceIds": ["state-become-a-model-form-dom"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-form-dom"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["state-become-a-model-form-dom"] },
+    { "fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": "Height is required on the form and no floor, range or division minimum is published anywhere.", "evidenceIds": ["state-about"] },
+    { "fact": "application.guardian_fields", "appliesWhen": null, "reason": "conflicting", "note": "The privacy policy requires a guardian to submit for anyone under 18 and to request a written consent form from scouting@statemgmt.com. Neither of State's application channels contains a guardian field, and the kids route is published under three different addresses: scouting@ in the policy, kids@ on this form, and repmykid@ on the Snapcast form.", "evidenceIds": ["state-privacy-age-requirement"] },
+    { "fact": "application.unresolved_fields", "appliesWhen": null, "reason": "ambiguous", "note": "The measurement controls are custom comboboxes whose option lists are not readable from the markup, so their units are unknown. The form also carries two submit buttons and two reCAPTCHA fields, and whether that means a two-part submission was not established.", "evidenceIds": ["state-become-a-model-form-dom"] },
+    { "fact": "application.gated_fields", "appliesWhen": null, "reason": "source_access_limited", "note": "Submit-time validation, the confirmation state and any response were not observed, because reaching them requires submitting.", "evidenceIds": ["state-become-a-model-form-dom"] }
+  ],
+  "evidence": [
+    { "id": "state-become-a-model-instructions", "authority": "first_party_published", "publisher": "State Management", "url": "https://www.statemgmt.com/become-a-model", "title": "State Management - Become a Model", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "text_fragment", "value": "photo instructions above the upload slots" }, "excerpt": "Please submit four photos of yourself: close-up, waist-up, full-length, and 3/4 profile. Digitals shot in natural daylight (not direct sunlight) with no makeup, hair down, and neutral face are encouraged. We are looking for your natural beauty to shine through!", "archivedUrl": null, "contentHash": null },
+    { "id": "state-become-a-model-form-dom", "authority": "first_party_published", "publisher": "State Management", "url": "https://www.statemgmt.com/become-a-model", "title": "State Management - Become a Model", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "form_field", "value": "become-a-model form control dump: gender, first name, last name, birthday, city, state, country, phone, email, height, bust, waist, hips, shoe, instagram, tiktok, website, and the closeUp, waistUp, fullLength and threeQuarter uploads" }, "excerpt": "image/*, image/heic, image/heif", "archivedUrl": null, "contentHash": null },
+    { "id": "state-privacy-age-requirement", "authority": "first_party_published", "publisher": "State Management", "url": "https://www.statemgmt.com/privacy-policy", "title": "State Management - Privacy Policy", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "6.4 Age Requirement and Parental Consent" }, "excerpt": "You must be 18 years of age or older to submit a talent application independently. If you are under 18, your application must be submitted by a parent or legal guardian who accepts this Privacy Policy on your behalf. For applicants under 18, we require written parental or guardian consent before processing the application. Please contact us at scouting@statemgmt.com for the appropriate consent form.", "archivedUrl": null, "contentHash": null },
+    { "id": "state-about", "authority": "first_party_published", "publisher": "State Management", "url": "https://www.statemgmt.com/about", "title": "State Management - About", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "offices and divisions" }, "excerpt": "State management has offices in New York, Chicago and Los Angeles. Our image and main fashion model divisions span kids to classic and petite to plus size.", "archivedUrl": null, "contentHash": null }
+  ],
+  "review": { "authority": "first_party_published", "method": "dual_reviewer", "reviewers": [{ "id": "spec-registry-rebuild-lane-20260819", "reviewedOn": "2026-08-19" }, { "id": "normalization-review-20260829", "reviewedOn": "2026-08-29" }], "notes": "Normalized from the 2026-08-19 rebuild research, and scoped deliberately to State's own form. State runs a second application channel at statemgmt.getsnapcast.com/become-a-model that its own site never links to, and it is a different application: 3MB enforced per file, an accept list without HEIC, an account created inside the form, and Snapcast's terms rather than State's - including a perpetual, irrevocable, worldwide licence to the applicant's likeness. That channel is not published here as a series because this schema carries one channel per revision and the authored brief already sets the two side by side; it should get its own series and its own brief rather than inherit this one. No mime rule is asserted for this form: image/* with HEIC and HEIF named is a wildcard rather than a format list, so it is recorded as an ambiguous unknown and an export defaults to JPEG. The absence of a size cap here is recorded as unpublished, not as unlimited, and the unknown names the contrast with the Snapcast channel so neither number is read onto the other. The photo instruction is written as encouragement, so its four rules carry the encouraged modality rather than required. Two facts about State's own pages are recorded here rather than in the rules: the terms the form asks an applicant to accept are booking conditions written for clients, and the privacy policy gives two different addresses for the same office." }
+}

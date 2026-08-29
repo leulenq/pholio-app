@@ -29,14 +29,28 @@ export const checkedOn = '2026-08-19';
  * time (never present in the authored source — the authors write about an
  * agency, not about the registry's internal ids).
  *
- * Four entries already map onto a live registry series. The rest don't have
- * one yet; those get a `prospectiveSeriesId` instead so a future registry
+ * Ten entries map onto a live registry series. The remaining one doesn't have
+ * one yet; it gets a `prospectiveSeriesId` instead so a future registry
  * series can be wired to this copy by construction rather than by guesswork.
+ *
+ * The six added on 2026-08-29 took the ids this file already predicted for
+ * them (`<entry id>:online`), which is why each is a one-line addition rather
+ * than a rewrite. State is the exception worth knowing about: the agency runs
+ * a second, unlinked channel on Snapcast with different formats, a 3 MB cap
+ * and the platform's own terms, and `state:online` is State's own form only.
+ * The copy below sets the two side by side; a Snapcast series, if one is ever
+ * published, needs its own entry rather than this one.
  */
 const SERIES_ID_OVERRIDES = {
+  bicoastal: ['bicoastal:online'],
+  curv: ['curv:online'],
   'elite-na': ['elite-models-na:online-general'],
   ford: ['ford-models:selected-city-online'],
+  jag: ['jag:online'],
   'muse-nyc': ['muse-model-management-nyc:email'],
+  'one-management': ['one-management:online'],
+  'q-management': ['q-management:online'],
+  state: ['state:online'],
   wilhelmina: ['wilhelmina:selected-market-online'],
 };
 
