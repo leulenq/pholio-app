@@ -210,7 +210,7 @@ const RAW_ENTRIES = [
         ],
       },
       yourDetails:
-        'Contact details, date of birth, socials, and a measurement block that follows your gender selection — height, bust or chest, waist, hips, plus dress or suit and shoe sizes.',
+        'Contact details, date of birth, socials, and a measurement block that follows your gender selection: height, bust or chest, waist, hips, a dress or suit size, and your hair and eye colour.',
       whoTheyWant:
         "Ford publishes no height or measurement minimums. Boards and divisions are assigned by the agency after review — the form doesn't ask you to choose.",
       under18:

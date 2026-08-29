@@ -165,7 +165,7 @@ describe("Spec Registry persistence and publication", () => {
       datasetVersion: SHIPPED_VERSION,
     });
     expect(Number((await db("spec_registry_datasets").count("* as n").first()).n)).toBe(1);
-    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(12);
+    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(13);
     expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(12);
 
     const current = await getCurrentDataset(db);
@@ -186,7 +186,7 @@ describe("Spec Registry persistence and publication", () => {
     expect(runs.map((run) => run.status).sort()).toEqual(["succeeded", "unchanged"]);
     expect(JSON.parse(runs.find((run) => run.status === "succeeded").counts_json)).toMatchObject({
       currentSeries: 12,
-      revisions: 12,
+      revisions: 13,
     });
   });
 
@@ -204,7 +204,7 @@ describe("Spec Registry persistence and publication", () => {
       .pluck("dataset_version");
     expect(datasets).toEqual([SHIPPED_VERSION, LATER_VERSION]);
     expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(24);
-    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(12);
+    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(13);
     expect((await getCurrentDataset(db)).datasetVersion).toBe(LATER_VERSION);
   });
 

@@ -58,11 +58,19 @@ Still open from this package:
 
 - **Fashion Week Brooklyn** has no registry series (`fashion-week-brooklyn:event`
   is still prospective); its intake is event casting rather than representation.
-- **Muse, Wilhelmina, Elite and Ford** remain on their 2026-08-09 v1 revisions.
-  This research supersedes all four, and the Ford correction is the urgent one:
-  the published spec's canonical channel is the Snapcast form, while this pass
-  found the canonical NYC route is hosted on selectroom.app and that Snapcast
-  serves the Paris route. Each needs an r2.
+- **Ford is corrected.** `ford-models:selected-city-online@2` (2026-08-29)
+  replaces the channel the series named: revision 1 described the Snapcast form,
+  which fordmodels.com mounts for Paris alone, so the pack was pointing a New
+  York applicant at the wrong application. The canonical selectroom form brings
+  its own slots (close-up and full length required, side profile and upper body
+  not), JPEG and PNG, and no size cap — the 3MB figure belonged to Paris.
+  Paris itself is still unpublished: its accept string was never captured, which
+  is §2 step 6's open research gap.
+- **Muse, Wilhelmina and Elite** remain on their 2026-08-09 v1 revisions. This
+  research supersedes all three, though none carries a wrong-channel defect.
+- **Two v1-vintage entries name their slots after upload buttons** — IMG's read
+  "Upload Head Shot", The Society's "Please submit a close-up" — which is what an
+  exported file ends up named after. Worth fixing when they are re-normalized.
 - **IMG Models and The Society** are published but were dropped from this
   package's launch ten (§3 of `SELECTION.md`). Whether they stay published is a
   product decision, not a data one, and nothing has been delisted.

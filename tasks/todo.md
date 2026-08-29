@@ -108,12 +108,22 @@ What was left out, deliberately:
   written for the first. The authored brief already sets the two side by side.
 - **Fashion Week Brooklyn.** Event casting, not representation; its series is
   still prospective.
-- **Ford's r2 — the one that matters.** The published `ford-models` spec names
-  the Snapcast form as canonical. The 2026-08-19 research found the canonical
-  NYC route is hosted on selectroom.app and that Snapcast serves Paris, which
-  means the live pack currently points a New York applicant at the wrong form.
-  Elite, Wilhelmina and Muse are also superseded by that research but without a
-  wrong-channel defect. Four r2 revisions, Ford first.
+- **Ford's r2 — done 2026-08-29.** `ford-models:selected-city-online@2` moves
+  the series off the Snapcast form, which fordmodels.com mounts for Paris only:
+  the canonical route for New York, Chicago, LA, Miami and Barcelona is one
+  shared selectroom.app form. Two required slots and two not, JPEG and PNG, and
+  no published size cap — the 3MB the series carried was Paris's. The authored
+  brief had already been written from this research, so the correction closed a
+  gap between the copy and the registry rather than opening one; one sentence of
+  that copy listed a shoe-size field the form does not have, and is fixed.
+  Paris is not published: its accept string was never captured.
+  Elite, Wilhelmina and Muse are still on 2026-08-09 revisions and superseded by
+  the same research, without a wrong-channel defect. Three r2s remain.
+- **Slot labels are what exported files are named after.** State's read
+  "UPLOAD CLOSE-UP *" and CURV's was a whole instruction sentence; both now
+  carry the shot name, and required-marker asterisks are out of slot labels
+  since `modality` states requiredness. Two older entries still have this —
+  IMG ("Upload Head Shot") and The Society ("Please submit a close-up").
 - **IMG and The Society** stay published though `SELECTION.md` dropped them from
   the launch ten. Delisting is a product call; nothing was removed.
 - Facts the v1 schema cannot hold (ONE's video-link fields, per-channel legal
