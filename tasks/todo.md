@@ -46,3 +46,52 @@ The `industry` glossary lists "getting scouted" as a correct term while
 `decline-reasons.js`, `DigitalsFreshness.jsx`, the off-Pholio `HandoffScene`,
 Intel's `Withheld`/`NotYet`, the magic-link family, and the submission-decision
 email register.
+
+---
+
+# Industry alignment audit — pholio-app (2026-08-29)
+
+Full findings: `docs/audits/industry-alignment-audit-2026-08.md`
+
+## Plan
+- [x] Load `.claude/skills/industry` as the authority; read as the Booker
+- [x] Inventory 228 migrations and ~110 tables, then re-check for drops
+- [x] Four domain lanes: representation/roster; booking/casting/calendar; materials/stats; minors/rights/money
+- [x] Verify every absence against migrations and routers before calling it a gap
+- [x] Verify every P0 by hand; record claims that failed verification
+- [x] Deliver
+
+## Review
+
+Read-only. No product code changed.
+
+**Verdict:** the industry model is unusually good and much of it is not connected
+to anything. Failures are almost all one shape: a correct model with no write
+path, or a correct model the surface a user reads never consults.
+
+**Four P0s, all small diffs:**
+1. Every comp card prints "Direct Bookings" over the model's phone.
+   `partner_agency_id` is never written; `talent_representations` is never read
+   by the PDF path.
+2. A talent who declares "unavailable" is shown to agencies as "Available"
+   (`statusConfig.js:103` falls back to the most optimistic state).
+3. Two independent paths print a minor's bust/waist/hips (stale `profiles.age`
+   beating DOB; the digitals sheet having no kids branch, on an unauthenticated
+   route).
+4. The talent-facing shoe converter computes EU as `US x 2 + 31`, so US 9 shows
+   as EU 49 while the comp card correctly shows EU 40.
+
+**Structural:** the booking desk's removal is half-done. The product plan
+excludes options and calendars by design; August dropped `casting_briefs` and
+left `talent_commitments` plus its read path, view model and UI vocabulary. Fix
+is to finish the removal, not to build.
+
+**Two corrections to my own findings** (both recorded in the audit): I reported
+`commissions` as a vestigial table when it had already been dropped in July (my
+table inventory came from `createTable` greps and over-reports), and I first
+framed the booking desk as forgotten rather than deliberately removed, which
+would have produced exactly the wrong recommendation.
+
+**Four governing-document conflicts** need one owner decision each, including
+"Go-See Requested" — the trade word used backwards, which the language skill
+records as canon and which only this lens catches.
