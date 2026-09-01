@@ -904,3 +904,73 @@ Rules:
    today. Fetch it, or the two drift silently and nothing fails loudly.
 4. When reporting status, distinguish "server capability exists" from "a human can do this".
    They are different claims and only the second is what was asked.
+
+## 2026-08-27 — A "giant text, normal hairlines" screen is browser text zoom, not CSS
+
+- Symptom reported on newly built screens (Firefox, localhost:5173): all type renders
+  2–4× its designed size while hairline rules, boxes, and the desktop breakpoint stay
+  normal, with some text colliding or running off the right edge. No CSS in this repo can
+  produce that mix — page zoom scales everything uniformly; only **Firefox "Zoom Text
+  Only" (View → Zoom) combined with the per-site zoom Firefox remembers for the origin**
+  scales fonts while leaving px layout fixed. Confirmed by simulating it in Chrome
+  (multiply every element's computed font-size ×2): the screenshot signature reproduced
+  exactly, and the same page at default settings rendered at designed sizes.
+- It reads as "every new screen is broken" because the remembered zoom applies to the
+  whole origin, and Pholio's editorial register (9–13px mono micro-labels) balloons far
+  more visibly than ordinary 14–16px UI. Fix on the browser side: uncheck View → Zoom →
+  Zoom Text Only and press Cmd+0 on the site.
+- Engineering rule that survives this (WCAG 1.4.4, 200% text resize): dense chrome rows
+  (headers, verdict/action bars) must wrap or ellipsize under font inflation, never
+  collide or clip — use minmax(0, …) tracks with real column-gap, flex-wrap on
+  button rows, min-width: 0 + overflow-wrap on value cells. Verify new screens once with
+  a 2× font-size injection probe (loop all elements, multiply computed font-size), and
+  check nothing crosses `document.documentElement.clientWidth`.
+
+## 2026-08-27 — Blanket component resets must be :where()-wrapped or they curl underlines
+
+- The recurring "border around" artifact on new screens (a hairline underline whose ends
+  curl around rounded corners — e.g. under the review room's "The record" cue) is the
+  global.css pill bug reborn through specificity: a defensive blanket rule like
+  `.rv-room button { border-radius: 6px }` is (0,1,1) and silently beats every
+  single-class override like `.rv-record-cue { border-radius: 0 }` (0,1,0). Chrome and
+  Firefox both compute 6px; it just reads loudest on underline-style text buttons.
+- Rule: any blanket default applied to a component subtree by element type
+  (`.scope button`, `.scope input`, …) MUST be written `:where(.scope button)` so it has
+  zero specificity and every component rule wins. Verified fix by computing styles in a
+  real headless Firefox (`puppeteer.launch({ browser: 'firefox', executablePath:
+  '/Applications/Firefox.app/Contents/MacOS/firefox', userDataDir: <fresh> })` — a fresh
+  userDataDir is required while the user's Firefox is open).
+- Corollary: a shared :focus-visible rule must not set border-radius (it reshapes the
+  focused element's own corners); box-shadow rings already follow the element's radius.
+
+## 2026-08-27 — "Flat hierarchy" is not solved with cards; it is solved with type
+
+- Owner asked for hierarchy inside the review room ("too much pale text, everything blends").
+  First attempt reached for containers — a bordered/tinted measurements panel, a tinted
+  warnings box, and a large empty-state card replacing the digitals sheet. Owner rejected it
+  outright: it "feels like a conventional SaaS/admin interface rather than the editorial,
+  premium decision workspace", and named the three specific bans: no dashboard card for
+  measurements, no oversized alert boxes for warnings, no giant empty-state card where the
+  submission should be.
+- The instruments that DO work on an editorial surface, in order of reach:
+  1. **Ink levels with assigned jobs.** Four, not one: `ink` = findings/values,
+     `soft` = context, `faint` = provenance, `ghost` = absence. Flatness came from printing
+     almost everything at ~62%.
+  2. **Scale as the event.** One large figure (height at 32px) against 15px siblings makes
+     the block legible in a glance without a frame around it.
+  3. **Rules + space as grouping.** A hairline above a group and a wider gap between tiers
+     does what a card border does, without turning a reading into a widget.
+  4. **Colour on the finding, not the container.** A warning is rust *ink* on its label with
+     a rust hairline above the group; the sentence stays plain.
+  5. **Weight on what is actionable.** The one live action in a row (Request N missing) holds
+     600 while its neighbouring counts sit faint.
+- Absence must recede without being redesigned away: keep the sheet's composition and let
+  missing plates sink into the canvas (2% tint, ghost caption). Replacing the plates with a
+  panel hands the canvas to a notice about the thing instead of the thing.
+- Process note: a "role census" probe (query every element of each type role, collect
+  computed font/size/weight/tracking into a Set, assert one treatment per role) catches
+  drift that screenshots hide — it found `.rv-value` split across 12.5/13px and
+  `.rv-chrome-caps` split across two trackings.
+- Test-anchor trap: `findByText` on a string that also renders from the *row prop* fallback
+  (e.g. "General consideration") resolves before the query lands, so assertions run against a
+  half-loaded room. Anchor waits on data that can only exist post-payload.

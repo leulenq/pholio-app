@@ -411,7 +411,7 @@
   color: var(--ag-text-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ap-card-spec {
-  display: block; margin-top: 4px;
+  display: block; margin-top: 5px;
   font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ag-text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -463,6 +463,21 @@
   display: block; margin-top: 5px;
   font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ag-text-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------- THE SPEC LINE (discipline · place · identity notes) ----------
+   Shared by the card and the ledger row. The discipline is notation, not a
+   mark: an applicant holds no standing on a board, so it gets no container —
+   it leads the line on weight alone and then hands off to the quieter terms.
+   Colour cannot do this work here; --ag-text-2 and --ag-text-3 are ten points
+   of luminance apart. */
+.ap-spec-lead { font-weight: 600; color: var(--ag-text-2); }
+.ap-spec-part { font-weight: 400; }
+.ap-spec-sep {
+  margin: 0 5px;
+  /* Quieter than every term it divides, so it structures the line without
+     being read as content. Matches .ml__sep in the meta system. */
+  color: var(--ag-text-4); letter-spacing: 0;
 }
 .ap-applied { font-size: 11px; color: var(--ag-text-2); }
 .ap-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

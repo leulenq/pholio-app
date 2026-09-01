@@ -2051,12 +2051,12 @@
 
 .bookingLaneHead h4 {
   margin: 0;
-  font-family: 'Noto Serif Display', Georgia, serif;
-  font-size: 1.08rem;
-  font-weight: 300;
-  font-style: italic;
-  letter-spacing: 0;
-  color: var(--pf-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--pf-text-faint);
 }
 
 .bookingLaneHead span {

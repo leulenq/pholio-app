@@ -211,7 +211,11 @@
   color: #fff;
 }
 
-.tl-action-icon.is-active {
+/* `is-active` is the Messages nav-link on its own route; `is-open` is a flyout
+   trigger whose panel is showing. The bell had no `is-open` rule at all, so it
+   sat inert above its own open panel and the two read as unrelated things. */
+.tl-action-icon.is-active,
+.tl-action-icon.is-open {
   color: var(--tl-gold);
   background: rgba(201, 165, 90, 0.12);
 }
@@ -614,7 +618,8 @@
   color: #1A1A1A;
 }
 
-.tl-root--tone-light .tl-action-icon.is-active {
+.tl-root--tone-light .tl-action-icon.is-active,
+.tl-root--tone-light .tl-action-icon.is-open {
   color: var(--tl-gold);
   background: rgba(201, 165, 90, 0.14);
 }
@@ -849,10 +854,6 @@
     width: min(280px, calc(100vw - 32px));
   }
 
-  .tl-notifications-panel .nc-dropdown {
-    width: min(340px, calc(100vw - 24px));
-  }
-
   /* Reserve space above the fixed bottom tab bar (height + safe area) so
      content never renders underneath it. */
   .tl-content {
@@ -864,11 +865,19 @@
   }
 }
 
-/* ── Notifications flyout anchor ── */
+/* ── Signals flyout anchor ──────────────────────────────────────────────
+   Stretched to the full bar height for the same reason `.tl-account` is: the
+   panel hangs flush from the underside of the topbar rather than floating
+   below the 32px roundel. The panel owns its own width, shadow and corners
+   (`TalentSignalPanel.css`); nothing about its surface is decided here.
+   ───────────────────────────────────────────────────────────────────────── */
 .tl-notifications-container {
   position: relative;
-  display: inline-flex;
+  align-self: stretch;
+  display: flex;
   align-items: center;
+  height: 100%;
+  z-index: 30;
 }
 
 .tl-notifications-panel {
@@ -880,17 +889,15 @@
   z-index: 120;
 }
 
-/* ── Notifications flyout — warm panel on ink/cream topbars ── */
-.tl-notifications-panel .nc-dropdown {
-  width: min(340px, calc(100vw - 24px));
-  border-radius: 12px;
-  box-shadow:
-    0 22px 56px rgba(0, 0, 0, 0.28),
-    0 0 40px rgba(201, 165, 90, 0.12);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tl-notifications-panel .nc-dropdown {
-    animation: none;
+/* On mobile the bell is no longer the right-most control, so anchoring the
+   panel to it would hang the panel off the left of the screen. Below the
+   layout's own breakpoint it spans the viewport instead. */
+@media (max-width: 700px) {
+  .tl-notifications-panel {
+    position: fixed;
+    top: var(--tl-topbar-h);
+    right: 8px;
+    left: 8px;
+    width: auto;
   }
 }

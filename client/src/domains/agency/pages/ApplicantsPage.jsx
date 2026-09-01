@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight, ChevronDown, Columns3 } from 'lucide-react';
 import {
   getApplicants, getBoards, getCastingBoardPipeline,
   acceptApplication, shortlistApplication, declineApplication, bulkDeclineApplications,
   keepOnFileApplication, requestMoreApplication, getApplicationDetails,
+  requestMeetingApplication, offerDevelopmentApplication, updateCastingApplicationStage,
+  createNote,
   assignToBoard,
 } from '../api/agency';
 import BoardSelect from '../components/BoardSelect';
@@ -15,7 +17,7 @@ import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity'
 import ReviewRoom from '../components/review/ReviewRoom';
 import { DeclineReasonModal } from '../components/decline/DeclineReasonModal';
 import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, StatusCell } from '../components/ui';
-import { DivisionMark } from '../components/status';
+import { resolveDivision } from '../components/status';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
@@ -159,6 +161,39 @@ function identityMetaParts(a) {
   return parts;
 }
 
+/**
+ * The line under the name: discipline, then where they are, then the identity
+ * notes.
+ *
+ * The discipline is deliberately NOT a DivisionMark. A mark's rectangle exists
+ * to carry standing on a board (see meta-system.css: only a thing you hold
+ * standing in earns a container), and an applicant holds no standing yet — so
+ * every card in the book drew a dashed box around the same word, announcing
+ * "standing unknown" and out-weighing the name above it. A market descriptor
+ * is notation: it leads the line in slightly firmer ink, and nothing more.
+ */
+function SubmissionSpec({ a, className }) {
+  const discipline = resolveDivision(a.type || 'editorial').label;
+  const rest = [
+    a.city ? formatLocation(a.city) : null,
+    ...identityMetaParts(a),
+  ].filter(Boolean);
+
+  return (
+    <div className={className}>
+      <span className="ap-spec-lead">{discipline}</span>
+      {rest.map((part) => (
+        <React.Fragment key={part}>
+          {/* The separator is an element so it can be quieter than the terms
+              it divides, and out of the accessibility tree. */}
+          <span className="ap-spec-sep" aria-hidden="true">·</span>
+          <span className="ap-spec-part">{part}</span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 /** Multi-select checkbox affordance — a square control, not a status marker.
  *  Two grounds: 'ink' rides over card photos, 'paper' sits on the ledger row. */
 function PickButton({ name, picked, variant, onToggle }) {
@@ -268,13 +303,7 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
       <span className="ap-card-row">
         <span className="ap-card-name">{a.name}</span>
       </span>
-      <div className="ap-card-spec">
-        <DivisionMark division={a.type || 'editorial'} size="sm" />
-        {a.city ? <span className="ap-card-loc"> · {formatLocation(a.city)}</span> : null}
-        {identityMetaParts(a).map((part) => (
-          <span className="ap-card-loc" key={part}> · {part}</span>
-        ))}
-      </div>
+      <SubmissionSpec a={a} className="ap-card-spec" />
       <span className="ap-card-state">
         <Moment value={a.appliedAt} className="ap-card-when" />
         {!quietStatus && <StatusCell status={a.status} className="ap-card-status" />}
@@ -321,13 +350,7 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
       </span>
       <div className="ap-id">
         <span className="ap-name">{a.name}</span>
-        <div className="ap-meta">
-          <DivisionMark division={a.type || 'editorial'} size="sm" />
-          {a.city ? <span className="ap-loc"> · {formatLocation(a.city)}</span> : null}
-          {identityMetaParts(a).map((part) => (
-            <span className="ap-loc" key={part}> · {part}</span>
-          ))}
-        </div>
+        <SubmissionSpec a={a} className="ap-meta" />
       </div>
       <Moment value={a.appliedAt} className="ap-applied" />
       <span className="ap-status">
@@ -425,7 +448,20 @@ function ApplicationsPage({
       return 'book';
     }
   });
-  const [reviewId, setReviewId] = useState(null);
+  // The open review IS the URL (`?review=<applicationId>`): a pasted link
+  // hands a colleague the same submission, browser back closes the room, and
+  // there is no second copy of the state to fall out of sync. Opening pushes
+  // a history entry; jumping and closing replace it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const reviewId = searchParams.get('review');
+  const setReviewId = useCallback((id, { push = false } = {}) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set('review', id);
+      else next.delete('review');
+      return next;
+    }, { replace: !push });
+  }, [setSearchParams]);
   const [boardId, setBoardId] = useState(null);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -558,15 +594,48 @@ function ApplicationsPage({
     if (ctx && ctx.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev);
   }, [qc]);
 
-  // One optimistic-mutation recipe shared by all five triage verbs.
+  // Decisions handled this sitting — the room's session ledger. A cumulative
+  // count is the cheap, honest guard against the "quota illusion" (a reviewer
+  // narrowing their read to the last few verdicts); undo hands the count back.
+  const [sessionDecided, setSessionDecided] = useState(0);
+
+  // Reopen / undo — return a submission to a prior standing. The server allows
+  // any writable→writable move; this is the mis-key safety net the keyboard
+  // fast lane owes its users.
+  const reopen = useMutation({
+    mutationFn: ({ applicationId: id, status }) => updateCastingApplicationStage(id, { status }),
+    onMutate: async ({ applicationId: id, status }) => {
+      await qc.cancelQueries({ queryKey: activeKey() });
+      return applyOptimistic(id, status);
+    },
+    onError: (_e, _v, ctx) => { rollback(ctx); toast.error('Could not reopen'); },
+    onSuccess: () => { toast.success('Returned to review'); },
+    onSettled: () => { refresh(); },
+  });
+  const reopenRef = useRef(null);
+  useEffect(() => { reopenRef.current = reopen.mutate; });
+  const undoDecision = useCallback((id, prevStatus) => {
+    reopenRef.current?.({ applicationId: id, status: prevStatus || 'submitted' });
+    setSessionDecided((n) => Math.max(0, n - 1));
+  }, []);
+
+  // One optimistic-mutation recipe shared by all triage verbs. `kind` is a
+  // STATUS_FOR key or a literal status. Every success toast carries Undo,
+  // restoring the standing the row held before the keystroke.
   const triageOptions = (kind, mutationFn, successMsg) => ({
     mutationFn,
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: activeKey() });
-      return applyOptimistic(id, STATUS_FOR[kind]);
+      const prevStatus = applicants.find((a) => a.applicationId === id)?.status || 'submitted';
+      return { ...applyOptimistic(id, STATUS_FOR[kind] ?? kind), prevStatus };
     },
     onError: (_err, _id, ctx) => { rollback(ctx); toast.error('Action failed'); },
-    onSuccess: () => { toast.success(successMsg); },
+    onSuccess: (_data, id, ctx) => {
+      setSessionDecided((n) => n + 1);
+      toast.success(successMsg, {
+        action: { label: 'Undo', onClick: () => undoDecision(id, ctx?.prevStatus) },
+      });
+    },
     onSettled: () => { refresh(); },
   });
 
@@ -584,19 +653,28 @@ function ApplicationsPage({
     onMutate: async (vars) => {
       const id = vars?.applicationId || vars;
       await qc.cancelQueries({ queryKey: activeKey() });
-      return applyOptimistic(id, STATUS_FOR.decline);
+      const prevStatus = applicants.find((a) => a.applicationId === id)?.status || 'submitted';
+      return { ...applyOptimistic(id, STATUS_FOR.decline), prevStatus };
     },
     onError: (_err, _vars, ctx) => { rollback(ctx); toast.error('Action failed'); },
-    onSuccess: () => { toast.success(actionLabels.decline.toast); },
+    onSuccess: (_data, vars, ctx) => {
+      const id = vars?.applicationId || vars;
+      setSessionDecided((n) => n + 1);
+      toast.success(actionLabels.decline.toast, {
+        action: { label: 'Undo', onClick: () => undoDecision(id, ctx?.prevStatus) },
+      });
+    },
     onSettled: () => { refresh(); },
   });
   const keepOnFile = useMutation(triageOptions('keepOnFile', keepOnFileApplication, 'Kept on file'));
   const requestMore = useMutation(triageOptions('requestMore', requestMoreApplication, 'Requested more digitals'));
+  const meeting = useMutation(triageOptions('meeting_requested', requestMeetingApplication, 'Go-see requested'));
+  const development = useMutation(triageOptions('development', offerDevelopmentApplication, 'Development offer recorded'));
   const assignBoard = useMutation({
     mutationFn: ({ applicationId: id, boardId }) => assignToBoard(id, boardId),
     onError: () => toast.error('Could not file to board'),
   });
-  const inFlight = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables?.applicationId) || (keepOnFile.isPending && keepOnFile.variables) || (requestMore.isPending && requestMore.variables) || (assignBoard.isPending && assignBoard.variables?.applicationId) || null;
+  const inFlight = (shortlist.isPending && shortlist.variables) || (accept.isPending && accept.variables) || (decline.isPending && decline.variables?.applicationId) || (keepOnFile.isPending && keepOnFile.variables) || (requestMore.isPending && requestMore.variables) || (meeting.isPending && meeting.variables) || (development.isPending && development.variables) || (reopen.isPending && reopen.variables?.applicationId) || (assignBoard.isPending && assignBoard.variables?.applicationId) || null;
 
   const counts = useMemo(() => {
     const c = {};
@@ -730,7 +808,7 @@ function ApplicationsPage({
     setSelectedIds(new Set());
     setReviewId(null);
     lastPickIndex.current = null;
-  }, []);
+  }, [setReviewId]);
   const changeTab = useCallback((next) => { setTab(next); resetTriage(); }, [resetTriage]);
   const changeQuery = useCallback((next) => { setQ(next); resetTriage(); }, [resetTriage]);
   const changeBoard = useCallback((next) => { setBoardId(next); resetTriage(); }, [resetTriage]);
@@ -747,21 +825,21 @@ function ApplicationsPage({
   const triageRef = useRef({ filtered, focusedIndex, visibleCount, reviewId, helpOpen, selectedIds });
 
   // ---- Review queue ----
-  const openReview = useCallback((a) => { if (a) setReviewId(a.applicationId); }, []);
-  const closeReview = useCallback(() => setReviewId(null), []);
-  const jumpReview = useCallback((id) => { if (id) setReviewId(id); }, []);
+  const openReview = useCallback((a) => { if (a) setReviewId(a.applicationId, { push: true }); }, [setReviewId]);
+  const closeReview = useCallback(() => setReviewId(null), [setReviewId]);
+  const jumpReview = useCallback((id) => { if (id) setReviewId(id); }, [setReviewId]);
   const goNextReview = useCallback(() => {
     const { filtered: list, reviewId: rid } = triageRef.current;
     const idx = list.findIndex((a) => a.applicationId === rid);
     if (idx < 0 || idx >= list.length - 1) return;
     setReviewId(list[idx + 1].applicationId);
-  }, []);
+  }, [setReviewId]);
   const goPrevReview = useCallback(() => {
     const { filtered: list, reviewId: rid } = triageRef.current;
     const idx = list.findIndex((a) => a.applicationId === rid);
     if (idx <= 0) return;
     setReviewId(list[idx - 1].applicationId);
-  }, []);
+  }, [setReviewId]);
 
   // A decision made from the review room advances to the next row (or closes).
   // The review room now passes an object payload so it can carry structured
@@ -772,27 +850,48 @@ function ApplicationsPage({
     const idx = list.findIndex((a) => a.applicationId === rid);
     if (idx < 0) return;
     const row = list[idx];
+    const action = typeof payload === 'string' ? payload : payload?.action;
+
+    // Reopen is the one verb allowed on a decided row; it restores standing
+    // and stays put so the booker can re-decide.
+    if (action === 'reopen') {
+      if (isDecided(row.status)) reopen.mutate({ applicationId: rid, status: 'submitted' });
+      return;
+    }
+
     if (isDecided(row.status)) return;
     const nextId = list[idx + 1]?.applicationId ?? null;
 
-    const action = typeof payload === 'string' ? payload : payload?.action;
-    if (action === 'shortlist' && row.status === 'shortlisted') {
+    if (action === 'shortlist') {
+      if (row.status !== 'shortlisted') shortlist.mutate(rid);
+      if (payload?.boardId) assignBoard.mutate({ applicationId: rid, boardId: payload.boardId });
       setReviewId(nextId);
       return;
     }
 
     if (action === 'decline') {
+      // The pass note is house memory: persist it as a real application note
+      // as the status flips (the room's reason strip collects it).
+      const note = typeof payload === 'object' ? payload?.note : null;
+      if (note) {
+        createNote(rid, note)
+          .then(() => qc.invalidateQueries({ queryKey: ['application', rid] }))
+          .catch(() => toast.error('The pass note could not be saved'));
+      }
       decline.mutate({ applicationId: rid, declineReason: payload?.reason || null });
     } else {
-      const mutation = { shortlist, accept, kept_on_file: keepOnFile, requested_more: requestMore }[action];
+      const mutation = {
+        accept,
+        kept_on_file: keepOnFile,
+        requested_more: requestMore,
+        meeting_requested: meeting,
+        development,
+      }[action];
       if (!mutation) return;
       mutation.mutate(rid);
     }
-    if (action === 'shortlist' && payload?.boardId) {
-      assignBoard.mutate({ applicationId: rid, boardId: payload.boardId });
-    }
     setReviewId(nextId);
-  }, [shortlist, accept, decline, keepOnFile, requestMore, assignBoard]);
+  }, [shortlist, accept, decline, keepOnFile, requestMore, meeting, development, assignBoard, reopen, qc, setReviewId]);
 
   // ---- Multi-select ----
   const toggleSelect = useCallback((applicationId, index, shiftKey) => {
@@ -1022,7 +1121,7 @@ function ApplicationsPage({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [focusRow, clearSelection]);
+  }, [focusRow, clearSelection, setReviewId]);
 
   // Incremental rendering — grow the window when the sentinel scrolls into view.
   useEffect(() => {
@@ -1536,6 +1635,9 @@ function ApplicationsPage({
             queue={filtered}
             boards={boards}
             busy={Boolean(inFlight)}
+            actionLabels={actionLabels}
+            sessionDecided={sessionDecided}
+            scopeName={title}
           />
         )}
       </AnimatePresence>

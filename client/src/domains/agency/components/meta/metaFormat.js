@@ -258,6 +258,54 @@ export function freshness(value, now = Date.now()) {
 }
 
 /* ============================================================
+   TYPESETTING — display normalization for stored strings
+
+   Stored stat strings arrive with typewriter marks and ad-hoc separators
+   ('5\'9"', '98 cm / 38.5"'). Every surface that prints them should show
+   the same typographic form: real prime marks for feet and inches, and the
+   house interpunct — never a slash — between dual units.
+   ============================================================ */
+
+/**
+ * Normalize a stored measurement/stat string for display.
+ * `typeset('98 cm / 38.5"')` → `'98 cm · 38.5″'`;
+ * `typeset("5'9\"")` → `'5′ 9″'`. Non-strings pass through untouched.
+ */
+export function typeset(value) {
+  if (typeof value !== 'string') return value;
+  return value
+    /* feet-inches: 5'9" / 5' 9" → 5′ 9″ */
+    .replace(/(\d)\s*'\s*(\d+(?:\.\d+)?)\s*(?:"|″|”)/g, '$1′ $2″')
+    /* remaining inch marks after a digit → prime */
+    .replace(/(\d(?:\.\d+)?)\s*(?:"|”)/g, '$1″')
+    /* remaining foot marks after a digit → prime */
+    .replace(/(\d)\s*(?:'|’)(?!\d)/g, '$1′')
+    /* dual-unit slash → interpunct */
+    .replace(/\s*\/\s*/g, ' · ');
+}
+
+/**
+ * Display casing for a stored enum-ish single value ('editorial' →
+ * 'Editorial', 'BLONDE' → 'Blonde'). Never for sentences or user prose —
+ * those keep whatever case they were written in.
+ */
+export function enumLabel(value) {
+  const v = value == null ? '' : String(value).trim();
+  if (!v) return '';
+  return v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
+}
+
+/**
+ * `recency` for callers that hold an age in days rather than a timestamp
+ * (e.g. the API's `updated_days_ago`). Same vocabulary, same thresholds.
+ */
+export function recencyFromDays(days, now = Date.now()) {
+  const n = Number(days);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return recency(new Date(now - n * MS.day), now);
+}
+
+/* ============================================================
    COUNTS
    ============================================================ */
 

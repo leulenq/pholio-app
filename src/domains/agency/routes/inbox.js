@@ -40,6 +40,9 @@ const {
 } = require("../services/discover/query-log");
 const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const {
+  digitalsFreshness,
+} = require("../../talent/services/digitals-freshness");
+const {
   createDiscoverRateLimit,
 } = require("../../../shared/middleware/discover-rate-limit");
 const { mountAgencyApiGuard } = require("./agency-api-guard");
@@ -3965,6 +3968,19 @@ router.get(
         buildSubmissionProfileSnapshot(profile || identityProfileRow(identityDto), {
           social,
         });
+      // Live image rows are loaded whenever a profile exists — even when a
+      // frozen package supplies the displayed frames — because digitals
+      // freshness must be judged from the dated source rows, exactly as the
+      // dossier judges it (see talent-dossier.js buildDigitalsFreshness).
+      let liveImages = null;
+      if (profile) {
+        await ensureModerationColumnChecked(knex);
+        const imageQuery = knex("images").where({ profile_id: profile.id });
+        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        liveImages = await imageQuery.orderBy(["sort", "created_at"]);
+      }
       let images;
       if (submittedPackage) {
         images = submittedPackage.images;
@@ -3973,13 +3989,16 @@ router.get(
         // already-public URLs (design §3.3).
         images = identityDto.images;
       } else {
-        await ensureModerationColumnChecked(knex);
-        const imageQuery = knex("images").where({ profile_id: profile.id });
-        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
-          table: "images",
-        });
-        images = await imageQuery.orderBy(["sort", "created_at"]);
+        images = liveImages;
       }
+      // Null when no frame carries an image_type: "no data" must never be
+      // asserted as "no digitals" (same guard as the dossier).
+      const freshnessSource = liveImages || identityDto.images || [];
+      const submissionDigitalsFreshness = freshnessSource.some(
+        (img) => img && img.image_type,
+      )
+        ? digitalsFreshness(freshnessSource)
+        : null;
       const submissionPackage = submittedPackage
         ? {
             ...submittedPackage,
@@ -4044,6 +4063,7 @@ router.get(
             : user?.email || identityDto.email || null,
         },
         submissionPackage,
+        digitalsFreshness: submissionDigitalsFreshness,
         notes,
         tags,
         // Plain data, words not badges (design §6 requirement 2, CLAUDE.md

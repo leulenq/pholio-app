@@ -34,7 +34,7 @@ export function BookingLanesControl({ primaryField, secondaryField, fitSignals =
     <div className={styles.bookingLanes}>
       <div className={styles.bookingLaneGroup}>
         <div className={styles.bookingLaneHead}>
-          <h4>Primary lane</h4>
+          <h4>Primary Lane</h4>
           <span>Choose one</span>
         </div>
         <div
@@ -64,7 +64,7 @@ export function BookingLanesControl({ primaryField, secondaryField, fitSignals =
 
       <div className={styles.bookingLaneGroup}>
         <div className={styles.bookingLaneHead}>
-          <h4>Secondary lanes</h4>
+          <h4>Secondary Lanes</h4>
           <span>{secondaryLanes.length}/3</span>
         </div>
         <div

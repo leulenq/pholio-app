@@ -1,13 +1,10 @@
-import {
-  AlertCircle,
-  Bell,
-  CheckCircle2,
-  Eye,
-  FileCheck,
-  Inbox,
-  MessageSquare,
-  Send,
-} from 'lucide-react';
+/**
+ * Shared notification copy helpers.
+ *
+ * Used by `NotificationInbox`, the agency bell. The talent bell reads its rows
+ * through `talentSignalModel` instead, which triages by what the talent's next
+ * move is rather than by source.
+ */
 
 const TALENT_FILTERS = [
   { id: 'all', label: 'All' },
@@ -21,28 +18,6 @@ const AGENCY_FILTERS = [
   { id: 'submissions', label: 'Submissions' },
   { id: 'messages', label: 'Messages' },
 ];
-
-const TYPE_AVATAR_TONE = {
-  agency_profile_view: 'gold',
-  application_submitted: 'ink',
-  application_status: 'ink',
-  application_received: 'gold',
-  application_withdrawn: 'neutral',
-  message_received: 'ink',
-  profile_not_submission_ready: 'warn',
-  confirmation: 'success',
-};
-
-const TYPE_VISUAL = {
-  agency_profile_view: { accent: 'gold', icon: Eye },
-  application_submitted: { accent: 'sky', icon: Send },
-  application_status: { accent: 'sky', icon: FileCheck },
-  application_received: { accent: 'gold', icon: Inbox },
-  application_withdrawn: { accent: 'neutral', icon: AlertCircle },
-  message_received: { accent: 'sky', icon: MessageSquare },
-  profile_not_submission_ready: { accent: 'amber', icon: AlertCircle },
-  confirmation: { accent: 'mint', icon: CheckCircle2 },
-};
 
 export function getFilterTabs(variant = 'talent') {
   return variant === 'agency' ? AGENCY_FILTERS : TALENT_FILTERS;
@@ -60,46 +35,6 @@ export function getNotificationCategory(type) {
     confirmation: 'Confirmation',
   };
   return map[type] || 'Update';
-}
-
-export function getContextBadge(item) {
-  if (item.metadata?.agencyName) return item.metadata.agencyName;
-  if (item.metadata?.talentName) return item.metadata.talentName;
-  if (item.metadata?.status) {
-    return String(item.metadata.status).replace(/_/g, ' ');
-  }
-  return getNotificationCategory(item.type);
-}
-
-export function getAvatarLabel(item) {
-  const name = item.metadata?.agencyName || item.metadata?.talentName;
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.slice(0, 2).toUpperCase();
-  }
-
-  const fallbacks = {
-    agency_profile_view: 'AG',
-    application_submitted: 'AP',
-    application_status: 'AP',
-    application_received: 'IN',
-    application_withdrawn: 'AP',
-    message_received: 'MS',
-    profile_not_submission_ready: 'PR',
-    confirmation: 'OK',
-  };
-  return fallbacks[item.type] || 'PH';
-}
-
-export function getAvatarTone(type) {
-  return TYPE_AVATAR_TONE[type] || 'neutral';
-}
-
-export function getNotificationVisual(type) {
-  return TYPE_VISUAL[type] || { accent: 'neutral', icon: Bell };
 }
 
 export function filterNotifications(items, filterId, variant = 'talent') {

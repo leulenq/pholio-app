@@ -9,10 +9,9 @@ import { getTalentHeaderTone } from '../../utils/talentHeaderTone';
 import { TALENT_NAV_SECTIONS } from '../../constants/talentNav';
 import { postLogoutAndRedirectToMarketing } from '../../lib/logout';
 import NotificationCenter from '../../components/NotificationCenter/NotificationCenter';
-import { useNotificationUnreadCount } from '../../components/NotificationCenter/useNotificationUnreadCount';
+import { useTalentSignalSummary } from '../../components/NotificationCenter/useNotificationUnreadCount';
 import { PholioIconButton } from '../../components/ui/PholioButton';
 import MobileTabBar from './MobileTabBar';
-import '../../components/NotificationCenter/NotificationCenter.css';
 import './TalentLayout.css';
 
 export default function TalentLayout({ outletContext = {}, children }) {
@@ -28,7 +27,7 @@ export default function TalentLayout({ outletContext = {}, children }) {
   const notificationsRef = useRef(null);
   const notificationsButtonRef = useRef(null);
 
-  const unreadCount = useNotificationUnreadCount();
+  const { unreadCount, needsAction } = useTalentSignalSummary();
 
   const { data: threadsData } = useQuery({
     queryKey: ['talent', 'message-threads'],
@@ -175,11 +174,13 @@ export default function TalentLayout({ outletContext = {}, children }) {
               type="button"
               data-button-exception="shell-notifications"
               aria-label={
-                unreadCount > 0
-                  ? `Notifications, ${unreadCount} unread`
-                  : 'Notifications'
+                needsAction
+                  ? `Signals, ${unreadCount} unread, something needs an answer`
+                  : unreadCount > 0
+                    ? `Signals, ${unreadCount} unread`
+                    : 'Signals'
               }
-              className={`tl-action-icon${isNotificationsOpen ? ' is-open' : ''}${unreadCount > 0 ? ' has-unread' : ''}`}
+              className={`tl-action-icon${isNotificationsOpen ? ' is-open' : ''}`}
               aria-haspopup="true"
               aria-expanded={isNotificationsOpen}
               aria-controls="tl-notifications-panel"
@@ -192,7 +193,6 @@ export default function TalentLayout({ outletContext = {}, children }) {
               <div
                 id="tl-notifications-panel"
                 className="tl-notifications-panel"
-                aria-label="Notifications"
               >
                 <NotificationCenter onClose={() => setIsNotificationsOpen(false)} />
               </div>

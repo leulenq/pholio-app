@@ -1,0 +1,409 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Signals — the talent bell panel.
+
+   Built from the talent ledger vocabulary (ApplicationsView / the settings
+   "Signals" movement), not from a dropdown pattern: warm paper, a JetBrains
+   Mono rail per band, hairline rules, square corners flush to the topbar. One
+   sheet of paper drawn down out of the header.
+
+   What is deliberately absent is most of the panel's earlier furniture — a
+   titled masthead stacked above the first band rail, a verdict line restating
+   that rail, a count beside it, a verb printed under every action row, an arrow
+   beside the verb, and a settings link in a footer. Each one repeated something
+   already on screen; the title repeated the control the reader just pressed.
+   The bands and the server's own copy carry it.
+
+   Every control declares its own box, type and colour in full so nothing
+   inherits from the global button reset.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.sig {
+  --sig-paper: #faf7f2;
+  --sig-paper-warm: #f5f0e8;
+  --sig-text: #1a1a1a;
+  --sig-text-soft: rgba(26, 26, 26, 0.56);
+  --sig-text-faint: rgba(26, 26, 26, 0.34);
+  --sig-hair: rgba(26, 26, 26, 0.09);
+  --sig-hair-soft: rgba(26, 26, 26, 0.05);
+  --sig-gold: #c9a55a;
+  --sig-gold-deep: #a8894e;
+  --sig-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sig-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+  --sig-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  display: flex;
+  flex-direction: column;
+  width: min(376px, calc(100vw - 20px));
+  max-height: min(468px, calc(100vh - 108px));
+  box-sizing: border-box;
+  border: 1px solid var(--sig-hair);
+  border-top: none;
+  border-radius: 0;
+  background: var(--sig-paper);
+  box-shadow:
+    0 24px 72px rgba(0, 0, 0, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.05);
+  font-family: var(--sig-sans);
+  color: var(--sig-text);
+  text-align: left;
+  outline: none;
+  animation: sig-arrive 0.26s var(--sig-ease) both;
+}
+
+@keyframes sig-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────── */
+
+.sig__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--sig-paper);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sig__body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ── Bands ────────────────────────────────────────────────────────────── */
+
+.sig__band:first-child .sig__band-rail { padding-top: 15px; }
+
+.sig__band + .sig__band .sig__band-rail {
+  border-top: 1px solid var(--sig-hair);
+}
+
+/* The rail is the triage, and the only label the panel prints. The first one
+   also carries "Mark all read" — the control does not need a bar of its own. */
+.sig__band-rail {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 18px 7px;
+  font-family: var(--sig-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sig-text-faint);
+  animation: sig-row 0.38s var(--sig-ease) both;
+}
+
+.sig__band-label {
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+.sig__band--action .sig__band-rail { color: var(--sig-gold-deep); }
+
+.sig__markall {
+  flex: none;
+  margin: 0;
+  padding: 0 0 1px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sig-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sig-text-faint);
+  transition: color 0.2s var(--sig-ease), border-color 0.2s var(--sig-ease);
+}
+
+.sig__markall:hover:not(:disabled) {
+  color: var(--sig-gold-deep);
+  border-bottom-color: rgba(201, 165, 90, 0.45);
+}
+
+.sig__markall:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.sig__markall:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.75);
+  outline-offset: 3px;
+}
+
+.sig__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sig__list li + li {
+  border-top: 1px solid var(--sig-hair-soft);
+}
+
+.sig__list li {
+  animation: sig-row 0.4s var(--sig-ease) both;
+  animation-delay: calc(var(--sig-i, 0) * 20ms + 40ms);
+}
+
+@keyframes sig-row {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Row ──────────────────────────────────────────────────────────────── */
+
+.sig__row {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 10px 18px 12px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background-color 0.18s var(--sig-ease);
+}
+
+.sig__row:hover { background: var(--sig-paper-warm); }
+
+.sig__row:hover .sig__row-title {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(201, 165, 90, 0.45);
+}
+
+.sig__row:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.75);
+  outline-offset: -2px;
+}
+
+.sig__row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.sig__row-title {
+  min-width: 0;
+  font-size: 12.75px;
+  font-weight: 300;
+  line-height: 1.4;
+  color: var(--sig-text);
+}
+
+.sig__row-title strong { font-weight: 500; }
+
+.sig__row-time {
+  flex: none;
+  padding-top: 1px;
+  font-family: var(--sig-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  color: var(--sig-text-faint);
+}
+
+.sig__row-repeats {
+  margin-right: 6px;
+  color: var(--sig-gold-deep);
+}
+
+.sig__row-repeats::before { content: '\00d7'; }
+
+.sig__row-detail {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 3px;
+  padding-right: 36px;
+  font-size: 11.75px;
+  font-weight: 300;
+  line-height: 1.45;
+  color: var(--sig-text-soft);
+}
+
+/* Read is the whole unread treatment: the row recedes. */
+.sig__row.is-read .sig__row-title { color: rgba(26, 26, 26, 0.54); }
+.sig__row.is-read .sig__row-title strong { font-weight: 400; }
+.sig__row.is-read .sig__row-detail { color: rgba(26, 26, 26, 0.4); }
+.sig__row.is-read .sig__row-time { color: rgba(26, 26, 26, 0.26); }
+
+/* The ambient band is one line per row and reads quieter than the rest. */
+.sig__band--interest .sig__row { padding: 8px 18px 9px; }
+.sig__band--interest .sig__row-title {
+  font-size: 12.25px;
+  color: rgba(26, 26, 26, 0.7);
+}
+.sig__band--interest .sig__row.is-read .sig__row-title {
+  color: rgba(26, 26, 26, 0.48);
+}
+
+.sig__more {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 10px 18px 11px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sig-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--sig-text-faint);
+  transition: color 0.2s var(--sig-ease), background-color 0.18s var(--sig-ease);
+}
+
+.sig__more:hover {
+  color: var(--sig-gold-deep);
+  background: var(--sig-paper-warm);
+}
+
+.sig__more:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.75);
+  outline-offset: -2px;
+}
+
+/* ── States ───────────────────────────────────────────────────────────── */
+
+.sig__state { padding: 26px 18px 28px; }
+
+.sig__state-title {
+  margin: 0 0 7px;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-size: 15.5px;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--sig-text);
+}
+
+.sig__state-copy {
+  margin: 0;
+  max-width: 38ch;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--sig-text-soft);
+}
+
+.sig__retry {
+  margin: 16px 0 0;
+  padding: 0 0 3px;
+  border: 0;
+  border-bottom: 1px solid rgba(201, 165, 90, 0.42);
+  border-radius: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--sig-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--sig-gold-deep);
+  transition: color 0.2s var(--sig-ease), border-color 0.2s var(--sig-ease);
+}
+
+.sig__retry:hover {
+  color: var(--sig-text);
+  border-bottom-color: var(--sig-gold);
+}
+
+.sig__retry:focus-visible {
+  outline: 2px solid rgba(201, 165, 90, 0.75);
+  outline-offset: 3px;
+}
+
+.sig__ghosts { padding: 16px 18px 18px; }
+
+.sig__ghost + .sig__ghost {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sig-hair-soft);
+}
+
+.sig__ghost-bar {
+  display: block;
+  height: 9px;
+  border-radius: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(26, 26, 26, 0.05) 25%,
+    rgba(26, 26, 26, 0.09) 50%,
+    rgba(26, 26, 26, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: sig-shimmer 1.3s linear infinite;
+}
+
+.sig__ghost-bar--title { width: 56%; }
+.sig__ghost-bar--body { width: 82%; margin-top: 8px; height: 7px; }
+.sig__ghost:nth-child(2) .sig__ghost-bar--title { width: 42%; }
+.sig__ghost:nth-child(3) .sig__ghost-bar--title { width: 64%; }
+.sig__ghost:nth-child(3) .sig__ghost-bar--body { width: 60%; }
+
+@keyframes sig-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ── Narrow ───────────────────────────────────────────────────────────── */
+
+/* Matches the layout's own 700px breakpoint, where the topbar collapses and
+   `.tl-notifications-panel` re-anchors to the viewport instead of to the bell —
+   the bell no longer sits near the right edge once the account trigger is beside
+   it, so a trigger-anchored panel would hang off the left of the screen. */
+@media (max-width: 700px) {
+  .sig {
+    width: 100%;
+    max-height: min(460px, calc(100dvh - var(--tl-topbar-h, 72px) - 24px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sig,
+  .sig__list li,
+  .sig__band-rail {
+    animation: none;
+  }
+
+  .sig__row,
+  .sig__markall,
+  .sig__more,
+  .sig__retry {
+    transition: none;
+  }
+
+  .sig__ghost-bar { animation: none; }
+}

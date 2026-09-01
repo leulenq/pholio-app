@@ -2,15 +2,21 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { talentApi } from '../../../domains/talent/api/talent';
-import NotificationInbox from './NotificationInbox';
+import TalentSignalPanel from './TalentSignalPanel';
 import { TALENT_NOTIFICATIONS_QUERY_KEY } from './talentNotifications';
-import './NotificationCenter.css';
 
-export default function NotificationCenter({ onClose, panelClassName = '' }) {
+/**
+ * Data + navigation shell for the talent bell. All presentation and triage
+ * lives in `TalentSignalPanel` / `talentSignalModel`.
+ *
+ * The agency bell is a separate surface (`domains/agency/components/nav/
+ * NotificationsDropdown`) on a separate design system and is untouched by this.
+ */
+export default function NotificationCenter({ onClose }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: TALENT_NOTIFICATIONS_QUERY_KEY,
     queryFn: () => talentApi.getNotifications(),
     refetchInterval: 30000,
@@ -36,8 +42,14 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
 
   const handleItemClick = useCallback(
     async (item) => {
+      // Navigate even if the read-write fails — the talent asked to go
+      // somewhere, and a lost read flag is the cheaper failure.
       if (!item.isRead) {
-        await markReadMutation.mutateAsync(item.id);
+        try {
+          await markReadMutation.mutateAsync(item.id);
+        } catch {
+          /* non-blocking */
+        }
       }
       onClose?.();
       if (item.routeTarget) {
@@ -48,9 +60,7 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
   );
 
   return (
-    <NotificationInbox
-      className={panelClassName}
-      variant="talent"
+    <TalentSignalPanel
       notifications={notifications}
       unreadCount={unreadCount}
       isLoading={isLoading}
@@ -58,6 +68,7 @@ export default function NotificationCenter({ onClose, panelClassName = '' }) {
       markAllPending={markAllMutation.isPending}
       onMarkAllRead={() => markAllMutation.mutate()}
       onItemClick={handleItemClick}
+      onRetry={() => refetch()}
     />
   );
 }

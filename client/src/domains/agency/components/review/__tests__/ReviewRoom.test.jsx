@@ -4,7 +4,8 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import ReviewRoom from '../ReviewRoom';
-import { getApplicationDetails } from '../../../api/agency';
+import { getApplicationDetails, getTimeline } from '../../../api/agency';
+import { AgencyPermissionsContext } from '../../../context/agency-permissions-context';
 
 // `/applications/:id/details` for an identity-backed applicant (design:
 // open-call-applicant-flow-design-2026-08) — `profile.id` / `profile.slug`
@@ -68,8 +69,18 @@ vi.mock('../../../api/agency', async (importOriginal) => {
   return {
     ...actual,
     getApplicationDetails: vi.fn(),
+    getTimeline: vi.fn(),
   };
 });
+
+const allowAll = {
+  permissions: [],
+  presetRole: 'OWNER',
+  membershipId: 'm-1',
+  can: () => true,
+  canAny: () => true,
+  canAll: () => true,
+};
 
 const row = {
   applicationId: 'app-1',
@@ -86,6 +97,7 @@ function renderRoom(overrides = {}) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
+        <AgencyPermissionsContext.Provider value={allowAll}>
         <ReviewRoom
           applicationId="app-1"
           row={row}
@@ -98,6 +110,7 @@ function renderRoom(overrides = {}) {
           busy={false}
           {...overrides}
         />
+        </AgencyPermissionsContext.Provider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -106,32 +119,41 @@ function renderRoom(overrides = {}) {
 describe('ReviewRoom — identity-backed applicant', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getTimeline.mockResolvedValue([]);
   });
 
   test('renders an unclaimed submission honestly, without crashing', async () => {
     getApplicationDetails.mockResolvedValue(identityDetails);
     renderRoom();
 
-    // `name`/`city` fall back to the row prop while the fetch is in flight
-    // (so the drawer shows something instantly), so wait on the one thing
-    // that only appears once loading has actually finished: the initials
-    // plate only prints its letters post-load (blank while `isLoading`).
-    await screen.findByText('JR');
+    // Anchor the wait on something that CANNOT render before the payload
+    // resolves. The context line is not it: its board fallback ("General
+    // consideration") prints from the row prop while the query is still in
+    // flight, so waiting on it asserts against a half-loaded room.
+    await screen.findByText('Identity disputed');
 
-    // The dispute sentence, prominent and plain — never a badge.
+    // The dispute is raised in the flags checkpoint — a titled group of plain
+    // sentences under a rule, never a badge or a boxed alert.
+    expect(screen.getByText('Before you decide')).toBeInTheDocument();
     expect(
       screen.getByText('The person behind this email says they did not submit this application.'),
     ).toBeInTheDocument();
 
-    // Email state, meaningful only because this is an identity row.
-    expect(screen.getByText('Unverified')).toBeInTheDocument();
-
-    // The materials line, with its due date.
+    // Email state and materials recede into the single provenance context
+    // line, still stated, no longer competing with the figures.
+    expect(screen.getByText(/Email unverified/)).toBeInTheDocument();
     expect(screen.getByText(/Materials requested/)).toBeInTheDocument();
 
     // The duplicate signal, as a plain sentence with a route to the other record.
     expect(screen.getByText(/May be the same person as/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'an earlier submission' })).toBeInTheDocument();
+
+    // The verdict bar carries the full vocabulary of the decision.
+    expect(screen.getByRole('button', { name: /Pass/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Shortlist/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Offer representation/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Keep on file/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Invite to meet/ })).toBeInTheDocument();
   });
 
   test('a claimed, profile-backed applicant shows none of the identity-row lines', async () => {
@@ -148,11 +170,12 @@ describe('ReviewRoom — identity-backed applicant', () => {
     });
     renderRoom();
 
-    // Same reasoning as the first test.
-    await screen.findByText('JR');
+    // Same reasoning: the height figure exists only once the payload lands.
+    await screen.findByText('178');
 
-    expect(screen.queryByText('Unverified')).not.toBeInTheDocument();
-    expect(screen.queryByText('Verified')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Email unverified/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Email verified/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Identity disputed')).not.toBeInTheDocument();
     expect(
       screen.queryByText('The person behind this email says they did not submit this application.'),
     ).not.toBeInTheDocument();

@@ -8,9 +8,8 @@ import './DeclineReasonModal.css';
 /**
  * The standalone decline confirmation — for the surfaces that decide outside
  * the review room (the dossier's Decision Dock, the submissions list's row
- * and bulk actions, the casting board rail). The review room has its own
- * confirmation shell (DecisionConfirmation) and embeds DeclineReasonFields
- * directly instead of this wrapper.
+ * and bulk actions, the casting board rail). The review room arms its pass
+ * inline in the verdict bar instead of using this wrapper.
  *
  * Declining is a real moment for the person on the other end, so this is a
  * composed modal, not a quick dropdown — the reviewer sees who (or how many)

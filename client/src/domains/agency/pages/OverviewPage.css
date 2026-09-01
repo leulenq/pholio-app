@@ -31,16 +31,18 @@
 .ov-desk { position: relative; padding: 20px 0 14px; margin: 0 0 40px; }
 /* warm gold light-wash — full-bleeds to the main content edges (breaks out of
    the page's --ag-pad-x gutters) and over-extends past the top of the scroll
-   container, which clips it flush to the very top: no cream strip. The light
-   source sits at the top-left corner so it only ever fades away from the
-   corner — no radial "island" edge cutting across the top-left. */
+   container, which clips it flush to the very top: no cream strip. Soft vertical
+   feathering ensures the atmospheric light smoothly dissolves into the warm canvas
+   without an abrupt boundary above subsequent sections. */
 .ov-desk::before {
   content: ''; position: absolute; z-index: 0; pointer-events: none;
-  top: -150px; bottom: -14px;
+  top: -150px; bottom: -90px;
   left: calc(-1 * var(--ag-pad-x, 40px)); right: calc(-1 * var(--ag-pad-x, 40px));
   background:
-    radial-gradient(1600px 1000px at 2% 2%, rgba(201, 165, 90, 0.15), rgba(201, 165, 90, 0.04) 46%, transparent 72%),
-    radial-gradient(720px 520px at 94% 128%, rgba(201, 165, 90, 0.05), transparent 64%);
+    radial-gradient(1600px 1100px at 2% 0%, rgba(201, 165, 90, 0.14), rgba(201, 165, 90, 0.035) 45%, transparent 72%),
+    radial-gradient(720px 520px at 94% 65%, rgba(201, 165, 90, 0.04), transparent 64%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, rgba(0, 0, 0, 0.75) 65%, rgba(0, 0, 0, 0.35) 82%, rgba(0, 0, 0, 0.08) 94%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 45%, rgba(0, 0, 0, 0.75) 65%, rgba(0, 0, 0, 0.35) 82%, rgba(0, 0, 0, 0.08) 94%, transparent 100%);
 }
 .ov-desk > * { position: relative; z-index: 1; }
 
