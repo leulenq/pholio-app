@@ -1,0 +1,96 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "curv:online",
+  "revisionId": "curv:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": { "id": "curv-management", "name": "CURV Management", "legalName": "CURV Model Mangement", "officialDomains": ["thecurvmanagement.com", "curvmanagement.com", "curvmgmt.com"] },
+    "office": { "id": "new-york", "name": "New York" },
+    "market": { "kind": "city", "code": "new-york-us", "countryCodes": ["US"], "city": "New York" },
+    "channel": { "id": "curv-submissions-form", "type": "official_web_form", "url": "https://thecurvmanagement.com/submissions" },
+    "divisions": { "mode": "unspecified", "values": [] },
+    "applicantTracks": { "mode": "unspecified", "values": [] },
+    "evidenceIds": ["curv-submissions-form-dom", "curv-contact", "curv-about"]
+  },
+  "lifecycle": { "observedOn": "2026-08-19", "effectiveFrom": null, "effectiveUntil": null, "reviewedOn": "2026-08-29", "nextReviewOn": "2026-11-17" },
+  "rules": {
+    "shots": {
+      "count": { "minimum": 3, "maximum": 4, "basis": "explicit_form_semantics", "evidenceIds": ["curv-submissions-form-dom"] },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        { "id": "profile-hair-pulled-back", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "preferred", "basis": "derived_from_explicit_assertions", "sourceLabel": "PROFILE IMAGES", "match": { "all": [{ "field": "shot.view", "operator": "equals", "value": "profile", "unit": null }, { "field": "appearance.hair_state", "operator": "equals", "value": "pulled_back", "unit": null }] }, "appliesWhen": null, "evidenceIds": ["curv-submissions-instructions"], "matchability": "hybrid" }
+      ]
+    },
+    "setWide": [
+      { "id": "no-makeup", "modality": "prohibited", "basis": "explicit_text", "constraint": { "field": "appearance.makeup_level", "operator": "not_equals", "value": "none", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "IMAGES WITHOUT MAKEUP", "evidenceIds": ["curv-submissions-instructions"], "matchability": "hybrid" },
+      { "id": "as-natural-as-possible", "modality": "requested", "basis": "explicit_text", "constraint": { "field": "expression.style", "operator": "equals", "value": "natural_relaxed", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "AS NATURAL AS POSSIBLE", "evidenceIds": ["curv-submissions-instructions"], "matchability": "hybrid" },
+      { "id": "no-filters", "modality": "prohibited", "basis": "explicit_text", "constraint": { "field": "alteration.filter_used", "operator": "equals", "value": true, "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "NO FILTERED IMAGES", "evidenceIds": ["curv-submissions-instructions"], "matchability": "automatic" },
+      { "id": "form-fitting-clothing", "modality": "preferred", "basis": "explicit_text", "constraint": { "field": "clothing.fit", "operator": "equals", "value": "form_fitted", "unit": null }, "appliesWhen": null, "appliesTo": { "mode": "all_shots", "shotIds": [] }, "sourceLabel": "FORM FITTING CLOTHING IS PREFERRED, FOR EXAMPLE FITTED TANK AND SKINNY JEANS", "evidenceIds": ["curv-submissions-instructions"], "matchability": "hybrid" }
+    ],
+    "files": [
+      { "id": "form-accept-attribute", "modality": "allowed", "basis": "explicit_form_semantics", "constraint": { "field": "file.mime_type", "operator": "in", "value": ["image/jpeg", "image/png", "image/gif"], "unit": null }, "appliesWhen": null, "sourceLabel": ".jpg, .jpeg, .png, .gif", "evidenceIds": ["curv-submissions-form-dom"], "matchability": "automatic", "scope": "per_file", "sourceValue": null }
+    ],
+    "eligibility": [
+      { "id": "under-18-guardian-permission", "modality": "required", "basis": "explicit_text", "constraint": { "field": "guardian.approval", "operator": "equals", "value": true, "unit": null }, "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" }, "sourceLabel": "*ANY TALENT UNDER THE AGE OF 18 MUST HAVE PERMISSION FROM A PARENT OR LEGAL GUARDIAN.", "evidenceIds": ["curv-submissions-guardian-note"], "matchability": "manual_confirmation" }
+    ],
+    "applicationFields": [
+      { "id": "pronoun-selection", "field": "applicant.pronouns", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "She | Her / He | Him / They | Them / Other", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "first-name", "field": "applicant.first_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Firstname *", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "last-name", "field": "applicant.last_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Lastname *", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "email", "field": "contact.email", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Email *", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "contact-number", "field": "contact.phone", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Contact Number *", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "address", "field": "contact.address", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Address", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "city", "field": "contact.city", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "City", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "country", "field": "contact.country", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Country", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "nationality", "field": "applicant.nationality", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Nationality", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "date-of-birth", "field": "applicant.date_of_birth", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Date Of Birth", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "instagram", "field": "social.instagram", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Instragram", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "tiktok", "field": "social.tiktok", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "TikTok", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "height", "field": "measurements.height", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Height", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "bust", "field": "measurements.bust", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Bust", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "hips", "field": "measurements.hips", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Hips", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "waist", "field": "measurements.waist", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Waist", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "dress-size", "field": "measurements.clothing_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Dress Size", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "shoe-size", "field": "measurements.shoe_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Shoe Size", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "clothing-top", "field": "measurements.clothing_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Clothing Top", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "clothing-bottom", "field": "measurements.clothing_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Clothing Bottom", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "hair-color", "field": "appearance.hair_color", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Hair Color", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "eye-color", "field": "appearance.eye_color", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Eye Color", "evidenceIds": ["curv-submissions-form-dom"] },
+      { "id": "message", "field": "applicant.message", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Mention anything else you would like us to know", "evidenceIds": ["curv-submissions-form-dom"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "scope.destination_markets", "appliesWhen": null, "reason": "not_published", "note": "The form has no division or board field; the site's own boards (Main, Development, Collectiv) are never asked about.", "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "shots.types", "appliesWhen": null, "reason": "not_published", "note": "The four upload slots are labelled photo 1-4 with no shot type. The only shot-type signal published anywhere is the ponytail instruction for profile images.", "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "presentation.accessories", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "presentation.lighting", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "presentation.color_mode", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": "Filters are prohibited; retouching beyond filters is not addressed.", "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "presentation.image_style", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "presentation.image_quality", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-instructions"] },
+    { "fact": "files.per_file_size", "appliesWhen": null, "reason": "not_published", "note": "No size limit appears on the file inputs, in the page copy, or in any of the site's script bundles; a server-side limit cannot be ruled out.", "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "eligibility.age", "appliesWhen": null, "reason": "not_published", "note": "No minimum age is published. The only age statement is the guardian-permission line for applicants under 18, which implies minors may apply.", "evidenceIds": ["curv-submissions-guardian-note"] },
+    { "fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": "Roster boards carry dress-size filter bands, and the About page states an anti-barrier position on size and age; neither is published as a requirement.", "evidenceIds": ["curv-about"] },
+    { "fact": "application.guardian_fields", "appliesWhen": null, "reason": "not_published", "note": "Guardian permission is required in the page copy, but the form collects nothing about a guardian: no name, contact, checkbox or upload, and a minor's date of birth changes nothing in the form.", "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "application.unresolved_fields", "appliesWhen": null, "reason": "ambiguous", "note": "Requiredness is signalled only by an asterisk inside the visible label text; no control carries an HTML required attribute, and fields without an asterisk are not stated to be optional.", "evidenceIds": ["curv-submissions-form-dom"] },
+    { "fact": "application.gated_fields", "appliesWhen": null, "reason": "source_access_limited", "note": "Submit-time validation, the confirmation state and any response were not observed, because reaching them requires submitting.", "evidenceIds": ["curv-submissions-form-dom"] }
+  ],
+  "evidence": [
+    { "id": "curv-submissions-instructions", "authority": "first_party_published", "publisher": "CURV Management", "url": "https://thecurvmanagement.com/submissions", "title": "CURV Management - Submissions", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "text_fragment", "value": "submission instructions above the form" }, "excerpt": "PLEASE SUBMIT BELOW - IMAGES WITHOUT MAKEUP AND AS NATURAL AS POSSIBLE. NO FILTERED IMAGES. FORM FITTING CLOTHING IS PREFERRED, FOR EXAMPLE FITTED TANK AND SKINNY JEANS. PLEASE PULL LONG HAIR INTO A PONYTAIL FOR PROFILE IMAGES.", "archivedUrl": null, "contentHash": null },
+    { "id": "curv-submissions-form-dom", "authority": "first_party_published", "publisher": "CURV Management", "url": "https://thecurvmanagement.com/submissions", "title": "CURV Management - Submissions", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "form_field", "value": "submissions form control dump (37 controls): sex, firstname, lastname, email, phone, address, city, country, nationality, ethnicity, birthday, instagram, tiktok, height, bust, hips, waist, dresssize, shoesize, clothingtop, clothingbottom, haircolor, eyecolor, message, medias_1-medias_4" }, "excerpt": ".jpg, .jpeg, .png, .gif", "archivedUrl": null, "contentHash": null },
+    { "id": "curv-submissions-guardian-note", "authority": "first_party_published", "publisher": "CURV Management", "url": "https://thecurvmanagement.com/submissions", "title": "CURV Management - Submissions", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "text_fragment", "value": "guardian note above the form fields" }, "excerpt": "*ANY TALENT UNDER THE AGE OF 18 MUST HAVE PERMISSION FROM A PARENT OR LEGAL GUARDIAN.", "archivedUrl": null, "contentHash": null },
+    { "id": "curv-contact", "authority": "first_party_published", "publisher": "CURV Management", "url": "https://thecurvmanagement.com/contact", "title": "CURV Management - Contact", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "office details" }, "excerpt": "99 MADISON AVE , NEW YORK, NY 10016 | 917.242.6681 | info@curvmgmt.com | Reg # 26-69SRC-LSFW", "archivedUrl": null, "contentHash": null },
+    { "id": "curv-about", "authority": "first_party_published", "publisher": "CURV Management", "url": "https://thecurvmanagement.com/about", "title": "CURV Management - About", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "positioning statement" }, "excerpt": "WE FOCUS ON REMOVING BARRIERS AROUND SIZE, AGE, AND RACE-ENSURING TALENT IS RECOGNIZED FOR THEIR INDIVIDUALITY AND UNIQUE CONTRIBUTIONS.", "archivedUrl": null, "contentHash": null }
+  ],
+  "review": { "authority": "first_party_published", "method": "dual_reviewer", "reviewers": [{ "id": "spec-registry-rebuild-lane-20260819", "reviewedOn": "2026-08-19" }, { "id": "normalization-review-20260829", "reviewedOn": "2026-08-29" }], "notes": "Normalized from the 2026-08-19 rebuild research. Four adjudications carry into this revision. The upload slots publish no shot type, so no slot is asserted from them; the single slot here is derived from the instruction to pull long hair back for profile images, and is recorded as preferred rather than required because the source never says a profile image is mandatory. Its label is the two words that name the shot rather than the whole sentence, because the label is what an exported file is named after; the sentence is on the evidence. Guardian permission is published as a requirement and is modelled as one, but the form captures nothing about a guardian and a minor's date of birth changes nothing in it - the unknown records that gap rather than letting the rule imply the form will ask. Requiredness comes only from asterisks inside label text; fields without one are recorded as present with unknown requiredness, never as optional. Two facts have no home in this schema and are recorded here instead: the form's Ethnicity select, which has no taxonomy field, and the Contact page's Submissions link, which points at jagmodels.com/submissions - a different agency - and is the strongest case in this dataset for publishing an agency's verified official link. legalName is the NY DOL registrant name verbatim, including the register's own misspelling of Management." }
+}

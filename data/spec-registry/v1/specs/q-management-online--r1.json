@@ -1,0 +1,98 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "q-management:online",
+  "revisionId": "q-management:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": {"id": "q-management", "name": "Q Management", "legalName": "Que Management Inc", "officialDomains": ["qmanagementinc.com"]},
+    "office": {"id": null, "name": null},
+    "market": {"kind": "country", "code": "us", "countryCodes": ["US"], "city": null},
+    "channel": {"id": "q-join-form", "type": "official_web_form", "url": "https://www.qmanagementinc.com/join"},
+    "divisions": {"mode": "unspecified", "values": []},
+    "applicantTracks": {"mode": "unspecified", "values": []},
+    "evidenceIds": ["q-join-form-dom", "q-contact-offices"]
+  },
+  "lifecycle": {"observedOn": "2026-08-19", "effectiveFrom": null, "effectiveUntil": null, "reviewedOn": "2026-08-29", "nextReviewOn": "2026-11-17"},
+  "rules": {
+    "shots": {
+      "count": {"minimum": null, "maximum": 4, "basis": "explicit_form_semantics", "evidenceIds": ["q-join-form-dom"]},
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        {"id": "headshot", "quantity": {"minimum": 1, "maximum": 1}, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "Headshot", "match": {"field": "shot.frame", "operator": "equals", "value": "headshot", "unit": null}, "appliesWhen": null, "evidenceIds": ["q-join-form-dom"], "matchability": "hybrid"},
+        {"id": "full-length", "quantity": {"minimum": 1, "maximum": 1}, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "Full Length", "match": {"field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null}, "appliesWhen": null, "evidenceIds": ["q-join-form-dom"], "matchability": "hybrid"},
+        {"id": "profile", "quantity": {"minimum": 1, "maximum": 1}, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "Profile", "match": {"field": "shot.view", "operator": "equals", "value": "profile", "unit": null}, "appliesWhen": null, "evidenceIds": ["q-join-form-dom"], "matchability": "hybrid"},
+        {"id": "three-quarter-length", "quantity": {"minimum": 1, "maximum": 1}, "modality": "requested", "basis": "explicit_form_semantics", "sourceLabel": "3/4 Length", "match": {"field": "shot.frame", "operator": "equals", "value": "three_quarter_length", "unit": null}, "appliesWhen": null, "evidenceIds": ["q-join-form-dom"], "matchability": "hybrid"}
+      ]
+    },
+    "setWide": [],
+    "files": [
+      {"id": "published-jpg-format", "modality": "required", "basis": "explicit_text", "constraint": {"field": "file.mime_type", "operator": "equals", "value": "image/jpeg", "unit": null}, "appliesWhen": null, "sourceLabel": "Submit your photos as JPG files", "evidenceIds": ["q-join-photo-instruction"], "matchability": "automatic", "scope": "per_file", "sourceValue": null},
+      {"id": "form-accept-attribute", "modality": "allowed", "basis": "explicit_form_semantics", "constraint": {"field": "file.mime_type", "operator": "in", "value": ["image/jpeg", "image/png", "image/gif"], "unit": null}, "appliesWhen": null, "sourceLabel": ".jpg, .jpeg, .png, .gif", "evidenceIds": ["q-join-form-dom"], "matchability": "automatic", "scope": "per_file", "sourceValue": null},
+      {"id": "published-per-file-size", "modality": "required", "basis": "explicit_text", "constraint": {"field": "file.size_bytes", "operator": "lte", "value": 3000000, "unit": "byte"}, "appliesWhen": null, "sourceLabel": "no larger than 3MB in size", "evidenceIds": ["q-join-photo-instruction"], "matchability": "automatic", "scope": "per_file", "sourceValue": {"value": 3, "unit": "MB", "normalization": "decimal_conservative"}}
+    ],
+    "eligibility": [],
+    "applicationFields": [
+      {"id": "sex", "field": "applicant.gender", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "FEMALE / MALE", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "first-name", "field": "applicant.first_name", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "FIRST NAME", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "last-name", "field": "applicant.last_name", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "LAST NAME", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "gender-free-text", "field": "applicant.gender", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "GENDER", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "pronouns", "field": "applicant.pronouns", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "PRONOUNS", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "age", "field": "applicant.age_years", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "AGE", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "email", "field": "contact.email", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "EMAIL ADDRESS", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "nationality", "field": "applicant.nationality", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "NATIONALITY", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "location", "field": "contact.location", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "LOCATION", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "mobile", "field": "contact.phone", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "MOBILE", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "instagram", "field": "social.instagram", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "INSTAGRAM", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "tiktok", "field": "social.tiktok", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "TIKTOK", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "height", "field": "measurements.height", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "HEIGHT", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "bust", "field": "measurements.bust", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "BUST", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "hips", "field": "measurements.hips", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "HIPS", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "waist", "field": "measurements.waist", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "WAIST", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "dress-size", "field": "measurements.clothing_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "DRESS SIZE", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "shoe-size", "field": "measurements.shoe_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "SHOE SIZE", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "hair-color", "field": "appearance.hair_color", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "HAIR COLOR", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "eye-color", "field": "appearance.eye_color", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "EYE COLOR", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "message", "field": "applicant.message", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "TELL US A BIT MORE ABOUT WHO YOU ARE", "evidenceIds": ["q-join-form-dom"]},
+      {"id": "data-processing-consent", "field": "consent.data_processing", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "BY CHECKING THIS BOX, I AGREE TO FULLY ACCEPT THE PROCESSING OF MY PERSONAL DATA AS DESCRIBED IN THE PRIVACY POLICY.", "evidenceIds": ["q-join-consent-checkbox"]}
+    ]
+  },
+  "unknowns": [
+    {"fact": "scope.receiving_office", "appliesWhen": null, "reason": "not_published", "note": "One form serves both published offices; it has no office selector, so which office receives an application is not stated.", "evidenceIds": ["q-contact-offices"]},
+    {"fact": "scope.destination_markets", "appliesWhen": null, "reason": "not_published", "note": "The site publishes boards (Main, Direct, Development, Curve, Q Too, Lifestyle, Talent) that the form never asks about.", "evidenceIds": ["q-board-pages"]},
+    {"fact": "shots.count.minimum", "appliesWhen": null, "reason": "ambiguous", "note": "Four photo slots are present and none carries a requiredness marker, so how many are required is not stated.", "evidenceIds": ["q-join-form-dom"]},
+    {"fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-form-dom"]},
+    {"fact": "presentation.clothing", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.hair", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.makeup", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.accessories", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.expression", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.lighting", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.color_mode", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.image_style", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "presentation.image_quality", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "files.total_size", "appliesWhen": null, "reason": "ambiguous", "note": "The published cap does not say whether 3MB applies to each file or to the set; the wording reads per file.", "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["q-join-photo-instruction"]},
+    {"fact": "eligibility.age", "appliesWhen": null, "reason": "not_published", "note": "No age floor, range, or date-of-birth field appears on the form or the board pages.", "evidenceIds": ["q-board-pages"]},
+    {"fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": "The board pages carry roster stat cards only; no height floor is published.", "evidenceIds": ["q-board-pages"]},
+    {"fact": "application.guardian_fields", "appliesWhen": null, "reason": "not_published", "note": "No guardian field, minimum age, or minors process is published anywhere on the site.", "evidenceIds": ["q-join-form-dom"]},
+    {"fact": "application.unresolved_fields", "appliesWhen": null, "reason": "ambiguous", "note": "No control in the form carries a required attribute, so every field is present with unknown requiredness.", "evidenceIds": ["q-join-form-dom"]},
+    {"fact": "application.gated_fields", "appliesWhen": null, "reason": "source_access_limited", "note": "Server-side validation, the confirmation screen and any response are past the submit boundary and were not observed.", "evidenceIds": ["q-join-form-dom"]}
+  ],
+  "evidence": [
+    {"id": "q-join-photo-instruction", "authority": "first_party_published", "publisher": "Q Management", "url": "https://www.qmanagementinc.com/join", "title": "Q Management — Join", "locale": "en", "retrievedOn": "2026-08-19", "locator": {"kind": "text_fragment", "value": "photo upload instruction"}, "excerpt": "Submit your photos as JPG files, no larger than 3MB in size.", "archivedUrl": null, "contentHash": null},
+    {"id": "q-join-form-dom", "authority": "first_party_published", "publisher": "Q Management", "url": "https://www.qmanagementinc.com/join", "title": "Q Management — Join", "locale": "en", "retrievedOn": "2026-08-19", "locator": {"kind": "form_field", "value": "join form control dump: sex, firstname, lastname, gender, pronouns, age, email, nationality, location, phone, instagram, tiktok, measureunit, height, bust, hips, waist, dress, shoesize, haircolor, eyecolor, message, medias_0-medias_3"}, "excerpt": ".jpg, .jpeg, .png, .gif", "archivedUrl": null, "contentHash": null},
+    {"id": "q-join-consent-checkbox", "authority": "first_party_published", "publisher": "Q Management", "url": "https://www.qmanagementinc.com/join", "title": "Q Management — Join", "locale": "en", "retrievedOn": "2026-08-19", "locator": {"kind": "form_field", "value": "rgcd"}, "excerpt": "BY CHECKING THIS BOX, I AGREE TO FULLY ACCEPT THE PROCESSING OF MY PERSONAL DATA AS DESCRIBED IN THE PRIVACY POLICY.", "archivedUrl": null, "contentHash": null},
+    {"id": "q-contact-offices", "authority": "first_party_published", "publisher": "Q Management", "url": "https://www.qmanagementinc.com/contact", "title": "Q Management — Contact", "locale": "en", "retrievedOn": "2026-08-19", "locator": {"kind": "section", "value": "NEW YORK / LOS ANGELES"}, "excerpt": "NEW YORK — 37 West 26th St. New York, NY 10010 | +1 (212) 807 6777 | nyc@qmanagementinc.com", "archivedUrl": null, "contentHash": null},
+    {"id": "q-board-pages", "authority": "first_party_published", "publisher": "Q Management", "url": "https://www.qmanagementinc.com/new-york-women-curve", "title": "Q Management — New York Women Curve", "locale": "en", "retrievedOn": "2026-08-19", "locator": {"kind": "whole_page", "value": null}, "excerpt": null, "archivedUrl": null, "contentHash": null}
+  ],
+  "review": {"authority": "first_party_published", "method": "dual_reviewer", "reviewers": [{"id": "spec-registry-rebuild-lane-20260819", "reviewedOn": "2026-08-19"}, {"id": "normalization-review-20260829", "reviewedOn": "2026-08-29"}], "notes": "Normalized from the 2026-08-19 rebuild research. Three adjudications carry into this revision. The published \"JPG files\" instruction and the form's own .jpg/.jpeg/.png/.gif accept string are both recorded, as a required rule and an allowed rule, because they disagree and the source of truth at submit time is unobservable; export therefore narrows to JPEG. The 3MB cap is published but is not enforced in the browser, so it is recorded as the agency's rule rather than as form behaviour. The weekly Thursday open call attributed to Q by a third-party directory is deliberately absent: Q's own site publishes no open-call schedule, its only first-party statement (2019) says calls were on hold, and the directory's addresses do not match Q's. The form's CM/INCH measurement-unit selector has no taxonomy field and is not represented here."}
+}

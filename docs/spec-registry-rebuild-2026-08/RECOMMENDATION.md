@@ -26,6 +26,55 @@
 domain-verifiability question), Soul Artist / Major / APM / NYMM / The Management NYC
 (each needs one deep pass), Nomad (registry follow-up first).
 
+## Status — 2026-08-29 (normalization pass, partial)
+
+Six of the eleven recommended entries are now published in the live pack
+(`data/spec-registry/v1`), taking step 3 of §2 for the entries that had no
+registry series at all: **State** (its own form), **Q Management**, **ONE
+Management**, **JAG Models**, **CURV Management** and **Bicoastal Mgmt**. Each
+carries `observedOn: 2026-08-19` — this research's date, not the day it was
+normalized — with a 90-day review deadline, and each is matched to its NY DOL
+certificate in `data/trust-registry/v1/verifications/` against the in-repo
+snapshot.
+
+Two deliberate deviations from §2's sequence, both recorded so they are not
+mistaken for oversights:
+
+1. **The entries were normalized into the existing v1 schema, not the
+   three-layer model in `MODEL.md`.** Step 2 (schema implementation) has not
+   happened, and waiting for it would have left the export and preflight
+   machinery with six targets through the Fashion Week Brooklyn season. What v1
+   cannot hold — video mechanisms, per-channel legal regimes, conditional
+   field visibility, honeypots, template defects, ethnicity and website fields
+   — is written into each revision's `review.notes` rather than dropped, so the
+   facts survive to be re-normalized when the new schema lands. Each entry's
+   notes name what its schema could not carry.
+2. **State's Snapcast channel is not published.** v1 carries one channel per
+   revision, and the authored brief already sets State's two channels side by
+   side. A second series would inherit a brief written for the first, which is
+   the specific failure mode that entry exists to demonstrate.
+
+Still open from this package:
+
+- **Fashion Week Brooklyn** has no registry series (`fashion-week-brooklyn:event`
+  is still prospective); its intake is event casting rather than representation.
+- **Ford is corrected.** `ford-models:selected-city-online@2` (2026-08-29)
+  replaces the channel the series named: revision 1 described the Snapcast form,
+  which fordmodels.com mounts for Paris alone, so the pack was pointing a New
+  York applicant at the wrong application. The canonical selectroom form brings
+  its own slots (close-up and full length required, side profile and upper body
+  not), JPEG and PNG, and no size cap — the 3MB figure belonged to Paris.
+  Paris itself is still unpublished: its accept string was never captured, which
+  is §2 step 6's open research gap.
+- **Muse, Wilhelmina and Elite** remain on their 2026-08-09 v1 revisions. This
+  research supersedes all three, though none carries a wrong-channel defect.
+- **Two v1-vintage entries name their slots after upload buttons** — IMG's read
+  "Upload Head Shot", The Society's "Please submit a close-up" — which is what an
+  exported file ends up named after. Worth fixing when they are re-normalized.
+- **IMG Models and The Society** are published but were dropped from this
+  package's launch ten (§3 of `SELECTION.md`). Whether they stay published is a
+  product decision, not a data one, and nothing has been delisted.
+
 ## 2. What I would do next (sequenced)
 
 1. **Owner review of this package** — especially the four MODEL.md §5 questions, the

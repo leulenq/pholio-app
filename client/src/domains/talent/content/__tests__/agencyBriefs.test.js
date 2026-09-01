@@ -79,13 +79,20 @@ describe('agencyBriefs pack', () => {
     expect(briefForSeries('ford-models:selected-city-online')?.id).toBe('ford');
     expect(briefForSeries('muse-model-management-nyc:email')?.id).toBe('muse-nyc');
     expect(briefForSeries('wilhelmina:selected-market-online')?.id).toBe('wilhelmina');
+    expect(briefForSeries('state:online')?.id).toBe('state');
+    expect(briefForSeries('q-management:online')?.id).toBe('q-management');
+    expect(briefForSeries('one-management:online')?.id).toBe('one-management');
+    expect(briefForSeries('jag:online')?.id).toBe('jag');
+    expect(briefForSeries('curv:online')?.id).toBe('curv');
+    expect(briefForSeries('bicoastal:online')?.id).toBe('bicoastal');
   });
 
   test('briefForSeries is an exact match, never a fuzzy match by name', () => {
     // "elite-na" is the entry's own id, not a series id it answers for.
     expect(briefForSeries('elite-na')).toBeNull();
     // A prospective series id is not a live match until a real route claims it.
-    expect(briefForSeries('state:online')).toBeNull();
+    // Fashion Week Brooklyn is the one entry still waiting for its series.
+    expect(briefForSeries('fashion-week-brooklyn:event')).toBeNull();
     expect(briefForSeries('')).toBeNull();
     expect(briefForSeries(null)).toBeNull();
     expect(briefForSeries(undefined)).toBeNull();

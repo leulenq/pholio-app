@@ -29,6 +29,8 @@ const CLOSE_UP_ID = "a0000000-0000-4000-8000-000000000004";
 const PROFILE_SHOT_ID = "a0000000-0000-4000-8000-000000000005";
 
 const FORD_SERIES = "ford-models:selected-city-online";
+/** The tightest published per-file cap in the pack: 600 KB, from ONE's own copy. */
+const CAPPED_SERIES = "one-management:online";
 /** The one published route whose channel is an inbox rather than a form. */
 const MUSE_SERIES = "muse-model-management-nyc:email";
 const REFERENCE_DATE = "2026-08-14";
@@ -243,24 +245,41 @@ describe("spec-correct export — end to end", () => {
       "STATS.txt",
       "ford-models-close-up.jpg",
       "ford-models-full-length.jpg",
-      "ford-models-profile.jpg",
+      "ford-models-side-profile.jpg",
     ]);
     // Ford takes applications through a form, so there is nothing to draft.
     expect(files.has("EMAIL.txt")).toBe(false);
   });
 
-  test("every file lands under the 3MB per-file limit Ford publishes", async () => {
+  test("Ford's canonical form publishes no per-file cap, so the export imposes none", async () => {
     const result = await buildSpecExport(
       db,
       { profileId: PROFILE_ID, seriesId: FORD_SERIES },
       { referenceDate: REFERENCE_DATE },
     );
 
-    // Ford publishes "under 3MB" with a strict less-than, so the computed
-    // ceiling is one byte short of the published value.
-    expect(result.manifest.perFileLimitBytes).toBe(2_999_999);
+    // The 3MB ceiling this series carried at revision 1 came from the Snapcast
+    // form, which serves Paris. Reading it onto the canonical form would shrink
+    // a talent's photos to meet a limit the agency never published.
+    expect(result.manifest.perFileLimitBytes).toBeNull();
     for (const entry of result.manifest.entries) {
-      expect(entry.bytes).toBeLessThanOrEqual(2_999_999);
+      expect(entry.withinPublishedLimit).toBe(true);
+    }
+  });
+
+  test("every file lands under the 600 KB per-file limit ONE Management publishes", async () => {
+    const result = await buildSpecExport(
+      db,
+      { profileId: PROFILE_ID, seriesId: CAPPED_SERIES },
+      { referenceDate: REFERENCE_DATE },
+    );
+
+    // "File size: maximum 600 KB per image", read decimally, is the whole point
+    // of the encode ladder: real photos do not arrive that small.
+    expect(result.manifest.perFileLimitBytes).toBe(600_000);
+    expect(result.manifest.entries.length).toBeGreaterThan(0);
+    for (const entry of result.manifest.entries) {
+      expect(entry.bytes).toBeLessThanOrEqual(600_000);
       expect(entry.withinPublishedLimit).toBe(true);
     }
   });
@@ -764,8 +783,8 @@ describe("spec-correct export — end to end", () => {
         const closeUp = "ford-models-close-up.jpg";
 
         if (decodeAvailable) {
-          // Ford route publishes no accepted-format rule, so any format change
-          // change format — and the entry has to say so, under a .jpg name.
+          // Ford's form accepts JPEG and PNG, so a HEIC has to change format —
+          // and the entry has to say so, under a .jpg name.
           expect(files.has(closeUp)).toBe(true);
           expect((await sharp(files.get(closeUp)).metadata()).format).toBe("jpeg");
 

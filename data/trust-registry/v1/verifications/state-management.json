@@ -1,0 +1,20 @@
+{
+  "$schema": "../schemas/verification-entry.schema.json",
+  "schemaVersion": "1.0.0",
+  "registry": "ny_dol",
+  "rawSnapshot": "raw/nydol-hder-iq9y-2026-08-15.json",
+  "organizationId": "state-management",
+  "agencyId": null,
+  "legalName": "State Artist Management LLC",
+  "dba": null,
+  "certificateNumber": "26-66CVV-LSFW",
+  "registeredOn": "2026-03-20",
+  "expiresOn": "2028-03-20",
+  "registryStatus": "active",
+  "officialSiteUrl": null,
+  "officialApplyUrl": "https://www.statemgmt.com/become-a-model",
+  "evidenceUrl": "https://data.ny.gov/resource/hder-iq9y.json",
+  "retrievedOn": "2026-08-15",
+  "verifiedOn": "2026-08-29",
+  "notes": null
+}

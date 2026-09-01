@@ -62,6 +62,16 @@
             "waist up",
             "waist-up"
           ]
+        },
+        {
+          "id": "three_quarter_length",
+          "label": "Three-quarter length",
+          "description": "A source-labelled 3/4-length frame, between a waist-up crop and a full-length one; the exact crop boundary is not inferred.",
+          "aliases": [
+            "3/4 length",
+            "three quarter length",
+            "3/4-length"
+          ]
         }
       ],
       "matchabilityDefault": "hybrid"

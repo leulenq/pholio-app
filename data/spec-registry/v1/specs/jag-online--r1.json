@@ -1,0 +1,86 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "jag:online",
+  "revisionId": "jag:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": { "id": "jag-models", "name": "JAG Models", "legalName": "JAG Models Inc", "officialDomains": ["jagmodels.com"] },
+    "office": { "id": null, "name": null },
+    "market": { "kind": "country", "code": "us", "countryCodes": ["US"], "city": null },
+    "channel": { "id": "jag-submissions-form", "type": "official_web_form", "url": "https://jagmodels.com/submissions/" },
+    "divisions": { "mode": "unspecified", "values": [] },
+    "applicantTracks": { "mode": "unspecified", "values": [] },
+    "evidenceIds": ["jag-submissions-form-dom", "jag-about", "jag-submissions-safety-notice"]
+  },
+  "lifecycle": { "observedOn": "2026-08-19", "effectiveFrom": null, "effectiveUntil": null, "reviewedOn": "2026-08-29", "nextReviewOn": "2026-11-17" },
+  "rules": {
+    "shots": {
+      "count": { "minimum": 3, "maximum": 3, "basis": "explicit_form_semantics", "evidenceIds": ["jag-submissions-form-dom"] },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        { "id": "full-length", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "derived_from_explicit_assertions", "sourceLabel": "Full length", "match": { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null }, "appliesWhen": null, "evidenceIds": ["jag-submissions-example-images"], "matchability": "hybrid" },
+        { "id": "close-up", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "derived_from_explicit_assertions", "sourceLabel": "Close up", "match": { "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null }, "appliesWhen": null, "evidenceIds": ["jag-submissions-example-images"], "matchability": "hybrid" },
+        { "id": "profile", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "requested", "basis": "derived_from_explicit_assertions", "sourceLabel": "Profile", "match": { "field": "shot.view", "operator": "equals", "value": "profile", "unit": null }, "appliesWhen": null, "evidenceIds": ["jag-submissions-example-images"], "matchability": "hybrid" }
+      ]
+    },
+    "setWide": [],
+    "files": [
+      { "id": "platform-per-file-ceiling", "modality": "allowed", "basis": "explicit_text", "constraint": { "field": "file.size_bytes", "operator": "lte", "value": 67108864, "unit": "byte" }, "appliesWhen": null, "sourceLabel": "Max. file size: 64 MB.", "evidenceIds": ["jag-submissions-upload-limit"], "matchability": "automatic", "scope": "per_file", "sourceValue": { "value": 64, "unit": "MB", "normalization": "binary_explicit" } }
+    ],
+    "eligibility": [],
+    "applicationFields": [
+      { "id": "first-name", "field": "applicant.first_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "First name", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "last-name", "field": "applicant.last_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Last name", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "pronouns", "field": "applicant.pronouns", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Pronouns", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "date-of-birth", "field": "applicant.date_of_birth", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Date of Birth", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "height", "field": "measurements.height", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Height", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "homebase", "field": "contact.location", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Homebase", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "email", "field": "contact.email", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "E-mail", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "phone", "field": "contact.phone", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Phone", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "instagram", "field": "social.instagram", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Instagram", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "tiktok", "field": "social.tiktok", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Tik Tok", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "youtube", "field": "social.youtube", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "YouTube", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "additional-links", "field": "social.account", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Additional Links", "evidenceIds": ["jag-submissions-form-dom"] },
+      { "id": "about-you", "field": "applicant.message", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "What else should we know about you?", "evidenceIds": ["jag-submissions-form-dom"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "scope.destination_markets", "appliesWhen": null, "reason": "not_published", "note": "The site's boards are split by market and career stage - New York and Los Angeles, Models and Development - and the form has no field for either.", "evidenceIds": ["jag-submissions-form-dom"] },
+    { "fact": "shots.types", "appliesWhen": null, "reason": "ambiguous", "note": "Three example photographs captioned Full length, Close up and Profile sit above three slots labelled first, second and third image. The form never says which caption belongs to which slot, so the three shots are taken from the examples and their order is not asserted.", "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-form-dom"] },
+    { "fact": "presentation.clothing", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.hair", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.makeup", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.accessories", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.expression", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.lighting", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.color_mode", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.image_style", "appliesWhen": null, "reason": "not_published", "note": "The three captioned examples are the whole of the photo guidance; no text about clothing, hair, makeup, background, lighting or expression appears anywhere on the page.", "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "presentation.image_quality", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "files.mime_types", "appliesWhen": null, "reason": "not_published", "note": "No accept attribute appears on any of the three file inputs, so the picker is unfiltered. The form's own copy asks for images and the platform rejects disallowed extensions on submit, but the allowed list is server-side and was not observed.", "evidenceIds": ["jag-submissions-form-dom"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": "The 64 MB figure is published per file; no combined limit is stated.", "evidenceIds": ["jag-submissions-upload-limit"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["jag-submissions-example-images"] },
+    { "fact": "eligibility.age", "appliesWhen": null, "reason": "not_published", "note": "No minimum age, and no age statement of any kind, appears on the submissions, about, contact or privacy pages.", "evidenceIds": ["jag-about"] },
+    { "fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": "Height is asked for on the form and no floor or range is published anywhere.", "evidenceIds": ["jag-about"] },
+    { "fact": "application.guardian_fields", "appliesWhen": null, "reason": "not_published", "note": "Nothing about minors or guardians is published. The date-of-birth field carries no marker, no date limits and no conditional guardian step.", "evidenceIds": ["jag-submissions-form-dom"] },
+    { "fact": "application.unresolved_fields", "appliesWhen": null, "reason": "ambiguous", "note": "Requiredness is signalled by aria-required and a visible (Required) label rather than a required attribute; fields without those markers are not stated to be optional.", "evidenceIds": ["jag-submissions-form-dom"] },
+    { "fact": "application.gated_fields", "appliesWhen": null, "reason": "source_access_limited", "note": "The confirmation the platform renders after a submission is not present in the page beforehand, so what an applicant sees after sending was not observed.", "evidenceIds": ["jag-submissions-form-dom"] }
+  ],
+  "evidence": [
+    { "id": "jag-submissions-form-dom", "authority": "first_party_published", "publisher": "JAG Models", "url": "https://jagmodels.com/submissions/", "title": "JAG Models - Submissions", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "form_field", "value": "submissions form control dump: input_1 first name, input_2 last name, input_3 pronouns, input_4 date of birth, input_5 height, input_6 homebase, input_7 e-mail, input_8 phone, input_9 instagram, input_10 tik tok, input_11 youtube, input_12 additional links, input_13 message, and the input_14, input_15 and input_16 image uploads" }, "excerpt": "This field is for validation purposes and should be left unchanged.", "archivedUrl": null, "contentHash": null },
+    { "id": "jag-submissions-example-images", "authority": "first_party_published", "publisher": "JAG Models", "url": "https://jagmodels.com/submissions/", "title": "JAG Models - Submissions", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "Examples Images block above the upload slots" }, "excerpt": "Full length / Close up / Profile", "archivedUrl": null, "contentHash": null },
+    { "id": "jag-submissions-upload-limit", "authority": "first_party_published", "publisher": "JAG Models", "url": "https://jagmodels.com/submissions/", "title": "JAG Models - Submissions", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "text_fragment", "value": "upload field description" }, "excerpt": "Max. file size: 64 MB.", "archivedUrl": null, "contentHash": null },
+    { "id": "jag-submissions-safety-notice", "authority": "first_party_published", "publisher": "JAG Models", "url": "https://jagmodels.com/submissions/", "title": "JAG Models - Submissions", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "safety notice" }, "excerpt": "For your safety, do not engage or respond to anyone who is claiming to be a representative for JAG unless you have had their identity verified. All JAG employees use valid email addresses that end in @jagmodels.com. You can verify any requests by sending us a message at jag@jagmodels.com.", "archivedUrl": null, "contentHash": null },
+    { "id": "jag-about", "authority": "first_party_published", "publisher": "JAG Models", "url": "https://jagmodels.com/about/", "title": "JAG Models - About", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "positioning statement" }, "excerpt": "Together, we're removing barriers around size, weight, gender, and race. We're solely focusing on what individuals bring to the table.", "archivedUrl": null, "contentHash": null }
+  ],
+  "review": { "authority": "first_party_published", "method": "dual_reviewer", "reviewers": [{ "id": "spec-registry-rebuild-lane-20260819", "reviewedOn": "2026-08-19" }, { "id": "normalization-review-20260829", "reviewedOn": "2026-08-29" }], "notes": "Normalized from the 2026-08-19 rebuild research. The 64 MB per-file figure is published on the form and is recorded as allowed rather than required: it is the identical binary round value on all three slots with no rationale beside it, which reads as the hosting platform's ceiling rather than a photographic ask, and a talent should not be told JAG wants 64 MB files. The three shots come from the example captions rather than from the slot labels, so they are derived rather than explicit, and the unknown records that the form never says which example belongs to which slot. No format is asserted: the file inputs carry no accept attribute at all, and the extension allowlist lives on the platform's server where it was not observable. Two facts are recorded here rather than in the rules: the form's LinkedIn control is the platform's anti-spam honeypot, described in its own markup as being for validation purposes and to be left unchanged - it must never be presented to a talent as a field to fill - and the page's safety notice states that every JAG employee's email address ends in @jagmodels.com, which is the agency's own anti-impersonation claim and belongs to the verification layer rather than to a submission rule. The site publishes no eligibility of any kind, and an earlier internal premise that JAG is positioned for women of all sizes was falsified: that phrase appears nowhere on the site, the published positioning is broader, and the form has no gender field." }
+}

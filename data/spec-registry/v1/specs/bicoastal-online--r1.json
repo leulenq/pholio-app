@@ -1,0 +1,100 @@
+{
+  "$schema": "../schemas/spec-revision.schema.json",
+  "schemaVersion": "1.0.0",
+  "taxonomyVersion": "1.0.0",
+  "seriesId": "bicoastal:online",
+  "revisionId": "bicoastal:online@1",
+  "revision": 1,
+  "supersedesRevisionId": null,
+  "status": "verified",
+  "evaluationMode": "advisory",
+  "scope": {
+    "organization": { "id": "bicoastal-management", "name": "Bicoastal Mgmt", "legalName": "Maliwawa Productions Inc.", "officialDomains": ["bicoastalmgmt.com"] },
+    "office": { "id": null, "name": null },
+    "market": { "kind": "country", "code": "us", "countryCodes": ["US"], "city": null },
+    "channel": { "id": "bicoastal-get-scouted-form", "type": "official_web_form", "url": "https://www.bicoastalmgmt.com/get-scouted" },
+    "divisions": { "mode": "unspecified", "values": [] },
+    "applicantTracks": { "mode": "unspecified", "values": [] },
+    "evidenceIds": ["bicoastal-get-scouted-form-dom", "bicoastal-get-scouted-intro", "bicoastal-about"]
+  },
+  "lifecycle": { "observedOn": "2026-08-19", "effectiveFrom": null, "effectiveUntil": null, "reviewedOn": "2026-08-29", "nextReviewOn": "2026-11-17" },
+  "rules": {
+    "shots": {
+      "count": { "minimum": 4, "maximum": 4, "basis": "explicit_form_semantics", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      "allowImageReuseAcrossSlots": null,
+      "slots": [
+        { "id": "close-up", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "CLOSE-UP", "match": { "field": "shot.frame", "operator": "equals", "value": "close_up", "unit": null }, "appliesWhen": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"], "matchability": "hybrid" },
+        { "id": "full-body", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "FULL BODY", "match": { "field": "shot.frame", "operator": "equals", "value": "full_length", "unit": null }, "appliesWhen": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"], "matchability": "hybrid" },
+        { "id": "side-profile", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "SIDE PROFILE", "match": { "field": "shot.view", "operator": "equals", "value": "profile", "unit": null }, "appliesWhen": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"], "matchability": "hybrid" },
+        { "id": "upper-body", "quantity": { "minimum": 1, "maximum": 1 }, "modality": "required", "basis": "explicit_form_semantics", "sourceLabel": "UPPER BODY", "match": { "field": "shot.frame", "operator": "equals", "value": "waist_up", "unit": null }, "appliesWhen": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"], "matchability": "hybrid" }
+      ]
+    },
+    "setWide": [],
+    "files": [],
+    "eligibility": [
+      { "id": "independent-application-age", "modality": "required", "basis": "explicit_text", "constraint": { "field": "applicant.age_years", "operator": "gte", "value": 18, "unit": "year" }, "appliesWhen": null, "sourceLabel": "You must be 18 years of age or older to submit a talent application independently.", "evidenceIds": ["bicoastal-privacy-age-requirement"], "matchability": "automatic" },
+      { "id": "under-18-guardian-consent", "modality": "required", "basis": "explicit_text", "constraint": { "field": "guardian.written_consent", "operator": "equals", "value": true, "unit": null }, "appliesWhen": { "field": "applicant.age_years", "operator": "lt", "value": 18, "unit": "year" }, "sourceLabel": "For applicants under 18, we require written parental or guardian consent before processing the application. Please contact us at billing@bicoastalmgmt.com for the appropriate consent form.", "evidenceIds": ["bicoastal-privacy-age-requirement"], "matchability": "manual_confirmation" }
+    ],
+    "applicationFields": [
+      { "id": "gender", "field": "applicant.gender", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Female / Male / Non-binary", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "first-name", "field": "applicant.first_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "First Name *", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "last-name", "field": "applicant.last_name", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Last Name *", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "email", "field": "contact.email", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Email *", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "contact-number", "field": "contact.phone", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Contact Number", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "city", "field": "contact.city", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "City", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "state", "field": "contact.state_region", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "State", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "country", "field": "contact.country", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Country", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "date-of-birth", "field": "applicant.date_of_birth", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Date of Birth *", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "nationality", "field": "applicant.nationality", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Nationality", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "instagram", "field": "social.instagram", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Instagram", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "tiktok", "field": "social.tiktok", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "TikTok", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "height", "field": "measurements.height", "presence": "required", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Height *", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "bust", "field": "measurements.bust", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Bust", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "cup", "field": "measurements.cup_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Cup", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "hips", "field": "measurements.hips", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Hips", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "waist", "field": "measurements.waist", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Waist", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "dress", "field": "measurements.clothing_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Dress", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "shoe", "field": "measurements.shoe_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Shoe", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "clothing-top", "field": "measurements.clothing_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Clothing Top", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "clothing-bottom", "field": "measurements.clothing_size", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Clothing Bottom", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "chest-non-binary", "field": "measurements.chest", "presence": "present_requiredness_unknown", "appliesWhen": { "field": "applicant.gender", "operator": "equals", "value": "non_binary", "unit": null }, "basis": "explicit_form_semantics", "sourceLabel": "Chest", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "hair", "field": "appearance.hair_color", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Hair", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "eyes", "field": "appearance.eye_color", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Eyes", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "message", "field": "applicant.message", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "Mention anything else you'd like us to know", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+      { "id": "privacy-policy-acknowledgement", "field": "consent.privacy_policy", "presence": "present_requiredness_unknown", "appliesWhen": null, "basis": "explicit_form_semantics", "sourceLabel": "I acknowledge that I have read, and do hereby accept the Privacy Policy.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] }
+    ]
+  },
+  "unknowns": [
+    { "fact": "scope.receiving_office", "appliesWhen": null, "reason": "not_published", "note": "One form serves the New York and Los Angeles offices; it has no office field.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "scope.destination_markets", "appliesWhen": null, "reason": "not_published", "note": "The site publishes around seventy roster boards; the form has no division or board field.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "shots.image_reuse", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.clothing", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.hair", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.makeup", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.accessories", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.expression", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.background", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.lighting", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.color_mode", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.filters", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.effects", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.retouching", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.image_style", "appliesWhen": null, "reason": "not_published", "note": "No written photo guidance is published anywhere on the page. The only guidance is four reference photographs shown beside the upload slots, so nothing here is quoted from the agency.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "presentation.image_quality", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "files.mime_types", "appliesWhen": null, "reason": "ambiguous", "note": "The photo inputs accept image/*, image/heic, image/heif: any image format, with HEIC and HEIF named rather than filtered out. No format list is published, so none is asserted.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "files.per_file_size", "appliesWhen": null, "reason": "not_published", "note": "No size limit appears on any of the six upload controls or in the surrounding markup; a server-side limit cannot be ruled out.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "files.total_size", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "files.dimensions", "appliesWhen": null, "reason": "not_published", "note": null, "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "eligibility.height", "appliesWhen": null, "reason": "not_published", "note": "Height is the only required stat, and no floor, range or fit-model measurement spec is published for any division.", "evidenceIds": ["bicoastal-get-scouted-intro"] },
+    { "fact": "application.guardian_fields", "appliesWhen": null, "reason": "conflicting", "note": "The privacy policy requires a parent or guardian to submit for anyone under 18, with written consent obtained by email. The form implements none of it: no age gate, no guardian field, and a date of birth in 2015 is accepted without a warning.", "evidenceIds": ["bicoastal-privacy-age-requirement"] },
+    { "fact": "application.unresolved_fields", "appliesWhen": null, "reason": "ambiguous", "note": "Required fields carry native required attributes; the rest carry no marker at all and are not stated to be optional. The acknowledgement checkbox carries no required attribute either.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] },
+    { "fact": "application.gated_fields", "appliesWhen": null, "reason": "source_access_limited", "note": "Submit-time validation, the confirmation state and any confirmation email were not observed, because reaching them requires submitting.", "evidenceIds": ["bicoastal-get-scouted-form-dom"] }
+  ],
+  "evidence": [
+    { "id": "bicoastal-get-scouted-intro", "authority": "first_party_published", "publisher": "Bicoastal Mgmt", "url": "https://www.bicoastalmgmt.com/get-scouted", "title": "Scouting Print Fashion Commercial Kids Plus Fitness & Fit models", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "text_fragment", "value": "Get Scouted introduction" }, "excerpt": "BICOASTAL MGMT is always looking for potential fit models with consistent measurements and experience, NYC and LA based development models, and experienced commercial actors, fashion, print, plus models and talent of all ages and types. We can't answer every submission but appreciate your application! No calls please.", "archivedUrl": null, "contentHash": null },
+    { "id": "bicoastal-get-scouted-form-dom", "authority": "first_party_published", "publisher": "Bicoastal Mgmt", "url": "https://www.bicoastalmgmt.com/get-scouted", "title": "Scouting Print Fashion Commercial Kids Plus Fitness & Fit models", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "form_field", "value": "get-scouted form control dump: gender toggle, firstName, lastName, email, contactNumber, city, stateProvince, country, birthday, nationality, ethnicity, social_instagram, social_tiktok, website, stats comboboxes, terms, and the resume, video, closeUp, fullBody, sideProfile and upperBody uploads" }, "excerpt": "image/*, image/heic, image/heif", "archivedUrl": null, "contentHash": null },
+    { "id": "bicoastal-privacy-age-requirement", "authority": "first_party_published", "publisher": "Bicoastal Mgmt", "url": "https://www.bicoastalmgmt.com/privacy-policy", "title": "Bicoastal Mgmt - Privacy Policy", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "6.4 AGE REQUIREMENT AND PARENTAL CONSENT" }, "excerpt": "You must be 18 years of age or older to submit a talent application independently. If you are under 18, your application must be submitted by a parent or legal guardian who accepts this Privacy Policy on your behalf. For applicants under 18, we require written parental or guardian consent before processing the application. Please contact us at billing@bicoastalmgmt.com for the appropriate consent form.", "archivedUrl": null, "contentHash": null },
+    { "id": "bicoastal-about", "authority": "first_party_published", "publisher": "Bicoastal Mgmt", "url": "https://www.bicoastalmgmt.com/about", "title": "Bicoastal Mgmt - About", "locale": "en", "retrievedOn": "2026-08-19", "locator": { "kind": "section", "value": "registration and fees" }, "excerpt": "Certificate Number: 26-675G6-LSFW / Issued: 01/21/2026 / Expires: 01/21/2028 / Status: Registered. Our models and talent do not pay any upfront fees for any service.", "archivedUrl": null, "contentHash": null }
+  ],
+  "review": { "authority": "first_party_published", "method": "dual_reviewer", "reviewers": [{ "id": "spec-registry-rebuild-lane-20260819", "reviewedOn": "2026-08-19" }, { "id": "normalization-review-20260829", "reviewedOn": "2026-08-29" }], "notes": "Normalized from the 2026-08-19 rebuild research. The four photo slots are required and named by the form itself; UPPER BODY is mapped to the waist-up frame and its verbatim label is kept beside it. Slot labels carry the shot name without the form's required-marker asterisk, which modality already states. No mime rule is asserted: the photo inputs accept image/* with HEIC and HEIF named, which is a wildcard rather than a format list, so it is recorded as an ambiguous unknown and an export defaults to JPEG rather than to a format the registry invented. The age requirement is published in the privacy policy, not on the form, and the form contradicts it - no age gate, no guardian field, a 2015 date of birth accepted silently - so the rules carry the policy and the unknown carries the contradiction. Four form facts have no home in this schema and are recorded here: the optional resume (.pdf) and show-reel (.mp4) uploads, the Ethnicity and Website fields, the Collar and Suit fields that appear only under Non-binary, and the gender selector's behaviour - Female is preselected before any interaction, and choosing Male renders the same stat fields as Female while only Non-binary renders Chest, Collar and Suit. That last one is a live template defect and is not presented here as an intended men's stat schema. One process contradiction is left unresolved as the research found it: the form says the agency cannot answer every submission, while privacy policy 6.3 says an unsuccessful applicant is notified of the six-month retention period at the time of the decision." }
+}

@@ -46,12 +46,19 @@ async function submissionRequestDeleteAction(db) {
 describe("Spec Registry persistence and publication", () => {
   let db;
   let registry;
+  // Read from the pack rather than restated here: the shipped version moves
+  // every time a spec is added, and a test that pins it fails on data changes
+  // instead of on behaviour ones. The successors only have to sort after it.
+  let SHIPPED_VERSION;
+  const LATER_VERSION = "2100.01.01.1";
+  const LATER_PUBLISHED_ON = "2100-01-01";
 
   beforeAll(() => {
     registry = validateRegistry({
       registryRoot,
       asOf: new Date("2026-08-10T12:00:00.000Z"),
     });
+    SHIPPED_VERSION = registry.manifest.datasetVersion;
   });
 
   beforeEach(async () => {
@@ -150,19 +157,19 @@ describe("Spec Registry persistence and publication", () => {
     expect(first).toMatchObject({
       changed: true,
       status: "succeeded",
-      datasetVersion: "2026.08.19.1",
+      datasetVersion: SHIPPED_VERSION,
     });
     expect(second).toMatchObject({
       changed: false,
       status: "unchanged",
-      datasetVersion: "2026.08.19.1",
+      datasetVersion: SHIPPED_VERSION,
     });
     expect(Number((await db("spec_registry_datasets").count("* as n").first()).n)).toBe(1);
-    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(6);
-    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(6);
+    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(13);
+    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(12);
 
     const current = await getCurrentDataset(db);
-    expect(current.manifest).toMatchObject({ datasetVersion: "2026.08.19.1" });
+    expect(current.manifest).toMatchObject({ datasetVersion: SHIPPED_VERSION });
     expect(current.taxonomy.fields).toHaveLength(88);
     expect(current.packageSha256).toMatch(/^[a-f0-9]{64}$/);
 
@@ -178,16 +185,16 @@ describe("Spec Registry persistence and publication", () => {
     const runs = await db("spec_registry_sync_runs").orderBy("started_at", "asc");
     expect(runs.map((run) => run.status).sort()).toEqual(["succeeded", "unchanged"]);
     expect(JSON.parse(runs.find((run) => run.status === "succeeded").counts_json)).toMatchObject({
-      currentSeries: 6,
-      revisions: 6,
+      currentSeries: 12,
+      revisions: 13,
     });
   });
 
   test("keeps historical manifests while atomically moving the current pointer", async () => {
     await publishRegistry(db, registry);
     const next = clone(registry);
-    next.manifest.datasetVersion = "2026.08.20.1";
-    next.manifest.publishedOn = "2026-08-20";
+    next.manifest.datasetVersion = LATER_VERSION;
+    next.manifest.publishedOn = LATER_PUBLISHED_ON;
     next.summary = clone(registry.summary);
 
     await publishRegistry(db, next);
@@ -195,17 +202,17 @@ describe("Spec Registry persistence and publication", () => {
     const datasets = await db("spec_registry_datasets")
       .orderBy("dataset_version", "asc")
       .pluck("dataset_version");
-    expect(datasets).toEqual(["2026.08.19.1", "2026.08.20.1"]);
-    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(12);
-    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(6);
-    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.20.1");
+    expect(datasets).toEqual([SHIPPED_VERSION, LATER_VERSION]);
+    expect(Number((await db("spec_registry_dataset_records").count("* as n").first()).n)).toBe(24);
+    expect(Number((await db("spec_registry_revisions").count("* as n").first()).n)).toBe(13);
+    expect((await getCurrentDataset(db)).datasetVersion).toBe(LATER_VERSION);
   });
 
   test("refuses to reactivate a stale historical dataset", async () => {
     await publishRegistry(db, registry);
     const next = clone(registry);
-    next.manifest.datasetVersion = "2026.08.20.1";
-    next.manifest.publishedOn = "2026-08-20";
+    next.manifest.datasetVersion = LATER_VERSION;
+    next.manifest.publishedOn = LATER_PUBLISHED_ON;
     next.summary = clone(registry.summary);
     await publishRegistry(db, next);
 
@@ -214,16 +221,16 @@ describe("Spec Registry persistence and publication", () => {
     });
 
     const misleadingVersion = clone(registry);
-    misleadingVersion.manifest.datasetVersion = "2026.08.21.1";
-    misleadingVersion.manifest.publishedOn = "2026-08-18";
+    misleadingVersion.manifest.datasetVersion = "2999.01.01.1";
+    misleadingVersion.manifest.publishedOn = "2026-01-01";
     misleadingVersion.summary = clone(registry.summary);
     await expect(publishRegistry(db, misleadingVersion)).rejects.toMatchObject({
       code: "DATASET_ROLLBACK_FORBIDDEN",
     });
-    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.20.1");
+    expect((await getCurrentDataset(db)).datasetVersion).toBe(LATER_VERSION);
     expect(
       await db("spec_registry_sync_runs")
-        .where({ dataset_version: "2026.08.19.1", status: "failed" })
+        .where({ dataset_version: SHIPPED_VERSION, status: "failed" })
         .first("error_code"),
     ).toEqual({ error_code: "DATASET_ROLLBACK_FORBIDDEN" });
   });
@@ -231,8 +238,8 @@ describe("Spec Registry persistence and publication", () => {
   test("revision collision rolls back a staged dataset and preserves the current pointer", async () => {
     await publishRegistry(db, registry);
     const invalidNext = clone(registry);
-    invalidNext.manifest.datasetVersion = "2026.08.20.9";
-    invalidNext.manifest.publishedOn = "2026-08-20";
+    invalidNext.manifest.datasetVersion = "2100.01.01.9";
+    invalidNext.manifest.publishedOn = LATER_PUBLISHED_ON;
     invalidNext.specs[0].review.notes = `${invalidNext.specs[0].review.notes || ""} changed`;
     invalidNext.summary = clone(registry.summary);
 
@@ -242,13 +249,13 @@ describe("Spec Registry persistence and publication", () => {
 
     expect(
       await db("spec_registry_datasets")
-        .where({ dataset_version: "2026.08.20.9" })
+        .where({ dataset_version: "2100.01.01.9" })
         .first(),
     ).toBeUndefined();
-    expect((await getCurrentDataset(db)).datasetVersion).toBe("2026.08.19.1");
+    expect((await getCurrentDataset(db)).datasetVersion).toBe(SHIPPED_VERSION);
     expect(
       await db("spec_registry_sync_runs")
-        .where({ dataset_version: "2026.08.20.9" })
+        .where({ dataset_version: "2100.01.01.9" })
         .first("status", "error_code"),
     ).toEqual({
       status: "failed",

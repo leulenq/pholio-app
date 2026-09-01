@@ -1,0 +1,20 @@
+{
+  "$schema": "../schemas/verification-entry.schema.json",
+  "schemaVersion": "1.0.0",
+  "registry": "ny_dol",
+  "rawSnapshot": "raw/nydol-hder-iq9y-2026-08-15.json",
+  "organizationId": "jag-models",
+  "agencyId": null,
+  "legalName": "JAG Models Inc",
+  "dba": null,
+  "certificateNumber": "26-66BCS-LSFW",
+  "registeredOn": "2026-02-11",
+  "expiresOn": "2028-02-11",
+  "registryStatus": "active",
+  "officialSiteUrl": null,
+  "officialApplyUrl": "https://jagmodels.com/submissions/",
+  "evidenceUrl": "https://data.ny.gov/resource/hder-iq9y.json",
+  "retrievedOn": "2026-08-15",
+  "verifiedOn": "2026-08-29",
+  "notes": null
+}

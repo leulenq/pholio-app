@@ -534,7 +534,7 @@ describe("Spec Registry preflight service", () => {
       name: "SpecRegistryServiceError",
       code: "SPEC_REGISTRY_REVISION_CHANGED",
       status: 409,
-      details: { currentRevisionId: "ford-models:selected-city-online@1" },
+      details: { currentRevisionId: "ford-models:selected-city-online@2" },
     }));
   });
 });

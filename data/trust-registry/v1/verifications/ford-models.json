@@ -12,9 +12,9 @@
   "expiresOn": "2028-07-01",
   "registryStatus": "active",
   "officialSiteUrl": null,
-  "officialApplyUrl": "https://agency.getsnapcast.com/registrants/new_ford",
+  "officialApplyUrl": "https://www.fordmodels.com/get-scouted",
   "evidenceUrl": "https://data.ny.gov/resource/hder-iq9y.json",
   "retrievedOn": "2026-08-15",
   "verifiedOn": "2026-08-15",
-  "notes": null
+  "notes": "Official apply URL corrected on 2026-08-29 to Ford's own Get Scouted page. The Snapcast form named before it serves the Paris route only; every other city mounts a different form."
 }

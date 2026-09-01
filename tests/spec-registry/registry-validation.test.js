@@ -56,12 +56,12 @@ describe("Spec Registry v1 data package", () => {
 
   test("validates every schema and cross-record invariant", () => {
     expect(registry.summary).toEqual({
-      currentSeries: 6,
-      revisions: 6,
+      currentSeries: 12,
+      revisions: 13,
       taxonomyFields: 88,
       unknownFacts: 28,
     });
-    expect(registry.manifest.records).toHaveLength(6);
+    expect(registry.manifest.records).toHaveLength(12);
   });
 
   test("keeps public-source revisions reviewed but advisory", () => {
@@ -72,8 +72,14 @@ describe("Spec Registry v1 data package", () => {
       );
       expect(spec.review.method).toBe("dual_reviewer");
       expect(spec.review.reviewers).toHaveLength(2);
-      expect(spec.lifecycle.observedOn).toBe("2026-08-09");
-      expect(spec.lifecycle.reviewedOn).toBe("2026-08-09");
+      // The pack now carries two research vintages, so the assertion is the
+      // invariant rather than one date: a revision is observed on or before it
+      // is reviewed, and every evidence retrieval sits on or before the
+      // observation it supports.
+      expect(spec.lifecycle.observedOn <= spec.lifecycle.reviewedOn).toBe(true);
+      for (const evidence of spec.evidence) {
+        expect(evidence.retrievedOn <= spec.lifecycle.observedOn).toBe(true);
+      }
       if (spec.status === "verified") {
         expect(spec.lifecycle.nextReviewOn).not.toBeNull();
       }
@@ -208,24 +214,32 @@ describe("Spec Registry v1 data package", () => {
     ).toBe(true);
   });
 
-  test("preserves Ford's four requested selected-market upload targets and strict size cap", () => {
+  test("carries Ford's canonical selectroom form, not the Paris one it replaced", () => {
     const spec = bySeries.get("ford-models:selected-city-online");
+    expect(spec.revision).toBe(2);
+    expect(spec.supersedesRevisionId).toBe("ford-models:selected-city-online@1");
     expect(spec.scope.market).toMatchObject({
       kind: "selected_market",
       code: "selected-city",
     });
-    expect(spec.rules.shots.count).toMatchObject({ minimum: 4, maximum: 4 });
-    expect(spec.rules.shots.slots.map((slot) => slot.id)).toEqual([
-      "close-up",
-      "profile",
-      "waist-up",
-      "full-length",
+    // The channel is the correction: revision 1 named the Snapcast form, which
+    // fordmodels.com mounts for Paris alone.
+    expect(spec.scope.channel.url).toBe("https://www.fordmodels.com/get-scouted");
+    expect(spec.rules.shots.count).toMatchObject({ minimum: 2, maximum: 4 });
+    expect(spec.rules.shots.slots.map((slot) => [slot.id, slot.modality])).toEqual([
+      ["close-up", "required"],
+      ["full-length", "required"],
+      ["side-profile", "requested"],
+      ["upper-body", "requested"],
     ]);
-    expect(spec.rules.shots.slots.every((slot) => slot.modality === "requested")).toBe(true);
-    expect(spec.rules.files.find((rule) => rule.id === "image-file-size-maximum")).toMatchObject({
-      constraint: { field: "file.size_bytes", operator: "lt", value: 3000000 },
-      sourceValue: { value: 3, unit: "MB", normalization: "decimal_conservative" },
-    });
+    expect(spec.rules.files.map((rule) => rule.constraint.field)).toEqual([
+      "file.mime_type",
+    ]);
+    // The 3MB cap belonged to the Snapcast form; this one publishes none, and
+    // an unpublished cap is an unknown rather than an absent rule.
+    expect(
+      spec.unknowns.find((unknown) => unknown.fact === "files.per_file_size"),
+    ).toMatchObject({ reason: "not_published" });
   });
 
   test("keeps Storm's required slots separate from its conflicting guardian boundary", () => {

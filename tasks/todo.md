@@ -85,6 +85,64 @@ after shortlist stays available in the bar ("File to board" appears once shortli
 
 ---
 
+# Spec Pack coverage — the six selected agencies that had no series
+
+Closed 2026-08-29. `docs/pholio-strategic-analysis-2026-08.md` §7 wants 40-60
+hand-verified agencies; the pack shipped with six routes while the 2026-08-19
+rebuild (`docs/spec-registry-rebuild-2026-08/`) had already researched eleven
+entries from the live forms. Six of them had no registry series at all, so the
+export and preflight machinery had nothing to point at for the agencies the
+launch cohort was selected around.
+
+- [x] Author six revisions from the rebuild research, into the live v1 schema:
+      `state:online`, `q-management:online`, `one-management:online`,
+      `jag:online`, `curv:online`, `bicoastal:online`. Pack is 6 -> 12 series.
+- [x] Series ids match the ones `agencyBriefs.js` already predicted
+      (`<entry id>:online`), so wiring the authored copy was a one-line change
+      per entry rather than a rewrite. Ten of the eleven entries now resolve.
+- [x] `shot.frame` gains `three_quarter_length` — Q and State both publish a
+      3/4 slot and the vocabulary had no word for it.
+- [x] Six NY DOL verifications added, each byte-checked against the in-repo
+      registry snapshot by the trust validator. `agencyId` stays null: these are
+      reference entries, and hand-inserting `agencies` rows is the operation
+      that produced the eight duplicates scoped below.
+- [x] Tests: 223 spec-registry, 14 trust-registry, 738 client, lint clean. Two
+      tests that pinned the pack's size or its single observation date now
+      assert the invariant instead.
+
+What was left out, deliberately:
+
+- **State's Snapcast channel.** A real second channel with different formats, a
+  3MB cap, an account step and the platform's own perpetual likeness licence.
+  v1 holds one channel per revision, and a second series would inherit a brief
+  written for the first. The authored brief already sets the two side by side.
+- **Fashion Week Brooklyn.** Event casting, not representation; its series is
+  still prospective.
+- **Ford's r2 — done 2026-08-29.** `ford-models:selected-city-online@2` moves
+  the series off the Snapcast form, which fordmodels.com mounts for Paris only:
+  the canonical route for New York, Chicago, LA, Miami and Barcelona is one
+  shared selectroom.app form. Two required slots and two not, JPEG and PNG, and
+  no published size cap — the 3MB the series carried was Paris's. The authored
+  brief had already been written from this research, so the correction closed a
+  gap between the copy and the registry rather than opening one; one sentence of
+  that copy listed a shoe-size field the form does not have, and is fixed.
+  Paris is not published: its accept string was never captured.
+  Elite, Wilhelmina and Muse are still on 2026-08-09 revisions and superseded by
+  the same research, without a wrong-channel defect. Three r2s remain.
+- **Slot labels are what exported files are named after.** State's read
+  "UPLOAD CLOSE-UP *" and CURV's was a whole instruction sentence; both now
+  carry the shot name, and required-marker asterisks are out of slot labels
+  since `modality` states requiredness. Two older entries still have this —
+  IMG ("Upload Head Shot") and The Society ("Please submit a close-up").
+- **IMG and The Society** stay published though `SELECTION.md` dropped them from
+  the launch ten. Delisting is a product call; nothing was removed.
+- Facts the v1 schema cannot hold (ONE's video-link fields, per-channel legal
+  regimes, conditional visibility, honeypots, Bicoastal's gender-selector
+  defect, ethnicity/website fields) are written into each revision's
+  `review.notes` so they survive into the `MODEL.md` schema when it lands.
+
+---
+
 # Product language audit — pholio-app (2026-08-29)
 
 Full findings: `docs/audits/product-language-audit-2026-08.md`
