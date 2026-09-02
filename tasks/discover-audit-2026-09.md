@@ -210,3 +210,28 @@ Two parallel lanes with disjoint ownership; the lead integrates, verifies, commi
 6. CSS in `DiscoverPage.css` for headings, facts, notes; tests updated.
 
 **Verification:** `npm test -- tests/matching/discover tests/integration/agency-discover-search.test.js tests/shared/discover-rate-limit.test.js`, client `vitest` for agency, `npm run lint` in client, `npm run client:build`, a screenshot of the page against the seeded demo pool where the environment allows.
+
+---
+
+## 6. What shipped (2026-09-02) and what was verified
+
+**Shipped on `claude/discover-surface-audit-qk24qn`.**
+
+- Backend: match-first engine (`matchSearch` in `discover-search.js`), heritage as a self-declared requirement with a synonym map and the hair/eye guard, boards read from `profile_booking_lanes`, tattoos as a boolean, shoe strings parsed with region, experience-level aliases, availability `available`/`limited` with no overlapping bookout as a pass, gender "Prefer not to say" as unknown, `lanes` and `heritage` on the agency discovery DTO, chips/facts/notes built server-side in `present.js`, every search logged to `discover_query_log`. A bare "tall" resolves to the conventional floor (5'9" women or unspecified, 6'0" men-only) as an editable chip. The regex fallback (used when the model is unavailable) now reads heights deterministically with an `under`/`around` operator, maps board words to lanes, and still surfaces the skin-tone note.
+- Frontend: `SearchFilters` replaces `BriefUnderstanding`; grouped results with per-card facts, mentions, and notes; skeleton grid; role switcher; ghost completion only while the field has focus; card division mark from the declared lane; talent heritage picker restored with its disclosure.
+- Demo seed: heritage in the picker's vocabulary with Black women present, hair, eyes, playing ages, lanes, market slugs.
+
+**Verified.** Backend: 11 discover/contract suites, 286 tests green; the wider agency/talent/matching/integration run is green except two failures that fail identically on the pre-change baseline commit (`application-drafts`, `account-deletion-spec-snapshot`). Client: 19 agency suites, 159 tests; full client suite 773; lint clean apart from one pre-existing warning; production build green. Screenshots against a freshly migrated and seeded SQLite pool through the auth passthrough (regex fallback path, no model key in this environment):
+
+| Brief | Filters shown | Result |
+|---|---|---|
+| black women | Women · Black/African Descent | 1 match; partial matches noted "Heritage differs" |
+| tall editorial women in new york | Women · 5'9" and up · New York (+ Editorial via fallback) | 2 matches; partials noted "5'2", 7 in under · Based in Paris" |
+| women 5'9 and up with blonde hair | Women · 5'9" and up · Blonde hair | no exact match; closest first with "Brown hair" etc. |
+| under 5'8" commercial men | Men · Under 5'8" · Commercial | 1 match; partials noted "5'11", 3 in over" |
+| dark-skinned women in paris | Women · Paris + one note: "Skin tone isn't a profile field, so it wasn't used." | 1 match |
+| runway black | Black/African Descent | 3 matches, "Mentions runway" from the talent's own bio |
+
+**Not verified here.** The model path (`openai/gpt-oss-120b` strict JSON) could not be exercised without a Groq key; its prompt carries the heritage and "tall" rules and its output passes through the same validator and deterministic re-parse that the fallback does. Run a handful of real briefs against staging with the key present before relying on multi-role, measurements, and availability parsing.
+
+**Deferred, with reasons.** Skin-tone matching (no closed vocabulary on the talent side); semantic embeddings (index dormant and hollowed by design; lexical mentions over talent-authored text suffice at this pool size); saved briefs and alerts; side-by-side compare; a spaced display form of the heritage labels ("Black / African Descent") if the owner prefers it over the stored picker value the chips currently echo.

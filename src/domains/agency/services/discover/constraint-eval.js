@@ -23,7 +23,14 @@
  * passes them via opts, so this stays a testable pure function.
  */
 
-const { tierFor, GENDER_DB_MAP } = require("./field-whitelist");
+const {
+  tierFor,
+  GENDER_DB_MAP,
+  normalizeExperienceLevel,
+  heritageSlugsForValues,
+  heritageLabelsForValues,
+  parseHeritageValues,
+} = require("./field-whitelist");
 const {
   normalizeBookingLaneList,
 } = require("../../../../shared/constants/booking-lanes");
@@ -102,33 +109,44 @@ function rangesOverlap(fromA, toA, fromB, toB) {
 }
 
 /**
- * Availability: profiles.availability_status + bookout rows.
- * Pass ONLY when we have positive declared data (bookouts) that do not overlap
- * the requested window. Missing data → unknown (never pass); an overlapping
- * bookout or an 'unavailable' status → fail.
+ * Availability: `profiles.availability_status` + bookout rows.
+ *
+ * A talent who says they are available and has booked out nothing over the
+ * window IS available — the old rule (positive bookout rows required) marked
+ * every such talent `unknown` and dropped them (audit §2.3). Fail is reserved
+ * for a stated conflict: an overlapping bookout, or "unavailable".
+ *
+ * @returns {{status: 'pass'|'fail'|'unknown', overlap: object|null}}
  */
-function availabilityStatus(windows, status, bookouts) {
+function availabilityResult(windows, status, bookouts) {
   const list = Array.isArray(windows) ? windows : [];
   const books = Array.isArray(bookouts) ? bookouts : [];
+  const declared = String(status || "").trim().toLowerCase();
 
-  if (String(status || "").toLowerCase() === "unavailable") return "fail";
-
-  let overlaps = false;
+  let overlap = null;
   for (const w of list) {
     if (!w || !w.from) continue;
     for (const b of books) {
       if (!b || !b.starts_on) continue;
       if (rangesOverlap(w.from, w.to, b.starts_on, b.ends_on)) {
-        overlaps = true;
+        overlap = b;
         break;
       }
     }
-    if (overlaps) break;
+    if (overlap) break;
   }
-  if (overlaps) return "fail";
-  // Positive confirmation requires declared bookout data with no conflict.
-  if (books.length) return "pass";
-  return "unknown";
+  if (overlap) return { status: "fail", overlap };
+  if (declared === "unavailable") return { status: "fail", overlap: null };
+  if (declared === "available" || declared === "limited") {
+    return { status: "pass", overlap: null };
+  }
+  // No stated status: declared bookout rows that miss the window still confirm.
+  if (books.length) return { status: "pass", overlap: null };
+  return { status: "unknown", overlap: null };
+}
+
+function availabilityStatus(windows, status, bookouts) {
+  return availabilityResult(windows, status, bookouts).status;
 }
 
 function unionStatus(want, membership) {
@@ -139,11 +157,30 @@ function unionStatus(want, membership) {
   return derived === want ? "pass" : "fail";
 }
 
-/** Freeform tattoos text → truthy = "has tattoos", null/empty = unknown. */
+/**
+ * `profiles.tattoos` is a BOOLEAN column (migration
+ * 20250104000000_add_comprehensive_profile_fields.js). Reading it as free text
+ * made `false` non-empty and therefore "has tattoos", so "no visible tattoos"
+ * excluded the very talent who answered no (audit §2.3).
+ *   true / 1 / "true"  → has tattoos
+ *   false / 0 / "false" → none
+ *   null / ""           → unknown
+ */
+function tattooBoolean(value) {
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  if (value == null) return null;
+  const text = String(value).trim().toLowerCase();
+  if (!text) return null;
+  if (["true", "1", "yes", "y"].includes(text)) return true;
+  if (["false", "0", "no", "n", "none"].includes(text)) return false;
+  // Legacy free text ("full sleeve") describes tattoos the talent has.
+  return true;
+}
+
 function tattooStatus(want, tattoos) {
-  const text = tattoos == null ? "" : String(tattoos).trim();
-  if (!text) return "unknown";
-  const has = true; // any non-empty freeform text is treated as "has tattoos"
+  const has = tattooBoolean(tattoos);
+  if (has == null) return "unknown";
   if (want === false) return has ? "fail" : "pass";
   if (want === true) return has ? "pass" : "fail";
   return "unknown";
@@ -157,7 +194,16 @@ function enumSetStatus(actual, wanted) {
     : "fail";
 }
 
-function profileBoards(profile) {
+/**
+ * A profile's booking lanes. Canonical store since `20260624195800` is the
+ * `profile_booking_lanes` join table, batch-loaded by the caller and handed in
+ * as `opts.lanes`; the legacy `modeling_categories` / `booking_lanes` columns
+ * are the fallback for rows written before that migration (audit §2.4).
+ */
+function profileBoards(profile, lanes) {
+  if (Array.isArray(lanes) && lanes.length) {
+    return normalizeBookingLaneList(lanes);
+  }
   const raw = profile.modeling_categories || profile.booking_lanes || null;
   let list = [];
   if (raw) {
@@ -171,11 +217,86 @@ function profileBoards(profile) {
   return list;
 }
 
-function boardsStatus(wanted, profile) {
-  const have = profileBoards(profile);
+function boardsStatus(wanted, profile, lanes) {
+  const have = profileBoards(profile, lanes);
   if (!have.length) return "unknown";
   const want = normalizeBookingLaneList(wanted);
   return want.some((w) => have.includes(w)) ? "pass" : "fail";
+}
+
+/**
+ * `profiles.shoe_size` is a free string ("8 US", "38 EU", "8"); `shoe_region`
+ * carries the region when the string does not. Compared numerically, and by
+ * region only when both sides state one (audit §2.4).
+ */
+function parseStoredShoe(profile) {
+  const raw = profile == null ? null : profile.shoe_size;
+  if (raw == null || !String(raw).trim()) return null;
+  const text = String(raw).trim();
+  const numMatch = text.match(/\d+(?:[.,]\d+)?/);
+  if (!numMatch) return null;
+  const size = Number(numMatch[0].replace(",", "."));
+  if (!Number.isFinite(size)) return null;
+  const regionMatch = text.match(/\b(us|eu|eur|uk)\b/i);
+  let region = regionMatch ? regionMatch[1].toUpperCase() : null;
+  if (region === "EUR") region = "EU";
+  if (!region && profile.shoe_region && String(profile.shoe_region).trim()) {
+    region = String(profile.shoe_region).trim().toUpperCase();
+  }
+  return { size, region: region || null };
+}
+
+function shoeStatus(want, profile) {
+  const have = parseStoredShoe(profile);
+  if (!have) return "unknown";
+  const wantSize = Number(want && want.size);
+  if (!Number.isFinite(wantSize)) return "unknown";
+  if (have.size !== wantSize) return "fail";
+  const wantRegion = want.region ? String(want.region).toUpperCase() : null;
+  if (wantRegion && have.region && wantRegion !== have.region) return "fail";
+  return "pass";
+}
+
+/** Numeric size comparison ("4" vs "US 4" vs 4). */
+function sizeNumber(value) {
+  if (value == null) return null;
+  const match = String(value).match(/\d+(?:[.,]\d+)?/);
+  if (!match) return null;
+  const n = Number(match[0].replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
+function sizeStatus(want, actual) {
+  if (actual == null || !String(actual).trim()) return "unknown";
+  const a = sizeNumber(actual);
+  const w = sizeNumber(want);
+  if (a == null || w == null) return enumSetStatus(actual, [String(want)]);
+  return a === w ? "pass" : "fail";
+}
+
+/** Three vocabularies, one comparison — see normalizeExperienceLevel. */
+function experienceStatus(want, actual) {
+  const have = normalizeExperienceLevel(actual);
+  if (have == null) return "unknown";
+  const wanted = normalizeExperienceLevel(want);
+  if (wanted == null) return "unknown";
+  return have === wanted ? "pass" : "fail";
+}
+
+/**
+ * Heritage — the talent's own picker selection against the booker's ask, both
+ * normalised to slugs. Blank is `unknown` and never a fail (audit §3.1 rule 3);
+ * "Mixed Heritage" alone therefore only answers a "mixed" ask.
+ */
+function heritageStatus(wanted, profile) {
+  const stored = parseHeritageValues(profile && profile.ethnicity);
+  if (!stored.length) return "unknown";
+  const have = heritageSlugsForValues(stored);
+  if (!have.length) return "unknown"; // free text we cannot read honestly
+  const want = (Array.isArray(wanted) ? wanted : [wanted]).map((v) =>
+    String(v).toLowerCase(),
+  );
+  return have.some((slug) => want.includes(slug)) ? "pass" : "fail";
 }
 
 /** Whether a constraint object was flagged needs_confirmation (LB-4). */
@@ -203,16 +324,18 @@ function evaluateProfile(profile, hard, opts = {}) {
   const push = (field, status, actual) =>
     out.push({ field, status, tier: tierFor(field), actual });
 
-  // gender_presentation (also applied as SQL exclusion in the engine)
+  // gender_presentation (the one exclusion the engine applies on a fail)
   if (Array.isArray(h.gender_presentation) && h.gender_presentation.length) {
     const wantDb = h.gender_presentation
       .map((g) => GENDER_DB_MAP[g])
       .filter(Boolean)
       .map((v) => v.toLowerCase());
     const actual = p.gender;
+    const declared = String(actual == null ? "" : actual).trim().toLowerCase();
     let status = "unknown";
-    if (actual != null && String(actual).trim()) {
-      status = wantDb.includes(String(actual).toLowerCase()) ? "pass" : "fail";
+    // "Prefer not to say" is a withheld answer, not a different answer.
+    if (declared && declared !== "prefer not to say") {
+      status = wantDb.includes(declared) ? "pass" : "fail";
     }
     push("gender_presentation", status, actual ?? null);
   }
@@ -256,26 +379,22 @@ function evaluateProfile(profile, hard, opts = {}) {
     if (meas.dress_size && !isSkipped(meas.dress_size) && meas.dress_size.value != null) {
       push(
         "measurements.dress_size",
-        enumSetStatus(p.dress_size, [String(meas.dress_size.value)]),
+        sizeStatus(meas.dress_size.value, p.dress_size),
         p.dress_size ?? null,
       );
     }
     if (meas.suit_size && !isSkipped(meas.suit_size) && meas.suit_size.value != null) {
       push(
         "measurements.suit_size",
-        enumSetStatus(p.suit_size, [String(meas.suit_size.value)]),
+        sizeStatus(meas.suit_size.value, p.suit_size),
         p.suit_size ?? null,
       );
     }
   }
 
-  // shoe
+  // shoe — stored as a free string with an optional region column
   if (h.shoe && !isSkipped(h.shoe) && h.shoe.size != null) {
-    push(
-      "shoe",
-      enumSetStatus(p.shoe_size, [String(h.shoe.size)]),
-      p.shoe_size ?? null,
-    );
+    push("shoe", shoeStatus(h.shoe, p), parseStoredShoe(p));
   }
 
   // location.market
@@ -295,22 +414,39 @@ function evaluateProfile(profile, hard, opts = {}) {
   if (Array.isArray(h.availability) && h.availability.length) {
     const applied = h.availability.filter((w) => !isSkipped(w));
     if (applied.length) {
-      push(
-        "availability",
-        availabilityStatus(applied, p.availability_status, opts.bookouts),
-        p.availability_status ?? null,
+      const result = availabilityResult(
+        applied,
+        p.availability_status,
+        opts.bookouts,
       );
+      push("availability", result.status, {
+        status: p.availability_status ?? null,
+        overlap: result.overlap
+          ? {
+              starts_on: result.overlap.starts_on ?? null,
+              ends_on: result.overlap.ends_on ?? null,
+            }
+          : null,
+      });
     }
   }
 
-  // visible_tattoos
+  // visible_tattoos (boolean column)
   if (h.visible_tattoos === true || h.visible_tattoos === false) {
-    push("visible_tattoos", tattooStatus(h.visible_tattoos, p.tattoos), p.tattoos ?? null);
+    push(
+      "visible_tattoos",
+      tattooStatus(h.visible_tattoos, p.tattoos),
+      tattooBoolean(p.tattoos),
+    );
   }
 
-  // boards
+  // boards — join table first, legacy columns as fallback
   if (Array.isArray(h.boards) && h.boards.length) {
-    push("boards", boardsStatus(h.boards, p), profileBoards(p));
+    push(
+      "boards",
+      boardsStatus(h.boards, p, opts.lanes),
+      profileBoards(p, opts.lanes),
+    );
   }
 
   // hair_color (OR-set)
@@ -321,6 +457,15 @@ function evaluateProfile(profile, hard, opts = {}) {
   // eye_color (OR-set)
   if (Array.isArray(h.eye_color) && h.eye_color.length) {
     push("eye_color", enumSetStatus(p.eye_color, h.eye_color), p.eye_color ?? null);
+  }
+
+  // heritage — the talent's own selection, only when the brief asked
+  if (Array.isArray(h.heritage) && h.heritage.length) {
+    const stored = parseHeritageValues(p.ethnicity);
+    push("heritage", heritageStatus(h.heritage, p), {
+      slugs: heritageSlugsForValues(stored),
+      labels: heritageLabelsForValues(stored),
+    });
   }
 
   // union
@@ -336,24 +481,18 @@ function evaluateProfile(profile, hard, opts = {}) {
     push("representation_status", status, rep ?? null);
   }
 
-  // experience_level
+  // experience_level (three vocabularies, one comparison)
   if (h.experience_level) {
     push(
       "experience_level",
-      enumSetStatus(p.experience_level, [h.experience_level]),
+      experienceStatus(h.experience_level, p.experience_level),
       p.experience_level ?? null,
     );
   }
 
-  // credentials — always unknown at launch (no falsifiable data). The engine's
-  // credential_gate short-circuit is the honest-zero path; if it ever reaches
-  // here it must not read as satisfied.
-  if (h.credentials && typeof h.credentials === "object") {
-    const asked = ["tearsheets", "runway_shows", "fit_experience", "published_work"].some(
-      (k) => h.credentials[k] === true,
-    );
-    if (asked) push("credentials", "unknown", null);
-  }
+  // credentials are NOT applied: no profile field records tearsheets or shows,
+  // so the ask can only be answered with a note (audit §3.2 / §4). Applying it
+  // as `unknown` pushed everyone into the partial group for no information.
 
   return out;
 }
@@ -376,9 +515,17 @@ module.exports = {
   numericStatus,
   playingAgeStatus,
   availabilityStatus,
+  availabilityResult,
   unionStatus,
   tattooStatus,
+  tattooBoolean,
   boardsStatus,
+  profileBoards,
+  parseStoredShoe,
+  shoeStatus,
+  sizeStatus,
+  experienceStatus,
+  heritageStatus,
   rangesOverlap,
   APPROX_TOL_CM,
 };

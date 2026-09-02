@@ -151,7 +151,7 @@ describe("reconcile() — the LB-4 gate", () => {
 
   test("unparseable span needs confirmation and is not applied", () => {
     const r = reconcile(
-      { op: "min", a: 175, b: null, span: "tall-ish" },
+      { op: "min", a: 175, b: null, span: "statuesque" },
       { kind: "height" },
     );
     expect(r).toEqual({ value: null, agrees: false, needs_confirmation: true });
@@ -191,5 +191,24 @@ describe("reconcile() — the LB-4 gate", () => {
     );
     expect(r.agrees).toBe(true);
     expect(r.value).toEqual({ a: 22, b: 30 });
+  });
+});
+
+describe('reconcile() — a bare "tall" resolves to the conventional floor', () => {
+  test('defaults to 5\'9" (175 cm) and needs no confirmation', () => {
+    const r = reconcile({ op: "min", a: 175, b: null, span: "tall" }, { kind: "height" });
+    expect(r).toEqual({ value: 175, agrees: true, needs_confirmation: false });
+  });
+  test('uses the caller\'s default for a men-only ask', () => {
+    const r = reconcile(
+      { op: "min", a: 183, b: null, span: "taller" },
+      { kind: "height", tallDefaultCm: 183 },
+    );
+    expect(r.value).toBe(183);
+    expect(r.needs_confirmation).toBe(false);
+  });
+  test('an explicit number still wins over the word', () => {
+    const r = reconcile({ op: "min", a: 180, b: null, span: "tall, 180cm" }, { kind: "height" });
+    expect(r.value).toBe(180);
   });
 });

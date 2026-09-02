@@ -1,7 +1,7 @@
 {
-  "name": "unsupported-ask-fair-skinned",
-  "category": "unsupported-ask",
-  "brief": "fair skinned, commercial",
+  "name": "heritage-hair-colour-guard",
+  "category": "heritage",
+  "brief": "black hair, blue eyes, commercial",
   "now": "2026-07-01",
   "llm": {
     "roles": [
@@ -9,9 +9,11 @@
         "label": "role 1",
         "count": 1,
         "hard": {
+          "hair_color": ["black"],
+          "eye_color": ["blue"],
           "boards": ["commercial"]
         },
-        "soft_query": "fair skinned commercial"
+        "soft_query": "black hair blue eyes"
       }
     ],
     "set_aside": [],
@@ -20,7 +22,8 @@
   "expect": {
     "roles_length": 1,
     "heritage_null": true,
-    "set_aside_contains": ["fair skinned"],
-    "soft_query_excludes": ["fair"]
+    "hair_color": ["black"],
+    "eye_color": ["blue"],
+    "set_aside": []
   }
 }

@@ -340,6 +340,10 @@ const DISCOVERY_ALLOWED = new Set([
   // Derived representation status (WS6.1 / LB-5) — not raw profile columns.
   "representation_status",
   "represented_by",
+  // Self-declared heritage, mapped from `ethnicity` to the talent's own picker
+  // labels, and their declared booking lanes as labels (audit §3.1 / §4).
+  "heritage",
+  "lanes",
 ]);
 const IMAGE_ALLOWED = new Set([...PUBLIC_IMAGE_FIELDS, "url"]);
 const CONFIRMED_JOB_ALLOWED = new Set([...CONFIRMED_JOB_FIELDS, "display_name"]);

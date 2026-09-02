@@ -1,6 +1,6 @@
 {
-  "name": "set-aside-european-look",
-  "category": "set-aside",
+  "name": "heritage-european-look",
+  "category": "heritage",
   "brief": "European look, editorial, tall",
   "now": "2026-07-01",
   "llm": {
@@ -9,25 +9,19 @@
         "label": "role 1",
         "count": 1,
         "hard": {
-          "boards": [
-            "editorial"
-          ]
+          "boards": ["editorial"]
         },
-        "soft_query": "tall"
+        "soft_query": "European look tall"
       }
     ],
-    "set_aside": [
-      {
-        "text": "European look",
-        "reason": "not_used_for_filtering"
-      }
-    ],
+    "set_aside": [],
     "unparsed_remainder": ""
   },
   "expect": {
     "roles_length": 1,
-    "set_aside_contains": [
-      "european look"
-    ]
+    "heritage": ["white_caucasian"],
+    "boards": ["editorial"],
+    "set_aside": [],
+    "soft_query_excludes": ["european"]
   }
 }

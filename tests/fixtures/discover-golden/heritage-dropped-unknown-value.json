@@ -1,7 +1,7 @@
 {
-  "name": "heritage-latina-olive-skin",
+  "name": "heritage-dropped-unknown-value",
   "category": "heritage",
-  "brief": "Latina women, editorial, olive skin",
+  "brief": "nordic women, editorial",
   "now": "2026-07-01",
   "llm": {
     "roles": [
@@ -10,10 +10,10 @@
         "count": 1,
         "hard": {
           "gender_presentation": ["female"],
-          "heritage": ["hispanic_latino"],
+          "heritage": ["nordic"],
           "boards": ["editorial"]
         },
-        "soft_query": "editorial olive skin"
+        "soft_query": "editorial"
       }
     ],
     "set_aside": [],
@@ -21,9 +21,7 @@
   },
   "expect": {
     "roles_length": 1,
-    "heritage": ["hispanic_latino"],
-    "boards": ["editorial"],
-    "set_aside_contains": ["olive skin"],
-    "soft_query_excludes": ["olive"]
+    "heritage_null": true,
+    "dropped_contains": ["nordic"]
   }
 }

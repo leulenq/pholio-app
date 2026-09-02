@@ -435,8 +435,10 @@ export default function DiscoverPage() {
                   aria-label="Describe the talent you're looking for"
                 />
                 {query ? (
-                  // Ghost the prediction inline (single-line typing aid only).
-                  !briefMode && !query.includes('\n') && (
+                  // Ghost the prediction inline: a typing aid, so only while
+                  // the field has focus. A restored or submitted brief shows
+                  // exactly what ran, with nothing appended.
+                  isFocused && !briefMode && !query.includes('\n') && (
                     <div className="dc-ghost" aria-hidden="true">
                       <span className="dc-ghost-typed">{query}</span>
                       {completion && <span className="dc-ghost-rest">{completion}</span>}

@@ -8,8 +8,8 @@
  *     → discover_parse_cache lookup (knex; tolerates a missing table)
  *     → on miss: Groq gpt-oss-120b strict json_schema (contract-schema) with a
  *       few-shot system prompt
- *     → validate-contract (reconcile, whitelist, protected-class set-aside,
- *       credential gate)
+ *     → validate-contract (reconcile, whitelist, heritage lift, unsupported-ask
+ *       set-aside, credential gate)
  *     → cache write
  *     → return { contract, dropped, needs_confirmation_fields, multi_role,
  *                credential_gate, source }
@@ -27,8 +27,16 @@ const config = require("../../../../config");
 const { CONTRACT_SCHEMA } = require("./contract-schema");
 const { validateContract } = require("./validate-contract");
 const { emptyContract, emptyHard } = require("./contract-schema");
-const { decomposeQueryFallback } = require("../../lib/intent-parser");
-const { GENDER_DB_MAP } = require("./field-whitelist");
+const { decomposeQueryFallback, parseIntent } = require("../../lib/intent-parser");
+const { heightToCm } = require("./extract-values");
+const {
+  normalizeBookingLaneSlug,
+} = require("../../../../shared/constants/booking-lanes");
+
+// A height expression plus its trailing qualifier ("5'9\" and up", "175cm+").
+const HEIGHT_PHRASE_RE =
+  /(\d\s*(?:'|’|′|ft\.?|feet|foot)\s*\d{0,2}\s*(?:"|”|″|''|in\.?|inch(?:es)?)?|\d{2,3}\s*(?:cm|centimet(?:er|re)s?)|\d[.,]\d{1,2}\s*m\b)\s*(?:\+|and (?:up|over|above|taller)|or (?:taller|more|over|above)|plus|minimum|min)?/i;
+const { GENDER_DB_MAP, heritageSlugsFromText, BOARDS } = require("./field-whitelist");
 
 const PARSE_MODEL = () => config.groq.textModel;
 const PARSE_TEMPERATURE = 0.1;
@@ -75,6 +83,7 @@ Operators (op): "min" (5'9" and up), "max" (under 5'8"), "between" (5'8"-5'10", 
 
 Rules:
 - HEIGHT into height_cm as a constraint (a in cm). Copy the literal span ("5'9\\"", "175cm", "1.75m", "five nine").
+- A bare "tall"/"taller" with no number is still a height constraint: height_cm {op:"min", a:175 (women or unspecified) or 183 (men only), span:"tall"}. The downstream parser applies the convention.
 - PLAYING AGE into playing_age (a=low, b=high). "22 to 30" => a:22,b:30. "18 to play younger" => the playable age they can portray (younger), not their real age: a:16,b:19 with span "18 to play younger". Never use real DOB.
 - MEASUREMENTS: each length into measurements.*_cm as a constraint; sizes into dress_size/suit_size ALWAYS with a region tag (US 6 vs UK 6 vs EU 38). Set measurements.exact=true when the brief says "exact"/"fit".
 - SHOE into shoe {size, region}. Default region US only when clearly US context.
@@ -84,7 +93,8 @@ Rules:
 - ENUM SETS are OR: "blonde or red" => hair_color:["blonde","red"]. gender_presentation, boards, hair_color, eye_color, representation_status are arrays.
 - REPRESENTATION: "unrepresented"/"freelance only" => representation_status:["unrepresented"]. "seeking a mother agency" => ["seeking"].
 - CREDENTIALS: "has tearsheets", "shows walked", "fit experience", "published work" => credentials{...:true} with span.
-- ETHNICITY / HERITAGE / SKIN TONE are NEVER filters. Put any such term in set_aside with reason "not_used_for_filtering" and keep it out of hard and soft_query. (Hair/eye colour like "black hair" is fine.)
+- HERITAGE: a heritage or background the brief asks for goes into hard.heritage, using ONLY these values: black_african_descent, east_asian, south_asian, southeast_asian, hispanic_latino, middle_eastern, native_american_first_nations, pacific_islander, white_caucasian, mixed_heritage. "Black"/"African"/"Afro-Caribbean" => black_african_descent. "Latina"/"Latino"/"Hispanic" => hispanic_latino. "Asian" with no region => ["east_asian","south_asian","southeast_asian"]. "Mixed"/"biracial" => mixed_heritage. Hair and eye colour words are colours, never heritage: "black hair" is hair_color, "brown eyes" is eye_color.
+- SKIN TONE / COMPLEXION ("olive skin", "fair skinned", "dark-skinned") is never a filter and is not a heritage: put it in unparsed_remainder and keep it out of hard and soft_query.
 - soft_query = the remaining aesthetic/vibe language only (e.g. "editorial, androgynous, strong bone structure"). unparsed_remainder = anything you could not place.
 - Any hard field the brief does not mention MUST be null.`;
 
@@ -188,19 +198,64 @@ function fallbackContract(text) {
     } else if (c.field === "eye_color") {
       hard.eye_color = [String(c.value).toLowerCase()];
     } else if (c.field === "min_height") {
-      // Numeric guess — carry the original brief as the span so reconcile()
-      // decides whether it is safe to apply; otherwise it needs_confirmation.
-      hard.height_cm = {
-        op: "min",
-        a: Number(c.value),
-        b: null,
-        span: text,
-        confidence: 0.5,
-      };
+      // Heights are read below, straight from the brief, not from the legacy
+      // regex (which read 5'9" as 172 cm and only fired on "above"/"over").
     } else if (c.field === "city") {
       const slug = String(c.value).toLowerCase().replace(/\s+/g, "-");
       hard.location = { market: slug, local_only: null, travel_ok: null, span: c.value };
     }
+  }
+
+  // Height: the deterministic extractor reads the phrase; the phrase is the
+  // span, so the chip it becomes can be edited or removed without touching
+  // the rest of the brief. A bare "tall" is its own span (extract-values).
+  let softQuery = decomposed.residual_query || String(text || "").trim();
+  const phrase = HEIGHT_PHRASE_RE.exec(text);
+  const tallWord = /\btall(?:er)?\b/i.exec(text);
+  if (phrase || tallWord) {
+    const span = phrase ? phrase[0].trim() : tallWord[0];
+    const cm = heightToCm(span);
+    const before = phrase
+      ? text.slice(Math.max(0, phrase.index - 16), phrase.index).toLowerCase()
+      : "";
+    const opWord = /\b(under|below|max(?:imum)?|no taller than|up to|around|about|approx(?:imately)?|roughly)\s*$/.exec(before);
+    const op = !opWord
+      ? "min"
+      : /^(around|about|approx|roughly)/.test(opWord[1])
+        ? "approx"
+        : "max";
+    hard.height_cm = { op, a: cm, b: null, span, confidence: 0.5 };
+    // Keep the height words out of the soft query so they never resurface
+    // as a "mention".
+    for (const piece of [span, opWord ? opWord[1] : null]) {
+      if (!piece) continue;
+      softQuery = softQuery.split(piece).join(" ");
+    }
+    softQuery = softQuery
+      .replace(/\b(and up|and over|and above|or taller|plus|with)\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  // Board words ("editorial", "runway", "commercial") map to the talent's own
+  // booking lanes now that boards are read from profile_booking_lanes.
+  const boardSlugs = [];
+  for (const facet of parseIntent(text).facets || []) {
+    if (facet.kind !== "Look") continue;
+    const slug = normalizeBookingLaneSlug(facet.value);
+    if (slug && BOARDS.includes(slug) && !boardSlugs.includes(slug)) boardSlugs.push(slug);
+  }
+  if (boardSlugs.length) hard.boards = boardSlugs;
+
+  // The legacy intent-parser exposes heritage as a facet ("Black", "Asian",
+  // "Latino"); re-read the brief through the picker synonym map so the slugs,
+  // and the hair/eye guard, are the same ones the model path uses.
+  const hasHeritageFacet = (decomposed.constraints || []).some(
+    (c) => c.field === "heritage",
+  );
+  if (hasHeritageFacet) {
+    const slugs = heritageSlugsFromText(text);
+    if (slugs.length) hard.heritage = slugs;
   }
 
   return {
@@ -209,7 +264,7 @@ function fallbackContract(text) {
         label: "role 1",
         count: 1,
         hard,
-        soft_query: decomposed.residual_query || String(text || "").trim(),
+        soft_query: softQuery,
       },
     ],
     set_aside: [],
@@ -264,7 +319,7 @@ async function parseBrief(text, opts = {}) {
   }
 
   // 4. validate + normalize
-  const validated = validateContract(raw, { now });
+  const validated = validateContract(raw, { now, brief: trimmed });
   const out = {
     ...validated,
     credential_gate: Boolean(validated.contract.credential_gate),

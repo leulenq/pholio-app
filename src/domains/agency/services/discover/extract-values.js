@@ -251,6 +251,9 @@ function parseDateRange(span, referenceDate = new Date()) {
 
 const TOLERANCE = { height: 1, length: 1, age: 0 };
 
+const TALL_RE = /\btall(?:er)?\b/i;
+const TALL_DEFAULT_CM = { female: 175, male: 183 };
+
 function extractByKind(span, kind, opts) {
   switch (kind) {
     case "height":
@@ -323,7 +326,16 @@ function reconcile(constraint, opts = {}) {
   }
 
   // numeric kinds (height / length / age)
-  const parsed = extractByKind(span, kind, opts);
+  let parsed = extractByKind(span, kind, opts);
+
+  // "tall" carries no number, but it is the most common height ask a booker
+  // types. It resolves to the industry's conventional floor (5'9" women,
+  // 6'0" men) and surfaces as an editable chip, so the convention is visible
+  // and one click away from being corrected rather than silently dropped.
+  if (!parsed.length && kind === "height" && TALL_RE.test(String(span))) {
+    parsed = [opts.tallDefaultCm || TALL_DEFAULT_CM.female];
+    return { value: parsed[0], agrees: true, needs_confirmation: false };
+  }
   if (!parsed.length) return unparseable;
 
   const expected = [constraint.a, constraint.b]
@@ -362,4 +374,5 @@ module.exports = {
   reconcile,
   // constants (test surface)
   WORD_NUM,
+  TALL_DEFAULT_CM,
 };

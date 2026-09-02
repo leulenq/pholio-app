@@ -190,6 +190,51 @@ const DISCOVER_BIO_OVERRIDES = {
   8: "Black female editorial talent with rich skin tone, high cheekbones, and striking presence. Beauty and luxury campaign specialist.",
 };
 
+// Self-declared heritage, in the talent picker's own labels.
+// Ordered against the six-step gender cycle below so the pool holds Black
+// women as well as Black men: indices 0 and 3 land on "Female".
+const DISCOVER_HERITAGE = [
+  ["Black/African Descent"],
+  ["East Asian"],
+  ["White/Caucasian"],
+  ["Black/African Descent", "Mixed Heritage"],
+  ["Hispanic/Latino"],
+  ["Middle Eastern"],
+  ["Mixed Heritage"],
+  ["South Asian"],
+  ["Southeast Asian"],
+  ["Pacific Islander"],
+];
+
+// profiles.market is derived from city on a real save (profile.js); the seed
+// writes the same slugs so market filters ("in Paris") have data to read.
+const CITY_MARKET = {
+  "New York": "new-york",
+  "Los Angeles": "los-angeles",
+  Paris: "paris",
+  Milan: "milan",
+  London: "london",
+  Miami: "miami",
+  Chicago: "chicago",
+  Berlin: "berlin",
+};
+
+// Booking lanes for the scoutable pool, written to `profile_booking_lanes`
+// (the canonical store Discover reads) with the legacy column kept in step.
+const DISCOVER_LANES = [
+  ["editorial", "runway"],
+  ["runway", "fit"],
+  ["commercial", "lifestyle"],
+  ["editorial", "beauty"],
+  ["commercial", "ecomm"],
+  ["fitness", "commercial"],
+  ["beauty", "editorial"],
+  ["curve", "commercial"],
+];
+
+const DISCOVER_HAIR = ["Brown", "Blonde", "Black", "Red", "Brown", "Black"];
+const DISCOVER_EYES = ["Brown", "Blue", "Green", "Hazel", "Brown", "Gray"];
+
 const DISCOVER_SKIN_TONE = [
   "Fair",
   "Deep brown",
@@ -449,6 +494,7 @@ async function seedAgencyDemo(knex) {
       first_name: p.first,
       last_name: p.last,
       city: p.city,
+      market: CITY_MARKET[p.city] || null,
       height_cm: isDiscoverable
         ? [157, 162, 168, 175, 178, 180, 183, 188][discoverIdx % 8]
         : ri(172, 188),
@@ -470,21 +516,18 @@ async function seedAgencyDemo(knex) {
             discoverIdx % 4
           ]
         : null,
+      // The picker's own labels (ProfilePage/IdentitySection.jsx). Discover
+      // matches heritage against exactly these values, so the demo pool has to
+      // speak the same vocabulary the talent picker writes.
       ethnicity: isDiscoverable
-        ? JSON.stringify(
-            [
-              ["East Asian"],
-              ["Black", "Caribbean"],
-              ["White", "European"],
-              ["South Asian"],
-              ["Latino"],
-              ["Middle Eastern"],
-              ["Mixed"],
-            ][discoverIdx % 7],
-          )
+        ? JSON.stringify(DISCOVER_HERITAGE[discoverIdx % DISCOVER_HERITAGE.length])
         : null,
       skin_tone: isDiscoverable ? DISCOVER_SKIN_TONE[discoverIdx] : null,
       date_of_birth: daysAgo(ri(18, 30) * 365),
+      // NOT NULL with a default — a batch insert unions every key, so this has
+      // to be set on every row, not only the scoutable ones.
+      availability_status:
+        isDiscoverable && discoverIdx % 5 === 0 ? "limited" : "available",
       is_discoverable: p.discoverable,
       profile_status: isDiscoverable ? "active" : "draft",
       is_public: true,
@@ -502,11 +545,49 @@ async function seedAgencyDemo(knex) {
             eye_color: pick(["Brown", "Blue", "Green", "Hazel"]),
           }
         : {}),
+      // Everything a Discover brief can filter on, so the page is testable:
+      // colours, playing age, boards, sizes, tattoos, availability.
+      ...(isDiscoverable
+        ? {
+            hair_color: DISCOVER_HAIR[discoverIdx % DISCOVER_HAIR.length],
+            eye_color: DISCOVER_EYES[discoverIdx % DISCOVER_EYES.length],
+            playing_age_min: 18 + (discoverIdx % 6),
+            playing_age_max: 26 + (discoverIdx % 6),
+            waist_cm: 58 + (discoverIdx % 10),
+            dress_size: String(2 + (discoverIdx % 5)),
+            shoe_size: `${7 + (discoverIdx % 4)} US`,
+            shoe_region: "US",
+            tattoos: discoverIdx % 4 === 0,
+            modeling_categories: JSON.stringify(
+              DISCOVER_LANES[discoverIdx % DISCOVER_LANES.length],
+            ),
+          }
+        : {}),
     };
     return row;
   });
 
   await knex("profiles").insert(profileRows);
+
+  // Booking lanes live in `profile_booking_lanes` (migration 20260624195800);
+  // Discover reads the join table, so the demo pool has to have rows there.
+  if (await knex.schema.hasTable("profile_booking_lanes")) {
+    const laneRows = [];
+    profiles.forEach((p, i) => {
+      if (!p.discoverable) return;
+      const discoverIdx = i - 40;
+      const lanes = DISCOVER_LANES[discoverIdx % DISCOVER_LANES.length];
+      lanes.forEach((laneSlug, index) => {
+        laneRows.push({
+          profile_id: p.pid,
+          lane_slug: laneSlug,
+          priority: index + 1,
+          source: "talent_selected",
+        });
+      });
+    });
+    if (laneRows.length) await knex("profile_booking_lanes").insert(laneRows);
+  }
 
   // ---- primary headshot per talent ----
   await knex("images").insert(

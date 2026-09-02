@@ -1,17 +1,34 @@
 /**
- * Agency Discover directory.
+ * Agency Discover — the match-first engine (tasks/discover-audit-2026-09.md §3.2).
  *
- * Discover deliberately filters on declared, factual profile fields and then
- * returns a stable directory order. It does not calculate affinity, semantic
- * distance, or any other score that could imply one person is a better match.
+ * Every eligible profile is evaluated against every requirement the booker
+ * stated, and gets `pass` / `fail` / `unknown` per requirement. Exact matches
+ * come first, the closest come next with a plain note per miss, and nobody is
+ * hidden except a stated gender the brief excluded. Order is a function of the
+ * booker's requirements and the talent's own declarations: no affinity score,
+ * no photo-derived signal, no percentage, and no number in the API at all.
  */
 
 "use strict";
 
 const { parseIntentToFilters } = require("../lib/intent-parser");
 const { parseBrief } = require("./discover/parse");
+const { heritageSlugsFromText } = require("./discover/field-whitelist");
+const {
+  normalizeBookingLaneSlug,
+} = require("../../../shared/constants/booking-lanes");
 const { evaluateProfile } = require("./discover/constraint-eval");
-const { buildUnderstanding } = require("./discover/present");
+const {
+  buildFilters,
+  roleSummary,
+  buildFacts,
+  buildResultNotes,
+  buildResponseNotes,
+} = require("./discover/present");
+const {
+  BOOKING_LANES,
+  normalizeBookingLaneList,
+} = require("../../../shared/constants/booking-lanes");
 const { ageFilterDobCutoffs } = require("./discover-age");
 const { invitedProfileIds } = require("./agency-invitations");
 const {
@@ -112,14 +129,22 @@ function applyDiscoverFilters(query, filters) {
     ]);
   }
 
+  // Stored values are title-case ("Brown", "New face"); the URL carries
+  // whatever the filter bar sent. Compare both sides lowered (audit §2.4).
   if (filters.eye_color) {
-    query.where("profiles.eye_color", filters.eye_color);
+    query.whereRaw("LOWER(profiles.eye_color) = ?", [
+      String(filters.eye_color).toLowerCase(),
+    ]);
   }
   if (filters.hair_color) {
-    query.where("profiles.hair_color", filters.hair_color);
+    query.whereRaw("LOWER(profiles.hair_color) = ?", [
+      String(filters.hair_color).toLowerCase(),
+    ]);
   }
   if (filters.experience_level) {
-    query.where("profiles.experience_level", filters.experience_level);
+    query.whereRaw("LOWER(profiles.experience_level) = ?", [
+      String(filters.experience_level).toLowerCase(),
+    ]);
   }
 
   return query;
@@ -155,6 +180,40 @@ async function loadBookoutsByProfile(knex, profileIds) {
   return rowsByProfile;
 }
 
+/**
+ * `profile_booking_lanes` (migration 20260624195800) is the canonical board
+ * store; Discover never joined it, so every talent who set lanes in the current
+ * UI read as `unknown` for a board ask (audit §2.4). Tolerates a missing table
+ * (pre-migration deploy window) by falling back to the legacy column.
+ */
+async function loadLanesByProfile(knex, profileIds) {
+  const lanesByProfile = new Map();
+  if (!profileIds.length) return lanesByProfile;
+
+  try {
+    if (!(await knex.schema.hasTable("profile_booking_lanes"))) {
+      return lanesByProfile;
+    }
+    const rows = await knex("profile_booking_lanes")
+      .whereIn("profile_id", profileIds)
+      .orderBy([
+        { column: "profile_id", order: "asc" },
+        { column: "priority", order: "asc" },
+      ])
+      .select("profile_id", "lane_slug", "priority");
+    for (const row of rows) {
+      if (!lanesByProfile.has(row.profile_id)) {
+        lanesByProfile.set(row.profile_id, []);
+      }
+      lanesByProfile.get(row.profile_id).push(row.lane_slug);
+    }
+  } catch {
+    // Boards fall back to the legacy profile columns.
+  }
+
+  return lanesByProfile;
+}
+
 async function loadRepresentationStatusMap(knex, profiles) {
   const profileIds = profiles.map((profile) => profile.id);
   const representations = await loadTalentRepresentationsForProfiles(profileIds, {
@@ -171,45 +230,6 @@ async function loadRepresentationStatusMap(knex, profiles) {
   }
 
   return statuses;
-}
-
-function stableProfileCompare(sort) {
-  const text = (value) => String(value || "").toLocaleLowerCase();
-  const byText = (left, right) => text(left).localeCompare(text(right));
-
-  return (left, right) => {
-    if (sort === "newest") {
-      const dateOrder = text(right.created_at).localeCompare(text(left.created_at));
-      if (dateOrder) return dateOrder;
-    } else if (sort === "city") {
-      const cityOrder = byText(left.city, right.city);
-      if (cityOrder) return cityOrder;
-    }
-
-    return (
-      byText(left.last_name, right.last_name) ||
-      byText(left.first_name, right.first_name) ||
-      byText(left.id, right.id)
-    );
-  };
-}
-
-function understandingFromParse(parsed, role, brief) {
-  const roles = parsed?.contract?.roles || [];
-  const multiRoleNotice =
-    roles.length > 1
-      ? {
-          role_count: roles.length,
-          searched: role?.label || "role 1",
-          message: `This brief describes ${roles.length} roles — searching "${role?.label || "role 1"}". Run the others separately.`,
-        }
-      : null;
-
-  return buildUnderstanding(
-    parsed?.contract || { roles: [] },
-    brief,
-    multiRoleNotice,
-  );
 }
 
 /**
@@ -241,7 +261,13 @@ async function fetchApplicationMap(knex, agencyId) {
   return reached;
 }
 
-async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) {
+async function attachImagesAndInvites(
+  knex,
+  profiles,
+  applicationMap,
+  agencyId,
+  opts = {},
+) {
   const profileIds = profiles.map((profile) => profile.id).filter(Boolean);
   let allImages = [];
 
@@ -261,6 +287,10 @@ async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) 
   }
 
   const socialByProfile = await loadSocialAccountsForProfiles(profileIds);
+  // Booking lanes for the card, from the canonical join table (reused when the
+  // caller already loaded them for constraint evaluation).
+  const lanesByProfile =
+    opts.lanesByProfile || (await loadLanesByProfile(knex, profileIds));
   const representationsByProfile = await loadTalentRepresentationsForProfiles(
     profileIds,
     { db: knex },
@@ -274,6 +304,7 @@ async function attachImagesAndInvites(knex, profiles, applicationMap, agencyId) 
       images: imagesByProfile[profile.id] || [],
       social: socialByProfile.get(profile.id) || [],
       representations: representationsByProfile.get(profile.id) || [],
+      lanes: lanesByProfile.get(profile.id) || [],
     });
     dto.is_invited = applicationMap.has(profile.id);
     shaped.push(dto);
@@ -308,6 +339,157 @@ function applyStableOrder(query, sort) {
   ]);
 }
 
+// ── soft terms: the booker's own words against the talent's own words ───────
+//
+// Never a filter and never a demotion (audit §3.2). A deterministic lexical
+// match of the leftover brief language against talent-AUTHORED text only, shown
+// as "Mentions: runway, editorial". No model reads a face; no embedding runs.
+
+const LANE_LABEL_BY_SLUG = Object.fromEntries(
+  BOOKING_LANES.map((lane) => [lane.slug, lane.label]),
+);
+
+const SOFT_STOPWORDS = new Set([
+  "and", "the", "with", "for", "who", "that", "this", "they", "them", "their",
+  "she", "her", "his", "him", "its", "our", "your", "you", "are", "was", "were",
+  "has", "have", "had", "but", "not", "any", "all", "can", "could", "would",
+  "should", "need", "needs", "want", "wants", "looking", "look", "like", "some",
+  "very", "must", "from", "into", "over", "under", "about", "around", "plus",
+  "one", "two", "three", "talent", "model", "models", "girl", "girls", "guy",
+  "guys", "women", "woman", "men", "man", "people", "person", "someone",
+  "board", "boards", "role", "roles", "casting", "brief", "client",
+]);
+
+const SOFT_SYNONYMS = {
+  editorial: ["fashion", "high fashion"],
+  fashion: ["editorial"],
+  "high fashion": ["editorial", "fashion"],
+  commercial: ["lifestyle", "e-comm", "ecomm", "catalog", "catalogue"],
+  lifestyle: ["commercial"],
+  "e-comm": ["commercial", "ecomm", "catalog"],
+  athletic: ["fitness", "sport", "sporty"],
+  fitness: ["athletic", "sport", "sporty"],
+  runway: ["show", "shows", "catwalk"],
+  androgynous: ["androgyny"],
+  beauty: ["skincare", "cosmetics"],
+  curve: ["curvy", "plus size"],
+  "new face": ["emerging", "new face"],
+};
+
+const SOFT_MULTIWORD = ["high fashion", "new face", "e-comm", "plus size"];
+
+const MAX_MENTIONS = 4;
+
+/** The leftover brief language, as comparable terms. */
+function softTerms(softQuery) {
+  let rest = String(softQuery || "").toLowerCase();
+  const terms = [];
+  for (const phrase of SOFT_MULTIWORD) {
+    if (rest.includes(phrase)) {
+      terms.push(phrase);
+      rest = rest.split(phrase).join(" ");
+    }
+  }
+  for (const token of rest.split(/[^a-z0-9'-]+/)) {
+    const word = token.replace(/^[-']+|[-']+$/g, "");
+    if (word.length < 3) continue;
+    if (SOFT_STOPWORDS.has(word)) continue;
+    // Heritage words are a filter, never a soft mention: "black" must not
+    // resurface as "Mentions black" against a bio about black-and-white work.
+    if (heritageSlugsFromText(word).length) continue;
+    if (!terms.includes(word)) terms.push(word);
+  }
+  return terms;
+}
+
+function escapeRe(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Whole-word presence, so "show" does not match "showroom". */
+function mentionsWord(haystack, alias) {
+  return new RegExp(`(^|[^a-z0-9])${escapeRe(alias)}(?=$|[^a-z0-9])`, "i").test(haystack);
+}
+
+function parseListColumn(raw) {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw.map((v) => String(v));
+  const text = String(raw).trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.map((v) => String(v));
+  } catch {
+    // not JSON
+  }
+  return text.split(",").map((part) => part.trim()).filter(Boolean);
+}
+
+/** Talent-authored text only: their bio, their specialties, their lanes. */
+function talentText(profile, lanes) {
+  const parts = [
+    profile.bio_curated || "",
+    ...parseListColumn(profile.specialties),
+    ...parseListColumn(profile.specializations),
+    ...(lanes || []).map((slug) => LANE_LABEL_BY_SLUG[slug] || slug),
+  ];
+  return parts.join(" ").toLowerCase();
+}
+
+function softMentions(terms, haystack) {
+  const out = [];
+  for (const term of terms) {
+    const aliases = [term, ...(SOFT_SYNONYMS[term] || [])];
+    if (aliases.some((alias) => mentionsWord(haystack, alias))) out.push(term);
+    if (out.length >= MAX_MENTIONS) break;
+  }
+  return out;
+}
+
+// ── ordering ────────────────────────────────────────────────────────────────
+
+function createdAtValue(profile) {
+  const raw = profile && profile.created_at;
+  if (!raw) return 0;
+  const time = new Date(raw).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function byNameThenId(left, right) {
+  const text = (value) => String(value || "").toLocaleLowerCase();
+  return (
+    text(left.profile.last_name).localeCompare(text(right.profile.last_name)) ||
+    text(left.profile.first_name).localeCompare(text(right.profile.first_name)) ||
+    text(left.profile.id).localeCompare(text(right.profile.id))
+  );
+}
+
+function byNewest(left, right) {
+  return createdAtValue(right.profile) - createdAtValue(left.profile);
+}
+
+/** Group 1: soft overlap, then newest, then name. */
+function matchCompare(left, right) {
+  return (
+    right.mentions.length - left.mentions.length ||
+    byNewest(left, right) ||
+    byNameThenId(left, right)
+  );
+}
+
+/** Group 2: fewest misses, then fewest blanks, then overlap, newest, name. */
+function partialCompare(left, right) {
+  return (
+    left.fails - right.fails ||
+    left.unknowns - right.unknowns ||
+    right.mentions.length - left.mentions.length ||
+    byNewest(left, right) ||
+    byNameThenId(left, right)
+  );
+}
+
+// ── engines ─────────────────────────────────────────────────────────────────
+
 async function browseSearch(knex, context) {
   const {
     filters,
@@ -317,51 +499,21 @@ async function browseSearch(knex, context) {
     offset,
     applicationMap,
     agencyId,
-    q,
   } = context;
 
   const query = applyDiscoverFilters(baseDiscoverQuery(knex), filters);
   if (context.blockedTalentUserIds?.size) {
     query.whereNotIn("profiles.user_id", [...context.blockedTalentUserIds]);
   }
-  let rows;
-  let totalCount;
-  let understanding = null;
 
-  if (q) {
-    const parsed = await parseBrief(q, { knex });
-    const role = parsed.contract?.roles?.[0] || null;
-    const hard = role?.hard || {};
-    understanding = understandingFromParse(parsed, role, q);
-
-    const candidates = await query;
-    const profileIds = candidates.map((profile) => profile.id);
-    const [bookoutsByProfile, representationStatuses] = await Promise.all([
-      loadBookoutsByProfile(knex, profileIds),
-      loadRepresentationStatusMap(knex, candidates),
-    ]);
-
-    const filtered = candidates.filter((profile) => {
-      const evaluations = evaluateProfile(profile, hard, {
-        bookouts: bookoutsByProfile.get(profile.id) || [],
-        representationStatus: representationStatuses.get(profile.id),
-      });
-      return evaluations.every((evaluation) => evaluation.status === "pass");
-    });
-
-    filtered.sort(stableProfileCompare(sort));
-    totalCount = filtered.length;
-    rows = filtered.slice(offset, offset + limitNum);
-  } else {
-    const [countResult] = await query
-      .clone()
-      .clearSelect()
-      .clearOrder()
-      .count("* as count");
-    totalCount = parseInt(countResult?.count || 0, 10);
-    applyStableOrder(query, sort);
-    rows = await query.limit(limitNum).offset(offset);
-  }
+  const [countResult] = await query
+    .clone()
+    .clearSelect()
+    .clearOrder()
+    .count("* as count");
+  const totalCount = parseInt(countResult?.count || 0, 10);
+  applyStableOrder(query, sort);
+  const rows = await query.limit(limitNum).offset(offset);
 
   const totalPages = Math.ceil(totalCount / limitNum) || 0;
   const profiles = await attachImagesAndInvites(
@@ -370,6 +522,171 @@ async function browseSearch(knex, context) {
     applicationMap,
     agencyId,
   );
+
+  return {
+    profiles,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total: totalCount,
+      totalPages,
+      hasNext: pageNum < totalPages,
+      hasPrev: pageNum > 1,
+    },
+    meta: {
+      semantic_search: false,
+      natural_language_search: false,
+      query: null,
+      ordering: sort === "newest" ? "newest" : sort === "city" ? "city" : "name",
+    },
+  };
+}
+
+/**
+ * Query mode: parse the brief, evaluate the whole eligible pool, and return
+ * exact matches first and the closest after them, each carrying the facts that
+ * answered the brief and a plain note per miss.
+ */
+async function matchSearch(knex, context) {
+  const {
+    filters,
+    pageNum,
+    limitNum,
+    offset,
+    applicationMap,
+    agencyId,
+    roleIndex,
+    q,
+  } = context;
+
+  const startedAt = Date.now();
+  const parsed = await parseBrief(q, { knex });
+  const parseMs = Date.now() - startedAt;
+
+  const roles = Array.isArray(parsed.contract?.roles) ? parsed.contract.roles : [];
+  const activeIndex = roles.length
+    ? Math.min(Math.max(roleIndex, 0), roles.length - 1)
+    : 0;
+  const role = roles[activeIndex] || {
+    label: "role 1",
+    count: 1,
+    hard: {},
+    soft_query: "",
+  };
+  const hard = role.hard || {};
+
+  const query = applyDiscoverFilters(baseDiscoverQuery(knex), filters);
+  if (context.blockedTalentUserIds?.size) {
+    query.whereNotIn("profiles.user_id", [...context.blockedTalentUserIds]);
+  }
+  const candidates = (await query).filter((profile) =>
+    isAgencyDiscoverable(profile, { agencyId }),
+  );
+  const profileIds = candidates.map((profile) => profile.id);
+
+  const [bookoutsByProfile, lanesByProfile, representationStatuses] =
+    await Promise.all([
+      loadBookoutsByProfile(knex, profileIds),
+      loadLanesByProfile(knex, profileIds),
+      loadRepresentationStatusMap(knex, candidates),
+    ]);
+
+  const evaluateStartedAt = Date.now();
+  // A board word the brief already turned into a filter is a fact on the
+  // card, not a mention: "Commercial" once, never "Commercial · Mentions
+  // commercial".
+  const appliedBoards = Array.isArray(hard.boards) ? hard.boards : [];
+  const terms = softTerms(role.soft_query).filter(
+    (term) => !appliedBoards.includes(normalizeBookingLaneSlug(term)),
+  );
+  const kept = [];
+  const unknownEverywhere = new Map(); // field → still unknown for everyone
+
+  for (const profile of candidates) {
+    const lanes = lanesByProfile.get(profile.id) || [];
+    const evaluations = evaluateProfile(profile, hard, {
+      bookouts: bookoutsByProfile.get(profile.id) || [],
+      representationStatus: representationStatuses.get(profile.id),
+      lanes,
+    });
+
+    for (const evaluation of evaluations) {
+      const seen = unknownEverywhere.get(evaluation.field);
+      const isUnknown = evaluation.status === "unknown";
+      unknownEverywhere.set(
+        evaluation.field,
+        seen === undefined ? isUnknown : seen && isUnknown,
+      );
+    }
+
+    // The one exclusion: a stated gender the talent does not present as.
+    const genderFail = evaluations.some(
+      (evaluation) =>
+        evaluation.field === "gender_presentation" && evaluation.status === "fail",
+    );
+    if (genderFail) continue;
+
+    const fails = evaluations.filter((e) => e.status === "fail").length;
+    const unknowns = evaluations.filter((e) => e.status === "unknown").length;
+
+    kept.push({
+      profile,
+      evaluations,
+      lanes,
+      fails,
+      unknowns,
+      mentions: softMentions(terms, talentText(profile, lanes)),
+      kind: fails === 0 && unknowns === 0 ? "match" : "partial",
+    });
+  }
+
+  const matches = kept.filter((entry) => entry.kind === "match").sort(matchCompare);
+  const partials = kept
+    .filter((entry) => entry.kind === "partial")
+    .sort(partialCompare);
+  const evaluateMs = Date.now() - evaluateStartedAt;
+
+  const ordered = [...matches, ...partials];
+  const shown = ordered.slice(offset, offset + limitNum);
+  const shownProfiles = shown.map((entry) => entry.profile);
+
+  const dtos = await attachImagesAndInvites(
+    knex,
+    shownProfiles,
+    applicationMap,
+    agencyId,
+    { lanesByProfile },
+  );
+  const dtoById = new Map(dtos.map((dto) => [dto.id, dto]));
+
+  const results = [];
+  for (const entry of shown) {
+    const dto = dtoById.get(entry.profile.id);
+    if (!dto) continue;
+    dto.facts = buildFacts(entry.evaluations, entry.profile, hard);
+    dto.notes = buildResultNotes(entry.evaluations, entry.profile, hard);
+    dto.mentions = entry.mentions;
+    results.push({ kind: entry.kind, dto });
+  }
+
+  const profiles = results.map((result) => result.dto);
+  const totalCount = ordered.length;
+  const totalPages = Math.ceil(totalCount / limitNum) || 0;
+
+  const poolUnknownFields = candidates.length
+    ? [...unknownEverywhere.entries()]
+        .filter(([, allUnknown]) => allUnknown)
+        .map(([field]) => field)
+    : [];
+
+  const notes = buildResponseNotes({
+    needsConfirmation: (parsed.needs_confirmation_fields || []).filter(
+      (entry) => entry.role === activeIndex || entry.role == null,
+    ),
+    setAside: parsed.contract?.set_aside || [],
+    credentialAsked: Boolean(parsed.credential_gate),
+    poolUnknownFields,
+  });
 
   const result = {
     profiles,
@@ -383,29 +700,63 @@ async function browseSearch(knex, context) {
     },
     meta: {
       semantic_search: false,
-      natural_language_search: Boolean(q),
-      query: q || null,
-      query_understanding: understanding,
-      ordering: sort === "newest" ? "newest" : sort === "city" ? "city" : "name",
+      natural_language_search: true,
+      query: q,
+      ordering: "match",
+    },
+    discover_v2: {
+      engine: "match",
+      query: q,
+      role: activeIndex,
+      roles: roles.map((entry, index) => ({
+        index,
+        label: entry.label,
+        count: entry.count,
+        summary: roleSummary(entry, q),
+      })),
+      filters: buildFilters(q, hard),
+      notes,
+      groups: [
+        {
+          kind: "match",
+          total: matches.length,
+          results: results
+            .filter((item) => item.kind === "match")
+            .map((item) => item.dto),
+        },
+        {
+          kind: "partial",
+          total: partials.length,
+          results: results
+            .filter((item) => item.kind === "partial")
+            .map((item) => item.dto),
+        },
+      ],
+      pool: {
+        eligible: candidates.length,
+        match: matches.length,
+        partial: partials.length,
+        shown: profiles.length,
+      },
+      query_log_id: null,
     },
   };
 
-  if (q) {
-    result.discover_v2 = {
-      engine: "directory",
-      understanding,
-      groups: profiles.length
-        ? [{ kind: "filtered", missed: null, heading: null, results: profiles }]
-        : [],
-      pool: { eligible: totalCount, shown: profiles.length },
-      honest_zero: profiles.length
-        ? null
-        : {
-            reason: "No discoverable talent meet every factual requirement in this brief.",
-            removable_chip: null,
-          },
-    };
-  }
+  // WS6.5 — the route logs every search from this payload. The directory
+  // engine never set it, so no Discover search was ever logged (audit §2.6).
+  result._launch = {
+    contract: parsed.contract,
+    dropped: parsed.dropped || [],
+    needs_confirmation_fields: parsed.needs_confirmation_fields || [],
+    engine: "match",
+    result_profile_ids: profiles.map((dto) => dto.id),
+    group_counts: { match: matches.length, partial: partials.length },
+    timings: {
+      parse_ms: parseMs,
+      evaluate_ms: evaluateMs,
+      total_ms: Date.now() - startedAt,
+    },
+  };
 
   return result;
 }
@@ -417,6 +768,7 @@ async function searchDiscoverableTalent(knex, options) {
     sort = "az",
     page = "1",
     limit = "20",
+    role = "0",
     city = "",
     letter = "",
     search = "",
@@ -433,6 +785,7 @@ async function searchDiscoverableTalent(knex, options) {
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const offset = (pageNum - 1) * limitNum;
+  const roleIndex = Math.max(0, parseInt(role, 10) || 0);
   const explicitFilters = extractExplicitFilters({
     city,
     letter,
@@ -452,17 +805,20 @@ async function searchDiscoverableTalent(knex, options) {
     agencyId,
   );
 
-  return browseSearch(knex, {
+  const context = {
     filters,
     sort,
     pageNum,
     limitNum,
     offset,
+    roleIndex,
     applicationMap: await fetchApplicationMap(knex, agencyId),
     agencyId,
     blockedTalentUserIds,
-    q: q.trim(),
-  });
+    q: String(q || "").trim(),
+  };
+
+  return context.q ? matchSearch(knex, context) : browseSearch(knex, context);
 }
 
 function canUseSemanticSearch() {
@@ -470,11 +826,18 @@ function canUseSemanticSearch() {
 }
 
 async function hybridSearch(knex, context) {
-  return browseSearch(knex, context);
+  return context && context.q
+    ? matchSearch(knex, context)
+    : browseSearch(knex, context);
 }
 
 module.exports = {
   searchDiscoverableTalent,
+  matchSearch,
+  browseSearch,
+  loadLanesByProfile,
+  softTerms,
+  softMentions,
   mergeFilters,
   extractExplicitFilters,
   applyDiscoverFilters,
