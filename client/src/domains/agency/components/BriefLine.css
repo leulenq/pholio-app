@@ -1,0 +1,203 @@
+/* ============================================================
+   BRIEF LINE — the reading of a brief, set as a sentence
+   No box, no chrome, no field names. A phrase is text until you
+   reach for it; then it underlines in gold and offers its ×.
+   ============================================================ */
+
+.bl {
+  /* The width the resting × reserves after every phrase. The separator answers
+     it on its right, so the middot stays optically centred between two phrases
+     whether or not one of them is being hovered. */
+  --bl-x-gap: 15px;
+  max-width: 680px;
+  margin: 18px auto 0;
+  text-align: center;
+}
+
+/* ── the Showing line ── */
+.bl-line {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.85;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.62);
+}
+
+/* The separator is punctuation, so it stays at the quiet weight of the lead
+   word rather than the weight of the phrases it divides. */
+.bl-sep {
+  margin-right: var(--bl-x-gap);
+  /* 0.4 measured 3.6:1 against the painted ground; 0.5 clears 4.5:1 and is
+     still visibly quieter than the lead word. */
+  color: rgba(250, 248, 245, 0.5);
+  user-select: none;
+}
+
+/* "Showing" carries no × of its own, so it pays the reservation manually. */
+.bl-lead { margin-right: calc(var(--bl-x-gap) - 4px); }
+
+.bl-phrase { white-space: nowrap; }
+
+/* ── a phrase: button semantics, text appearance ── */
+.bl-text {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: rgba(250, 248, 245, 0.88);
+  text-decoration: none;
+  cursor: default;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              text-decoration-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bl-phrase--editable .bl-text { cursor: text; }
+
+.bl-phrase:hover .bl-text,
+.bl-phrase:focus-within .bl-text {
+  color: rgba(250, 248, 245, 0.96);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: #C9A55A;
+  text-underline-offset: 4px;
+}
+
+.bl-text:focus-visible,
+.bl-x:focus-visible,
+.bl-role:focus-visible {
+  outline: 2px solid #C9A55A;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* The × keeps its width at rest, so revealing it never reflows the sentence. */
+.bl-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  margin-left: 3px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: rgba(250, 248, 245, 0.5);
+  vertical-align: -1px;
+  visibility: hidden;
+  cursor: pointer;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bl-phrase:hover .bl-x,
+.bl-phrase:focus-within .bl-x { visibility: visible; }
+
+.bl-x:hover { color: rgba(250, 248, 245, 0.95); }
+
+/* ── inline edit — the phrase becomes a field on the same baseline ── */
+.bl-phrase--editing { white-space: nowrap; }
+
+.bl-input,
+.bl-date {
+  width: 4.2em;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid #C9A55A;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: rgba(250, 248, 245, 0.96);
+  outline: none;
+}
+.bl-date { width: 8.6em; }
+.bl-input::-webkit-inner-spin-button { opacity: 0.35; }
+.bl-input:focus-visible,
+.bl-date:focus-visible { border-bottom-color: #E8CD86; }
+
+.bl-unit {
+  margin-left: 4px;
+  color: rgba(250, 248, 245, 0.55);
+}
+
+/* ── role switcher — a second quiet line, no container ── */
+.bl-roles {
+  margin: 0 0 4px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.85;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.62);
+}
+
+.bl-role {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  color: rgba(250, 248, 245, 0.62);
+  cursor: pointer;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              text-decoration-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bl-role:hover {
+  color: rgba(250, 248, 245, 0.92);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: #C9A55A;
+  text-underline-offset: 4px;
+}
+
+.bl-role--on,
+.bl-role--on:hover { color: #E8CD86; }
+
+/* ── notes — the one plain sentence a brief sometimes earns ── */
+.bl-note {
+  margin: 6px 0 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  /* 0.48, not 0.45: sampled against the painted ground under the bar
+     (the brightest point of the Grainient reads #241806) the note measured
+     4.3:1 at 0.45 and 4.7:1 at 0.48. Three points of alpha is invisible; the
+     difference between passing and failing AA is not. */
+  color: rgba(250, 248, 245, 0.48);
+}
+
+/* ── loading — one line, the width of a reading ── */
+@keyframes blShimmer {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 0.65; }
+}
+
+.bl-shimmer {
+  display: inline-block;
+  width: 240px;
+  max-width: 100%;
+  height: 9px;
+  border-radius: 2px;
+  background: rgba(201, 165, 90, 0.2);
+  animation: blShimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bl-shimmer { animation: none; }
+  .bl-text,
+  .bl-x,
+  .bl-role { transition-duration: 0.01ms; }
+}
+
+@media (max-width: 768px) {
+  .bl { margin-top: 16px; padding: 0 4px; }
+  /* Touch has no hover, so the × has to be standing there already. */
+  .bl-x { visibility: visible; }
+}
+
+@media (hover: none) {
+  .bl-x { visibility: visible; }
+}

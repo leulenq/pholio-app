@@ -3,26 +3,30 @@
  *
  * Natural-language talent discovery. Agency-branded dark surface.
  *
- *   1. Threshold — dark hero with a natural-language search bar
- *   2. Filters   — the brief's active filters in booker language, editable
+ *   1. Threshold — the serif invitation and the bar. Once a brief has run the
+ *                  invitation collapses and the bar rises to the top of the
+ *                  column, so the first row of results is above the fold.
+ *   2. Brief line — the reading of the brief, set as one sentence rather than
+ *                  a rack of boxes. A phrase underlines in gold when reached
+ *                  for and offers the one gesture that drops it.
  *   3. Grid      — exact matches first, then the closest, each card saying why
  *   4. Detail    — full-frame modal
  *
- * The brief becomes filters. Ordering is a function of the booker's stated
+ * The brief becomes requirements. Ordering is a function of the booker's stated
  * requirements against the talent's own declared facts: no score, no ranking
  * number, no opinion about a face.
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowRight, ArrowUp, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { X, ArrowRight, ArrowUp } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/agency';
 import { predictCompletion } from '../lib/intentParser';
 import { DivisionMark } from '../components/status';
-import SearchFilters from '../components/SearchFilters';
+import BriefLine from '../components/BriefLine';
 import { DiscoverDetail } from './DiscoverDetail';
 import Grainient from './Grainient';
 import { Place } from '../components/meta';
@@ -49,6 +53,11 @@ const realBio = (b) => {
 };
 
 const PAGE_SIZE = 30;
+
+/* The house easing (ease-out expo) and the threshold's compaction duration.
+   One pair, so the headline collapse and the bar's rise are the same gesture. */
+const EASE = [0.16, 1, 0.3, 1];
+const THRESHOLD_MS = 0.5;
 
 /**
  * The house AI mark — the same thin-waisted Pholio spark the talent bio writer
@@ -100,6 +109,7 @@ const PROMPTS = [
 
 // ─── Talent Card — art-directed portrait, type integrated on the image ──────────
 function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
+  const reduce = useReducedMotion();
   const isInvited = talent.isInvited;
   const stats = [
     talent.height && { label: 'Height', value: talent.height },
@@ -116,9 +126,13 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
       className="dc-card"
       tabIndex={0}
       aria-label={`Open ${talent.name}'s profile`}
-      initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.04, 0.4), duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 18 }}
+      animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+      transition={{
+        delay: Math.min(index * 0.04, 0.4),
+        duration: reduce ? 0.2 : 0.6,
+        ease: EASE,
+      }}
       onClick={() => onOpen(talent)}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;
@@ -207,6 +221,7 @@ function SkeletonGrid() {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DiscoverPage() {
+  const reduce = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQ = searchParams.get('q') || '';
   const parsedRole = Number.parseInt(searchParams.get('role') || '0', 10);
@@ -286,6 +301,12 @@ export default function DiscoverPage() {
   const roles = useMemo(() => (Array.isArray(v2?.roles) ? v2.roles : []), [v2]);
 
   // Query mode counts. Browse mode (and any response without them) has neither.
+  /* Browse has no `pool` block on this endpoint yet, so the pool line and the
+     show-more fall back to the pagination total. Query mode always has one. */
+  const browsePool = pool || (Number.isFinite(data?.pagination?.total)
+    ? { eligible: data.pagination.total, shown: null }
+    : null);
+
   const hasCounts = Number.isFinite(pool?.match) || Number.isFinite(pool?.partial);
   const matchCount = Number.isFinite(pool?.match) ? pool.match : 0;
   const partialCount = Number.isFinite(pool?.partial) ? pool.partial : 0;
@@ -382,6 +403,14 @@ export default function DiscoverPage() {
     ? 'No exact matches'
     : `${shownMatches} ${shownMatches === 1 ? 'match' : 'matches'}`;
 
+  /* Threshold compaction. Browse keeps the serif invitation and the centred
+     column; the moment a brief has run the invitation collapses to nothing and
+     the bar rides up to the top of the content column, so the first row of
+     results is on screen without a scroll. One duration, one easing, and a
+     hard snap under prefers-reduced-motion. */
+  const resultsMode = !!submitted;
+  const thresholdT = { duration: reduce ? 0 : THRESHOLD_MS, ease: EASE };
+
   return (
     <div className="dc-page">
       {/* ── Environment ──
@@ -403,21 +432,32 @@ export default function DiscoverPage() {
         <div className="dc-bg-veil" />
       </div>
 
-      {/* ── Threshold ── */}
-      <section className="dc-threshold">
-        <motion.div
-          className="dc-threshold-inner"
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <h1 className="dc-headline">
-            Describe who you're
-            <br />
-            <em>looking for.</em>
-          </h1>
+      {/* ── Threshold ──
+          Browse holds the invitation; results collapse it and lift the bar so
+          the grid clears the fold. The headline's height and the bar's layout
+          animate on the same curve, and snap under reduced motion. */}
+      <section className={`dc-threshold${resultsMode ? ' dc-threshold--results' : ''}`}>
+        <div className="dc-threshold-inner">
+          <motion.div
+            className="dc-headline-wrap"
+            initial={false}
+            animate={resultsMode ? { height: 0, opacity: 0 } : { height: 'auto', opacity: 1 }}
+            transition={thresholdT}
+            aria-hidden={resultsMode || undefined}
+          >
+            <h1 className="dc-headline">
+              Describe who you're
+              <br />
+              <em>looking for.</em>
+            </h1>
+          </motion.div>
 
-          <form className={`dc-bar${isFocused ? ' dc-bar--on' : ''}`} onSubmit={onSubmit}>
+          <motion.form
+            layout="position"
+            transition={{ layout: thresholdT }}
+            className={`dc-bar${isFocused ? ' dc-bar--on' : ''}`}
+            onSubmit={onSubmit}
+          >
             <div className={`dc-bar-shell${briefMode ? ' dc-bar-shell--brief' : ''}`}>
               <PholioMark />
               <div className="dc-bar-field">
@@ -476,15 +516,15 @@ export default function DiscoverPage() {
                 disabled={!canSubmit}
                 aria-label="Search"
               >
-                <ArrowUp size={18} strokeWidth={2.4} />
+                <ArrowUp size={16} strokeWidth={2.2} />
               </button>
             </div>
 
-          </form>
+          </motion.form>
 
-          {/* ── Active filters — booker language, editable, removable ── */}
+          {/* ── The reading of the brief — one sentence, each phrase editable ── */}
           {(showFilters || showFiltersLoading) && (
-            <SearchFilters
+            <BriefLine
               brief={submitted}
               filters={filters}
               notes={notes}
@@ -495,27 +535,35 @@ export default function DiscoverPage() {
               onRoleChange={onRoleChange}
             />
           )}
-        </motion.div>
+        </div>
       </section>
 
       {/* ── Curated / Results ── */}
       <section className="dc-curated">
-        {/* Section header + browse pool line */}
+        {/* Results header — the count in the house serif, the brief beside it */}
         {talents.length > 0 && (
           <motion.div
             className="dc-curated-header"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduce ? 0 : 0.4, ease: EASE }}
           >
-            <p className="dc-curated-head">
-              {submitted
-                ? <>{resultsHeadline} for <em>“{submitted}”</em></>
-                : <>Newest talent{agencyName ? <> for <em>{agencyName}</em></> : null}</>}
-            </p>
-            {!submitted && pool && (
+            <h2 className="dc-curated-head">
+              {submitted ? (
+                <>
+                  <span className="dc-curated-count">{resultsHeadline}</span>
+                  <em className="dc-curated-brief">for “{submitted}”</em>
+                </>
+              ) : (
+                <>
+                  <span className="dc-curated-count">Newest talent</span>
+                  {agencyName && <em className="dc-curated-brief">for {agencyName}</em>}
+                </>
+              )}
+            </h2>
+            {!submitted && browsePool && (
               <p className="dc-pool-line">
-                Showing {pool.shown ?? talents.length} of {pool.eligible} discoverable talent
+                Showing {browsePool.shown ?? talents.length} of {browsePool.eligible} discoverable talent
               </p>
             )}
           </motion.div>
@@ -525,19 +573,27 @@ export default function DiscoverPage() {
           <SkeletonGrid />
         ) : talents.length === 0 ? (
           <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <Sparkles size={26} className="dc-empty-gem" />
             <p className="dc-empty-text">
               {submitted
-                ? <>No talent match “{submitted}” yet.</>
+                ? <>No one matches “{submitted}” yet.</>
                 : 'No discoverable talent yet.'}
             </p>
-            {submitted && <button className="dc-empty-reset" onClick={clear}>Clear search</button>}
+            {submitted && (
+              <>
+                <p className="dc-empty-hint">Remove a requirement above, or clear the search.</p>
+                <button className="dc-empty-reset" onClick={clear}>Clear search</button>
+              </>
+            )}
           </motion.div>
         ) : (
           <>
             {groups.map((g) => (
               <div className="dc-group" key={g.key}>
-                {groupHeading(g) && <p className="dc-group-head">{groupHeading(g)}</p>}
+                {groupHeading(g) && (
+                  <p className="dc-group-head">
+                    <span className="dc-group-label">{groupHeading(g)}</span>
+                  </p>
+                )}
                 <div className="dc-grid">
                   {g.talents.map((t, i) => (
                     <TalentCard
@@ -555,7 +611,7 @@ export default function DiscoverPage() {
 
             {/* Show more — browse widens the pool page, a query pages across
                 both groups (the server returns the next slice of each). */}
-            {((!submitted && pool && talents.length < pool.eligible) || hasMoreResults) && (
+            {((!submitted && browsePool && talents.length < browsePool.eligible) || hasMoreResults) && (
               <div className="dc-more">
                 <button className="dc-more-btn" onClick={loadMore} disabled={isFetching}>
                   {isFetching ? 'Loading…' : 'Show more'}

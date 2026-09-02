@@ -149,10 +149,12 @@ const AGE_TERMS = {
 };
 
 const HAIR_COLOR_TERMS = {
-  red: ["redhead", "red hair", "ginger", "auburn"],
+  red: ["redhead", "red-headed", "red headed", "redheaded", "red hair", "red-haired", "ginger", "auburn"],
   blonde: ["blonde", "blond"],
-  brown: ["brunette", "brown hair"],
-  black: ["black hair", "dark hair"],
+  brown: ["brunette", "brown hair", "brown-haired"],
+  black: ["black hair", "black-haired", "dark hair", "dark-haired"],
+  gray: ["gray hair", "grey hair", "gray-haired", "grey-haired", "silver hair", "silver-haired"],
+  white: ["white hair", "white-haired"],
 };
 
 const EYE_COLOR_TERMS = {
@@ -160,6 +162,8 @@ const EYE_COLOR_TERMS = {
   green: ["green eyes", "green-eyed"],
   brown: ["brown eyes", "brown-eyed"],
   hazel: ["hazel eyes", "hazel-eyed"],
+  gray: ["gray eyes", "grey eyes", "gray-eyed", "grey-eyed"],
+  amber: ["amber eyes", "amber-eyed"],
 };
 
 const CONSTRAINT_FIELD_MAP = {
