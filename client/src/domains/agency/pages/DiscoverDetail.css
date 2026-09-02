@@ -105,7 +105,7 @@
   gap: 12px;
 }
 .dd-name {
-  font-family: 'Playfair Display', Georgia, serif;
+  font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
   font-size: 2rem;
   font-weight: 400;
   line-height: 1.15;
@@ -115,10 +115,15 @@
   min-width: 0;
 }
 /* ── Vitals strip ── */
+/* Two columns, not one row. A single flex row fits three short vitals and
+   silently clips the fourth and fifth: with Heritage present, "Based" ran off
+   the panel and "Experience" never rendered at all. The grid wraps instead,
+   and the vertical hairlines go with it — the strip's own top and bottom rules
+   are enough to hold it as a block. */
 .dd-vitals {
-  display: flex;
-  align-items: flex-end;
-  gap: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 20px;
   padding: 20px 0;
   margin-bottom: 24px;
   border-top: 1px solid rgba(201, 165, 90, 0.12);
@@ -126,16 +131,11 @@
 }
 
 .dd-vital {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 16px;
-  border-right: 1px solid rgba(201, 165, 90, 0.12);
+  min-width: 0;
 }
-
-.dd-vital:first-child { padding-left: 0; }
-.dd-vital:last-child { padding-right: 0; border-right: none; }
 
 .dd-vital-label {
   font-size: 10px;
@@ -149,17 +149,40 @@
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.05rem;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.25;
   color: rgba(250, 248, 245, 0.92);
+  overflow-wrap: anywhere;
 }
 
-/* ── Constraint-truth annotation (near / outside-spec) ── */
+/* ── Match facts: what the brief asked for and this talent declared ── */
+.dd-facts {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.82);
+}
+
+/* ── Why: the talent's own sentence, or their book's description, that the
+   brief reached for. Sits under the facts, above what is off the brief. ── */
+.dd-why {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.62);
+  overflow-wrap: anywhere;
+}
+
+/* ── Match notes: what is off the brief, or not listed ── */
 .dd-truth {
   margin: 0 0 20px;
   font-size: 12px;
   line-height: 1.5;
-  letter-spacing: 0.02em;
-  color: rgba(232, 205, 134, 0.72);
+  letter-spacing: 0.01em;
+  color: rgba(235, 207, 138, 0.82);
 }
 
 /* ── Bio ── */
@@ -292,7 +315,7 @@
   .dd-name { font-size: 1.6rem; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .dd-overlay { padding: 0; align-items: flex-end; }
   .dd-frame {
     grid-template-columns: 1fr;

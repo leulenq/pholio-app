@@ -1,6 +1,6 @@
 {
-  "name": "set-aside-fair-skinned",
-  "category": "set-aside",
+  "name": "unsupported-ask-fair-skinned",
+  "category": "unsupported-ask",
   "brief": "fair skinned, commercial",
   "now": "2026-07-01",
   "llm": {
@@ -9,9 +9,7 @@
         "label": "role 1",
         "count": 1,
         "hard": {
-          "boards": [
-            "commercial"
-          ]
+          "boards": ["commercial"]
         },
         "soft_query": "fair skinned commercial"
       }
@@ -21,11 +19,8 @@
   },
   "expect": {
     "roles_length": 1,
-    "set_aside_contains": [
-      "fair skinned"
-    ],
-    "soft_query_excludes": [
-      "fair"
-    ]
+    "heritage_null": true,
+    "set_aside_contains": ["fair skinned"],
+    "soft_query_excludes": ["fair"]
   }
 }

@@ -1,0 +1,27 @@
+{
+  "name": "heritage-asian-or-set",
+  "category": "heritage",
+  "brief": "Asian women for a commercial campaign",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "gender_presentation": ["female"],
+          "heritage": ["east_asian", "south_asian", "southeast_asian"],
+          "boards": ["commercial"]
+        },
+        "soft_query": "campaign"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "heritage": ["east_asian", "south_asian", "southeast_asian"],
+    "set_aside": []
+  }
+}

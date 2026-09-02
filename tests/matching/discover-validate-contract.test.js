@@ -55,6 +55,8 @@ describe.each(fixtures.map((fx) => [fx.name, fx]))("%s", (_name, fx) => {
       expect(role.hard.visible_tattoos).toBe(e.visible_tattoos);
     }
     if (e.hair_color) expect(role.hard.hair_color).toEqual(e.hair_color);
+    if (e.heritage) expect(role.hard.heritage).toEqual(e.heritage);
+    if (e.heritage_null) expect(role.hard.heritage).toBeNull();
     if (e.eye_color) expect(role.hard.eye_color).toEqual(e.eye_color);
     if (e.boards) expect(role.hard.boards).toEqual(e.boards);
     if (e.union) expect(role.hard.union).toBe(e.union);
@@ -115,8 +117,8 @@ describe("no applied constraint violates its own re-parse (Layer-1 invariant)", 
   });
 });
 
-describe("protected-class terms never leak into hard or soft", () => {
-  test("ethnicity/skin terms are set aside, not filtered", () => {
+describe("heritage is a filter; skin tone is not", () => {
+  test("heritage words in free text become hard.heritage, skin tone is set aside", () => {
     const out = validateContract(
       {
         roles: [
@@ -132,25 +134,75 @@ describe("protected-class terms never leak into hard or soft", () => {
       },
       { now: new Date() },
     );
+
+    expect(out.contract.roles[0].hard.heritage).toEqual([
+      "east_asian",
+      "south_asian",
+      "southeast_asian",
+    ]);
     const texts = out.contract.set_aside.map((s) => s.text.toLowerCase());
-    expect(texts).toContain("asian");
     expect(texts).toContain("dark-skinned");
-    expect(out.contract.roles[0].soft_query.toLowerCase()).not.toContain("asian");
-    expect(out.contract.roles[0].soft_query.toLowerCase()).toContain("editorial");
+    expect(texts).not.toContain("asian");
+    const soft = out.contract.roles[0].soft_query.toLowerCase();
+    expect(soft).not.toContain("asian");
+    expect(soft).not.toContain("dark-skinned");
+    expect(soft).toContain("editorial");
   });
 
-  test("hair/eye colour collisions are NOT set aside", () => {
+  test("a heritage the model already placed is kept as-is", () => {
     const out = validateContract(
       {
         roles: [
-          { label: "role 1", count: 1, hard: {}, soft_query: "black hair, blonde highlights" },
+          {
+            label: "role 1",
+            count: 1,
+            hard: { heritage: ["Black_African_Descent"] },
+            soft_query: "editorial",
+          },
         ],
         set_aside: [],
         unparsed_remainder: "",
       },
       { now: new Date() },
     );
+    expect(out.contract.roles[0].hard.heritage).toEqual([
+      "black_african_descent",
+    ]);
+  });
+
+  test("hair/eye colour collisions are NOT read as heritage", () => {
+    const out = validateContract(
+      {
+        roles: [
+          {
+            label: "role 1",
+            count: 1,
+            hard: {},
+            soft_query: "black hair, blonde highlights",
+          },
+        ],
+        set_aside: [],
+        unparsed_remainder: "",
+      },
+      { now: new Date() },
+    );
+    expect(out.contract.roles[0].hard.heritage).toBeNull();
     expect(out.contract.set_aside).toEqual([]);
     expect(out.contract.roles[0].soft_query.toLowerCase()).toContain("black hair");
+  });
+
+  test("an out-of-vocabulary heritage is dropped, never guessed", () => {
+    const out = validateContract(
+      {
+        roles: [
+          { label: "role 1", count: 1, hard: { heritage: ["martian"] }, soft_query: "" },
+        ],
+        set_aside: [],
+        unparsed_remainder: "",
+      },
+      { now: new Date() },
+    );
+    expect(out.contract.roles[0].hard.heritage).toBeNull();
+    expect(out.dropped.map((d) => d.value)).toContain("martian");
   });
 });

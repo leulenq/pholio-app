@@ -5,6 +5,7 @@ import CityAutocompleteField from '../../../../shared/components/ui/forms/CityAu
 import CountrySelectField from '../../../../shared/components/ui/forms/CountrySelectField';
 import { Section } from '../../components/Section';
 import { IdentitySection as PersonalDetailsFields } from '../../components/profile-index';
+import styles from './ProfilePage.module.css';
 
 const ETHNICITY_OPTIONS = [
   { value: 'Black/African Descent', label: 'Black / African Descent' },
@@ -64,6 +65,31 @@ export function IdentitySection({
         guardianLinkSent={guardianLinkSent}
         guardianSentTo={guardianSentTo}
       />
+
+      <Section
+        id="heritage"
+        title="Heritage & Background"
+        titleEmphasis="Background"
+      >
+        <Controller
+          name="ethnicity"
+          control={control}
+          render={({ field }) => (
+            <PholioMultiSelect
+              label="Heritage & Background"
+              id="ethnicity"
+              options={ETHNICITY_OPTIONS}
+              value={Array.isArray(field.value) ? field.value : (field.value ? [field.value] : [])}
+              onChange={field.onChange}
+              placeholder="Select all that apply"
+              error={errors.ethnicity}
+            />
+          )}
+        />
+        <p className={styles.fieldHint}>
+          Optional. Agencies searching for talent can filter by this.
+        </p>
+      </Section>
     </>
   );
 }

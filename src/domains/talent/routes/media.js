@@ -28,6 +28,9 @@ const {
   imageAiProcessingAllowed,
 } = require("../services/run-image-classification");
 const { enqueuePitsJob } = require("../services/pits-queue");
+const {
+  scheduleDiscoverReindex,
+} = require("../services/discover-reindex-hooks");
 const { enqueueMattePrecompute } = require("../services/matte-precompute");
 const {
   logClassificationFeedback,
@@ -1544,6 +1547,12 @@ router.post(
         runSensitiveImageAnalysisIfAllowed(profile.id, primary);
       }
 
+      // Discover semantic layer §3.5: a new photograph changes the book the
+      // corpus describes. The classification job writes the photo description
+      // and reindexes again once it has one; this covers the sort/visibility
+      // change even when image analysis is off or unconsented.
+      scheduleDiscoverReindex(profile.id, { reason: "image_upload" });
+
       return res.json({
         success: true,
         images: uploadedImages,
@@ -1625,6 +1634,10 @@ router.put(
       });
       await Promise.all(updates);
     });
+
+    // Discover semantic layer §3.5: order decides which photographs are
+    // described first and in what order the book reads.
+    scheduleDiscoverReindex(profile.id, { reason: "image_reorder" });
 
     return res.json({
       success: true,
@@ -2166,6 +2179,15 @@ router.put(
 
     const fresh = await knex("images").where({ id: imageId }).first();
 
+    // Discover semantic layer §3.5: excluding an image from agencies removes
+    // its photo chunk; un-excluding it puts the chunk back.
+    if (
+      Object.hasOwn(patch, "exclude_from_agency") ||
+      Object.hasOwn(patch, "exclude_from_public")
+    ) {
+      scheduleDiscoverReindex(image.profile_id, { reason: "image_visibility" });
+    }
+
     await logClassificationFeedback(knex, {
       imageId,
       profileId: image.profile_id,
@@ -2357,6 +2379,10 @@ router.delete(
     await knex("images").where({ id: mediaId }).delete();
 
     await notifyIfSubmissionReadinessLost(media.profile_id, wasSubmissionReady);
+
+    // Discover semantic layer §3.5. The row's own photo chunk goes with the
+    // image by FK cascade; the reindex rebuilds what is left.
+    scheduleDiscoverReindex(media.profile_id, { reason: "image_delete" });
 
     return res.json({
       success: true,
@@ -3155,6 +3181,9 @@ router.post(
 
     await notifyIfSubmissionReadinessLost(profile.id, wasSubmissionReady);
 
+    // Discover semantic layer §3.5.
+    scheduleDiscoverReindex(profile.id, { reason: "image_bulk_delete" });
+
     await logActivity(userId, "images_bulk_deleted", {
       profileId: profile.id,
       deletedCount: images.length,
@@ -3314,6 +3343,15 @@ router.post(
           .update(updateValues);
       }
     });
+
+    // Discover semantic layer §3.5: a bulk exclusion change adds or removes
+    // photo chunks for every image in the selection.
+    if (
+      Object.hasOwn(updateValues, "exclude_from_agency") ||
+      Object.hasOwn(updateValues, "exclude_from_public")
+    ) {
+      scheduleDiscoverReindex(profile.id, { reason: "image_bulk_visibility" });
+    }
 
     return res.json({
       success: true,

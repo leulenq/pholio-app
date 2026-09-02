@@ -1,0 +1,27 @@
+{
+  "name": "heritage-dropped-unknown-value",
+  "category": "heritage",
+  "brief": "nordic women, editorial",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "gender_presentation": ["female"],
+          "heritage": ["nordic"],
+          "boards": ["editorial"]
+        },
+        "soft_query": "editorial"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "heritage_null": true,
+    "dropped_contains": ["nordic"]
+  }
+}

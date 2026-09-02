@@ -26,6 +26,9 @@ const { validateRegistry } = require("../../scripts/validate-spec-registry");
 const {
   publishRegistry,
 } = require("../../src/domains/spec-registry/store/publisher");
+const {
+  getCurrentRevision,
+} = require("../../src/domains/spec-registry/store");
 
 const SESSION_SECRET = require("../../src/config").sessionSecret;
 
@@ -67,10 +70,27 @@ describe("application drafts", () => {
   const imageSetId = uuidv4();
   const presetId = uuidv4();
   const sessionIds = [];
+  /* Read from the published registry rather than written down here. The
+     dataset is real data that is republished whenever the research changes —
+     it went 2026.08.19.1 -> 2026.08.29.2 and Ford's current revision went @1
+     -> @2 in commit 7e05d6b, which updated tests/spec-registry but not this
+     suite. A hardcoded revision then fails the send-time snapshot silently:
+     snapshotApplicationSpec() records nothing when the revision it is handed
+     is not the series' current one, so the assertion below saw no row. What
+     this test is actually pinning is that the snapshot freezes the revision
+     the talent sent, whatever that revision happens to be. */
+  let fordRevisionId = null;
+  let fordDatasetVersion = null;
 
   beforeAll(async () => {
     await knex.migrate.latest();
     await publishRegistry(knex, validateRegistry());
+    const fordRevision = await getCurrentRevision(
+      knex,
+      "ford-models:selected-city-online",
+    );
+    fordRevisionId = fordRevision.revisionId;
+    fordDatasetVersion = fordRevision.datasetVersion;
     await knex("users").insert({
       id: userId,
       email: `application-draft-${userId}@example.com`,
@@ -1161,7 +1181,7 @@ describe("application drafts", () => {
           headshot: imageId,
           full_length: fullLengthImageId,
         },
-        specRegistryRevisionId: "ford-models:selected-city-online@1",
+        specRegistryRevisionId: fordRevisionId,
         imageIds: [imageId, fullLengthImageId],
         consentConfirmed: true,
       },
@@ -1270,13 +1290,13 @@ describe("application drafts", () => {
     );
     expect(packagePayload.imageIds).toEqual([imageId, fullLengthImageId]);
     expect(packagePayload.packageSchemaVersion).toBe(2);
-    expect(packagePayload.specRegistryRevisionId).toBe("ford-models:selected-city-online@1");
+    expect(packagePayload.specRegistryRevisionId).toBe(fordRevisionId);
     const registrySnapshot = await knex("application_spec_snapshots")
       .where({ application_id: submitted.body.id })
       .first();
     expect(registrySnapshot).toMatchObject({
-      revision_id: "ford-models:selected-city-online@1",
-      dataset_version: "2026.08.19.1",
+      revision_id: fordRevisionId,
+      dataset_version: fordDatasetVersion,
     });
     expect(packagePayload.mediaSetName).toBe("Draft set");
     expect(packagePayload.images.map((image) => image.id)).toEqual([

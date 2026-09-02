@@ -30,6 +30,7 @@ const {
   GENDER_PRESENTATION,
   HAIR_COLOR,
   EYE_COLOR,
+  HERITAGE,
   BOARDS,
   MARKETS,
   UNION,
@@ -147,6 +148,12 @@ const HARD_NODE = objectNode({
   eye_color: {
     type: ["array", "null"],
     items: { type: "string", enum: EYE_COLOR },
+  },
+  // Self-declared heritage (profiles.ethnicity) — applied only when the brief
+  // asks for it; OR-set over the talent's own picker options (audit §3.1).
+  heritage: {
+    type: ["array", "null"],
+    items: { type: "string", enum: HERITAGE },
   },
   union: nullableEnum(UNION),
   representation_status: {

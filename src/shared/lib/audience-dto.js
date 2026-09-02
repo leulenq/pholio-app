@@ -42,6 +42,41 @@ const {
   normalizeStringList,
 } = require("./submission-profile");
 const { buildCanonicalStats } = require("./stats-formatter");
+const {
+  heritageLabelsForValues,
+} = require("../../domains/agency/services/discover/field-whitelist");
+const {
+  BOOKING_LANES,
+  normalizeBookingLaneList,
+} = require("../constants/booking-lanes");
+
+const BOOKING_LANE_LABELS = Object.fromEntries(
+  BOOKING_LANES.map((lane) => [lane.slug, lane.label]),
+);
+
+/**
+ * Booking-lane display labels for a card. Prefers the caller's `profile_booking_lanes`
+ * rows (canonical since 20260624195800, priority-ordered) and falls back to the
+ * legacy `modeling_categories` / `booking_lanes` columns. Never guesses a lane:
+ * a talent who declared none gets an empty list.
+ */
+function bookingLaneLabels(lanes, profile) {
+  let slugs = [];
+  if (Array.isArray(lanes) && lanes.length) {
+    slugs = normalizeBookingLaneList(lanes);
+  } else {
+    const raw = profile?.modeling_categories || profile?.booking_lanes || null;
+    if (raw) {
+      try {
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+        slugs = normalizeBookingLaneList(parsed);
+      } catch {
+        slugs = [];
+      }
+    }
+  }
+  return slugs.map((slug) => BOOKING_LANE_LABELS[slug] || slug);
+}
 const { PROFILE_AI_COLUMNS } = require("./data-export");
 // Only DB-touching import in this otherwise-pure module. See
 // `loadTalentRepresentationsForProfiles` below for the scoped exception.
@@ -137,6 +172,10 @@ const AGENCY_IMAGE_FIELDS = Object.freeze([
  * property that is always absent. `measurements_updated_at` above remains, and
  * only ever renders "last updated" — self-reported, never confirmed.
  */
+// NOTE (audit §3.1): `ethnicity` is deliberately NOT on this allowlist. The raw
+// column is mapped to the picker's own labels and exposed as `heritage` by
+// buildAgencyDiscoveryDTO, so the agency reads the talent's own selection and
+// never a raw stored value.
 const AGENCY_DISCOVERY_FIELDS = Object.freeze([
   "id",
   "slug",
@@ -668,7 +707,7 @@ function buildPublicCardDTO(profile, opts = {}) {
  * Agency Discover DTO.
  * @param {object|null|undefined} profile
  * @param {{ images?: object[], owner?: object|null, social?: object[]|null,
- *   representations?: object[]|null }} [opts]
+ *   representations?: object[]|null, lanes?: string[]|null }} [opts]
  *   `representations` is batch-loaded per result set via
  *   `loadTalentRepresentationsForProfiles` and passed in per-profile — this
  *   builder stays a pure function and never queries the DB itself.
@@ -692,6 +731,17 @@ function buildAgencyDiscoveryDTO(profile, opts = {}) {
     dto.tattoos = null;
     dto.piercings = null;
   }
+
+  // Self-declared heritage (`profiles.ethnicity`, a picker multi-select). The
+  // raw column never leaves this builder: it is mapped to the picker's own
+  // labels, so an agency only ever reads what the talent selected
+  // (tasks/discover-audit-2026-09.md §3.1). Blank stays null, never inferred.
+  const heritage = heritageLabelsForValues(src.ethnicity);
+  dto.heritage = heritage.length ? heritage : null;
+
+  // The talent's declared booking lanes, as labels. Empty when they declared
+  // none: the card shows nothing rather than defaulting to a board.
+  dto.lanes = bookingLaneLabels(opts.lanes, src);
 
   const repStatus = deriveRepresentationStatus(src, opts.representations);
   dto.representation_status = repStatus.representation_status;

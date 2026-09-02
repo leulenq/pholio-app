@@ -4,11 +4,6 @@
    ============================================================ */
 
 
-@keyframes dcWavePulse {
-  0%, 100% { opacity: 0.5; transform: scaleY(1);   }
-  50%       { opacity: 0.9; transform: scaleY(1.4); }
-}
-
 @keyframes dcShimmer {
   0%   { opacity: 0.3; }
   50%  { opacity: 0.7; }
@@ -65,7 +60,17 @@
   justify-content: center;
   padding: 96px 24px 72px;
   position: relative;
-  z-index: 3; /* above results so the intent panel can overhang them */
+  z-index: 3; /* above results so the brief line can overhang them */
+}
+
+/* Results state: the invitation is gone, so the section stops reserving a
+   viewport for it and the bar settles 72px below the top of the column. The
+   headline's own height animation and the bar's layout animation cross this
+   gap on the same curve. */
+.dc-threshold--results {
+  min-height: 0;
+  padding: 72px 24px 26px;
+  align-items: flex-start;
 }
 
 .dc-threshold-inner {
@@ -74,6 +79,10 @@
   margin: 0 auto;
   text-align: center;
 }
+
+/* The collapsing box. The headline's bottom margin lives inside it, so the
+   space below the invitation collapses with the invitation. */
+.dc-headline-wrap { overflow: hidden; }
 
 /* ── Headline ──
    Noto Serif Display, not Playfair: at this size the headline's italic line
@@ -117,7 +126,7 @@
      drawn on top of each other, so any metric that differs between them shows
      up as misalignment. line-height 1.5 (not 1) gives symmetric half-leading,
      which is what actually optically centres the glyphs against the mark. */
-  --dc-bar-fs: 1.05rem;
+  --dc-bar-fs: 1.125rem;
   --dc-bar-lh: 1.5;
 }
 
@@ -146,13 +155,15 @@
   border-radius: inherit;
   padding: 1.5px;
   --dc-ring-angle: 0deg;
+  /* Warm only. Two golds and a near-white highlight travelling round the pill:
+     the ring is the house metal catching light, not a spectrum announcing a
+     model. */
   background: conic-gradient(
     from var(--dc-ring-angle),
     #f0d491 0deg,
-    #d9b46a 95deg,
-    #9b72cb 165deg,
-    #d96570 215deg,
-    #c9a55a 250deg,
+    #c9a55a 100deg,
+    rgba(250, 248, 245, 0.85) 180deg,
+    #c9a55a 260deg,
     #f0d491 360deg
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -269,6 +280,11 @@ body.is-agency .dc-bar-input:focus {
   transition: color 0.2s ease;
 }
 .dc-bar-clear:hover { color: #ffffff; }
+.dc-bar-clear:focus-visible {
+  outline: 2px solid #C9A55A;
+  outline-offset: 3px;
+  border-radius: 50%;
+}
 
 /* ============================================================
    INLINE PREDICTION (ghost completion)
@@ -294,44 +310,6 @@ body.is-agency .dc-bar-input:focus {
 .dc-ghost-rest { color: rgba(230, 198, 128, 0.62); }
 
 /* ============================================================
-   INTENT CHIPS
-   ============================================================ */
-.dc-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.dc-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 14px 6px 12px;
-  border-radius: 100px;
-  background: rgba(201, 165, 90, 0.08);
-  border: 1px solid rgba(201, 165, 90, 0.28);
-  color: rgba(201, 165, 90, 0.9);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.dc-chip:hover {
-  background: rgba(201, 165, 90, 0.14);
-  border-color: rgba(201, 165, 90, 0.5);
-  color: #C9A55A;
-}
-
-.dc-chip svg {
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-/* ============================================================
    CURATED SECTION
    ============================================================ */
 .dc-curated {
@@ -342,23 +320,35 @@ body.is-agency .dc-bar-input:focus {
   margin: 0 auto;
 }
 
-/* ── Section header — one restrained line ── */
+/* ── Results header ──
+   The count is the answer, so it is set in the house display serif at reading
+   size rather than as a tracked uppercase caption. The brief follows it in
+   italic gold on the same line: what was asked, and what came back, in one
+   breath. No uppercase tracking anywhere in this header. */
 .dc-curated-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 10px;
   margin: 0 0 28px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.38);
+  font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
+  font-weight: 400;
+  line-height: 1.3;
 }
 
-.dc-curated-head em {
-  font-family: 'Playfair Display', Georgia, serif;
+.dc-curated-count {
+  font-size: 1.5rem;
+  letter-spacing: -0.005em;
+  color: rgba(250, 248, 245, 0.92);
+}
+
+.dc-curated-brief {
   font-style: italic;
-  font-size: 1.18em;
-  letter-spacing: 0.01em;
-  text-transform: none;
+  font-size: 1.05rem;
+  letter-spacing: 0.005em;
   color: rgba(235, 207, 138, 0.85);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ============================================================
@@ -367,8 +357,10 @@ body.is-agency .dc-bar-input:focus {
    ============================================================ */
 .dc-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
+  /* auto-fill at a 300px floor: three columns at 1280, four past ~1360, one on
+     a phone — the column count follows the screen instead of a breakpoint. */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
   align-items: start;
 }
 
@@ -378,11 +370,11 @@ body.is-agency .dc-bar-input:focus {
   aspect-ratio: 4 / 5;
   overflow: hidden;
   cursor: pointer;
-  border-radius: 14px;
+  border-radius: 12px;
   background: #0D0B09;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
-    0 16px 38px -24px rgba(0, 0, 0, 0.9);
+  /* No inset ring at rest: on a dark ground a white hairline reads as a chip
+     outline around the photograph. The gold ring is a hover response. */
+  box-shadow: 0 16px 38px -24px rgba(0, 0, 0, 0.9);
   transition:
     transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 0.55s cubic-bezier(0.16, 1, 0.3, 1);
@@ -467,18 +459,6 @@ body.is-agency .dc-bar-input:focus {
   min-width: 0;
 }
 
-.dc-card-featured {
-  flex: none;
-  align-self: baseline;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.82);
-  padding: 3px 0 1px;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
-}
-
 /* ── Identity — integrated bottom-left ── */
 .dc-card-body {
   position: absolute;
@@ -490,8 +470,8 @@ body.is-agency .dc-bar-input:focus {
 }
 
 .dc-card-name {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.32rem;
+  font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
+  font-size: 1.35rem;
   font-weight: 500;
   letter-spacing: 0.005em;
   color: #fff;
@@ -539,8 +519,12 @@ body.is-agency .dc-bar-input:focus {
     transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.05s;
 }
 
-.dc-card:hover .dc-card-reveal { grid-template-rows: 1fr; }
-.dc-card:hover .dc-card-reveal-inner { opacity: 1; transform: translateY(0); }
+/* focus-within as well as hover: the reveal holds the only Invite and View
+   controls, and an element that is not displayed cannot be tabbed to. */
+.dc-card:hover .dc-card-reveal,
+.dc-card:focus-within .dc-card-reveal { grid-template-rows: 1fr; }
+.dc-card:hover .dc-card-reveal-inner,
+.dc-card:focus-within .dc-card-reveal-inner { opacity: 1; transform: translateY(0); }
 
 /* Vital stats — structured, comp-card treatment (gold label / serif value) */
 .dc-card-stats {
@@ -615,454 +599,174 @@ body.is-agency .dc-bar-input:focus {
 .dc-act--view { color: rgba(255, 255, 255, 0.5); }
 .dc-act--view:hover { color: rgba(255, 255, 255, 0.92); }
 
-/* ============================================================
-   RESONANCE RING
-   ============================================================ */
-.dc-ring {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.dc-ring-num {
-  position: absolute;
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
-  letter-spacing: 0;
-  line-height: 1;
+.dc-act:focus-visible {
+  outline: 2px solid #C9A55A;
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 /* ============================================================
    EMPTY STATE
    ============================================================ */
+/* ── Empty ──
+   A sentence and a way out. No ornament: an icon here would decorate a dead
+   end rather than help anyone leave it. */
 .dc-empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 80px 24px;
+  gap: 10px;
+  padding: 72px 24px;
   text-align: center;
 }
 
-.dc-empty-gem {
-  font-size: 28px;
-  color: rgba(201, 165, 90, 0.3);
-  animation: dcShimmer 2.5s ease-in-out infinite;
+.dc-empty-text {
+  margin: 0;
+  font-family: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba(250, 248, 245, 0.9);
 }
 
-.dc-empty-text {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-style: italic;
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.4);
+.dc-empty-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.55);
 }
 
 .dc-empty-reset {
-  padding: 9px 24px;
-  border-radius: 100px;
-  background: transparent;
-  border: 1px solid rgba(201, 165, 90, 0.3);
-  color: rgba(201, 165, 90, 0.7);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  color: rgba(235, 207, 138, 0.85);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(201, 165, 90, 0.45);
+  text-underline-offset: 4px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              text-decoration-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .dc-empty-reset:hover {
-  background: rgba(201, 165, 90, 0.08);
-  border-color: rgba(201, 165, 90, 0.55);
-  color: #C9A55A;
+  color: #E8CD86;
+  text-decoration-color: #C9A55A;
 }
 
-/* ============================================================
-   DETAIL PANEL — right-edge drawer
-   ============================================================ */
-.dc-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-}
-
-.dc-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(440px, 42vw);
-  z-index: 100;
-  background: #0D0B09;
-  border-left: 1px solid rgba(201, 165, 90, 0.1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: -12px 0 48px rgba(0, 0, 0, 0.45);
-}
-
-/* Gold signal pipe — vertical left-edge accent */
-.dc-panel-pipe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1px;
-  height: 100%;
-  background: linear-gradient(
-    to bottom,
-    transparent            0%,
-    rgba(201, 165, 90, 0.45) 25%,
-    rgba(201, 165, 90, 0.45) 75%,
-    transparent            100%
-  );
-  z-index: 10;
-  pointer-events: none;
-}
-
-.dc-panel-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 20;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.dc-panel-close:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-
-/* Hero photo — top 48% */
-.dc-panel-hero {
-  position: relative;
-  height: 48%;
-  min-height: 260px;
-  flex-shrink: 0;
-  background: #0D0B09;
-}
-
-.dc-panel-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-  display: block;
-}
-
-.dc-panel-hero-grad {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent 50%, rgba(13, 11, 9, 0.95) 100%);
-  pointer-events: none;
-}
-
-/* Scrollable body */
-.dc-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 28px 32px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(201, 165, 90, 0.2) transparent;
-}
-
-.dc-panel-body::-webkit-scrollbar        { width: 4px; }
-.dc-panel-body::-webkit-scrollbar-track  { background: transparent; }
-.dc-panel-body::-webkit-scrollbar-thumb  { background: rgba(201, 165, 90, 0.2); border-radius: 2px; }
-
-.dc-panel-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.dc-panel-name {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.6rem;
-  font-weight: 400;
-  color: rgba(250, 248, 245, 0.95);
-  line-height: 1.2;
-  margin: 0 0 6px;
-  letter-spacing: -0.01em;
-}
-
-.dc-panel-sub {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.32);
-  margin: 0;
-}
-
-.dc-panel-rule {
-  height: 1px;
-  background: rgba(201, 165, 90, 0.09);
-  margin: 20px 0;
-}
-
-/* Stats grid — 2 columns */
-.dc-panel-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 20px;
-}
-
-.dc-panel-stat-l {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.28);
-  margin-bottom: 4px;
-}
-
-.dc-panel-stat-v {
-  font-size: 14px;
-  color: rgba(250, 248, 245, 0.85);
-}
-
-.dc-panel-bio {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-style: italic;
-  font-size: 0.9375rem;
-  line-height: 1.75;
-  color: rgba(255, 255, 255, 0.48);
-  margin: 0 0 28px;
-}
-
-.dc-panel-ctas {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.dc-panel-btn-gold {
-  width: 100%;
-  height: 48px;
-  border-radius: 8px;
-  background: #C9A55A;
-  border: none;
-  color: #0D0B09;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-
-.dc-panel-btn-gold:hover {
-  background: #D9B46A;
-  box-shadow: 0 6px 20px rgba(201, 165, 90, 0.28);
-  transform: translateY(-1px);
-}
-
-.dc-panel-btn-outline {
-  width: 100%;
-  height: 44px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 13px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-
-.dc-panel-btn-outline:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: rgba(255, 255, 255, 0.9);
+.dc-empty-reset:focus-visible {
+  outline: 2px solid #C9A55A;
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 /* ============================================================
    RESPONSIVE
    ============================================================ */
-@media (max-width: 1100px) {
-  .dc-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
 @media (max-width: 768px) {
   .dc-threshold {
-    padding: 80px 20px 56px;
-    min-height: 55vh;
+    padding: 72px 16px 48px;
+    min-height: 52vh;
+  }
+
+  /* Must repeat min-height: the rule above resets it for every width, and a
+     bare `.dc-threshold` later in the cascade would otherwise re-impose the
+     browse viewport on the results state. */
+  .dc-threshold--results {
+    min-height: 0;
+    padding: 28px 16px 20px;
   }
 
   .dc-headline {
     font-size: clamp(2.2rem, 7vw, 3rem);
-    margin-bottom: 36px;
+    margin-bottom: 32px;
   }
 
+  /* The bar runs the full column at this width, held off the edge by the
+     section's own 16px. */
+  .dc-bar { max-width: none; }
+
   .dc-bar-shell {
-    height: 58px;
-    padding: 0 0 0 18px;
-    gap: 12px;
+    height: 56px;
+    padding: 0 10px 0 16px;
+    gap: 10px;
   }
 
   /* Retune the shared metric, never the three layers individually — the
      `.dc-page .dc-bar-input` override outranks a bare class here, so setting
      them one by one silently desyncs the input from its placeholder. */
-  .dc-bar { --dc-bar-fs: 0.9375rem; }
+  .dc-bar { --dc-bar-fs: 1rem; }
 
   /* .dc-bar-go / --brief mobile sizing lives at the end of this file, after
      their base rules — a media query adds no specificity. */
 
   .dc-curated {
-    padding: 0 20px 60px;
+    padding: 0 16px 56px;
   }
 
-  .dc-grid { grid-template-columns: 1fr; }
-
-  /* Panel slides up from bottom on mobile */
-  .dc-panel {
-    width: 100%;
-    top: auto;
-    height: 90vh;
-    border-left: none;
-    border-top: 1px solid rgba(201, 165, 90, 0.12);
-    border-radius: 16px 16px 0 0;
+  .dc-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 
-  .dc-panel-hero {
-    height: 42%;
-    min-height: 220px;
-  }
-}
-
-@media (min-width: 769px) and (max-width: 1100px) {
-  .dc-panel { width: min(420px, 55vw); }
+  .dc-curated-count { font-size: 1.3rem; }
+  .dc-curated-brief { font-size: 0.98rem; }
+  .dc-group-head { margin: 32px 0 20px; }
 }
 
 /* ============================================================
    REFRESH — agency-branded semantic discovery (night mode)
    ============================================================ */
 
-/* subhead under the headline */
-.dc-sub {
-  max-width: 540px; margin: -34px auto 40px; /* pull up toward headline */
-  font-size: 13.5px; line-height: 1.65; letter-spacing: 0.01em;
-  color: rgba(250, 248, 245, 0.46);
-}
-
 /* ── submit — borderless, backgroundless inline icon ── */
+/* ── submit ──
+   An outlined ring at rest, filled only on hover or focus. A solid gold disc
+   sitting in the bar reads as the loudest thing on the page before anyone has
+   typed a word; the ring waits to be reached for. */
 .dc-bar-go {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   align-self: center;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   padding: 0;
-  border: none;
+  border: 1px solid rgba(201, 165, 90, 0.45);
   border-radius: 50%;
   background: transparent;
-  color: rgba(230, 198, 128, 0.35);
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-.dc-bar-go svg { transition: transform 0.2s ease; }
-
-.dc-bar-go:disabled { cursor: default; }
-.dc-bar-go:not(:disabled) {
-  background: transparent;
   color: #e6c680;
+  cursor: pointer;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.dc-bar-go:not(:disabled):hover { color: #ffffff; }
-.dc-bar-go:disabled:hover { color: rgba(230, 198, 128, 0.5); }
+
+.dc-bar-go:disabled {
+  cursor: default;
+  border-color: rgba(201, 165, 90, 0.22);
+  color: rgba(230, 198, 128, 0.35);
+}
+
+.dc-bar-go:not(:disabled):hover,
+.dc-bar-go:not(:disabled):focus-visible {
+  background: #C9A55A;
+  border-color: #C9A55A;
+  color: #141210;
+}
+
 .dc-bar-go:focus-visible {
-  outline: 2px solid #e6c680;
-  outline-offset: 2px;
-}
-
-/* example intent suggestions (replace fake chips) */
-.dc-suggest {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
-  gap: 8px; margin-top: 26px;
-}
-.dc-suggest-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.5); margin-right: 4px;
-}
-.dc-suggest-pill {
-  padding: 7px 15px; border-radius: 100px;
-  background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(250, 248, 245, 0.62); font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
-  cursor: pointer; transition: all 0.2s ease;
-}
-.dc-suggest-pill:hover {
-  background: rgba(201, 165, 90, 0.1); border-color: rgba(201, 165, 90, 0.4); color: #C9A55A;
-  transform: translateY(-1px);
-}
-
-/* results header */
-.dc-results-head {
-  display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
-  margin-bottom: 22px;
-}
-.dc-results-title {
-  font-family: 'Playfair Display', Georgia, serif; font-weight: 400;
-  font-size: clamp(1.5rem, 2.4vw, 2rem); line-height: 1.1; letter-spacing: -0.01em;
-  color: rgba(250, 248, 245, 0.92); margin: 0; max-width: 60ch;
-}
-.dc-results-q { font-style: italic; color: rgba(250, 248, 245, 0.62); }
-.dc-results-head-r { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-
-.dc-thinking {
-  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.7); white-space: nowrap;
-}
-.dc-thinking-dots { animation: dcShimmer 1.1s ease-in-out infinite; }
-
-/* serif ledger — agency shell vocabulary on dark */
-.dc-ledger {
-  display: flex; margin-bottom: 32px; padding-bottom: 24px;
-  border-bottom: 1px solid rgba(201, 165, 90, 0.12);
-}
-.dc-stat { flex: 0 0 auto; padding: 0 34px; border-left: 1px solid rgba(255, 255, 255, 0.08); }
-.dc-stat:first-child { border-left: none; padding-left: 0; }
-.dc-stat-num {
-  font-family: 'Playfair Display', Georgia, serif; font-size: 34px; line-height: 1; display: block;
-  color: rgba(250, 248, 245, 0.92);
-}
-.dc-stat-label {
-  display: block; margin-top: 10px; font-size: 10px; font-weight: 600; letter-spacing: 0.18em;
-  text-transform: uppercase; color: rgba(255, 255, 255, 0.4);
-}
-.dc-stat--gold .dc-stat-num { color: #C9A55A; }
-.dc-stat--mute .dc-stat-num { color: rgba(255, 255, 255, 0.38); }
-
-@media (max-width: 768px) {
-  .dc-sub { margin: -22px auto 30px; }
-  .dc-results-head { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .dc-ledger { flex-wrap: wrap; gap: 18px 0; }
-  .dc-stat { padding: 0 22px; }
+  outline: 2px solid #C9A55A;
+  outline-offset: 3px;
 }
 
 /* ============================================================
@@ -1101,45 +805,60 @@ body.is-agency .dc-bar-input--brief {
 .dc-bar-shell--brief .dc-bar-clear { align-self: flex-end; margin-bottom: 10px; }
 .dc-bar-shell--brief .dc-bar-go {
   align-self: flex-end;
-  width: 44px;
-  height: 44px;
-  margin: 0 11px 0 0;
+  width: 34px;
+  height: 34px;
+  margin: 0 16px 0 0;
   border-radius: 999px;
 }
 
 /* ── grouped results ── */
 .dc-curated-header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 .dc-curated-header .dc-curated-head { margin-bottom: 0; }
 
 .dc-pool-line {
   margin: 0;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: rgba(250, 248, 245, 0.4);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.55);
 }
 
 .dc-group { margin-top: 8px; }
 .dc-group + .dc-group { margin-top: 44px; }
 
-/* repeated near-match heading — existing curated-head treatment */
+/* ── Section rule ──
+   A hairline across the grid with the label sitting on its left. The rule is
+   drawn as flex filler rather than knocked out from behind the text: the page
+   ground is a moving gradient, so a painted knockout box would read as a dark
+   patch laid over it. */
 .dc-group-head {
-  margin: 0 0 20px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(232, 205, 134, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 40px 0 24px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: rgba(235, 207, 138, 0.8);
+}
+.dc-group-label { flex-shrink: 0; }
+.dc-group-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(201, 165, 90, 0.22);
 }
 
 .dc-curated-header + .dc-group { margin-top: 28px; }
 
-/* ── always-visible card facts (key stat · age · why-line · truth) ── */
+/* ── card facts · mentions · notes (reserved height, no reflow) ── */
 .dc-card-facts {
   min-height: 40px;
   margin-top: 9px;
@@ -1147,69 +866,112 @@ body.is-agency .dc-bar-input--brief {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 .dc-card-facts-head {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 500;
   letter-spacing: 0.01em;
-  color: rgba(250, 248, 245, 0.9);
+  color: rgba(250, 248, 245, 0.82);
 }
+/* One slot, two possible tenants: the semantic "why" line (the talent's own
+   sentence or their book's description) when the server sends one, and the
+   lexical "Mentions …" fallback when it does not. Both are clamped to two
+   lines so a long quote cannot stretch a card past its neighbours; the full
+   text rides on the element's title. */
 .dc-card-facts-why {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
   margin-top: 3px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: rgba(250, 248, 245, 0.55);
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(250, 248, 245, 0.62);
+  overflow-wrap: anywhere;
 }
 .dc-card-facts-note {
   margin-top: 4px;
-  font-size: 10.5px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.45;
   letter-spacing: 0.01em;
-  color: rgba(232, 205, 134, 0.72);
+  color: rgba(235, 207, 138, 0.82);
 }
 
-/* ── show more / outside-spec affordances ── */
+/* ── show more ── */
 .dc-more {
   display: flex;
   justify-content: center;
   margin-top: 40px;
 }
-.dc-more-btn,
-.dc-outside-btn {
-  padding: 11px 26px;
-  border-radius: 4px;
-  background: transparent;
-  border: 1px solid rgba(201, 165, 90, 0.3);
-  color: rgba(201, 165, 90, 0.8);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.dc-more-btn {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: rgba(250, 248, 245, 0.7);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: transparent;
+  text-underline-offset: 4px;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              text-decoration-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.dc-more-btn:hover:not(:disabled),
-.dc-outside-btn:hover:not(:disabled) {
-  background: rgba(201, 165, 90, 0.09);
-  border-color: rgba(201, 165, 90, 0.55);
-  color: #C9A55A;
+.dc-more-btn:hover:not(:disabled) {
+  color: #E8CD86;
+  text-decoration-color: #C9A55A;
 }
-.dc-more-btn:disabled,
-.dc-outside-btn:disabled { opacity: 0.5; cursor: default; }
+.dc-more-btn:focus-visible {
+  outline: 2px solid #C9A55A;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.dc-more-btn:disabled { color: rgba(250, 248, 245, 0.4); cursor: default; }
 
-.dc-outside-btn {
-  border-color: rgba(255, 255, 255, 0.14);
-  color: rgba(250, 248, 245, 0.55);
+/* ── skeleton cards — the grid while a search is loading ── */
+.dc-card--skeleton {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: default;
+  pointer-events: none;
 }
-.dc-outside-btn:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.28);
-  color: rgba(250, 248, 245, 0.9);
-  background: rgba(255, 255, 255, 0.04);
+.dc-card--skeleton:hover { transform: none; box-shadow: none; }
+.dc-skel {
+  display: block;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(201, 165, 90, 0.14);
+  animation: dcShimmer 1.4s ease-in-out infinite;
+}
+.dc-skel--name { width: 54%; height: 16px; }
+.dc-skel--line { width: 34%; }
+.dc-card--skeleton:nth-child(2n) .dc-skel--name { width: 42%; }
+.dc-card--skeleton:nth-child(3n) .dc-skel--name { width: 62%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-skel { animation: none; }
+  .dc-card,
+  .dc-card-img,
+  .dc-card-shade,
+  .dc-card-reveal,
+  .dc-card-reveal-inner { transition-duration: 0.01ms; }
+  .dc-card:hover { transform: none; }
+  .dc-card:hover .dc-card-img { transform: none; }
+  .dc-card-reveal-inner { transform: none; }
 }
 
 /* ── search bar · small screens ──
    Must sit after the base .dc-bar-go / .dc-bar-shell--brief rules above: a
    media query carries no extra specificity, so an earlier block loses. */
 @media (max-width: 768px) {
-  .dc-bar-go { width: 60px; }
-  .dc-bar-shell--brief { padding: 13px 0 13px 18px; }
-  .dc-bar-shell--brief .dc-bar-go { width: 40px; height: 40px; margin-right: 9px; }
+  .dc-bar-shell--brief { padding: 12px 0 12px 16px; }
+  .dc-bar-shell--brief .dc-bar-go { width: 34px; height: 34px; margin-right: 10px; }
 }

@@ -305,7 +305,14 @@
 
 /* ---------- DISCOVER DARK MODE ---------- */
 .ag-shell--discover { background: #010100; }
-.ag-shell--discover .ag-rail { position: relative; z-index: 3; }
+/* The rail stacks above the Discover atmosphere, but only where it is a rail.
+   At <=1024 the responsive block above makes it a fixed drawer; re-declaring
+   `position: relative` unscoped put it back in the flow and left the Discover
+   column 130px wide on a phone. */
+.ag-shell--discover .ag-rail { z-index: 3; }
+@media (min-width: 1025px) {
+  .ag-shell--discover .ag-rail { position: relative; }
+}
 .ag-shell--discover .ag-main { background: transparent; color: #FAF8F5; }
 .ag-shell--discover .ag-masthead { position: relative; z-index: 4; }
 .ag-shell--discover .ag-masthead-status { color: rgba(255,255,255,.5); }

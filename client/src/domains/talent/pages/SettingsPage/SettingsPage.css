@@ -402,6 +402,20 @@
   text-wrap: pretty;
 }
 
+/* A note that belongs to the row above it rather than to the card: it appears
+   only while that permission is on, so it sits inside the row's column without
+   a hairline of its own. */
+.set-row-note {
+  max-width: 62ch;
+  margin: -10px 0 0;
+  padding: 0 clamp(20px, 2.2vw, 28px) clamp(16px, 1.9vw, 22px);
+  font-size: 12.5px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--set-text-soft);
+  text-wrap: pretty;
+}
+
 .set-row__control {
   flex: 0 0 auto;
   display: flex;

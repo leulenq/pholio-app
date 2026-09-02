@@ -1217,7 +1217,7 @@ function PrivacyMovement({ settings, isLoading }) {
   const imageDisclosure = ai.imageProcessingDisclosure
     || 'Allow Pholio to send portfolio images to its image-analysis provider for shot classification and profile insights.';
   const embeddingDisclosure = ai.profileEmbeddingDisclosure
-    || 'Allow Pholio to send a limited profile summary to its embedding provider so vetted agency searches can find relevant talent.';
+    || 'Allow Pholio to send your bio, your declared profile details, and short descriptions of your portfolio photos (written by the image-analysis provider and describing styling, lighting, mood, and setting, never your face, age, heritage, or body) to its embedding provider, so vetted agency searches can find you by the look they describe. You can withdraw this at any time; the stored descriptions and vectors are deleted when you do.';
   const imageProcessingDescription = ai.imageProcessingAvailable
     ? `${imageDisclosure} Turning this off prevents future provider calls and clears Pholio’s stored image-analysis results.`
     : `${imageDisclosure} The service is disabled in this environment, so saving permission will not send an image unless it is enabled later.`;
@@ -1256,14 +1256,21 @@ function PrivacyMovement({ settings, isLoading }) {
                 onChange={() => toggleAiProcessing('aiProcessingConsent', ai.imageProcessing ?? false)}
               />
             </Row>
-            <Row title="Agency search matching" description={embeddingDescription} muted>
+            <Row title="Searchable by look" description={embeddingDescription} muted>
               <Toggle
-                label="Allow agency search matching"
+                label="Searchable by look"
                 checked={ai.profileEmbedding ?? false}
                 disabled={mutation.isPending || (!ai.canEnable && !(ai.profileEmbedding ?? false))}
                 onChange={() => toggleAiProcessing('embeddingProcessingConsent', ai.profileEmbedding ?? false)}
               />
             </Row>
+            {/* Only while the permission is on: what an agency search can
+                actually reach, and the one photo rule that overrides it. */}
+            {(ai.profileEmbedding ?? false) && (
+              <p className="set-row-note">
+                Agencies searching by look can match your bio and the descriptions of your photos. Photos you exclude from agencies are never described.
+              </p>
+            )}
           </>
         )}
       </div>

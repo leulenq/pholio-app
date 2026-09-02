@@ -162,12 +162,27 @@ describe('ageFigure', () => {
     expect(ageFigure({ date_of_birth: '1995-12-31' }, NOW).value).toBe('30');
   });
 
-  it('falls back to an age band when that is all there is', () => {
+  /* The old assertion pinned `value: 'under_18'` — the wire token itself,
+     printed under a heading that says Age. A band is what an agency gets
+     instead of an exact age, and it has to read as language. */
+  it('names the minor band when that is all there is', () => {
     expect(ageFigure({ age_band: 'under_18' }, NOW)).toEqual({
-      value: 'under_18',
+      value: 'Under 18',
       unit: null,
       sub: null,
     });
+  });
+
+  it('prints no figure for the adult band, which says nothing', () => {
+    // Every non-minor record carries "18_or_older"; a figure that reads the
+    // same on every card is noise, and the dossier reading line already
+    // treats the adult band this way.
+    expect(ageFigure({ age_band: '18_or_older' }, NOW)).toBeNull();
+  });
+
+  it('prefers a real age over the band', () => {
+    expect(ageFigure({ age_band: 'under_18', date_of_birth: '2015-03-15' }, NOW).value)
+      .toBe('11');
   });
 
   it('returns null when there is nothing to work from', () => {

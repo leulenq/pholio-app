@@ -74,6 +74,18 @@
     "pg-native", "pg-query-stream",
   ]
 
+# Discover semantic layer (tasks/discover-semantic-2026-09.md §3.5). Hourly:
+# the write hooks index within seconds, this catches anything they dropped and
+# sweeps the 30-day parse/embed caches.
+[functions."discover-reindex"]
+  schedule = "@hourly"
+  included_files = ["migrations/**"]
+  external_node_modules = [
+    "better-sqlite3", "sqlite3",
+    "mysql", "mysql2", "tedious", "oracledb", "mssql",
+    "pg-native", "pg-query-stream",
+  ]
+
 ##
 # Serve the React SPA for app routes (login/dashboard/onboarding/reveal),
 # and only route backend API/auth requests to the Netlify function.

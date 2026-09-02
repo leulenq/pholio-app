@@ -104,13 +104,16 @@ describe("fallback on model failure", () => {
     expect(out.contract.roles).toHaveLength(1);
     const hard = out.contract.roles[0].hard;
     expect(hard.gender_presentation).toEqual(["female"]);
-    // The "Look" facet (editorial/commercial/etc.) no longer maps to a
-    // hard `boards` filter in the regex/lexicon fallback path — it filtered
-    // on the dead `profiles.archetype` trait. See
-    // migrations/20260820110000_drop_profiles_archetype.js.
-    expect(hard.boards).toBeNull();
-    // regex-guessed height must NOT be silently applied
-    expect(out.needs_confirmation_fields.map((x) => x.field)).toContain("height_cm");
+    // Board words map to the talent's own booking lanes (read from
+    // profile_booking_lanes since the archetype column was dropped).
+    expect(hard.boards).toEqual(["editorial"]);
+    // A bare "tall" is the one word the deterministic layer reads on its own:
+    // it becomes a visible 5'9" chip whose span is just that word, so the chip
+    // can be removed without cutting the rest of the brief. Nothing to confirm.
+    expect(hard.height_cm.value).toBe(175);
+    expect(hard.height_cm.span).toBe("tall");
+    expect(hard.height_cm.needs_confirmation).toBe(false);
+    expect(out.needs_confirmation_fields).toEqual([]);
     warn.mockRestore();
   });
 

@@ -10,9 +10,16 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
   const prev = idx > 0 ? talents[idx - 1] : null;
   const next = idx < talents.length - 1 ? talents[idx + 1] : null;
 
+  const facts = Array.isArray(talent.facts) ? talent.facts : [];
+  const notes = Array.isArray(talent.notes) ? talent.notes : [];
+  const heritage = Array.isArray(talent.heritage) ? talent.heritage : [];
+  // The semantic layer's one line, when the brief reached for meaning.
+  const why = typeof talent.why === 'string' && talent.why.trim() ? talent.why.trim() : null;
+
   const stats = [
     talent.height  && { label: 'Height',    value: talent.height },
     talent.gender  && { label: 'Gender',    value: talent.gender },
+    heritage.length > 0 && { label: 'Heritage', value: heritage.join(', ') },
     talent.city    && { label: 'Based',     value: formatLocation(talent.city) },
     talent.exp     && { label: 'Experience', value: talent.exp },
   ].filter(Boolean);
@@ -125,10 +132,11 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
               </div>
             )}
 
-            {/* constraint-truth annotations — carried from the card (spec §6) */}
-            {Array.isArray(talent.annotations) && talent.annotations.length > 0 && (
-              <p className="dd-truth">{talent.annotations.join(' · ')}</p>
-            )}
+            {/* the same lines the card carries: what matched, why the brief
+                reached for this talent, then what is off or not listed */}
+            {facts.length > 0 && <p className="dd-facts">{facts.join(' · ')}</p>}
+            {why && <p className="dd-why">{why}</p>}
+            {notes.length > 0 && <p className="dd-truth">{notes.join(' · ')}</p>}
 
             {/* bio */}
             {talent.bio && <p className="dd-bio">{talent.bio}</p>}

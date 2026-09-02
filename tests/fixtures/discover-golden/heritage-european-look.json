@@ -1,0 +1,27 @@
+{
+  "name": "heritage-european-look",
+  "category": "heritage",
+  "brief": "European look, editorial, tall",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "boards": ["editorial"]
+        },
+        "soft_query": "European look tall"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "heritage": ["white_caucasian"],
+    "boards": ["editorial"],
+    "set_aside": [],
+    "soft_query_excludes": ["european"]
+  }
+}

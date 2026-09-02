@@ -9,9 +9,9 @@
  *   2. run reconcile() over every numeric/date/size constraint and normalize to
  *      canonical units (cm, ISO dates); disagreements are flagged
  *      `needs_confirmation` and left UNAPPLIED (LB-4)
- *   3. enforce set_aside for protected-class terms found anywhere in `hard`
- *      or `soft_query` (ethnicity / heritage / skin-tone) with reason
- *      'not_used_for_filtering'
+ *   3. lift heritage words the model left in free text into `hard.heritage`
+ *      (audit §3.1), and set aside asks no profile field can answer (skin tone
+ *      / complexion) with reason 'not_used_for_filtering'
  *   4. detect credential constraints → `contract.credential_gate = true`
  *
  * Output: { contract, dropped, needs_confirmation_fields, multi_role }.
@@ -29,10 +29,12 @@ const {
   SHOE_REGIONS,
   MARKETS,
   AVAILABILITY_KINDS,
-  PROTECTED_CLASS_TERMS,
+  UNSUPPORTED_ASK_TERMS,
   PROTECTED_TERM_SAFE_CONTEXT,
+  HERITAGE_SYNONYMS,
+  heritageSlugsFromText,
 } = require("./field-whitelist");
-const { reconcile } = require("./extract-values");
+const { reconcile, TALL_DEFAULT_CM } = require("./extract-values");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Prompt-injection input hardening (SEC-0.9)
@@ -107,6 +109,7 @@ const ENUM_ARRAY_FIELDS = [
   "boards",
   "hair_color",
   "eye_color",
+  "heritage",
   "representation_status",
 ];
 const ENUM_STRING_FIELDS = ["union", "experience_level"];
@@ -151,7 +154,7 @@ function validateContract(rawContract, opts = {}) {
 
   roles.forEach((role, roleIdx) => {
     const label = typeof role?.label === "string" ? role.label : `role ${roleIdx + 1}`;
-    const softQuery = typeof role?.soft_query === "string" ? role.soft_query : "";
+    let softQuery = typeof role?.soft_query === "string" ? role.soft_query : "";
     const hardIn = role && typeof role.hard === "object" && role.hard ? role.hard : {};
     const hard = {};
 
@@ -213,7 +216,16 @@ function validateContract(rawContract, opts = {}) {
         hard[field] = null;
         continue;
       }
-      const r = reconcile(c, { kind, now });
+      // A bare "tall" resolves against the role's gender: 6'0" for a
+      // men-only ask, 5'9" otherwise (extract-values TALL_DEFAULT_CM).
+      const genders = Array.isArray(hard.gender_presentation)
+        ? hard.gender_presentation
+        : [];
+      const tallDefaultCm =
+        genders.length === 1 && genders[0] === "male"
+          ? TALL_DEFAULT_CM.male
+          : TALL_DEFAULT_CM.female;
+      const r = reconcile(c, { kind, now, tallDefaultCm });
       c.value = r.value;
       c.needs_confirmation = r.needs_confirmation;
       if (r.needs_confirmation) flagConfirm(field, c.span, "reparse_disagreement");
@@ -360,10 +372,24 @@ function validateContract(rawContract, opts = {}) {
       }
     }
 
-    // ── protected-class enforcement (ethnicity / heritage / skin-tone) ───────
-    const scrubbed = enforceProtected(
+    // ── heritage: lift the booker's own words into the filter (§3.1) ─────────
+    // The prompt asks the model to place heritage in `hard.heritage`; this is
+    // the deterministic backstop for the fallback parser and for model output
+    // that left the words in free text. The hair/eye guard means "black hair"
+    // stays a hair colour.
+    if (!Array.isArray(hard.heritage) || !hard.heritage.length) {
+      const lifted = heritageSlugsFromText(`${label} ${softQuery}`);
+      if (lifted.length) {
+        hard.heritage = lifted;
+        softQuery = stripHeritageTerms(softQuery);
+      }
+    }
+
+    // ── asks no profile field can answer (skin tone / complexion) ────────────
+    const scrubbed = enforceUnsupportedAsks(
       { label, softQuery, hard },
       contract.set_aside,
+      opts.brief,
     );
 
     contract.roles.push({
@@ -399,24 +425,22 @@ function validateContract(rawContract, opts = {}) {
 }
 
 /**
- * Move protected-class terms out of a role's free text into set_aside.
- * Hair/eye colour collisions ("black hair", "blonde") are exempted.
+ * Move an unsupported ask (skin tone / complexion) out of a role's free text
+ * into set_aside. The presentation layer turns these into one note; they are
+ * never a chip and never a filter.
  */
-function enforceProtected(role, setAside) {
+function enforceUnsupportedAsks(role, setAside, brief) {
   let softQuery = role.softQuery || "";
-  const haystacks = [role.label || "", softQuery];
+  // The raw brief is scanned as well: the regex fallback strips words it
+  // recognises before they reach soft_query, and a skin-tone ask must still
+  // produce its one note rather than vanish.
+  const haystacks = [role.label || "", softQuery, String(brief || "")];
 
-  for (const term of PROTECTED_CLASS_TERMS) {
+  for (const term of UNSUPPORTED_ASK_TERMS) {
     const re = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
     for (const hay of haystacks) {
       const m = hay.match(re);
       if (!m) continue;
-      // Skip hair/eye colour context ("black hair", "blonde", "brown eyes").
-      const window = hay.slice(
-        Math.max(0, m.index - 12),
-        m.index + m[0].length + 12,
-      );
-      if (PROTECTED_TERM_SAFE_CONTEXT.test(window)) continue;
       setAside.push({ text: m[0], reason: "not_used_for_filtering" });
       softQuery = softQuery.replace(re, " ").replace(/\s+/g, " ").trim();
     }
@@ -425,9 +449,26 @@ function enforceProtected(role, setAside) {
   return { softQuery };
 }
 
+/** Remove heritage words from free text once they became a filter. */
+function stripHeritageTerms(text) {
+  let out = String(text || "");
+  for (const term of Object.keys(HERITAGE_SYNONYMS)) {
+    const re = new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+    out = out.replace(re, (match, offset) => {
+      const window = out.slice(
+        Math.max(0, offset - 14),
+        offset + match.length + 14,
+      );
+      return PROTECTED_TERM_SAFE_CONTEXT.test(window) ? match : " ";
+    });
+  }
+  return out.replace(/\s{2,}/g, " ").replace(/\s+([,.])/g, "$1").replace(/^[\s,]+|[\s,]+$/g, "").trim();
+}
+
 module.exports = {
   validateContract,
-  enforceProtected,
+  enforceUnsupportedAsks,
+  stripHeritageTerms,
   sanitizeUntrustedText,
   FENCE_BEGIN,
   FENCE_END,

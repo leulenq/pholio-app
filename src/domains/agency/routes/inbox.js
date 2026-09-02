@@ -22,7 +22,10 @@ const {
   getSessionAgencyId,
 } = require("../services/context");
 const { injectAgencySocialFields, saveAgencySocialFields } = require("../../../shared/lib/social-helpers");
-const { searchDiscoverableTalent } = require("../services/discover-search");
+const {
+  searchDiscoverableTalent,
+  loadLanesByProfile,
+} = require("../services/discover-search");
 const { buildComparison } = require("../services/comparison");
 const {
   declineReasonOptions,
@@ -4566,9 +4569,16 @@ router.get(
 
       // Static-allowlist DTO — never spread the raw discoverable profile row.
       const social = await loadSocialAccountsForProfile(profileId);
+      // Booking lanes come from the join table, same as the Discover grid, so
+      // the detail view shows the talent's declared board.
+      const lanesByProfile = await loadLanesByProfile(knex, [profileId]);
       return res.json({
         success: true,
-        profile: buildAgencyDiscoveryDTO(profile, { images, social }),
+        profile: buildAgencyDiscoveryDTO(profile, {
+          images,
+          social,
+          lanes: lanesByProfile.get(profileId) || [],
+        }),
       });
     } catch (error) {
       console.error("[API/Agency/Discover Preview] Error:", error);

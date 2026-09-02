@@ -1,0 +1,28 @@
+{
+  "name": "heritage-mixed-only",
+  "category": "heritage",
+  "brief": "mixed heritage new faces, runway",
+  "now": "2026-07-01",
+  "llm": {
+    "roles": [
+      {
+        "label": "role 1",
+        "count": 1,
+        "hard": {
+          "heritage": ["mixed_heritage"],
+          "boards": ["runway"],
+          "experience_level": "new_face"
+        },
+        "soft_query": "runway"
+      }
+    ],
+    "set_aside": [],
+    "unparsed_remainder": ""
+  },
+  "expect": {
+    "roles_length": 1,
+    "heritage": ["mixed_heritage"],
+    "experience_level": "new_face",
+    "set_aside": []
+  }
+}

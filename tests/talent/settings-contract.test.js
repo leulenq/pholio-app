@@ -207,7 +207,12 @@ describe("talent settings contract", () => {
       expect(settings.ai).toMatchObject({
         imageProcessing: false,
         profileEmbedding: false,
-        disclosureVersion: "2026-08-04",
+        // Bumped with the Discover semantic layer (§6): the embedding
+        // disclosure now names the bio, the declared details, and the photo
+        // descriptions. Migration 20260804090000 keeps the 2026-08-04 text as
+        // the historical floor — evidence of what was agreed then — while this
+        // is the version the settings screen presents now.
+        disclosureVersion: "2026-09-02",
         imageProcessingDisclosure: expect.any(String),
         profileEmbeddingDisclosure: expect.any(String),
         disclosureHashes: {

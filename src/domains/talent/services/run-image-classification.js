@@ -112,6 +112,46 @@ function extractImageIntel(metadata) {
   };
 }
 
+function discoverSemanticEnabled(env = process.env) {
+  return (
+    env.PHOLIO_ENABLE_IMAGE_ANALYSIS === "true" &&
+    env.PHOLIO_ENABLE_PROFILE_EMBEDDINGS === "true"
+  );
+}
+
+/**
+ * Describe the classified image and rebuild the profile's Discover corpus.
+ * Best-effort by construction: every failure is logged and swallowed, because
+ * a missing description or a provider outage must never turn a successful
+ * classification into a failed job.
+ */
+async function describeAndReindex(knex, imageId, profileId, env = process.env) {
+  if (!discoverSemanticEnabled(env)) return;
+
+  try {
+    const { describeAndStore } = require("../../ai/describe-photo");
+    await describeAndStore(knex, imageId);
+  } catch (err) {
+    console.warn(
+      "[discover] describeAndStore failed:",
+      imageId,
+      err?.message || String(err),
+    );
+  }
+
+  if (!profileId) return;
+  try {
+    const { reindexProfile } = require("../../ai/discover-index");
+    await reindexProfile(knex, profileId);
+  } catch (err) {
+    console.warn(
+      "[discover] reindexProfile failed:",
+      profileId,
+      err?.message || String(err),
+    );
+  }
+}
+
 /**
  * Full PITS pipeline for one image row.
  * @param {import('knex').Knex} knex
@@ -214,6 +254,16 @@ async function runImageClassification(knex, imageId) {
         });
       await persistImageSignals(trx, imageId, classification);
     });
+
+    // Discover semantic layer (tasks/discover-semantic-2026-09.md §3.5): the
+    // photo description runs in this same job, right after classification, so
+    // an uploaded image is searchable by how it looks without a second queue.
+    // Both gates are required — describing a photograph is a vision call
+    // (PHOLIO_ENABLE_IMAGE_ANALYSIS) whose only purpose is the embedding
+    // corpus (PHOLIO_ENABLE_PROFILE_EMBEDDINGS). `describeAndStore` re-reads
+    // both consents and the age gate at the provider boundary itself.
+    // Neither step may throw into the classification result.
+    await describeAndReindex(knex, imageId, imageRow.profile_id);
   } catch (err) {
     console.warn("[PITS] runImageClassification failed:", imageId, err.message);
   }
@@ -221,6 +271,8 @@ async function runImageClassification(knex, imageId) {
 
 module.exports = {
   runImageClassification,
+  describeAndReindex,
+  discoverSemanticEnabled,
   imageAiProcessingAllowed,
   loadAuthoritativeProfile,
   disabledClassificationMetadata,

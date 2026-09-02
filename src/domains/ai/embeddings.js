@@ -897,6 +897,11 @@ async function purgeProfileEmbeddingDerivatives(knex, profileId) {
   if (hasFts) {
     await knex("profiles_fts").where({ profile_id: profileId }).del();
   }
+  // Semantic layer: the chunk corpus and the photo descriptions go too.
+  if (await hasTable("discover_chunks")) {
+    await knex("discover_chunks").where({ profile_id: profileId }).del();
+  }
+  await clearPhotoDescriptionsSafe(knex, profileId);
   if (hasProfiles) {
     const profileUpdate = {};
     if (await hasColumn("profiles", "search_document")) {
@@ -912,6 +917,17 @@ async function purgeProfileEmbeddingDerivatives(knex, profileId) {
   }
 }
 
+async function clearPhotoDescriptionsSafe(knex, profileId) {
+  try {
+    // Lazy: describe-photo requires this module's peers; avoid a load cycle.
+    // eslint-disable-next-line global-require
+    const { clearPhotoDescriptions } = require("./describe-photo");
+    await clearPhotoDescriptions(knex, profileId);
+  } catch {
+    // best-effort
+  }
+}
+
 /** Remove only image/visual embedding derivatives for an image-processing opt-out. */
 async function purgeImageEmbeddingDerivatives(knex, profileId) {
   const hasTable = async (name) => {
@@ -921,6 +937,12 @@ async function purgeImageEmbeddingDerivatives(knex, profileId) {
       return false;
     }
   };
+
+  // Semantic layer: photo chunks and their descriptions are image-derived.
+  if (await hasTable("discover_chunks")) {
+    await knex("discover_chunks").where({ profile_id: profileId, kind: "photo" }).del();
+  }
+  await clearPhotoDescriptionsSafe(knex, profileId);
 
   if (await hasTable("talent_image_embeddings")) {
     await knex("talent_image_embeddings").where({ profile_id: profileId }).del();

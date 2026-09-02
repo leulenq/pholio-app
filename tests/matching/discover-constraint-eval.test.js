@@ -14,6 +14,10 @@ const {
   unionStatus,
   tattooStatus,
   boardsStatus,
+  parseStoredShoe,
+  shoeStatus,
+  experienceStatus,
+  heritageStatus,
   rangesOverlap,
 } = require("../../src/domains/agency/services/discover/constraint-eval");
 
@@ -91,9 +95,13 @@ describe("availability (status + bookouts)", () => {
     );
     expect(status).toBe("pass");
   });
-  test("no bookout data → unknown (never pass)", () => {
-    expect(availabilityStatus(window, "available", [])).toBe("unknown");
+  test("declared available with no bookouts → pass (audit §2.3)", () => {
+    expect(availabilityStatus(window, "available", [])).toBe("pass");
+    expect(availabilityStatus(window, "limited", [])).toBe("pass");
+  });
+  test("no status and no bookouts → unknown", () => {
     expect(availabilityStatus(window, null, undefined)).toBe("unknown");
+    expect(availabilityStatus(window, "", [])).toBe("unknown");
   });
   test("status unavailable → fail", () => {
     expect(availabilityStatus(window, "unavailable", [])).toBe("fail");
@@ -101,6 +109,19 @@ describe("availability (status + bookouts)", () => {
   test("rangesOverlap on ISO strings", () => {
     expect(rangesOverlap("2026-07-09", "2026-07-14", "2026-07-12", "2026-07-20")).toBe(true);
     expect(rangesOverlap("2026-07-09", "2026-07-14", "2026-07-15", "2026-07-20")).toBe(false);
+  });
+  test("the failing bookout travels with the evaluation for the card note", () => {
+    const evals = evaluateProfile(
+      { availability_status: "available" },
+      { availability: window },
+      { bookouts: [{ starts_on: "2026-07-10", ends_on: "2026-07-12" }] },
+    );
+    const availability = evals.find((e) => e.field === "availability");
+    expect(availability.status).toBe("fail");
+    expect(availability.actual.overlap).toEqual({
+      starts_on: "2026-07-10",
+      ends_on: "2026-07-12",
+    });
   });
 });
 
@@ -110,6 +131,10 @@ describe("enum / boolean fields", () => {
     expect(statusOf({ gender: "Female" }, hard, "gender_presentation")).toBe("pass");
     expect(statusOf({ gender: "Male" }, hard, "gender_presentation")).toBe("fail");
     expect(statusOf({ gender: null }, hard, "gender_presentation")).toBe("unknown");
+    // A withheld answer is not a different answer.
+    expect(
+      statusOf({ gender: "Prefer not to say" }, hard, "gender_presentation"),
+    ).toBe("unknown");
   });
 
   test("hair OR-set is case-insensitive", () => {
@@ -119,15 +144,86 @@ describe("enum / boolean fields", () => {
     expect(statusOf({ hair_color: null }, hard, "hair_color")).toBe("unknown");
   });
 
-  test("boards vs modeling_categories JSON", () => {
+  test("boards read the profile_booking_lanes join table first", () => {
+    // The join table is the canonical store since 20260624195800; the legacy
+    // column is only a fallback for rows written before it.
+    const evals = evaluateProfile({}, { boards: ["editorial"] }, {
+      lanes: ["editorial", "runway"],
+    });
+    const boards = evals.find((e) => e.field === "boards");
+    expect(boards.status).toBe("pass");
+    expect(boards.actual).toEqual(["editorial", "runway"]);
+
+    expect(
+      evaluateProfile({ modeling_categories: '["commercial"]' }, { boards: ["editorial"] }, {
+        lanes: ["editorial"],
+      }).find((e) => e.field === "boards").status,
+    ).toBe("pass");
+  });
+
+  test("boards fall back to modeling_categories when no lanes are joined", () => {
     expect(boardsStatus(["editorial"], { modeling_categories: '["editorial"]' })).toBe("pass");
     expect(boardsStatus(["editorial"], { modeling_categories: '["commercial"]' })).toBe("fail");
     expect(boardsStatus(["editorial"], { modeling_categories: null })).toBe("unknown");
+    expect(boardsStatus(["editorial"], { modeling_categories: null }, [])).toBe("unknown");
     // The `profiles.archetype` fallback was removed (dead column, always
     // null in production — see migrations/20260820110000_drop_profiles_archetype.js).
-    // A profile with no modeling_categories/booking_lanes is now "unknown"
-    // regardless of any archetype value.
     expect(boardsStatus(["editorial"], { archetype: "Editorial" })).toBe("unknown");
+  });
+
+  test("shoe size is parsed out of the stored string, with its region", () => {
+    expect(parseStoredShoe({ shoe_size: "8 US" })).toEqual({ size: 8, region: "US" });
+    expect(parseStoredShoe({ shoe_size: "38 EU" })).toEqual({ size: 38, region: "EU" });
+    expect(parseStoredShoe({ shoe_size: "8" })).toEqual({ size: 8, region: null });
+    expect(parseStoredShoe({ shoe_size: "8", shoe_region: "eu" })).toEqual({
+      size: 8,
+      region: "EU",
+    });
+    expect(parseStoredShoe({ shoe_size: null })).toBeNull();
+
+    const want = { size: 8, region: "US" };
+    expect(shoeStatus(want, { shoe_size: "8 US" })).toBe("pass");
+    expect(shoeStatus(want, { shoe_size: "8" })).toBe("pass"); // region unstated
+    expect(shoeStatus(want, { shoe_size: "9 US" })).toBe("fail");
+    expect(shoeStatus(want, { shoe_size: "38 EU" })).toBe("fail");
+    expect(shoeStatus(want, { shoe_size: "" })).toBe("unknown");
+  });
+
+  test("experience level normalises across all three vocabularies", () => {
+    expect(experienceStatus("new_face", "New face")).toBe("pass");
+    expect(experienceStatus("new_face", "new_face")).toBe("pass");
+    expect(experienceStatus("experienced", "Professional")).toBe("pass");
+    expect(experienceStatus("established", "Established")).toBe("pass");
+    expect(experienceStatus("developing", "emerging")).toBe("pass");
+    expect(experienceStatus("new_face", "Experienced")).toBe("fail");
+    expect(experienceStatus("new_face", null)).toBe("unknown");
+    expect(experienceStatus("new_face", "something else")).toBe("unknown");
+  });
+
+  test("heritage matches the talent's own selection, blank is never a fail", () => {
+    const ask = ["black_african_descent"];
+    expect(heritageStatus(ask, { ethnicity: '["Black/African Descent"]' })).toBe("pass");
+    // legacy free values normalise through the same synonym map
+    expect(heritageStatus(ask, { ethnicity: '["Black","Caribbean"]' })).toBe("pass");
+    expect(heritageStatus(ask, { ethnicity: '["East Asian"]' })).toBe("fail");
+    expect(heritageStatus(ask, { ethnicity: null })).toBe("unknown");
+    expect(heritageStatus(ask, { ethnicity: "[]" })).toBe("unknown");
+
+    // "Mixed Heritage" alone answers only a mixed ask
+    expect(heritageStatus(ask, { ethnicity: '["Mixed Heritage"]' })).toBe("fail");
+    expect(
+      heritageStatus(["mixed_heritage"], { ethnicity: '["Mixed Heritage"]' }),
+    ).toBe("pass");
+    expect(
+      heritageStatus(ask, { ethnicity: '["Black/African Descent","Mixed Heritage"]' }),
+    ).toBe("pass");
+
+    const evals = evaluateProfile(
+      { ethnicity: '["Hispanic/Latino"]' },
+      { heritage: ["hispanic_latino"] },
+    );
+    expect(evals[0].status).toBe("pass");
+    expect(evals[0].actual.labels).toEqual(["Hispanic/Latino"]);
   });
 
   test("union derivation", () => {
@@ -137,11 +233,18 @@ describe("enum / boolean fields", () => {
     expect(unionStatus("union", null)).toBe("unknown");
   });
 
-  test("visible_tattoos: freeform truthy = has; empty = unknown", () => {
-    expect(tattooStatus(false, "full sleeve")).toBe("fail");
-    expect(tattooStatus(true, "full sleeve")).toBe("pass");
-    expect(tattooStatus(false, "")).toBe("unknown");
+  test("visible_tattoos reads the boolean column (audit §2.3)", () => {
+    // "No visible tattoos" must PASS a talent who answered no.
+    expect(tattooStatus(false, false)).toBe("pass");
+    expect(tattooStatus(false, 0)).toBe("pass");
+    expect(tattooStatus(false, "false")).toBe("pass");
+    expect(tattooStatus(false, true)).toBe("fail");
+    expect(tattooStatus(true, true)).toBe("pass");
+    expect(tattooStatus(true, false)).toBe("fail");
     expect(tattooStatus(false, null)).toBe("unknown");
+    expect(tattooStatus(false, "")).toBe("unknown");
+    // legacy free text still describes tattoos the talent has
+    expect(tattooStatus(false, "full sleeve")).toBe("fail");
   });
 
   test("location.market", () => {
@@ -162,9 +265,9 @@ describe("enum / boolean fields", () => {
     expect(statusOf({}, hard, "representation_status")).toBe("unknown");
   });
 
-  test("credentials always unknown at launch", () => {
+  test("credentials are not applied at all (they become a note)", () => {
     const hard = { credentials: { tearsheets: true } };
-    expect(statusOf({}, hard, "credentials")).toBe("unknown");
+    expect(evaluateProfile({}, hard, {})).toEqual([]);
   });
 });
 
@@ -199,5 +302,22 @@ describe("evaluations carry tier + actual", () => {
     expect(byField.height_cm.tier).toBe("client_gate");
     expect(byField.union.tier).toBe("operational");
     expect(byField.height_cm.actual).toBe(180);
+  });
+});
+
+describe('gender_presentation — identities outside the filterable three', () => {
+  test('"Other" is unknown, never a fail, on a gendered brief', () => {
+    const out = evaluateProfile(
+      { gender: "Other" },
+      { gender_presentation: ["female"] },
+    );
+    expect(out.find((e) => e.field === "gender_presentation").status).toBe("unknown");
+  });
+  test('"Prefer not to say" stays unknown', () => {
+    const out = evaluateProfile(
+      { gender: "Prefer not to say" },
+      { gender_presentation: ["male"] },
+    );
+    expect(out.find((e) => e.field === "gender_presentation").status).toBe("unknown");
   });
 });
