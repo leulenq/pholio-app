@@ -142,6 +142,26 @@ describe('ComparisonOverlay', () => {
     );
   });
 
+  test('says Under 18 for a minor and prints no band for anyone else', async () => {
+    /* The meta line used to render the wire token with its underscores
+       swapped for spaces — "18 or older" on every adult card, which is true of
+       the whole table and so tells a booker nothing, and "under 18" in
+       lower case for the one card where the band is load-bearing. */
+    compareApplications.mockResolvedValue({
+      fields: FIELDS,
+      slots: SLOTS,
+      records: [
+        record('a1', 'Ada Adult'),
+        record('a2', 'Min Or', { ageBand: 'under_18', withheldForMinor: true }),
+      ],
+    });
+    renderOverlay();
+
+    await waitFor(() => expect(screen.getByText('Ada Adult')).toBeInTheDocument());
+    expect(screen.getByText(/Under 18/)).toBeInTheDocument();
+    expect(screen.queryByText(/18 or older|18_or_older/)).not.toBeInTheDocument();
+  });
+
   test('closes on Escape', async () => {
     compareApplications.mockResolvedValue({ fields: FIELDS, slots: SLOTS, records: [] });
     const onClose = vi.fn();

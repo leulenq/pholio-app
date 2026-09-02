@@ -35,6 +35,19 @@ import './ComparisonOverlay.css';
 
 const SLOT_KEYS = ['headshot', 'profile', 'full_length'];
 
+/**
+ * The banded age an agency receives instead of a birth date.
+ *
+ * Only the minor band earns a line. It changes what the agency may do with the
+ * record, and it is the reason body frames on that card are withheld. The
+ * adult band is true of every other applicant on the table, so printing it
+ * reads the same on every card and tells a booker nothing — and it was being
+ * printed by replacing the wire token's underscores, which is not a label.
+ */
+function ageBandLine(band) {
+  return band === 'under_18' ? 'Under 18' : null;
+}
+
 /** Height is the row a US booker re-reads in imperial; the sub restates, never judges. */
 function imperialHeight(cm) {
   const total = Math.round(Number(cm) / 2.54);
@@ -213,7 +226,7 @@ export default function ComparisonOverlay({ applicationIds, onClose }) {
                       <h3 className="cmp-name">{record.name}</h3>
                       <p className="cmp-meta">
                         {[
-                          record.ageBand ? record.ageBand.replace(/_/g, ' ') : null,
+                          ageBandLine(record.ageBand),
                           record.submittedAt
                             ? `Submitted ${new Date(record.submittedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
                             : null,

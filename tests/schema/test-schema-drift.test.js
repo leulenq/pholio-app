@@ -55,9 +55,9 @@ const COLUMN_METHODS = new Set([
 const KNOWN_DRIFT = {
   // Dropped when profile AI analysis was removed; these suites assert the
   // fail-closed behaviour around the columns' historical presence.
-  "profiles.image_analysis": true,
-  "profiles.image_analyzed_at": true,
-  "profiles.image_analysis_model": true,
+  // (image_analysis / image_analyzed_at / image_analysis_model left this list
+  // when 20260902090000 finally created them — the vision write path had been
+  // throwing into a swallowed catch because they existed nowhere.)
   "profiles.look_descriptor": true,
   "profiles.look_descriptor_generated_at": true,
   "profiles.booking_lanes": true,

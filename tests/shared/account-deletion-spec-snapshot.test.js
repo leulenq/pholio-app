@@ -108,6 +108,16 @@ describe("account deletion with immutable Spec Registry snapshots", () => {
   });
 
   test("deleting the user succeeds and cascades every submission-attempt snapshot", async () => {
+    /* The registry is published data, not a fixture: it grows whenever new
+       agencies are researched (6 series at launch, 12 plus a second Ford
+       revision today). Asserting a literal count made this suite fail on a
+       data change that has nothing to do with deletion. What the assertion is
+       for is that erasing a user takes their snapshot and nothing else — so
+       compare the registry against itself, before and after. */
+    const revisionsBefore = Number(
+      (await db("spec_registry_revisions").count("* as n").first()).n,
+    );
+
     expect(
       Number(
         (
@@ -139,6 +149,9 @@ describe("account deletion with immutable Spec Registry snapshots", () => {
         .first(),
     ).resolves.toBeUndefined();
 
-    expect(await db("spec_registry_revisions").count("* as n").first()).toEqual({ n: 6 });
+    expect(
+      Number((await db("spec_registry_revisions").count("* as n").first()).n),
+    ).toBe(revisionsBefore);
+    expect(revisionsBefore).toBeGreaterThan(0);
   });
 });

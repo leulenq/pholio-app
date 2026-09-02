@@ -333,8 +333,11 @@ function evaluateProfile(profile, hard, opts = {}) {
     const actual = p.gender;
     const declared = String(actual == null ? "" : actual).trim().toLowerCase();
     let status = "unknown";
-    // "Prefer not to say" is a withheld answer, not a different answer.
-    if (declared && declared !== "prefer not to say") {
+    // "Prefer not to say" is a withheld answer, and "Other" is an identity no
+    // brief can request (GENDER_DB_MAP has no key for it). Neither is a
+    // different answer to the booker's ask, so neither is the one exclusion
+    // the engine applies; both stay visible as unknown.
+    if (declared && declared !== "prefer not to say" && declared !== "other") {
       status = wantDb.includes(declared) ? "pass" : "fail";
     }
     push("gender_presentation", status, actual ?? null);

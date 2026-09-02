@@ -208,6 +208,23 @@ export function measurementFigure(measurements) {
 }
 
 /**
+ * The coarse band an agency receives instead of an exact age.
+ *
+ * `age_band` is a wire token ("under_18" / "18_or_older"), and it was being
+ * printed verbatim as the value of a figure labelled Age. Only one of the two
+ * values does any work on an agency surface: "Under 18" changes what the
+ * agency may do with the record, which is why the dossier reading line prints
+ * it (dossier/dossierModel.js). The adult band states the launch posture back
+ * at the reader and earns no figure, so it gets none.
+ *
+ * @param {string|null|undefined} band
+ */
+function bandFigure(band) {
+  if (band !== 'under_18') return null;
+  return { value: 'Under 18', unit: null, sub: null };
+}
+
+/**
  * Age, from a stored age or a date of birth.
  *
  * `date_of_birth` arrives as either "1995-03-15" or a full ISO timestamp
@@ -220,10 +237,7 @@ export function ageFigure(profile, now = Date.now()) {
   if (direct != null) return { value: String(Math.round(direct)), unit: 'yrs', sub: null };
 
   const raw = profile?.date_of_birth ?? profile?.dob;
-  if (!raw) {
-    const band = profile?.age_band;
-    return band ? { value: String(band), unit: null, sub: null } : null;
-  }
+  if (!raw) return bandFigure(profile?.age_band);
 
   const dob = parseDate(String(raw).slice(0, 10));
   if (!dob) return null;

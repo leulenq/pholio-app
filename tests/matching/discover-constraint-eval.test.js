@@ -304,3 +304,20 @@ describe("evaluations carry tier + actual", () => {
     expect(byField.height_cm.actual).toBe(180);
   });
 });
+
+describe('gender_presentation — identities outside the filterable three', () => {
+  test('"Other" is unknown, never a fail, on a gendered brief', () => {
+    const out = evaluateProfile(
+      { gender: "Other" },
+      { gender_presentation: ["female"] },
+    );
+    expect(out.find((e) => e.field === "gender_presentation").status).toBe("unknown");
+  });
+  test('"Prefer not to say" stays unknown', () => {
+    const out = evaluateProfile(
+      { gender: "Prefer not to say" },
+      { gender_presentation: ["male"] },
+    );
+    expect(out.find((e) => e.field === "gender_presentation").status).toBe("unknown");
+  });
+});

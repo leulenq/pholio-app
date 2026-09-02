@@ -59,7 +59,9 @@
  *    `profileRow.image_analysis` as undefined. Adding them here would switch on
  *    a pipeline that has never once run in production, which is a product
  *    decision and a first-run risk, not a schema reconciliation. Left alone on
- *    purpose.
+ *    purpose. RESOLVED by 20260902090000_create_profiles_image_analysis.js,
+ *    which takes that decision on the evidence that the comp card composition
+ *    path reads the column.
  *  - `archetype` and `vibe_score`, dropped by 20260820110000 / 20260820120000.
  *  - `search_vector`, which exists in production and not in the migrations: a
  *    Postgres-only artefact, harmless, and not this migration's business.
