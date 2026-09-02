@@ -131,11 +131,11 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
       className="dc-card"
       tabIndex={0}
       aria-label={`Open ${talent.name}'s profile`}
-      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 18 }}
+      initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
       animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
       transition={{
         delay: Math.min(index * 0.04, 0.4),
-        duration: reduce ? 0.2 : 0.6,
+        duration: reduce ? 0.2 : 0.55,
         ease: EASE,
       }}
       onClick={() => onOpen(talent)}
