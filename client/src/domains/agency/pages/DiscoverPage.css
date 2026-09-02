@@ -294,44 +294,6 @@ body.is-agency .dc-bar-input:focus {
 .dc-ghost-rest { color: rgba(230, 198, 128, 0.62); }
 
 /* ============================================================
-   INTENT CHIPS
-   ============================================================ */
-.dc-chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.dc-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 6px 14px 6px 12px;
-  border-radius: 100px;
-  background: rgba(201, 165, 90, 0.08);
-  border: 1px solid rgba(201, 165, 90, 0.28);
-  color: rgba(201, 165, 90, 0.9);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.dc-chip:hover {
-  background: rgba(201, 165, 90, 0.14);
-  border-color: rgba(201, 165, 90, 0.5);
-  color: #C9A55A;
-}
-
-.dc-chip svg {
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-/* ============================================================
    CURATED SECTION
    ============================================================ */
 .dc-curated {
@@ -465,18 +427,6 @@ body.is-agency .dc-bar-input:focus {
 .dc-card-namerow .dc-card-name {
   flex: 1;
   min-width: 0;
-}
-
-.dc-card-featured {
-  flex: none;
-  align-self: baseline;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.82);
-  padding: 3px 0 1px;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
 }
 
 /* ── Identity — integrated bottom-left ── */
@@ -616,26 +566,6 @@ body.is-agency .dc-bar-input:focus {
 .dc-act--view:hover { color: rgba(255, 255, 255, 0.92); }
 
 /* ============================================================
-   RESONANCE RING
-   ============================================================ */
-.dc-ring {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.dc-ring-num {
-  position: absolute;
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.75);
-  letter-spacing: 0;
-  line-height: 1;
-}
-
-/* ============================================================
    EMPTY STATE
    ============================================================ */
 .dc-empty {
@@ -681,227 +611,6 @@ body.is-agency .dc-bar-input:focus {
 }
 
 /* ============================================================
-   DETAIL PANEL — right-edge drawer
-   ============================================================ */
-.dc-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-}
-
-.dc-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(440px, 42vw);
-  z-index: 100;
-  background: #0D0B09;
-  border-left: 1px solid rgba(201, 165, 90, 0.1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: -12px 0 48px rgba(0, 0, 0, 0.45);
-}
-
-/* Gold signal pipe — vertical left-edge accent */
-.dc-panel-pipe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1px;
-  height: 100%;
-  background: linear-gradient(
-    to bottom,
-    transparent            0%,
-    rgba(201, 165, 90, 0.45) 25%,
-    rgba(201, 165, 90, 0.45) 75%,
-    transparent            100%
-  );
-  z-index: 10;
-  pointer-events: none;
-}
-
-.dc-panel-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 20;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.dc-panel-close:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-
-/* Hero photo — top 48% */
-.dc-panel-hero {
-  position: relative;
-  height: 48%;
-  min-height: 260px;
-  flex-shrink: 0;
-  background: #0D0B09;
-}
-
-.dc-panel-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-  display: block;
-}
-
-.dc-panel-hero-grad {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(to bottom, transparent 50%, rgba(13, 11, 9, 0.95) 100%);
-  pointer-events: none;
-}
-
-/* Scrollable body */
-.dc-panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 28px 32px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(201, 165, 90, 0.2) transparent;
-}
-
-.dc-panel-body::-webkit-scrollbar        { width: 4px; }
-.dc-panel-body::-webkit-scrollbar-track  { background: transparent; }
-.dc-panel-body::-webkit-scrollbar-thumb  { background: rgba(201, 165, 90, 0.2); border-radius: 2px; }
-
-.dc-panel-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-.dc-panel-name {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.6rem;
-  font-weight: 400;
-  color: rgba(250, 248, 245, 0.95);
-  line-height: 1.2;
-  margin: 0 0 6px;
-  letter-spacing: -0.01em;
-}
-
-.dc-panel-sub {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.32);
-  margin: 0;
-}
-
-.dc-panel-rule {
-  height: 1px;
-  background: rgba(201, 165, 90, 0.09);
-  margin: 20px 0;
-}
-
-/* Stats grid — 2 columns */
-.dc-panel-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px 20px;
-}
-
-.dc-panel-stat-l {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.28);
-  margin-bottom: 4px;
-}
-
-.dc-panel-stat-v {
-  font-size: 14px;
-  color: rgba(250, 248, 245, 0.85);
-}
-
-.dc-panel-bio {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-style: italic;
-  font-size: 0.9375rem;
-  line-height: 1.75;
-  color: rgba(255, 255, 255, 0.48);
-  margin: 0 0 28px;
-}
-
-.dc-panel-ctas {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.dc-panel-btn-gold {
-  width: 100%;
-  height: 48px;
-  border-radius: 8px;
-  background: #C9A55A;
-  border: none;
-  color: #0D0B09;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-
-.dc-panel-btn-gold:hover {
-  background: #D9B46A;
-  box-shadow: 0 6px 20px rgba(201, 165, 90, 0.28);
-  transform: translateY(-1px);
-}
-
-.dc-panel-btn-outline {
-  width: 100%;
-  height: 44px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 13px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-
-.dc-panel-btn-outline:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* ============================================================
    RESPONSIVE
    ============================================================ */
 @media (max-width: 1100px) {
@@ -939,36 +648,11 @@ body.is-agency .dc-bar-input:focus {
 
   .dc-grid { grid-template-columns: 1fr; }
 
-  /* Panel slides up from bottom on mobile */
-  .dc-panel {
-    width: 100%;
-    top: auto;
-    height: 90vh;
-    border-left: none;
-    border-top: 1px solid rgba(201, 165, 90, 0.12);
-    border-radius: 16px 16px 0 0;
-  }
-
-  .dc-panel-hero {
-    height: 42%;
-    min-height: 220px;
-  }
-}
-
-@media (min-width: 769px) and (max-width: 1100px) {
-  .dc-panel { width: min(420px, 55vw); }
 }
 
 /* ============================================================
    REFRESH — agency-branded semantic discovery (night mode)
    ============================================================ */
-
-/* subhead under the headline */
-.dc-sub {
-  max-width: 540px; margin: -34px auto 40px; /* pull up toward headline */
-  font-size: 13.5px; line-height: 1.65; letter-spacing: 0.01em;
-  color: rgba(250, 248, 245, 0.46);
-}
 
 /* ── submit — borderless, backgroundless inline icon ── */
 .dc-bar-go {
@@ -999,70 +683,6 @@ body.is-agency .dc-bar-input:focus {
 .dc-bar-go:focus-visible {
   outline: 2px solid #e6c680;
   outline-offset: 2px;
-}
-
-/* example intent suggestions (replace fake chips) */
-.dc-suggest {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
-  gap: 8px; margin-top: 26px;
-}
-.dc-suggest-label {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.5); margin-right: 4px;
-}
-.dc-suggest-pill {
-  padding: 7px 15px; border-radius: 100px;
-  background: rgba(255, 255, 255, 0.035); border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(250, 248, 245, 0.62); font-size: 12px; font-weight: 500; letter-spacing: 0.01em;
-  cursor: pointer; transition: all 0.2s ease;
-}
-.dc-suggest-pill:hover {
-  background: rgba(201, 165, 90, 0.1); border-color: rgba(201, 165, 90, 0.4); color: #C9A55A;
-  transform: translateY(-1px);
-}
-
-/* results header */
-.dc-results-head {
-  display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
-  margin-bottom: 22px;
-}
-.dc-results-title {
-  font-family: 'Playfair Display', Georgia, serif; font-weight: 400;
-  font-size: clamp(1.5rem, 2.4vw, 2rem); line-height: 1.1; letter-spacing: -0.01em;
-  color: rgba(250, 248, 245, 0.92); margin: 0; max-width: 60ch;
-}
-.dc-results-q { font-style: italic; color: rgba(250, 248, 245, 0.62); }
-.dc-results-head-r { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
-
-.dc-thinking {
-  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.7); white-space: nowrap;
-}
-.dc-thinking-dots { animation: dcShimmer 1.1s ease-in-out infinite; }
-
-/* serif ledger — agency shell vocabulary on dark */
-.dc-ledger {
-  display: flex; margin-bottom: 32px; padding-bottom: 24px;
-  border-bottom: 1px solid rgba(201, 165, 90, 0.12);
-}
-.dc-stat { flex: 0 0 auto; padding: 0 34px; border-left: 1px solid rgba(255, 255, 255, 0.08); }
-.dc-stat:first-child { border-left: none; padding-left: 0; }
-.dc-stat-num {
-  font-family: 'Playfair Display', Georgia, serif; font-size: 34px; line-height: 1; display: block;
-  color: rgba(250, 248, 245, 0.92);
-}
-.dc-stat-label {
-  display: block; margin-top: 10px; font-size: 10px; font-weight: 600; letter-spacing: 0.18em;
-  text-transform: uppercase; color: rgba(255, 255, 255, 0.4);
-}
-.dc-stat--gold .dc-stat-num { color: #C9A55A; }
-.dc-stat--mute .dc-stat-num { color: rgba(255, 255, 255, 0.38); }
-
-@media (max-width: 768px) {
-  .dc-sub { margin: -22px auto 30px; }
-  .dc-results-head { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .dc-ledger { flex-wrap: wrap; gap: 18px 0; }
-  .dc-stat { padding: 0 22px; }
 }
 
 /* ============================================================
@@ -1127,7 +747,7 @@ body.is-agency .dc-bar-input--brief {
 .dc-group { margin-top: 8px; }
 .dc-group + .dc-group { margin-top: 44px; }
 
-/* repeated near-match heading — existing curated-head treatment */
+/* repeated partial-match heading — existing curated-head treatment */
 .dc-group-head {
   margin: 0 0 20px;
   font-size: 12px;
@@ -1139,7 +759,7 @@ body.is-agency .dc-bar-input--brief {
 
 .dc-curated-header + .dc-group { margin-top: 28px; }
 
-/* ── always-visible card facts (key stat · age · why-line · truth) ── */
+/* ── card facts · mentions · notes (reserved height, no reflow) ── */
 .dc-card-facts {
   min-height: 40px;
   margin-top: 9px;
@@ -1166,14 +786,13 @@ body.is-agency .dc-bar-input--brief {
   color: rgba(232, 205, 134, 0.72);
 }
 
-/* ── show more / outside-spec affordances ── */
+/* ── show more ── */
 .dc-more {
   display: flex;
   justify-content: center;
   margin-top: 40px;
 }
-.dc-more-btn,
-.dc-outside-btn {
+.dc-more-btn {
   padding: 11px 26px;
   border-radius: 4px;
   background: transparent;
@@ -1184,25 +803,43 @@ body.is-agency .dc-bar-input--brief {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.dc-more-btn:hover:not(:disabled),
-.dc-outside-btn:hover:not(:disabled) {
+.dc-more-btn:hover:not(:disabled) {
   background: rgba(201, 165, 90, 0.09);
   border-color: rgba(201, 165, 90, 0.55);
   color: #C9A55A;
 }
-.dc-more-btn:disabled,
-.dc-outside-btn:disabled { opacity: 0.5; cursor: default; }
+.dc-more-btn:disabled { opacity: 0.5; cursor: default; }
 
-.dc-outside-btn {
-  border-color: rgba(255, 255, 255, 0.14);
-  color: rgba(250, 248, 245, 0.55);
+/* ── skeleton cards — the grid while a search is loading ── */
+.dc-card--skeleton {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: default;
+  pointer-events: none;
 }
-.dc-outside-btn:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.28);
-  color: rgba(250, 248, 245, 0.9);
-  background: rgba(255, 255, 255, 0.04);
+.dc-card--skeleton:hover { transform: none; box-shadow: none; }
+.dc-skel {
+  display: block;
+  height: 12px;
+  border-radius: 3px;
+  background: rgba(201, 165, 90, 0.14);
+  animation: dcShimmer 1.4s ease-in-out infinite;
+}
+.dc-skel--name { width: 54%; height: 16px; }
+.dc-skel--line { width: 34%; }
+.dc-card--skeleton:nth-child(2n) .dc-skel--name { width: 42%; }
+.dc-card--skeleton:nth-child(3n) .dc-skel--name { width: 62%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-skel { animation: none; }
 }
 
 /* ── search bar · small screens ──

@@ -3,13 +3,14 @@
  *
  * Natural-language talent discovery. Agency-branded dark surface.
  *
- *   1. Threshold — dark hero with a natural-language search bar + example intents
- *   2. Brief     — server-only provenance + editable chips (launch mode)
- *   3. Grid      — factual filters in stable directory order
+ *   1. Threshold — dark hero with a natural-language search bar
+ *   2. Filters   — the brief's active filters in booker language, editable
+ *   3. Grid      — exact matches first, then the closest, each card saying why
  *   4. Detail    — full-frame modal
  *
- * Natural language is used to extract declared, factual constraints. The
- * resulting people are never assigned an affinity score or reranked.
+ * The brief becomes filters. Ordering is a function of the booker's stated
+ * requirements against the talent's own declared facts: no score, no ranking
+ * number, no opinion about a face.
  */
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
@@ -20,9 +21,8 @@ import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/agency';
 import { predictCompletion } from '../lib/intentParser';
-import { constraintAnnotations, amendBriefRemove } from '../lib/discoverMatch';
 import { DivisionMark } from '../components/status';
-import BriefUnderstanding from '../components/BriefUnderstanding';
+import SearchFilters from '../components/SearchFilters';
 import { DiscoverDetail } from './DiscoverDetail';
 import Grainient from './Grainient';
 import { Place } from '../components/meta';
@@ -35,8 +35,7 @@ const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '
    before the remainder (5′ 12″ at 182cm) and used straight quotes where the
    rest of the system uses primes. */
 const fmtHeight = (cm) => cmToImperial(cm);
-const AGE_BAND_LABEL = { under_18: 'Under 18', '18_or_older': '18+' };
-const fmtAgeBand = (band) => AGE_BAND_LABEL[band] || null;
+const strList = (v) => (Array.isArray(v) ? v.filter((s) => typeof s === 'string' && s.trim()) : []);
 const firstPhoto = (imgs) => {
   const img = Array.isArray(imgs) ? imgs[0] : null;
   return img ? (img.public_url || img.path) : null;
@@ -73,7 +72,8 @@ function mapTalent(p, invitedIds) {
     first: p.first_name || '',
     last: p.last_name || '',
     name: [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Unknown',
-    archetype: cap(p.archetype || 'editorial'),
+    // The talent's own declared board (first booking lane); nothing is assumed.
+    archetype: strList(p.lanes)[0] || null,
     city: p.city || null,
     height: fmtHeight(p.height_cm),
     gender: p.gender ? cap(p.gender) : null,
@@ -81,12 +81,11 @@ function mapTalent(p, invitedIds) {
     exp: p.experience_level ? cap(p.experience_level) : null,
     photo: firstPhoto(p.images),
     bio: realBio(p.bio_curated),
-    // Natural-language response content (undefined in browse mode).
-    keyStat: p.key_stat || null,
-    ageBand: p.age_band || null,
-    whyFacts: p.why_facts || null,
-    constraintTruth: p.constraint_truth || null,
-    annotations: constraintAnnotations(p.constraint_truth),
+    // Query-mode truth, written by the server against the booker's own words.
+    facts: strList(p.facts),
+    mentions: strList(p.mentions),
+    notes: strList(p.notes),
+    heritage: strList(p.heritage),
     isInvited: p.is_invited || (invitedIds && invitedIds.has(p.id)) || false,
   };
 }
@@ -96,7 +95,7 @@ const PROMPTS = [
   "Tall editorial women in New York with runway experience…",
   "Commercial faces under 25 with fresh digitals…",
   "New faces, female, 5'8\" and above for commercial campaigns…",
-  "Runway specialists for FW26 — Paris or Milan based…",
+  "Runway specialists for FW26, Paris or Milan based…",
 ];
 
 // ─── Talent Card — art-directed portrait, type integrated on the image ──────────
@@ -107,14 +106,10 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
     talent.gender && { label: 'Gender', value: talent.gender },
   ].filter(Boolean);
 
-  // Always-visible factual face (spec §8.4): key stat + age band, the server
-  // why_facts template (verbatim), and any constraint-truth annotation. Reserved
-  // fixed height so absent data never reflows the grid.
-  const headline = [
-    talent.keyStat ? talent.keyStat.value : null,
-    fmtAgeBand(talent.ageBand),
-  ].filter(Boolean).join(' · ');
-  const hasFacts = !!(talent.keyStat || talent.ageBand || talent.whyFacts || talent.annotations.length);
+  // Query mode: the talent's own declared values that satisfied the brief, what
+  // their own words mention, then what is off or not listed. Reserved height so
+  // absent data never reflows the grid.
+  const hasFacts = !!(talent.facts.length || talent.mentions.length || talent.notes.length);
 
   return (
     <motion.article
@@ -149,10 +144,14 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
 
         {hasFacts && (
           <div className="dc-card-facts">
-            {headline && <div className="dc-card-facts-head">{headline}</div>}
-            {talent.whyFacts && <div className="dc-card-facts-why">{talent.whyFacts}</div>}
-            {talent.annotations.length > 0 && (
-              <div className="dc-card-facts-note">{talent.annotations.join(' · ')}</div>
+            {talent.facts.length > 0 && (
+              <div className="dc-card-facts-head">{talent.facts.join(' · ')}</div>
+            )}
+            {talent.mentions.length > 0 && (
+              <div className="dc-card-facts-why">Mentions {talent.mentions.join(', ')}</div>
+            )}
+            {talent.notes.length > 0 && (
+              <div className="dc-card-facts-note">{talent.notes.join(' · ')}</div>
             )}
           </div>
         )}
@@ -192,16 +191,30 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
   );
 }
 
+// ─── Skeleton grid — shown while the first page of a search is loading ────────
+function SkeletonGrid() {
+  return (
+    <div className="dc-grid" aria-busy="true">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div className="dc-card dc-card--skeleton" key={i} aria-hidden="true">
+          <span className="dc-skel dc-skel--name" />
+          <span className="dc-skel dc-skel--line" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlQ = searchParams.get('q') || '';
-  const urlOutside = searchParams.get('outside') === '1';
+  const parsedRole = Number.parseInt(searchParams.get('role') || '0', 10);
+  const role = Number.isInteger(parsedRole) && parsedRole > 0 ? parsedRole : 0;
 
-  // submitted + includeOutside are derived from the URL — that IS the source of
-  // truth, so back / forward / refresh restore for free (spec §8.7).
+  // submitted + role are derived from the URL — that IS the source of truth, so
+  // back / forward / refresh restore for free.
   const submitted = urlQ;
-  const includeOutside = urlOutside;
   const [query, setQuery] = useState(urlQ);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [isFocused, setIsFocused] = useState(false);
@@ -230,9 +243,10 @@ export default function DiscoverPage() {
   // Restore the input text + reset paging when the URL query changes (a submit,
   // or back / forward / refresh). React's "store previous value" pattern —
   // https://react.dev/reference/react/useState#storing-information-from-previous-renders
-  const [prevUrlQ, setPrevUrlQ] = useState(urlQ);
-  if (prevUrlQ !== urlQ) {
-    setPrevUrlQ(urlQ);
+  const [prevUrlKey, setPrevUrlKey] = useState(`${urlQ}::${role}`);
+  const urlKey = `${urlQ}::${role}`;
+  if (prevUrlKey !== urlKey) {
+    setPrevUrlKey(urlKey);
     setQuery(urlQ);
     setLimit(PAGE_SIZE);
   }
@@ -247,11 +261,11 @@ export default function DiscoverPage() {
   }, [briefMode, query]);
 
   const { data, isFetching } = useQuery({
-    queryKey: ['discover', submitted, includeOutside, limit],
+    queryKey: ['discover', submitted, role, limit],
     queryFn: () => getDiscoverableTalent({
       q: submitted || '',
       limit,
-      ...(includeOutside ? { include_outside_spec: 'true' } : {}),
+      ...(submitted && role ? { role } : {}),
     }),
     staleTime: 30000,
     keepPreviousData: true,
@@ -263,33 +277,48 @@ export default function DiscoverPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // ── dual-shape response handling ──
+  // ── response handling ──
   const v2 = data?.discover_v2 || null;
-  const isLaunch = !!v2;
   const queryLogId = data?.query_log_id || data?.meta?.query_log_id || v2?.query_log_id || null;
   const pool = v2?.pool || data?.meta?.pool || null;
-  const honestZero = v2?.honest_zero || null;
-  const understanding = v2?.understanding || null;
+  const filters = useMemo(() => (Array.isArray(v2?.filters) ? v2.filters : []), [v2]);
+  const notes = useMemo(() => (Array.isArray(v2?.notes) ? v2.notes : []), [v2]);
+  const roles = useMemo(() => (Array.isArray(v2?.roles) ? v2.roles : []), [v2]);
 
-  // Build render groups. Launch: server groups[] in order. Legacy: one flat group.
+  // Query mode counts. Browse mode (and any response without them) has neither.
+  const hasCounts = Number.isFinite(pool?.match) || Number.isFinite(pool?.partial);
+  const matchCount = Number.isFinite(pool?.match) ? pool.match : 0;
+  const partialCount = Number.isFinite(pool?.partial) ? pool.partial : 0;
+
+  // Build render groups. Query: server groups[] in order (match, then partial).
+  // Browse: one flat group of the newest talent.
   const groups = useMemo(() => {
     if (v2) {
-      return (v2.groups || []).map((g) => ({
-        key: `${g.kind}:${g.missed || ''}`,
-        kind: g.kind,
-        heading: g.heading,
-        talents: (g.results || []).map((p) => mapTalent(p, invitedIds)),
-      }));
+      return (v2.groups || [])
+        .map((g) => ({
+          key: g.kind,
+          kind: g.kind,
+          total: g.total ?? (g.results || []).length,
+          talents: (g.results || []).map((p) => mapTalent(p, invitedIds)),
+        }))
+        .filter((g) => g.talents.length > 0);
     }
     const mapped = (data?.profiles || []).map((p) => mapTalent(p, invitedIds));
-    return mapped.length ? [{ key: 'flat', kind: 'flat', heading: null, talents: mapped }] : [];
+    return mapped.length ? [{ key: 'flat', kind: 'flat', total: mapped.length, talents: mapped }] : [];
   }, [v2, data, invitedIds]);
 
   // Flat list across groups — detail nav + invite state.
   const talents = useMemo(() => groups.flatMap((g) => g.talents), [groups]);
 
-  const hasOutsideGroup = groups.some((g) => g.kind === 'outside_spec');
   const agencyName = agency?.agency_name?.trim() || null;
+
+  // Exact matches carry no heading. The partial group carries a repeated one,
+  // which leads the page when nothing matched exactly.
+  const groupHeading = (g) => {
+    if (g.kind !== 'partial') return null;
+    const total = g.total ?? partialCount;
+    return matchCount === 0 ? `Closest first · ${total}` : `Partial matches · ${total}`;
+  };
 
   const invite = useMutation({
     mutationFn: (id) => inviteTalent(id, queryLogId),
@@ -300,19 +329,15 @@ export default function DiscoverPage() {
     onError: () => toast.error('Could not send invite'),
   });
 
-  // ── search dispatch (also drives the URL + recent history) ──
-  const applyUrl = (text, outside) => {
-    const next = {};
-    if (text) next.q = text;
-    if (outside) next.outside = '1';
-    setSearchParams(next, { replace: false });
-  };
-
-  const runSearch = (text) => {
+  // ── search dispatch (the URL is the source of truth) ──
+  const runSearch = (text, nextRole = 0) => {
     const t = (text || '').trim();
     setQuery(t);
     setLimit(PAGE_SIZE);
-    applyUrl(t, false); // URL change drives submitted / includeOutside
+    const next = {};
+    if (t) next.q = t;
+    if (t && nextRole) next.role = String(nextRole);
+    setSearchParams(next, { replace: false });
   };
 
   const onSubmit = (e) => { e?.preventDefault(); runSearch(query); };
@@ -321,22 +346,12 @@ export default function DiscoverPage() {
     setSearchParams({}, { replace: false });
   };
 
-  const showOutsideSpec = () => applyUrl(submitted, true);
-
   const loadMore = () => setLimit((l) => l + PAGE_SIZE);
 
-  // Chip edits are authoritative — re-run the search with the amended brief.
-  const onAmendBrief = (newBrief) => runSearch(newBrief);
-  const onRemoveHonestChip = () => {
-    // The honest-zero removable chip reuses chip removal: find its applied entry
-    // and amend the brief the same way the chip × does. Fall back to clearing.
-    const applied = (understanding?.applied || []).find((a) => a.field === honestZero?.removable_chip);
-    if (applied) {
-      runSearch(amendBriefRemove(submitted, applied));
-    } else {
-      clear();
-    }
-  };
+  // Filter edits are authoritative — they rewrite the brief and re-run it, so
+  // the words in the bar and the filters applied can never diverge.
+  const onAmendBrief = (newBrief) => runSearch(newBrief, role);
+  const onRoleChange = (nextRole) => runSearch(submitted, nextRole);
 
   // Accept the ghosted prediction with Tab (anywhere) or → (at line end).
   const acceptCompletion = () => {
@@ -356,8 +371,16 @@ export default function DiscoverPage() {
     }
   };
 
-  const showBrief = isLaunch && !!submitted;
-  const showBriefLoading = !!submitted && isFetching && !data;
+  const showFilters = !!v2 && !!submitted;
+  const showFiltersLoading = !!submitted && isFetching && !data;
+  const showSkeletonCards = !!submitted && isFetching && talents.length === 0;
+  const shownCount = pool?.shown ?? talents.length;
+  const hasMoreResults = !!submitted && hasCounts && shownCount < matchCount + partialCount;
+
+  const shownMatches = hasCounts ? matchCount : talents.length;
+  const resultsHeadline = hasCounts && matchCount === 0 && partialCount > 0
+    ? 'No exact matches'
+    : `${shownMatches} ${shownMatches === 1 ? 'match' : 'matches'}`;
 
   return (
     <div className="dc-page">
@@ -457,13 +480,17 @@ export default function DiscoverPage() {
 
           </form>
 
-          {/* ── Brief understanding — provenance + editable chips (launch) ── */}
-          {(showBrief || showBriefLoading) && (
-            <BriefUnderstanding
+          {/* ── Active filters — booker language, editable, removable ── */}
+          {(showFilters || showFiltersLoading) && (
+            <SearchFilters
               brief={submitted}
-              understanding={understanding}
-              loading={showBriefLoading}
+              filters={filters}
+              notes={notes}
+              roles={roles}
+              role={role}
+              loading={showFiltersLoading}
               onAmend={onAmendBrief}
+              onRoleChange={onRoleChange}
             />
           )}
         </motion.div>
@@ -481,7 +508,7 @@ export default function DiscoverPage() {
           >
             <p className="dc-curated-head">
               {submitted
-                ? <>Results for <em>“{submitted}”</em></>
+                ? <>{resultsHeadline} for <em>“{submitted}”</em></>
                 : <>Newest talent{agencyName ? <> for <em>{agencyName}</em></> : null}</>}
             </p>
             {!submitted && pool && (
@@ -492,36 +519,23 @@ export default function DiscoverPage() {
           </motion.div>
         )}
 
-        {talents.length === 0 ? (
+        {showSkeletonCards ? (
+          <SkeletonGrid />
+        ) : talents.length === 0 ? (
           <motion.div className="dc-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <Sparkles size={26} className="dc-empty-gem" />
-            {honestZero ? (
-              <>
-                <p className="dc-empty-text">{honestZero.reason}</p>
-                {honestZero.removable_chip ? (
-                  <button className="dc-empty-reset" onClick={onRemoveHonestChip}>
-                    Loosen “{honestZero.removable_chip.replace(/_cm$/, '').replace(/_/g, ' ')}”
-                  </button>
-                ) : (
-                  <button className="dc-empty-reset" onClick={clear}>Clear search</button>
-                )}
-              </>
-            ) : (
-              <>
-                <p className="dc-empty-text">
-                  {isFetching ? 'Searching the network…'
-                    : submitted ? 'No discoverable talent meet every factual requirement in that brief.'
-                      : 'No discoverable talent yet.'}
-                </p>
-                {submitted && <button className="dc-empty-reset" onClick={clear}>Clear search</button>}
-              </>
-            )}
+            <p className="dc-empty-text">
+              {submitted
+                ? <>No talent match “{submitted}” yet.</>
+                : 'No discoverable talent yet.'}
+            </p>
+            {submitted && <button className="dc-empty-reset" onClick={clear}>Clear search</button>}
           </motion.div>
         ) : (
           <>
             {groups.map((g) => (
               <div className="dc-group" key={g.key}>
-                {g.heading && <p className="dc-group-head">{g.heading}</p>}
+                {groupHeading(g) && <p className="dc-group-head">{groupHeading(g)}</p>}
                 <div className="dc-grid">
                   {g.talents.map((t, i) => (
                     <TalentCard
@@ -537,20 +551,12 @@ export default function DiscoverPage() {
               </div>
             ))}
 
-            {/* Browse: show more (widen the pool page) */}
-            {!submitted && pool && talents.length < pool.eligible && (
+            {/* Show more — browse widens the pool page, a query pages across
+                both groups (the server returns the next slice of each). */}
+            {((!submitted && pool && talents.length < pool.eligible) || hasMoreResults) && (
               <div className="dc-more">
                 <button className="dc-more-btn" onClick={loadMore} disabled={isFetching}>
                   {isFetching ? 'Loading…' : 'Show more'}
-                </button>
-              </div>
-            )}
-
-            {/* Query: reveal nearest outside-spec (explicit action only) */}
-            {isLaunch && submitted && !includeOutside && !hasOutsideGroup && (
-              <div className="dc-more">
-                <button className="dc-outside-btn" onClick={showOutsideSpec} disabled={isFetching}>
-                  Show nearest (outside spec)
                 </button>
               </div>
             )}

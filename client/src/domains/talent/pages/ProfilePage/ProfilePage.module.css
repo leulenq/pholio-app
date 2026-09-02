@@ -1576,6 +1576,17 @@
   color: var(--pf-text-faint);
 }
 
+/* Helper line under a field: what the value is used for. */
+.fieldHint {
+  margin: 8px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--pf-text-soft);
+  text-wrap: pretty;
+}
+
 .shoeContainer {
   position: relative;
   overflow: hidden;

@@ -257,8 +257,8 @@ export async function archiveApplication(applicationId) {
 
 /**
  * Get discoverable talent.
- * @param {object} params - { q, limit, include_outside_spec } (launch mode) or
- *   legacy filter params. Empty values are dropped so the URL stays clean.
+ * @param {object} params - { q, role, page, limit } for a brief, or legacy
+ *   filter params. Empty values are dropped so the URL stays clean.
  */
 export async function getDiscoverableTalent(params = {}) {
   const clean = {};

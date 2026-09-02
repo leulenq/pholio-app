@@ -153,7 +153,17 @@
   color: rgba(250, 248, 245, 0.92);
 }
 
-/* ── Constraint-truth annotation (near / outside-spec) ── */
+/* ── Match facts: what the brief asked for and this talent declared ── */
+.dd-facts {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: rgba(250, 248, 245, 0.9);
+}
+
+/* ── Match notes: what is off the brief, or not listed ── */
 .dd-truth {
   margin: 0 0 20px;
   font-size: 12px;
