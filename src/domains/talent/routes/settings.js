@@ -57,8 +57,20 @@ const {
   purgeProfileEmbeddingDerivatives,
   purgeImageEmbeddingDerivatives,
 } = require("../../ai/embeddings");
+const {
+  scheduleDiscoverReindex,
+} = require("../services/discover-reindex-hooks");
 
-const AI_CONSENT_DISCLOSURE_VERSION = "2026-08-04";
+// Bumped 2026-09-02 with the Discover semantic layer
+// (tasks/discover-semantic-2026-09.md §6). The embedding disclosure now names
+// what is actually sent — the bio, the declared details, and the photo
+// descriptions — because the corpus grew past "a limited profile summary".
+// Migration 20260804090000 still carries the 2026-08-04 text and hashes: that
+// is the historical evidence of what talent agreed to then, and it must not be
+// edited. Grants recorded under the old version stay valid grants; the settings
+// screen simply re-presents the new text (it renders `ai.disclosureVersion`
+// from the payload) and a NEW grant must echo the current version back.
+const AI_CONSENT_DISCLOSURE_VERSION = "2026-09-02";
 const AI_CONSENT_PURPOSES = {
   image_analysis: {
     column: "ai_processing_consent",
@@ -68,7 +80,7 @@ const AI_CONSENT_PURPOSES = {
   agency_search_matching: {
     column: "embedding_processing_consent",
     disclosure:
-      "Allow Pholio to send a limited profile summary to its embedding provider so vetted agency searches can find relevant talent.",
+      "Allow Pholio to send your bio, your declared profile details, and short descriptions of your portfolio photos (written by the image-analysis provider and describing styling, lighting, mood, and setting, never your face, age, heritage, or body) to its embedding provider, so vetted agency searches can find you by the look they describe. You can withdraw this at any time; the stored descriptions and vectors are deleted when you do.",
   },
 };
 
@@ -671,10 +683,20 @@ router.post(
     const { isDiscoverable } = req.body;
     const userId = req.session.userId;
 
+    const profile = await knex("profiles")
+      .where({ user_id: userId })
+      .first("id");
     await knex("profiles").where({ user_id: userId }).update({
       is_discoverable: !!isDiscoverable,
       updated_at: knex.fn.now(),
     });
+
+    // Discover semantic layer §3.5: `is_discoverable` decides whether the
+    // hourly sweep considers this profile at all, so opting in has to build
+    // the corpus rather than wait for a later edit to trigger it.
+    if (profile) {
+      scheduleDiscoverReindex(profile.id, { reason: "discoverability" });
+    }
 
     res.json({ success: true, isDiscoverable: !!isDiscoverable });
   }),
@@ -854,6 +876,16 @@ router.put(
           purgeProfileEmbeddingDerivatives(knex, profile.id),
         );
       }
+    }
+
+    // Discover semantic layer (tasks/discover-semantic-2026-09.md §3.5). A
+    // GRANT builds the corpus now instead of leaving the talent unsearchable
+    // until the hourly sweep; a WITHDRAWAL has already been handled above by
+    // purgeProfileEmbeddingDerivatives, which deletes the chunks and the photo
+    // descriptions outright. Changing discoverability alone also reindexes,
+    // because `is_discoverable` decides whether the profile is swept at all.
+    if (embeddingProcessingConsent === true || isDiscoverable !== undefined) {
+      scheduleDiscoverReindex(profile.id, { reason: "consent_or_discovery" });
     }
 
     const row = await ensureSettingsRow(userId);

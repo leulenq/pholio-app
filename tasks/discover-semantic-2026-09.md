@@ -166,3 +166,22 @@ Lanes with disjoint ownership; the lead integrates and commits.
 11. Unit suites with injected embedder; golden set; eval script with nDCG@10 and the fairness distribution check.
 
 Verification: full discover suites, consent boundary suites, migrations suite on SQLite, client suites, lint, build; a local run with `DISCOVER_SEMANTIC=on` and a fake provider that embeds by keyword hash to prove the plumbing end to end; the real providers exercised on staging with keys.
+
+---
+
+## 9. What shipped (2026-09-02) and what was verified
+
+**Shipped on `claude/discover-surface-audit-qk24qn`.**
+
+- Corpus and indexer: `discover_chunks` (vector(512) with HNSW on Postgres, JSON on SQLite), `image_signals.description`, `profiles.discover_indexed_at`; `discover-index.js` builds bio, profile-prose, and photo chunks, embeds only what changed, purges on withdrawal.
+- Photo descriptions: `describe-photo.js` with the constrained prompt, the denylist post-filter, both consents re-read before and after the provider call, excluded and non-active images skipped.
+- Providers: `embedding-provider.js` (OpenAI default, Voyage adapter, `fake` for local runs that production refuses), `rerank-provider.js` (Cohere cross-encoder, off by default), `config.openai` and `config.embedding`.
+- Query path: `discover/semantic.js` scores every kept candidate by best-chunk cosine, fuses with lexical mentions by reciprocal rank, orders inside the groups, quotes the matching chunk as `why`; `DISCOVER_SEMANTIC` off, shadow, on; look-only briefs read "Closest to your brief".
+- Hooks and operations: reindex on profile save and every image change, description plus reindex after upload classification, hourly `discover-reindex` function with a 30-day cache sweep, resumable `backfill:discover-semantic`, `discover_chunks` in the data export and inventory, the refreshed consent disclosure (version 2026-09-02) on the server and in the settings screen.
+- Evaluation: 20 golden briefs, `eval:discover-semantic` with nDCG@10, recall@10, and the heritage and gender distribution check with a non-zero exit on skew.
+
+**Verified.** Semantic core end to end on SQLite with the injected embedder (8 tests); 122 unit tests across provider, describer, indexer, scorer; 34 tests across hooks, classification job, backfill, sweep; the discover, matching, AI, security, contract, migration, talent, and netlify suites green; client suites green with lint and build; the live page exercised locally with the fake provider on the seeded pool (screenshots in the session). The evaluation on that pool with the fake embedder reports nDCG@10 0.81 and no group over tolerance, which proves the plumbing, not the model.
+
+**Not verified here.** No embedding, vision, or rerank provider was called; this environment has no keys. Before turning `DISCOVER_SEMANTIC=on` in production: run the backfill on staging with `PHOLIO_ENABLE_PROFILE_EMBEDDINGS=true` and `PHOLIO_ENABLE_IMAGE_ANALYSIS=true`, read a sample of photo descriptions by hand, run a week in `shadow`, then run the evaluation with real vectors and set `DISCOVER_SEMANTIC_MIN_SIM` from it. Counsel should read §7 and the refreshed disclosure. Neon's pgvector version should be confirmed to be 0.8 or later.
+
+**Known limits.** Grants recorded under the 2026-08-04 disclosure are honoured but were not re-presented; the settings screen shows the new text and re-asks only on a new grant. The demo seed leaves the embedding consent off, so the evaluation script grants it to the pool it indexes (never in production). The `profile` chunk's prose can carry a why-line on weak matches with the fake embedder; the floor is tuned against real vectors.

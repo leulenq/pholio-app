@@ -392,6 +392,16 @@ const TALENT_DATA_INVENTORY = [
     exportMode: "summary",
     notes: "Postgres-only pgvector table; same raw-vector rationale as talent_embedding_cache.",
   },
+  {
+    key: "discover_chunks",
+    table: "discover_chunks",
+    scope: "profile",
+    column: "profile_id",
+    cascade: "fk",
+    exportMode: "summary",
+    notes:
+      "Discover semantic corpus (tasks/discover-semantic-2026-09.md §3.1): the talent's own bio sentences, their declared facts as prose, and the attribute-neutral description of each visible photograph. Every row is text the talent can read, so unlike the pgvector tables the TEXT is exported in full — the summary drops only the embedding, which is a raw vector and not meaningful information to the data subject.",
+  },
 
   // ---- account / settings --------------------------------------------------
   {

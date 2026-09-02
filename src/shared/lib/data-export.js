@@ -60,6 +60,7 @@ const GENERIC_EXPORT_KEYS = [
   "talent_embedding_cache",
   "talent_image_embeddings",
   "talent_text_embeddings",
+  "discover_chunks",
   "message_reply_tokens",
   "message_reply_session_tokens",
   "comp_card_presets",
@@ -264,6 +265,18 @@ const SUMMARIZERS = {
     source: row.source,
     source_text: row.source_text ?? null,
     embedded_at: row.embedded_at ?? null,
+    updated_at: row.updated_at ?? null,
+  }),
+  // The Discover corpus is readable text by design, so the talent gets the
+  // text itself — the whole point of caption-then-embed is that what was
+  // indexed about their book is something they can read and check. Only the
+  // vector (`embedding` on Postgres, `embedding_json` on SQLite) is dropped.
+  discover_chunks: (row) => ({
+    kind: row.kind,
+    text: row.text ?? null,
+    image_id: row.image_id ?? null,
+    model: row.model ?? null,
+    created_at: row.created_at ?? null,
     updated_at: row.updated_at ?? null,
   }),
 };

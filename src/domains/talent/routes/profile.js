@@ -39,6 +39,10 @@ const {
   finishWithdrawal,
 } = require("./settings").aiConsent;
 const {
+  scheduleDiscoverReindex,
+  touchesDiscoverIndex,
+} = require("../services/discover-reindex-hooks");
+const {
   normalizeProfileLanguages,
 } = require("../../../shared/lib/language-reference");
 const {
@@ -1341,6 +1345,14 @@ router.put(
           purgeProfileEmbeddingDerivatives(knex, profile.id),
         );
       }
+    }
+
+    // Discover semantic layer (tasks/discover-semantic-2026-09.md §3.5): the
+    // chunk corpus is rebuilt whenever the talent's own words, declared facts,
+    // booking lanes, or discoverability change. Fire-and-forget — a save must
+    // never fail because indexing did, and the hourly sweep is the backstop.
+    if (touchesDiscoverIndex(updateData) || shouldSyncBookingLanes) {
+      scheduleDiscoverReindex(profile.id, { reason: "profile_save" });
     }
 
     // Activity logging is non-critical — run it after commit and never block the
