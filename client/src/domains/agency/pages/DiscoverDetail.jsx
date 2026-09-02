@@ -13,6 +13,8 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
   const facts = Array.isArray(talent.facts) ? talent.facts : [];
   const notes = Array.isArray(talent.notes) ? talent.notes : [];
   const heritage = Array.isArray(talent.heritage) ? talent.heritage : [];
+  // The semantic layer's one line, when the brief reached for meaning.
+  const why = typeof talent.why === 'string' && talent.why.trim() ? talent.why.trim() : null;
 
   const stats = [
     talent.height  && { label: 'Height',    value: talent.height },
@@ -130,9 +132,10 @@ export function DiscoverDetail({ talent, talents, onClose, onNavigate, onInvite,
               </div>
             )}
 
-            {/* the same two lines the card carries: what matched, then what is
-                off or not listed */}
+            {/* the same lines the card carries: what matched, why the brief
+                reached for this talent, then what is off or not listed */}
             {facts.length > 0 && <p className="dd-facts">{facts.join(' · ')}</p>}
+            {why && <p className="dd-why">{why}</p>}
             {notes.length > 0 && <p className="dd-truth">{notes.join(' · ')}</p>}
 
             {/* bio */}

@@ -871,11 +871,22 @@ body.is-agency .dc-bar-input--brief {
   letter-spacing: 0.01em;
   color: rgba(250, 248, 245, 0.82);
 }
+/* One slot, two possible tenants: the semantic "why" line (the talent's own
+   sentence or their book's description) when the server sends one, and the
+   lexical "Mentions …" fallback when it does not. Both are clamped to two
+   lines so a long quote cannot stretch a card past its neighbours; the full
+   text rides on the element's title. */
 .dc-card-facts-why {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
   margin-top: 3px;
   font-size: 12px;
   line-height: 1.45;
-  color: rgba(250, 248, 245, 0.55);
+  color: rgba(250, 248, 245, 0.62);
+  overflow-wrap: anywhere;
 }
 .dc-card-facts-note {
   margin-top: 4px;

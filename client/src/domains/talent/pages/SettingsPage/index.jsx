@@ -1256,14 +1256,21 @@ function PrivacyMovement({ settings, isLoading }) {
                 onChange={() => toggleAiProcessing('aiProcessingConsent', ai.imageProcessing ?? false)}
               />
             </Row>
-            <Row title="Agency search matching" description={embeddingDescription} muted>
+            <Row title="Searchable by look" description={embeddingDescription} muted>
               <Toggle
-                label="Allow agency search matching"
+                label="Searchable by look"
                 checked={ai.profileEmbedding ?? false}
                 disabled={mutation.isPending || (!ai.canEnable && !(ai.profileEmbedding ?? false))}
                 onChange={() => toggleAiProcessing('embeddingProcessingConsent', ai.profileEmbedding ?? false)}
               />
             </Row>
+            {/* Only while the permission is on: what an agency search can
+                actually reach, and the one photo rule that overrides it. */}
+            {(ai.profileEmbedding ?? false) && (
+              <p className="set-row-note">
+                Agencies searching by look can match your bio and the descriptions of your photos. Photos you exclude from agencies are never described.
+              </p>
+            )}
           </>
         )}
       </div>

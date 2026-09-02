@@ -27,7 +27,7 @@ const config = require("../../../../config");
 const { CONTRACT_SCHEMA } = require("./contract-schema");
 const { validateContract } = require("./validate-contract");
 const { emptyContract, emptyHard } = require("./contract-schema");
-const { decomposeQueryFallback, parseIntent } = require("../../lib/intent-parser");
+const { decomposeQueryFallback, parseIntent, LEXICON } = require("../../lib/intent-parser");
 const { heightToCm } = require("./extract-values");
 const {
   normalizeBookingLaneSlug,
@@ -192,7 +192,14 @@ function fallbackContract(text) {
     if (c.field === "gender") {
       const key = String(c.value).toLowerCase().replace(/[^a-z]/g, "_");
       const norm = key === "non_binary" ? "non_binary" : key;
-      if (GENDER_DB_MAP[norm]) hard.gender_presentation = [norm];
+      // "androgynous" alone describes a look, not a presentation to filter on.
+      const onlyAndrogynous =
+        norm === "non_binary" && !/\b(non[- ]?binary|nonbinary|enby)\b/i.test(text);
+      if (GENDER_DB_MAP[norm] && !onlyAndrogynous) hard.gender_presentation = [norm];
+    } else if (c.field === "experience_level") {
+      const raw = String(c.value).toLowerCase().replace(/[\s-]+/g, "_");
+      const map = { new_face: "new_face", established: "established", experienced: "experienced" };
+      if (map[raw]) hard.experience_level = map[raw];
     } else if (c.field === "hair_color") {
       hard.hair_color = [String(c.value).toLowerCase()];
     } else if (c.field === "eye_color") {
@@ -209,7 +216,33 @@ function fallbackContract(text) {
   // Height: the deterministic extractor reads the phrase; the phrase is the
   // span, so the chip it becomes can be edited or removed without touching
   // the rest of the brief. A bare "tall" is its own span (extract-values).
-  let softQuery = decomposed.residual_query || String(text || "").trim();
+  // The look language is the ORIGINAL brief minus the words that became
+  // requirements. The legacy residual stripped vibe words too ("natural",
+  // "approachable"), which are exactly what the semantic layer needs.
+  let softQuery = String(text || "").trim();
+  const escapeRe = (t) => String(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const dropForms = (forms) => {
+    for (const form of forms) {
+      softQuery = softQuery.replace(new RegExp(`\\b${escapeRe(form)}\\b`, "gi"), " ");
+    }
+  };
+  for (const group of ["gender", "location", "experience"]) {
+    const terms = LEXICON[group] && LEXICON[group].terms;
+    if (!terms) continue;
+    // "androgynous" is a look word the legacy lexicon files under gender.
+    dropForms(Object.values(terms).flat().filter((f) => f !== "androgynous"));
+  }
+  // Heritage words became a filter (or were guarded as colours); they are
+  // never look language.
+  softQuery = softQuery
+    .split(/(\s+)/)
+    .map((tok) => (heritageSlugsFromText(tok.replace(/[^a-z-]/gi, "")).length ? " " : tok))
+    .join("");
+  if (hard.hair_color || hard.eye_color) {
+    softQuery = softQuery
+      .replace(/\b[a-z]+[- ]?(hair|haired|headed|eyes|eyed)\b/gi, " ")
+      .replace(/\b(brunette|blonde?|redhead(?:ed)?|ginger|auburn)\b/gi, " ");
+  }
   const phrase = HEIGHT_PHRASE_RE.exec(text);
   const tallWord = /\btall(?:er)?\b/i.exec(text);
   if (phrase || tallWord) {
@@ -239,13 +272,38 @@ function fallbackContract(text) {
 
   // Board words ("editorial", "runway", "commercial") map to the talent's own
   // booking lanes now that boards are read from profile_booking_lanes.
+  // A board word followed by a look word ("commercial warmth", "editorial
+  // feel") is describing a look, not asking for a board; leave it soft.
   const boardSlugs = [];
+  const lower = String(text || "").toLowerCase();
   for (const facet of parseIntent(text).facets || []) {
     if (facet.kind !== "Look") continue;
     const slug = normalizeBookingLaneSlug(facet.value);
-    if (slug && BOARDS.includes(slug) && !boardSlugs.includes(slug)) boardSlugs.push(slug);
+    if (!slug || !BOARDS.includes(slug) || boardSlugs.includes(slug)) continue;
+    const word = String(facet.value).toLowerCase().split(/\s+/)[0];
+    const asLook = new RegExp(
+      `\\b${word}\\w*\\s+(warmth|look|looks|feel|energy|vibe|presence|register|read|style|aesthetic|edge|polish|charm|appeal|walk|walks)\\b`,
+    );
+    if (asLook.test(lower)) continue;
+    boardSlugs.push(slug);
   }
-  if (boardSlugs.length) hard.boards = boardSlugs;
+  if (boardSlugs.length) {
+    hard.boards = boardSlugs;
+    for (const facet of parseIntent(text).facets || []) {
+      if (facet.kind !== "Look") continue;
+      const slug = normalizeBookingLaneSlug(facet.value);
+      if (!slug || !boardSlugs.includes(slug)) continue;
+      const forms = (LEXICON.look && LEXICON.look.terms && LEXICON.look.terms[facet.value]) || [];
+      dropForms(forms);
+    }
+  }
+  softQuery = softQuery
+    .replace(/\s*,\s*,+/g, ",")
+    .replace(/(^|\s)(and|or|with|for|in|of|the|a|an)(?=\s*(,|$))/gi, " ")
+    .replace(/\s+([,.;])/g, "$1")
+    .replace(/^[\s,.;]+|[\s,.;]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
   // The legacy intent-parser exposes heritage as a facet ("Black", "Asian",
   // "Latino"); re-read the brief through the picker synonym map so the slugs,

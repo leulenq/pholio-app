@@ -93,6 +93,10 @@ function mapTalent(p, invitedIds) {
     // Query-mode truth, written by the server against the booker's own words.
     facts: strList(p.facts),
     mentions: strList(p.mentions),
+    /* The semantic layer's one line: the talent's own sentence, or their
+       book's description, whichever the brief actually reached for. It takes
+       the "Mentions …" slot when the server sends one. */
+    why: typeof p.why === 'string' && p.why.trim() ? p.why.trim() : null,
     notes: strList(p.notes),
     heritage: strList(p.heritage),
     isInvited: p.is_invited || (invitedIds && invitedIds.has(p.id)) || false,
@@ -116,10 +120,11 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
     talent.gender && { label: 'Gender', value: talent.gender },
   ].filter(Boolean);
 
-  // Query mode: the talent's own declared values that satisfied the brief, what
-  // their own words mention, then what is off or not listed. Reserved height so
-  // absent data never reflows the grid.
-  const hasFacts = !!(talent.facts.length || talent.mentions.length || talent.notes.length);
+  // Query mode: the talent's own declared values that satisfied the brief, the
+  // line the brief actually reached for (their bio or their book, else what
+  // their own words mention), then what is off or not listed. Reserved height
+  // so absent data never reflows the grid.
+  const hasFacts = !!(talent.facts.length || talent.why || talent.mentions.length || talent.notes.length);
 
   return (
     <motion.article
@@ -161,9 +166,11 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
             {talent.facts.length > 0 && (
               <div className="dc-card-facts-head">{talent.facts.join(' · ')}</div>
             )}
-            {talent.mentions.length > 0 && (
+            {talent.why ? (
+              <div className="dc-card-facts-why" title={talent.why}>{talent.why}</div>
+            ) : talent.mentions.length > 0 ? (
               <div className="dc-card-facts-why">Mentions {talent.mentions.join(', ')}</div>
-            )}
+            ) : null}
             {talent.notes.length > 0 && (
               <div className="dc-card-facts-note">{talent.notes.join(' · ')}</div>
             )}
@@ -307,6 +314,11 @@ export default function DiscoverPage() {
     ? { eligible: data.pagination.total, shown: null }
     : null);
 
+  /* No requirement was applied, so nothing was "matched" against: the fused
+     order is the whole answer and the header says so. The server sends no
+     partial group in this case. */
+  const lookOnly = v2?.look_only === true;
+
   const hasCounts = Number.isFinite(pool?.match) || Number.isFinite(pool?.partial);
   const matchCount = Number.isFinite(pool?.match) ? pool.match : 0;
   const partialCount = Number.isFinite(pool?.partial) ? pool.partial : 0;
@@ -334,8 +346,10 @@ export default function DiscoverPage() {
   const agencyName = agency?.agency_name?.trim() || null;
 
   // Exact matches carry no heading. The partial group carries a repeated one,
-  // which leads the page when nothing matched exactly.
+  // which leads the page when nothing matched exactly. A look-only brief has
+  // neither group to name: the whole page is one ordered answer.
   const groupHeading = (g) => {
+    if (lookOnly) return null;
     if (g.kind !== 'partial') return null;
     const total = g.total ?? partialCount;
     return matchCount === 0 ? `Closest first · ${total}` : `Partial matches · ${total}`;
@@ -399,9 +413,11 @@ export default function DiscoverPage() {
   const hasMoreResults = !!submitted && hasCounts && shownCount < matchCount + partialCount;
 
   const shownMatches = hasCounts ? matchCount : talents.length;
-  const resultsHeadline = hasCounts && matchCount === 0 && partialCount > 0
-    ? 'No exact matches'
-    : `${shownMatches} ${shownMatches === 1 ? 'match' : 'matches'}`;
+  const resultsHeadline = lookOnly
+    ? 'Closest to your brief'
+    : hasCounts && matchCount === 0 && partialCount > 0
+      ? 'No exact matches'
+      : `${shownMatches} ${shownMatches === 1 ? 'match' : 'matches'}`;
 
   /* Threshold compaction. Browse keeps the serif invitation and the centred
      column; the moment a brief has run the invitation collapses to nothing and

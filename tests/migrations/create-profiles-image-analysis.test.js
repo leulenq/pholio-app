@@ -145,13 +145,19 @@ describe("the migration is re-runnable and reversible", () => {
   });
 
   test("down() removes exactly the three columns", async () => {
+    // Compared as sets: a later migration (discover_indexed_at) sits after
+    // these columns in `migrate latest` order, and re-adding them puts them
+    // last. The set of columns is the invariant; their order is not.
+    const sorted = (list) => [...list].sort();
     const before = await profileColumns();
     await migration.down(knex);
     const after = await profileColumns();
-    expect(after).toEqual(before.filter((column) => !COLUMNS.includes(column)));
+    expect(sorted(after)).toEqual(
+      sorted(before.filter((column) => !COLUMNS.includes(column))),
+    );
     // Restore, so the file this suite leaves behind matches `migrate latest`.
     await migration.up(knex);
-    expect(await profileColumns()).toEqual(before);
+    expect(sorted(await profileColumns())).toEqual(sorted(before));
   });
 
   test("declares transaction: false", () => {

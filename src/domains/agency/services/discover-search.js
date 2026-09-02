@@ -13,6 +13,7 @@
 
 const { parseIntentToFilters } = require("../lib/intent-parser");
 const { parseBrief } = require("./discover/parse");
+const semantic = require("./discover/semantic");
 const { heritageSlugsFromText } = require("./discover/field-whitelist");
 const {
   normalizeBookingLaneSlug,
@@ -640,11 +641,60 @@ async function matchSearch(knex, context) {
     });
   }
 
-  const matches = kept.filter((entry) => entry.kind === "match").sort(matchCompare);
-  const partials = kept
-    .filter((entry) => entry.kind === "partial")
-    .sort(partialCompare);
   const evaluateMs = Date.now() - evaluateStartedAt;
+
+  // ── semantic layer (tasks/discover-semantic-2026-09.md §3.3) ──
+  // The look part of the brief scores every kept candidate against its own
+  // chunks; the fused (semantic + lexical) order applies INSIDE each group and
+  // never moves anyone between groups. 'shadow' computes and logs only.
+  const semanticStartedAt = Date.now();
+  const mode = semantic.semanticMode();
+  const lookQuery = String(role.soft_query || "").trim();
+  let semanticScores = new Map();
+  let semanticError = null;
+  if (mode !== "off" && lookQuery && kept.length) {
+    try {
+      semanticScores = await semantic.scoreCandidates(
+        knex,
+        lookQuery,
+        kept.map((entry) => entry.profile.id),
+      );
+    } catch (err) {
+      semanticError = err.message;
+      semanticScores = new Map();
+    }
+  }
+  for (const entry of kept) {
+    const best = semanticScores.get(entry.profile.id) || null;
+    entry.sim = best ? best.sim : null;
+    entry.why = mode === "on" ? semantic.buildWhy(best) : null;
+  }
+  const semanticMs = Date.now() - semanticStartedAt;
+  const useFused = mode === "on" && semanticScores.size > 0;
+
+  const orderGroup = (entries, fallbackCompare) => {
+    if (!useFused) return entries.slice().sort(fallbackCompare);
+    const fused = semantic.fuseRanks(
+      entries.map((e) => ({ id: e.profile.id, sim: e.sim, lexical: e.mentions.length })),
+    );
+    return entries.slice().sort((left, right) => {
+      const primary =
+        fallbackCompare === partialCompare
+          ? left.fails - right.fails || left.unknowns - right.unknowns
+          : 0;
+      if (primary) return primary;
+      const delta = (fused.get(right.profile.id) || 0) - (fused.get(left.profile.id) || 0);
+      if (delta) return delta;
+      return byNewest(left, right) || byNameThenId(left, right);
+    });
+  };
+
+  let matches = orderGroup(kept.filter((entry) => entry.kind === "match"), matchCompare);
+  const partials = orderGroup(kept.filter((entry) => entry.kind === "partial"), partialCompare);
+  // Optional cross-encoder over the head of the match group (flagged off by default).
+  if (useFused && matches.length > 1) {
+    matches = await semantic.rerankTop(knex, lookQuery, matches);
+  }
 
   const ordered = [...matches, ...partials];
   const shown = ordered.slice(offset, offset + limitNum);
@@ -666,6 +716,7 @@ async function matchSearch(knex, context) {
     dto.facts = buildFacts(entry.evaluations, entry.profile, hard);
     dto.notes = buildResultNotes(entry.evaluations, entry.profile, hard);
     dto.mentions = entry.mentions;
+    dto.why = entry.why || null;
     results.push({ kind: entry.kind, dto });
   }
 
@@ -699,7 +750,7 @@ async function matchSearch(knex, context) {
       hasPrev: pageNum > 1,
     },
     meta: {
-      semantic_search: false,
+      semantic_search: useFused,
       natural_language_search: true,
       query: q,
       ordering: "match",
@@ -738,6 +789,9 @@ async function matchSearch(knex, context) {
         partial: partials.length,
         shown: profiles.length,
       },
+      // No requirement was applied: the order is the whole answer.
+      look_only: useFused && buildFilters(q, hard).length === 0,
+      semantic: useFused,
       query_log_id: null,
     },
   };
@@ -754,7 +808,16 @@ async function matchSearch(knex, context) {
     timings: {
       parse_ms: parseMs,
       evaluate_ms: evaluateMs,
+      semantic_ms: semanticMs,
       total_ms: Date.now() - startedAt,
+    },
+    semantic: {
+      mode,
+      look_query: lookQuery || null,
+      scored: semanticScores.size,
+      error: semanticError,
+      // shadow/on: per-shown-profile similarity, for the evaluation only
+      sims: profiles.map((dto) => [dto.id, semanticScores.get(dto.id)?.sim ?? null]),
     },
   };
 

@@ -184,6 +184,28 @@ module.exports = {
     // level) only if GROQ_VISION_MODEL is swapped for a non-reasoning model.
     visionReasoningEffort: process.env.GROQ_VISION_REASONING_EFFORT || "none",
   },
+  // OpenAI (embeddings only today). Kept here so every provider key lives in
+  // one place; embedding-provider.js reads it, never process.env directly.
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY,
+  },
+  // Discover semantic layer (tasks/discover-semantic-2026-09.md).
+  //   provider  : 'openai' (default) | 'voyage'
+  //   semantic  : DISCOVER_SEMANTIC = 'off' (default) | 'shadow' | 'on'
+  //   rerank    : DISCOVER_RERANK = 'off' (default) | 'cohere'
+  //   minSim    : cosine floor under which no "why" line is shown
+  embedding: {
+    provider: (process.env.EMBEDDING_PROVIDER || "openai").toLowerCase().trim(),
+    openaiModel: process.env.OPENAI_EMBED_MODEL || "text-embedding-3-small",
+    voyageModel: process.env.VOYAGE_EMBED_MODEL || "voyage-4-lite",
+    voyageApiKey: process.env.VOYAGE_API_KEY,
+    semanticMode: (process.env.DISCOVER_SEMANTIC || "off").toLowerCase().trim(),
+    rerank: (process.env.DISCOVER_RERANK || "off").toLowerCase().trim(),
+    cohereApiKey: process.env.COHERE_API_KEY,
+    minSim: Number.isFinite(parseFloat(process.env.DISCOVER_SEMANTIC_MIN_SIM))
+      ? parseFloat(process.env.DISCOVER_SEMANTIC_MIN_SIM)
+      : 0.32,
+  },
   // Content moderation (WS10 — manual review queue at launch).
   // provider: 'heuristic' (default) or 'hive'. With provider=hive and no
   // HIVE_API_KEY the pipeline logs once and degrades to the heuristic.
