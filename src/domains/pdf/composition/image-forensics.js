@@ -294,13 +294,22 @@ async function measureImage(input) {
     // Powers the type-safety protected-subject regions. Best-effort.
     let focal = null;
     try {
-      const { info } = await base
+      // libvips reports attention coordinates in the space it analysed, which
+      // for JPEG input is an internal shrink-on-load reduction. A bounded PNG
+      // probe pins that space to the one the ratio below assumes.
+      const probe = await base
         .clone()
+        .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+        .png({ compressionLevel: 1 })
+        .toBuffer({ resolveWithObject: true });
+      const probeW = probe.info.width;
+      const probeH = probe.info.height;
+      const { info } = await sharp(probe.data)
         .resize(64, 64, { fit: "cover", position: sharp.strategy.attention })
         .toBuffer({ resolveWithObject: true });
-      const scale = Math.max(64 / width, 64 / height);
-      const scaledW = width * scale;
-      const scaledH = height * scale;
+      const scale = Math.max(64 / probeW, 64 / probeH);
+      const scaledW = probeW * scale;
+      const scaledH = probeH * scale;
       if (Number.isFinite(info.attentionX) && Number.isFinite(info.attentionY)) {
         focal = {
           x: round4(clamp01(info.attentionX / scaledW)),

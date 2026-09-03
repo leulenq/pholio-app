@@ -1,5 +1,24 @@
 # Lessons Learned
 
+## 2026-09-03 — A photograph with type over it is not a designed object
+
+- The Wallet pass redesign was rejected after a full implementation pass: a
+  full-bleed portrait with the name over it and a footer holding the QR read as
+  "profile data on a card", not a Pholio artifact, even though every Apple
+  constraint was honoured and the renders looked polished.
+- When a reference is supplied, decompose its composition before designing:
+  name the zones, what role each element plays (identity, person, information,
+  machine-readable), how the photograph is contained, and where the negative
+  space is. The reference's identity came from ink / paper / ink bands and a
+  portrait disc straddling a boundary; those structural moves, not the photo,
+  are what to carry across.
+- Map the reference's structure onto the platform's fixed text positions
+  (Wallet: header top-right, title above the strip, footer on the strip, one
+  foreground colour) instead of letting the platform's default layout dictate
+  the composition.
+- Show the composition as a still, side by side with the reference, before
+  spending a build cycle on edge cases and tests.
+
 ## 2026-08-04 — A newer main-side UI edit is not automatically canonical
 
 - When a feature branch and `main` contain competing complete interface directions,

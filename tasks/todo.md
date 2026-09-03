@@ -241,3 +241,58 @@ would have produced exactly the wrong recommendation.
 "Go-See Requested" — the trade word used backwards, which the language skill
 records as canon and which only this lens catches.
 
+
+# Pholio ID — Apple Wallet pass redesign (2026-09-03)
+
+Surface: `GET /api/talent/wallet/pass` and the `.pkpass` it issues. Ground truth:
+Apple HIG "Wallet" (rev. June 8 2026), WalletPasses docs, WWDC26 session 209.
+
+## Verdicts that drive the design
+1. Two faces in one bundle. iOS 27+ renders `posterGeneric` (full-bleed
+   358×448pt artwork, 30pt primary logo, header, title, one footer field, QR);
+   iOS 26 and earlier fall back to `generic` (flat field, 160×50 logo, square
+   90pt thumbnail, header, primary, ≤4 secondary+auxiliary, QR).
+2. The photograph is the pass. Everything else is the minimum a booker needs
+   at a glance: name, height (stack-visible header), who books them, the QR
+   to the live book. Stats live on the details sheet in dual units.
+3. Two themes, one material: Ink (default) and Paper. Both pass WCAG AA on
+   labels; the veils baked into the artwork guarantee text contrast whatever
+   the photo.
+4. Reuse, never reimplement: comp-card stats block (order, units, kids rules),
+   photo-intelligence hero ranking, forensics focal crop, short portfolio URL,
+   minor/guardian gating.
+5. passkit-generator strips unknown keys (`stripUnknown: true`) so it cannot
+   emit `posterGeneric`; the bundle (manifest, PKCS#7, zip) is owned in-repo.
+
+## Checklist
+- [x] Research Apple constraints (HIG June 2026, WalletPasses, WWDC26)
+- [x] `pass-content.js`: pure profile → pass.json content model (both styles, themes, edge cases)
+- [x] `pass-artwork.js`: artwork / thumbnail / icon / logo / primaryLogo renderers from brand assets
+- [x] `pass-bundle.js`: manifest + detached PKCS#7 + zip
+- [x] `pass-builder.js` + `face-locator.js` + route: hero selection, face location, theme param, guardian gating
+- [x] Tests: content, artwork, bundle (self-signed round trip), builder, face locator, route
+- [x] Preview rig: realistic fixtures × themes × styles → PNG review sheet
+- [x] Spec doc rewrite (`docs/wallet/apple-wallet-spec.md`), stale prototype removed
+- [x] Review section below
+
+## Review
+- First composition (full-bleed portrait, name over it, QR in a footer) was
+  rejected by the owner as "profile data on a card". Restarted from the
+  reference's structure: ink / paper / ink fields with a portrait medallion
+  straddling the upper boundary, the name in the lower field, the QR alone on
+  the strip. Lesson recorded in `tasks/lessons.md`.
+- Shipped: both Wallet faces (`posterGeneric` for iOS 27+, `generic` for iOS 26
+  and earlier) in one signed bundle; Ink and Paper themes as one composition
+  with the materials exchanged; disc, icon, logo and primary logo rendered
+  from the brand lockup and the hero photo; details sheet carrying the
+  comp-card stats block.
+- Found and fixed on the way: libvips reports attention coordinates in its
+  shrink-on-load space for JPEG input, so `computeFocalPoint` (crop engine)
+  and the forensics focal clamped to (1, 1) on real photos. Both now probe a
+  re-encoded PNG. Existing crop-engine/forensics suites unchanged and green.
+- Dependency change: `passkit-generator` removed (strips `posterGeneric`);
+  `node-forge` + `do-not-zip` added as direct dependencies.
+- Not built (named in the spec): Apple update web service, dashboard preview
+  module, share links, on-device verification of the poster strip geometry.
+- Validation: 75 tests across wallet + touched pdf suites; 10 preview cases
+  (5 fixtures × 2 themes) in `docs/wallet/previews/`.

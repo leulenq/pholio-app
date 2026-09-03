@@ -39,3 +39,7 @@ PERSISTENCE_REPORT.md
 
 # local dev/test sqlite artifacts
 data/*.sqlite3
+
+# Wallet preview rig: PNGs are committed, the HTML/JSON sheets are regenerated
+docs/wallet/previews/index.html
+docs/wallet/previews/cases.json

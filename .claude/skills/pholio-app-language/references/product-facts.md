@@ -71,8 +71,9 @@ Missing but hard-linked by the app: `/agency/request-access`.
   offer/confirm/decline, 18+ gate.
 - Verification: NY DOL registry ingestion, agency verification records,
   impersonation defense (the not-affiliated line in UI and export bundle).
-- Studio+ billing (Stripe), Apple Wallet pass domain (design lock, unshipped
-  as product priority).
+- Studio+ billing (Stripe), Apple Wallet pass ("Pholio ID": signed pass
+  generation with both Wallet faces is built; the update web service and
+  dashboard module are not).
 
 ## 3. Compliance facts that constrain copy
 
