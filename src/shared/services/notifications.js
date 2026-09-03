@@ -13,6 +13,7 @@ const { CALL_PURPOSES } = require("../constants/event-casting");
 
 const NOTIFICATION_TYPES = {
   AGENCY_PROFILE_VIEW: "agency_profile_view",
+  AGENCY_INVITATION: "agency_invitation",
   APPLICATION_SUBMITTED: "application_submitted",
   APPLICATION_STATUS: "application_status",
   MESSAGE_RECEIVED: "message_received",
@@ -493,6 +494,38 @@ async function notifyTalentAgencyProfileView({ userId, agencyId, agencyName }) {
   return notificationId;
 }
 
+/**
+ * An agency found this talent in Scout and asked them to apply.
+ *
+ * This is the notification that replaces the old view-on-open signal. An
+ * agency skimming a result set is not news; an agency asking is. The copy says
+ * what happened, and the route target is the invitations surface rather than
+ * the dashboard, because there is something for the talent to do.
+ *
+ * `reopenOnRepeat` is false and the group key is per agency: a second
+ * invitation from the same agency does not re-alert. Nothing has changed for
+ * the talent, who was already asked.
+ */
+async function notifyTalentAgencyInvitation({ userId, agencyId, agencyName }) {
+  if (!(await talentNotificationPrefEnabled(userId, "profileViews"))) {
+    return null;
+  }
+  const name = agencyName || "An agency";
+  return upsertUserNotification({
+    userId,
+    type: NOTIFICATION_TYPES.AGENCY_INVITATION,
+    title: `${name} invited you to apply`,
+    body: "They found your profile and asked to see an application.",
+    routeTarget: "/dashboard/talent/agencies",
+    priority: PRIORITIES.HIGH,
+    groupKey: `agency_invitation:${agencyId}`,
+    sourceType: "agency",
+    sourceId: agencyId,
+    metadata: { agencyId, agencyName: name },
+    reopenOnRepeat: false,
+  });
+}
+
 async function refreshAgencyViewNotificationTitle(notificationId, agencyName) {
   const row = await knex("notifications").where({ id: notificationId }).first();
   if (!row) return;
@@ -627,6 +660,7 @@ module.exports = {
   notifyTalentApplicationSubmitted,
   notifyTalentApplicationStatusChange,
   notifyTalentAgencyProfileView,
+  notifyTalentAgencyInvitation,
   refreshAgencyViewNotificationTitle,
   notifyTalentNewMessage,
   markMessageNotificationsReadForApplication,
