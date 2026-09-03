@@ -158,6 +158,18 @@ const ROUTE_PERMISSION_RULES = [
     pattern: /^\/api\/agency\/discover\/[^/]+\/invite$/,
     permission: "discover.invite",
   },
+  // "Not for us", and undoing it. Same entitlement both ways: whoever may hide
+  // a lead from the agency's Scout results may put it back.
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/discover\/[^/]+\/dismiss$/,
+    permission: "discover.dismiss",
+  },
+  {
+    method: "DELETE",
+    pattern: /^\/api\/agency\/discover\/[^/]+\/dismiss$/,
+    permission: "discover.dismiss",
+  },
   {
     method: "GET",
     pattern: /^\/api\/agency\/profiles\/[^/]+\/details$/,

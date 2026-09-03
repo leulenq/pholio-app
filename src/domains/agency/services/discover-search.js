@@ -32,6 +32,7 @@ const {
 } = require("../../../shared/constants/booking-lanes");
 const { ageFilterDobCutoffs } = require("./discover-age");
 const { invitedProfileIds } = require("./agency-invitations");
+const { dismissedProfileIds } = require("./agency-dismissals");
 const {
   AUDIENCE,
   buildAgencyDiscoveryDTO,
@@ -506,6 +507,13 @@ async function browseSearch(knex, context) {
   if (context.blockedTalentUserIds?.size) {
     query.whereNotIn("profiles.user_id", [...context.blockedTalentUserIds]);
   }
+  // "Not for us" is agency-private view state, so it is applied here beside the
+  // block set rather than in `baseDiscoverQuery` — both exclusions must land
+  // before the count, or a dismissed lead still moves the totals and the pages.
+  // Note the key: blocks are keyed by `user_id`, dismissals by `profile_id`.
+  if (context.dismissedProfileIds?.size) {
+    query.whereNotIn("profiles.id", [...context.dismissedProfileIds]);
+  }
 
   const [countResult] = await query
     .clone()
@@ -579,6 +587,11 @@ async function matchSearch(knex, context) {
   const query = applyDiscoverFilters(baseDiscoverQuery(knex), filters);
   if (context.blockedTalentUserIds?.size) {
     query.whereNotIn("profiles.user_id", [...context.blockedTalentUserIds]);
+  }
+  // Same exclusion as browse mode: a dismissed lead is out of this agency's
+  // eligible pool entirely, so it never reaches evaluation or a match group.
+  if (context.dismissedProfileIds?.size) {
+    query.whereNotIn("profiles.id", [...context.dismissedProfileIds]);
   }
   const candidates = (await query).filter((profile) =>
     isAgencyDiscoverable(profile, { agencyId }),
@@ -863,10 +876,10 @@ async function searchDiscoverableTalent(knex, options) {
     experience_level,
   });
   const filters = mergeFilters(explicitFilters, {});
-  const blockedTalentUserIds = await getTalentUserIdsBlockingAgency(
-    knex,
-    agencyId,
-  );
+  const [blockedTalentUserIds, dismissedIds] = await Promise.all([
+    getTalentUserIdsBlockingAgency(knex, agencyId),
+    dismissedProfileIds(knex, agencyId),
+  ]);
 
   const context = {
     filters,
@@ -878,6 +891,7 @@ async function searchDiscoverableTalent(knex, options) {
     applicationMap: await fetchApplicationMap(knex, agencyId),
     agencyId,
     blockedTalentUserIds,
+    dismissedProfileIds: dismissedIds,
     q: String(q || "").trim(),
   };
 

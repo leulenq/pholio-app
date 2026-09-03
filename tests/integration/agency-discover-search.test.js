@@ -706,3 +706,105 @@ describe("mergeFilters", () => {
     ).toMatchObject({ city: "Milan", min_height: 180 });
   });
 });
+
+/**
+ * "Not for us" — the private half of the Scout bar
+ * (tasks/discover-expanded-view-2026-09.md §4.3).
+ *
+ * The store arrives with a migration, so the first test here is the
+ * deploy-before-migrate window: a search must run unfiltered rather than fail
+ * when the table does not exist yet. The rest create the table for the block
+ * and drop it again, so the suite's other describes keep exercising the
+ * table-absent path they were written against.
+ */
+describe("dismissed leads", () => {
+  const {
+    resetDismissalsSchemaCache,
+  } = require("../../src/domains/agency/services/agency-dismissals");
+
+  test("a missing dismissal table does not throw, and hides nobody", async () => {
+    resetDismissalsSchemaCache();
+    expect(await knex.schema.hasTable("agency_dismissed_profiles")).toBe(false);
+
+    const result = await searchDiscoverableTalent(knex, { agencyId: AGENCY_ID });
+    expect(result.pagination.total).toBe(4);
+
+    mockParsedBrief = parsedBrief(emptyHard());
+    const matched = await searchDiscoverableTalent(knex, {
+      agencyId: AGENCY_ID,
+      q: "anyone",
+    });
+    expect(matched.profiles).toHaveLength(4);
+  });
+
+  describe("with the store present", () => {
+    const OTHER_AGENCY_ID = uuidv4();
+
+    beforeAll(async () => {
+      await knex.schema.createTable("agency_dismissed_profiles", (table) => {
+        table.string("id", 36).primary();
+        table.string("agency_id", 36).notNullable();
+        table.string("profile_id", 36).notNullable();
+        table.timestamp("created_at");
+        table.unique(["agency_id", "profile_id"]);
+      });
+      resetDismissalsSchemaCache();
+    });
+
+    afterAll(async () => {
+      await knex.schema.dropTableIfExists("agency_dismissed_profiles");
+      resetDismissalsSchemaCache();
+    });
+
+    beforeEach(async () => {
+      await knex("agency_dismissed_profiles").del();
+    });
+
+    async function dismiss(profileSlug, agencyId = AGENCY_ID) {
+      const profile = await knex("profiles").where({ slug: profileSlug }).first();
+      await knex("agency_dismissed_profiles").insert({
+        id: uuidv4(),
+        agency_id: agencyId,
+        profile_id: profile.id,
+        created_at: new Date().toISOString(),
+      });
+      return profile;
+    }
+
+    test("browse mode drops them before pagination and totals", async () => {
+      await dismiss("bella-commercial");
+
+      const result = await searchDiscoverableTalent(knex, {
+        agencyId: AGENCY_ID,
+      });
+      expect(names(result.profiles)).toEqual([
+        "Editorial",
+        "Newest",
+        "Runway",
+      ]);
+      expect(result.pagination.total).toBe(3);
+    });
+
+    test("query mode drops them from the eligible pool, not just the page", async () => {
+      await dismiss("ada-editorial");
+      mockParsedBrief = parsedBrief(emptyHard({ boards: ["editorial"] }));
+
+      const result = await searchDiscoverableTalent(knex, {
+        agencyId: AGENCY_ID,
+        q: "editorial board",
+      });
+      expect(groupNames(result, "match")).toEqual(["Newest"]);
+      expect(result.discover_v2.pool.eligible).toBe(3);
+    });
+
+    test("it is one agency's view state, never another's", async () => {
+      await dismiss("bella-commercial", OTHER_AGENCY_ID);
+
+      const result = await searchDiscoverableTalent(knex, {
+        agencyId: AGENCY_ID,
+      });
+      expect(names(result.profiles)).toContain("Commercial");
+      expect(result.pagination.total).toBe(4);
+    });
+  });
+});

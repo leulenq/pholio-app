@@ -100,8 +100,12 @@ async function scoreCandidates(knex, queryText, candidateIds, opts = {}) {
     return out;
   }
 
+  // LEFT JOIN, not INNER: the consent predicate below already drops a chunk
+  // whose profile is missing or unconsented, and the agency domain forbids
+  // inner joins onto `profiles` so a read path can never silently lose rows
+  // (tests/unit/agency-applicant-identity-coverage.test.js).
   const rows = await knex("discover_chunks as c")
-    .join("profiles as p", "p.id", "c.profile_id")
+    .leftJoin("profiles as p", "p.id", "c.profile_id")
     .whereIn("c.profile_id", candidateIds)
     .where(function consented() {
       this.where("p.embedding_processing_consent", true).orWhere(
@@ -144,7 +148,7 @@ async function loadChunkTexts(knex, profileIds) {
   const out = new Map();
   if (!profileIds.length || !(await knex.schema.hasTable("discover_chunks"))) return out;
   const rows = await knex("discover_chunks as c")
-    .join("profiles as p", "p.id", "c.profile_id")
+    .leftJoin("profiles as p", "p.id", "c.profile_id")
     .whereIn("c.profile_id", profileIds)
     .where(function consented() {
       this.where("p.embedding_processing_consent", true).orWhere(

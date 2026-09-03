@@ -177,7 +177,7 @@ Each component owns its styles in a co-located `.css` file. The convention for s
 | `tp-*` | TalentPanel |
 | `tm-*` | TeamModal |
 | `iv-*` | InterviewCard |
-| `dd-*` | DiscoverDetail |
+| `sc-*` | ScoutRoom (the Scout expanded lead view) |
 | `ov-*` | OverviewPage / OverviewPulse |
 | `cas-*` | CastingPage / CastingPanel |
 | `tfv-*` | TalentFullView |

@@ -30,6 +30,10 @@ const ALL_PERMISSIONS = [
   "discover.view_preview",
   "discover.view_details",
   "discover.invite",
+  // "Not for us" — private, agency-scoped, and reversible, but it removes a
+  // lead from every colleague's Scout results, so it sits with the other verb
+  // on that bar rather than with the read permissions.
+  "discover.dismiss",
   "talent.claim",
   "talent.download_comp_card",
   "talent.view_minor_submissions",
@@ -108,6 +112,7 @@ const VIEWER_PERMISSIONS = [
 
 const SCOUT_EXTRA = [
   "discover.invite",
+  "discover.dismiss",
   "applications.update_status",
   "applications.bulk_update_status",
   "boards.assign_application",
