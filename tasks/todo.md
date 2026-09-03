@@ -296,3 +296,19 @@ Apple HIG "Wallet" (rev. June 8 2026), WalletPasses docs, WWDC26 session 209.
   module, share links, on-device verification of the poster strip geometry.
 - Validation: 75 tests across wallet + touched pdf suites; 10 preview cases
   (5 fixtures × 2 themes) in `docs/wallet/previews/`.
+
+# Stage 1 pre-launch industry alignment audit (2026-09-03)
+
+- [x] Primary-source research, five lanes, independent of the repo's language files (`docs/audits/industry-audit-2026-09-stage1/research/`)
+- [x] Surface map of every user-facing string source (`SURFACE-MAP.md`)
+- [x] Eight audit lanes, every finding cited to file:line and research section (`lanes/`)
+- [x] Lead verification of every P0 at the cited lines
+- [x] Integrated report: `docs/audits/industry-alignment-audit-2026-09-stage1.md`
+
+## Review
+
+Read-only pass; no product code changed. 21 consolidated P0s (minors data model, claims beyond
+the data, representation and comp-card shape, pre-auth register), 13 product-model findings, and
+a P1/P2 catalogue with a coined-term inventory and consistency map. Recommended order is in
+section 10 of the report. Two owner decisions are called out: whether the agency workspace keeps
+a Kanban at all, and whether the Wallet pass survives as a digital comp card.
