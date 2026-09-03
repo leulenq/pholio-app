@@ -1,0 +1,985 @@
+/* ────────────────────────────────────────────────────────────────────
+   The Scout Room. The surface an agency reads a LEAD on, opened from a
+   card in Scout.
+
+   It joins the Review Room's system rather than copying its template.
+   Inherited verbatim: the register (Noto Serif Display / Inter /
+   JetBrains Mono, cream, ink, one gold, 6px radii, hairline rules), the
+   chrome grammar (wordmark exit left, context centre, mono ledger right,
+   pager, close), the four ink levels each with a job, and the type-role
+   system below.
+
+   The one deliberate inversion: the Review Room is a paper page with an
+   ink bar; the Scout Room is an INK STAGE WITH A PAPER RAIL. The Review
+   Room adjudicates a record, so it is a document. Scout reads a book, so
+   photography owns the surface and the facts sit beside it on paper. It
+   also means opening a card from the dark Scout grid never flashes cream.
+
+   Agency bans hold everywhere: no status pills, no corner chips, no
+   eyebrows, no glass, no side stripes, no gradient text. State is words.
+   ──────────────────────────────────────────────────────────────────── */
+
+.sc-room {
+  /* Ink grounds, matched to the Scout grid so the room opens out of it. */
+  --sc-ink: #0b0a08;
+  --sc-ink-1: #12100d;
+  --sc-ink-2: #191612;
+
+  /* Paper, from the /apply register the Review Room speaks. */
+  --sc-paper: #faf7f2;
+  --sc-paper-warm: #f5f0e8;
+  --sc-paper-deep: #ede8dd;
+
+  /* Four ink levels on paper, each with a job: findings, context,
+     provenance, absence. Levels are set so every one of them clears
+     4.5:1 on the paper ground, because "Not listed" is a finding about
+     the record and has to be readable to be honest. */
+  --sc-ink-text: #1a1a1a;
+  --sc-soft: rgba(26, 26, 26, 0.8);
+  --sc-faint: rgba(26, 26, 26, 0.7);
+  --sc-ghost: rgba(26, 26, 26, 0.62);
+
+  /* The same four levels on ink. */
+  --sc-cream: rgba(245, 240, 232, 0.94);
+  --sc-cream-soft: rgba(245, 240, 232, 0.68);
+  --sc-cream-faint: rgba(245, 240, 232, 0.54);
+  --sc-cream-ghost: rgba(245, 240, 232, 0.3);
+  --sc-cream-hair: rgba(245, 240, 232, 0.14);
+
+  --sc-gold: #c9a55a;
+  --sc-gold-warm: #e0c082;
+  --sc-gold-deep: #8a6d2f;   /* the only gold legible as text on paper */
+  --sc-hair: rgba(26, 26, 26, 0.12);
+  --sc-hair-strong: rgba(26, 26, 26, 0.18);
+  --sc-hair-gold: rgba(201, 165, 90, 0.28);
+
+  --sc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sc-radius: 6px;
+
+  /* ── THE TYPE SYSTEM ──────────────────────────────────────────────
+     Inherited from ReviewRoom.css, verbatim. Every string on this
+     surface belongs to exactly one semantic role, and each role has
+     exactly one treatment. A new element picks a role; it never invents
+     a size.
+
+     serif  . identity: who this is
+     title  . the name of a region of the page
+     chrome . workspace level context
+     marker . structural wayfinding inside the room
+     key    . the left hand term of a value
+     read   . machine and system readouts, key hints
+     figure . measured numbers
+     value  . descriptive data
+     note   . human annotation about a record
+     prose  . sentences meant to be read
+     ────────────────────────────────────────────────────────────────── */
+  --sc-serif: 'Noto Serif Display', Georgia, 'Times New Roman', serif;
+  --sc-sans: 'Inter', system-ui, sans-serif;
+  --sc-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  --sc-key-size: 9px;
+  --sc-key-track: 0.16em;
+  --sc-read-size: 9.5px;
+  --sc-marker-size: 10px;
+  --sc-value-size: 13px;
+  --sc-note-size: 12px;
+
+  --sc-pad: clamp(18px, 2.4vw, 40px);
+  --sc-rail-pad: clamp(20px, 2vw, 34px);
+  --sc-top-h: 64px;
+  /* The bar is held at a fixed height above 1020px so the stage's own
+     height can be derived from it. Its tallest content is the verb plus
+     the two line note, at 108px. */
+  --sc-bar-h: 112px;
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--sc-ink);
+  color: var(--sc-cream);
+  font-family: var(--sc-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.sc-room:focus,
+.sc-room:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.sc-room :focus-visible {
+  outline: 2px solid var(--sc-gold);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Zero specificity defaults, so any component rule wins. A bare
+   `.sc-room button` selector would out-specify single class rules and
+   silently round every underline text button. */
+:where(.sc-room button) {
+  border-radius: var(--sc-radius);
+  font-family: inherit;
+}
+
+/* ── role primitives ─────────────────────────────────────────────── */
+
+:where(.sc-title) {
+  font-family: var(--sc-serif);
+  font-size: 16px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:where(.sc-chrome-caps) {
+  font-family: var(--sc-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+:where(.sc-marker) {
+  font-family: var(--sc-mono);
+  font-size: var(--sc-marker-size);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+:where(.sc-key) {
+  font-family: var(--sc-mono);
+  font-size: var(--sc-key-size);
+  font-weight: 500;
+  letter-spacing: var(--sc-key-track);
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: var(--sc-soft);
+}
+
+:where(.sc-read) {
+  font-family: var(--sc-mono);
+  font-size: var(--sc-read-size);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+:where(.sc-figure) {
+  font-family: var(--sc-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+:where(.sc-value) {
+  font-family: var(--sc-sans);
+  font-size: var(--sc-value-size);
+  font-weight: 450;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--sc-ink-text);
+}
+
+:where(.sc-annot) {
+  font-family: var(--sc-sans);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+:where(.sc-prose) {
+  font-family: var(--sc-sans);
+  font-size: var(--sc-note-size);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ═══ top chrome ═══════════════════════════════════════════════════
+   The Review Room's grammar, set on ink: wordmark exit, the search in
+   the centre, the ledger and pager on the right. */
+
+.sc-top {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(0, auto) minmax(180px, 1fr);
+  column-gap: clamp(14px, 2vw, 28px);
+  align-items: center;
+  min-height: var(--sc-top-h);
+  padding: 0 clamp(16px, 2vw, 32px) 0 clamp(18px, 2.2vw, 36px);
+  background: var(--sc-ink-1);
+}
+
+.sc-top::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--sc-gold), transparent);
+  pointer-events: none;
+}
+
+.sc-top-mark {
+  justify-self: start;
+  min-width: max-content;
+  padding: 6px 12px 6px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sc-top-mark span {
+  color: var(--sc-gold);
+  font-family: var(--sc-serif);
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 0.35s var(--sc-ease);
+}
+
+.sc-top-mark:hover span { color: var(--sc-gold-warm); }
+
+.sc-top-scope {
+  justify-self: center;
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.sc-top-scope span,
+.sc-top-scope strong { white-space: nowrap; }
+
+.sc-top-scope span { color: var(--sc-cream-faint); }
+
+.sc-top-scope strong {
+  min-width: 0;
+  max-width: min(34vw, 420px);
+  overflow: hidden;
+  color: var(--sc-cream);
+  text-overflow: ellipsis;
+}
+
+.sc-top-end {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.6vw, 22px);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.sc-top-end .sc-pager,
+.sc-top-end .sc-close { flex: none; }
+
+.sc-ledger {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0;
+  min-width: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sc-ledger span,
+.sc-ledger strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-ledger strong { color: var(--sc-gold-warm); font-weight: 500; }
+.sc-ledger-sep { font-style: normal; color: var(--sc-cream-ghost); }
+.sc-ledger span { color: var(--sc-cream-soft); }
+
+.sc-pager { display: inline-flex; gap: 2px; }
+
+.sc-pager button,
+.sc-close {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--sc-radius);
+  background: transparent;
+  color: var(--sc-cream-soft);
+  cursor: pointer;
+  transition: color 0.2s var(--sc-ease), background 0.2s var(--sc-ease);
+}
+
+.sc-pager button:hover:not(:disabled),
+.sc-close:hover {
+  color: var(--sc-cream);
+  background: rgba(245, 240, 232, 0.07);
+}
+
+.sc-pager button:disabled {
+  color: var(--sc-cream-ghost);
+  cursor: default;
+}
+
+/* ═══ scrolling body ═══ */
+
+.sc-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  background: var(--sc-ink);
+}
+
+/* ═══ the stage ═══════════════════════════════════════════════════
+   The book left on ink at the size a scout actually judges from, the
+   facts right on paper. The stage is exactly one viewport tall, so the
+   record is genuinely below the fold and the paper rail never scrolls
+   away while frames are flipped. */
+
+/* Exactly one viewport, so the record is genuinely below the fold and the
+   paper rail never scrolls away while frames are flipped. */
+.sc-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 38%, 540px);
+  height: calc(100dvh - var(--sc-top-h) - var(--sc-bar-h));
+  min-height: 460px;
+}
+
+/* ── the book ── */
+
+.sc-book {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--sc-pad) var(--sc-pad) clamp(14px, 1.8vw, 22px);
+}
+
+/* A scout is judging the photograph, not a thumbnail: the frame is
+   contained, never cropped, and the well takes whatever height is left. */
+.sc-plate {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  border-radius: var(--sc-radius);
+  background: var(--sc-ink-1);
+  overflow: hidden;
+}
+
+.sc-plate img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.sc-plate--wait {
+  animation: sc-breathe 1.5s ease-in-out infinite;
+}
+
+@keyframes sc-breathe {
+  0%, 100% { background-color: var(--sc-ink-1); }
+  50% { background-color: var(--sc-ink-2); }
+}
+
+/* No published frames is a stated fact, not an empty box. */
+.sc-plate--empty {
+  border: 1px solid var(--sc-cream-hair);
+  background: var(--sc-ink-1);
+}
+
+.sc-plate-initial {
+  font-family: var(--sc-serif);
+  font-size: clamp(3rem, 9vw, 7rem);
+  font-weight: 300;
+  line-height: 1;
+  color: var(--sc-cream-ghost);
+}
+
+/* ── the frame strip: the talent's own order, no imposed slots ── */
+
+.sc-stripline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px clamp(14px, 2vw, 24px);
+  margin-top: clamp(12px, 1.4vw, 18px);
+  padding-top: 12px;
+  border-top: 1px solid var(--sc-cream-hair);
+}
+
+.sc-strip {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.sc-strip button {
+  flex: none;
+  width: clamp(38px, 4vw, 52px);
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background-color: var(--sc-ink-2);
+  background-size: cover;
+  background-position: center 25%;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s var(--sc-ease), box-shadow 0.2s var(--sc-ease);
+}
+
+.sc-strip button:hover { opacity: 0.82; }
+
+.sc-strip button[aria-selected='true'] {
+  opacity: 1;
+  box-shadow: 0 0 0 1px var(--sc-gold);
+}
+
+.sc-stripcount {
+  margin: 0;
+  margin-left: auto;
+  color: var(--sc-cream-faint);
+  white-space: nowrap;
+}
+
+/* ── the facts column, on paper ─────────────────────────────────────
+   The paper rail. Spacing is the grouping device, exactly as in the
+   Review Room's identity column: no containers, no cards, no boxes. */
+
+.sc-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  min-height: 0;
+  padding: clamp(22px, 2.4vw, 34px) var(--sc-rail-pad) clamp(28px, 3vw, 40px);
+  background: var(--sc-paper);
+  color: var(--sc-ink-text);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sc-name {
+  margin: 0;
+  font-family: var(--sc-serif);
+  font-size: clamp(1.8rem, 2.3vw, 2.6rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.03;
+  color: var(--sc-ink-text);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.sc-factline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: -12px 0 0;
+  font-weight: 400;
+  color: var(--sc-soft);
+}
+
+.sc-factline i {
+  font-style: normal;
+  color: var(--sc-ghost);
+}
+
+.sc-factline .sc-fact-alert {
+  color: #8b4a1e;
+  font-weight: 600;
+}
+
+/* ── representation: the gate, stated as words ──────────────────────
+   Approaching someone who is exclusive elsewhere is a real professional
+   mistake, so this is the first and most prominent fact in the column.
+   It is a key and a value, never a badge and never a pill. */
+
+.sc-block {
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--sc-hair-strong);
+}
+
+.sc-block-key { display: block; margin-bottom: 7px; }
+
+.sc-rep-value {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--sc-ink-text);
+  overflow-wrap: anywhere;
+}
+
+.sc-rep--free { color: var(--sc-ink-text); }
+.sc-rep--taken { color: #8b4a1e; }
+.sc-rep--unknown { color: var(--sc-ghost); }
+
+.sc-rep-note {
+  margin: 5px 0 0;
+  color: var(--sc-faint);
+}
+
+/* ── figures: measured values in mono, never boxed ── */
+
+.sc-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px 18px;
+  margin: 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--sc-hair-strong);
+}
+
+.sc-fig dt { margin-bottom: 4px; }
+
+.sc-fig dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--sc-ink-text);
+  overflow-wrap: anywhere;
+}
+
+.sc-fig dd em {
+  margin-left: 4px;
+  font-style: normal;
+  font-family: var(--sc-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sc-faint);
+}
+
+/* Height is the gate every board applies first, and it is instant. It is
+   set larger than every other figure so the hierarchy inside the block
+   cannot be misread. */
+.sc-fig--lead { grid-column: 1 / -1; }
+
+.sc-fig--lead dd {
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+
+/* Mono sets a wide word space, which pulled the feet and inches of the
+   lead figure apart far enough to read as two separate numbers. */
+.sc-fig-imp { word-spacing: -0.3em; }
+
+/* The second unit is the same measurement said again, so it is joined by
+   the house interpunct rather than left to read as a second value. */
+.sc-fig-sub {
+  margin-left: 8px;
+  font-family: var(--sc-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sc-faint);
+  word-spacing: normal;
+}
+
+.sc-fig-sub::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--sc-ghost);
+}
+
+.sc-fig--lead .sc-fig-sub { font-size: 13px; }
+
+/* Absence is never a positive claim: an unpublished measurement says so. */
+.sc-absent {
+  font-family: var(--sc-sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--sc-ghost);
+}
+
+/* ── freshness, why, prior contact ── */
+
+.sc-lines {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--sc-hair);
+}
+
+.sc-lines p {
+  margin: 0;
+  color: var(--sc-faint);
+}
+
+.sc-lines p.sc-lead-line { color: var(--sc-soft); }
+
+.sc-why-line {
+  margin: 0;
+  color: var(--sc-soft);
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+/* ═══ the record, below the fold ═══════════════════════════════════ */
+
+.sc-record {
+  display: grid;
+  gap: clamp(30px, 3.4vw, 48px);
+  padding: clamp(30px, 3.6vw, 56px) var(--sc-pad) clamp(40px, 5vw, 72px);
+  border-top: 1px solid var(--sc-cream-hair);
+}
+
+.sc-sec + .sc-sec { margin-top: 0; }
+
+.sc-sec-title {
+  margin: 0 0 14px;
+  color: var(--sc-cream-soft);
+}
+
+.sc-bookgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(96px, 9.2vw, 132px), 1fr));
+  gap: clamp(8px, 1vw, 14px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sc-bookgrid button {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius);
+  background-color: var(--sc-ink-1);
+  background-size: cover;
+  background-position: center 25%;
+  cursor: pointer;
+  transition: opacity 0.2s var(--sc-ease), box-shadow 0.2s var(--sc-ease);
+}
+
+.sc-bookgrid button:hover { opacity: 0.86; }
+.sc-bookgrid button[aria-current='true'] { box-shadow: 0 0 0 1px var(--sc-gold); }
+
+.sc-recordcols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: clamp(28px, 3.6vw, 64px);
+  align-items: start;
+}
+
+.sc-recordmain {
+  display: grid;
+  gap: clamp(28px, 3.2vw, 44px);
+  min-width: 0;
+}
+
+.sc-bio {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--sc-cream);
+}
+
+.sc-quiet {
+  margin: 0;
+  color: var(--sc-cream-faint);
+}
+
+/* The declared ledger, on ink: hairline rows, keys left, values right.
+   The value role carries paper ink by default, so it is re-grounded here
+   rather than given a second treatment. */
+.sc-dlist { margin: 0; }
+
+.sc-drow {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sc-cream-hair);
+}
+
+.sc-drow dt {
+  flex: 0 0 clamp(78px, 9vw, 108px);
+  color: var(--sc-cream-faint);
+}
+
+.sc-drow dd {
+  flex: 1 1 auto;
+  margin: 0;
+  min-width: 0;
+  color: var(--sc-cream);
+  overflow-wrap: anywhere;
+}
+
+/* The honest boundary. Plain words, no marketing, no reassurance the
+   product cannot keep. */
+.sc-boundary p {
+  margin: 0 0 9px;
+  max-width: 56ch;
+  color: var(--sc-cream-soft);
+}
+
+.sc-boundary p:last-child { margin-bottom: 0; }
+
+/* ═══ the bar ══════════════════════════════════════════════════════
+   One outbound verb, one private verb, and the movement hint. No
+   verdicts: nothing here is a judgement the talent will ever see. */
+
+.sc-bar {
+  display: flex;
+  align-items: center;
+  height: var(--sc-bar-h);
+  padding: 15px var(--sc-pad);
+  background: #050403;
+  border-top: 1px solid rgba(201, 165, 90, 0.35);
+}
+
+.sc-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: clamp(16px, 2.4vw, 40px);
+  width: 100%;
+}
+
+.sc-act { min-width: 0; }
+
+.sc-act-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sc-invite {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: var(--sc-radius);
+  background: var(--sc-gold);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #141210;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s var(--sc-ease), color 0.2s var(--sc-ease), border-color 0.2s var(--sc-ease);
+}
+
+.sc-invite:hover:not(:disabled) { background: #b8956a; }
+
+.sc-invite:disabled { cursor: default; }
+
+/* Invited is a state, so it is words and it stops being an action. */
+.sc-invite--done {
+  background: transparent;
+  border-color: var(--sc-cream-hair);
+  color: var(--sc-cream-soft);
+}
+
+.sc-act-when {
+  color: var(--sc-cream-faint);
+  white-space: nowrap;
+}
+
+.sc-consent {
+  margin: 7px 0 0;
+  max-width: 52ch;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--sc-cream-faint);
+}
+
+.sc-private {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sc-private > span {
+  color: var(--sc-cream-soft);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.sc-quietbtn {
+  padding: 8px 2px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--sc-cream-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s var(--sc-ease), border-color 0.2s var(--sc-ease);
+}
+
+.sc-quietbtn:hover:not(:disabled) {
+  color: var(--sc-cream);
+  border-bottom-color: var(--sc-hair-gold);
+}
+
+.sc-quietbtn:disabled { color: var(--sc-cream-ghost); cursor: default; }
+
+/* The talent's own published artefacts, as references rather than actions.
+   Plain text links, so nothing on the bar competes with the one verb. */
+a.sc-quietbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  border-bottom-color: transparent;
+}
+
+.sc-privatesep {
+  color: var(--sc-cream-ghost);
+  font-size: 12px;
+}
+
+.sc-hint {
+  justify-self: end;
+  margin: 0;
+  color: var(--sc-cream-faint);
+  white-space: nowrap;
+}
+
+/* ═══ halt ═══ */
+
+.sc-halt {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: clamp(40px, 6vw, 90px) var(--sc-pad);
+}
+
+.sc-halt p { margin: 0; color: var(--sc-cream-soft); }
+
+/* ═══ responsive ═══ */
+
+@media (max-width: 1180px) {
+  .sc-stage { grid-template-columns: minmax(0, 1fr) clamp(292px, 36%, 380px); }
+  .sc-recordcols { gap: clamp(24px, 3vw, 40px); }
+}
+
+@media (max-width: 1020px) {
+  .sc-stage {
+    display: block;
+    height: auto;
+    min-height: 0;
+  }
+
+  .sc-book { padding-bottom: 18px; }
+
+  /* Stacked, the frame must leave the name, the fact line and the
+     representation on screen with it: those are the first things a scout
+     reads, and representation is the one that stops an approach. */
+  .sc-plate {
+    height: min(40vh, 400px);
+    flex: none;
+  }
+
+  /* The band is the first thing the ledger can afford to lose; its
+     separator goes with it rather than being orphaned. */
+  .sc-ledger-band,
+  .sc-ledger-sep { display: none; }
+
+  .sc-facts { padding-top: 22px; }
+
+  /* Stacked, nothing derives from the bar's height, so it sizes to its
+     own content again. */
+  .sc-bar { height: auto; min-height: var(--sc-bar-h); }
+
+  .sc-recordcols { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .sc-top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 10px;
+    padding-inline: 14px;
+  }
+
+  .sc-top-mark span { font-size: 15px; }
+
+  /* Stretched rather than centred, so the brief is bounded by the column
+     instead of overflowing it in both directions. */
+  .sc-top-scope {
+    justify-self: stretch;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .sc-top-scope span { display: none; }
+  .sc-top-scope strong {
+    max-width: 100%;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+  }
+
+  .sc-plate { height: min(42vh, 360px); }
+
+  .sc-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .sc-bar { padding: 12px 14px; }
+
+  .sc-bar-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+  }
+
+  .sc-act { flex: 1 1 100%; }
+  .sc-private { justify-self: start; }
+  .sc-hint { display: none; }
+}
+
+/* ═══ reduced motion ═══ */
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-scroll { scroll-behavior: auto; }
+
+  .sc-plate--wait { animation: none; }
+
+  .sc-strip button,
+  .sc-bookgrid button,
+  .sc-invite,
+  .sc-quietbtn,
+  .sc-top-mark span,
+  .sc-pager button,
+  .sc-close {
+    transition: none;
+  }
+}

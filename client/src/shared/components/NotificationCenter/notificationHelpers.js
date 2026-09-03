@@ -26,6 +26,7 @@ export function getFilterTabs(variant = 'talent') {
 export function getNotificationCategory(type) {
   const map = {
     agency_profile_view: 'Agency interest',
+    agency_invitation: 'Invitation',
     application_submitted: 'Application',
     application_status: 'Application update',
     application_received: 'New submission',
@@ -52,9 +53,12 @@ export function filterNotifications(items, filterId, variant = 'talent') {
 
   if (filterId === 'applications') {
     return items.filter((item) =>
-      ['application_submitted', 'application_status', 'agency_profile_view'].includes(
-        item.type,
-      ),
+      [
+        'application_submitted',
+        'application_status',
+        'agency_profile_view',
+        'agency_invitation',
+      ].includes(item.type),
     );
   }
   if (filterId === 'messages') {

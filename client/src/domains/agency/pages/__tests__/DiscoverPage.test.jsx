@@ -9,15 +9,19 @@
  *      falling back to mentions when it is not;
  *   b. `discover_v2.look_only` means no requirement was applied, so the count
  *      line reads "Closest to your brief" and no group is named.
+ *
+ * Plus the Scout room's URL contract (tasks/discover-expanded-view-2026-09.md
+ * §4.4): the open lead lives in `?q=…&talent=<id>`, so a shared link restores
+ * the person AND the search that found them, and closing returns to the grid.
  */
 
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import DiscoverPage from '../DiscoverPage';
-import { getDiscoverableTalent, getAgencyProfile } from '../../api/agency';
+import { getDiscoverableTalent, getAgencyProfile, getProfilePreview } from '../../api/agency';
 
 // The page's atmospheric layer is a WebGL shader; jsdom has no GL context.
 vi.mock('../Grainient', () => ({ default: () => null }));
@@ -28,7 +32,10 @@ vi.mock('../../api/agency', async (importOriginal) => {
     ...actual,
     getDiscoverableTalent: vi.fn(),
     getAgencyProfile: vi.fn(),
+    getProfilePreview: vi.fn(),
     inviteTalent: vi.fn(),
+    dismissTalent: vi.fn(),
+    undismissTalent: vi.fn(),
   };
 });
 
@@ -71,11 +78,11 @@ const response = ({ results, lookOnly = false, match = null, partial = 0 }) => (
   },
 });
 
-function renderPage(query = 'girl next door commercial warmth') {
+function renderPage(query = 'girl next door commercial warmth', extra = '') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[`/dashboard/agency/discover?q=${encodeURIComponent(query)}`]}>
+      <MemoryRouter initialEntries={[`/dashboard/agency/discover?q=${encodeURIComponent(query)}${extra}`]}>
         <DiscoverPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -164,5 +171,63 @@ describe('DiscoverPage — a look-only brief', () => {
     await waitFor(() => expect(screen.getByText('Ines Moreau')).toBeInTheDocument());
     expect(screen.getByText('2 matches')).toBeInTheDocument();
     expect(screen.queryByText('Closest to your brief')).not.toBeInTheDocument();
+  });
+});
+
+
+describe('DiscoverPage — the Scout room lives in the URL', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getAgencyProfile.mockResolvedValue({ agency_name: 'Maison' });
+    getProfilePreview.mockResolvedValue({
+      success: true,
+      profile: {
+        id: 'p-1',
+        display_name: 'Ines Moreau',
+        lanes: ['Editorial'],
+        city: 'Paris',
+        age_band: '18+',
+        representation_status: 'unrepresented',
+        height_cm: 178,
+        images: [{ id: 'i1', public_url: 'https://img.test/1.jpg' }],
+      },
+    });
+  });
+
+  test('no room is open without a talent in the URL', async () => {
+    getDiscoverableTalent.mockResolvedValue(response({ results: [profile()] }));
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Ines Moreau')).toBeInTheDocument());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  test('a link carrying the talent restores the person and the search', async () => {
+    getDiscoverableTalent.mockResolvedValue(response({ results: [profile()] }));
+    renderPage('girl next door commercial warmth', '&talent=p-1');
+
+    const room = await screen.findByRole('dialog');
+    expect(room).toHaveAttribute('aria-label', 'Scouting Ines Moreau');
+    // The brief travels into the chrome with the person.
+    expect(screen.getByText('“girl next door commercial warmth”')).toBeInTheDocument();
+    await waitFor(() => expect(getProfilePreview).toHaveBeenCalledWith('p-1'));
+  });
+
+  test('opening a card opens the room, and closing it returns to the grid', async () => {
+    getDiscoverableTalent.mockResolvedValue(response({ results: [profile()] }));
+    const { container } = renderPage();
+    await waitFor(() => expect(screen.getByText('Ines Moreau')).toBeInTheDocument());
+
+    fireEvent.click(container.querySelector('.dc-card'));
+    await screen.findByRole('dialog');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  test('a talent id that is not in the result set is dropped', async () => {
+    getDiscoverableTalent.mockResolvedValue(response({ results: [profile()] }));
+    renderPage('girl next door commercial warmth', '&talent=not-here');
+    await waitFor(() => expect(screen.getByText('Ines Moreau')).toBeInTheDocument());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

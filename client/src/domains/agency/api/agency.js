@@ -315,6 +315,20 @@ export async function inviteTalent(profileId, queryLogId = null) {
 }
 
 /**
+ * Not for us. A private, agency-scoped exclusion: this profile drops out of
+ * this agency's future Scout results. It is never communicated to the talent
+ * and it is not a verdict, which is why it has no application to attach to.
+ */
+export async function dismissTalent(profileId) {
+  return apiClient.post(`/discover/${profileId}/dismiss`, {});
+}
+
+/** Undo a "not for us". */
+export async function undismissTalent(profileId) {
+  return apiClient.delete(`/discover/${profileId}/dismiss`);
+}
+
+/**
  * Get all boards
  */
 export async function getBoards(type) {
@@ -890,6 +904,8 @@ export default {
   getApplicationDetails,
   getTalentDossier,
   inviteTalent,
+  dismissTalent,
+  undismissTalent,
   getBoards,
   getCastingBoardPipeline,
   createBoard,

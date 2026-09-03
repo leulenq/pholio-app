@@ -10,7 +10,7 @@
  *                  a rack of boxes. A phrase underlines in gold when reached
  *                  for and offers the one gesture that drops it.
  *   3. Grid      — exact matches first, then the closest, each card saying why
- *   4. Detail    — full-frame modal
+ *   4. Scout room — the expanded lead view (components/scout/ScoutRoom)
  *
  * The brief becomes requirements. Ordering is a function of the booker's stated
  * requirements against the talent's own declared facts: no score, no ranking
@@ -27,7 +27,7 @@ import { getDiscoverableTalent, inviteTalent, getAgencyProfile } from '../api/ag
 import { predictCompletion } from '../lib/intentParser';
 import { DivisionMark } from '../components/status';
 import BriefLine from '../components/BriefLine';
-import { DiscoverDetail } from './DiscoverDetail';
+import ScoutRoom from '../components/scout/ScoutRoom';
 import Grainient from './Grainient';
 import { Place } from '../components/meta';
 import { cmToImperial } from '../components/meta/metaFormat';
@@ -129,6 +129,7 @@ function TalentCard({ talent, index, onOpen, onInvite, inviting }) {
   return (
     <motion.article
       className="dc-card"
+      data-talent-id={talent.id}
       tabIndex={0}
       aria-label={`Open ${talent.name}'s profile`}
       initial={reduce ? { opacity: 0 } : { opacity: 0, y: 24 }}
@@ -242,9 +243,11 @@ export default function DiscoverPage() {
   const [isFocused, setIsFocused] = useState(false);
   const [promptIdx, setPromptIdx] = useState(0);
   const [promptVisible, setPromptVisible] = useState(true);
-  const [selected, setSelected] = useState(null);
   const [invitedIds, setInvitedIds] = useState(() => new Set());
   const inputRef = useRef(null);
+  /* The card the room was opened from, so Esc and browser-back both land
+     the booker back on it rather than at the top of the grid. */
+  const returnIdRef = useRef(null);
 
   const completion = useMemo(() => predictCompletion(query), [query]);
   // Brief mode is a property of the text, not a control: the moment the query
@@ -332,7 +335,7 @@ export default function DiscoverPage() {
           key: g.kind,
           kind: g.kind,
           total: g.total ?? (g.results || []).length,
-          talents: (g.results || []).map((p) => mapTalent(p, invitedIds)),
+          talents: (g.results || []).map((p) => ({ ...mapTalent(p, invitedIds), band: g.kind })),
         }))
         .filter((g) => g.talents.length > 0);
     }
@@ -344,6 +347,55 @@ export default function DiscoverPage() {
   const talents = useMemo(() => groups.flatMap((g) => g.talents), [groups]);
 
   const agencyName = agency?.agency_name?.trim() || null;
+
+  /* The open lead lives in the URL (`?q=…&talent=<id>`), so browser back
+     closes the room and a shared link restores the person AND the search
+     that found them. Opening pushes a history entry; closing replaces it,
+     so back from an open room closes rather than reopening. */
+  const openId = searchParams.get('talent');
+  const selected = useMemo(
+    () => (openId ? talents.find((t) => t.id === openId) || null : null),
+    [openId, talents],
+  );
+
+  const writeTalentParam = (id, { replace }) => {
+    const next = {};
+    if (submitted) next.q = submitted;
+    if (submitted && role) next.role = String(role);
+    if (id) next.talent = id;
+    setSearchParams(next, { replace });
+  };
+
+  const openTalent = (t) => {
+    returnIdRef.current = t.id;
+    writeTalentParam(t.id, { replace: false });
+  };
+
+  /* Moving through the result set replaces rather than pushes, so back is
+     always "close the room" and never a walk backwards through everyone
+     the booker just flipped past. */
+  const navigateTalent = (t) => {
+    returnIdRef.current = t.id;
+    writeTalentParam(t.id, { replace: true });
+  };
+
+  const closeTalent = () => {
+    const id = returnIdRef.current;
+    writeTalentParam(null, { replace: true });
+    requestAnimationFrame(() => {
+      const card = id && document.querySelector(`[data-talent-id="${id}"]`);
+      if (card) card.focus({ preventScroll: false });
+    });
+  };
+
+  /* A `talent` id that is not in this result set (dismissed since, or a
+     link into a search that no longer returns them) is dropped rather
+     than left pointing at nothing. */
+  useEffect(() => {
+    if (!openId || selected || isFetching || !data) return;
+    writeTalentParam(null, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, selected, isFetching, data]);
 
   // Exact matches carry no heading. The partial group carries a repeated one,
   // which leads the page when nothing matched exactly. A look-only brief has
@@ -616,7 +668,7 @@ export default function DiscoverPage() {
                       key={t.id}
                       talent={t}
                       index={i}
-                      onOpen={setSelected}
+                      onOpen={openTalent}
                       onInvite={(tl) => invite.mutate(tl.id)}
                       inviting={invite.isPending && invite.variables === t.id}
                     />
@@ -640,12 +692,13 @@ export default function DiscoverPage() {
 
       <AnimatePresence>
         {selected && (
-          <DiscoverDetail
-            key={selected.id}
+          <ScoutRoom
+            key="scout-room"
             talent={selected}
             talents={talents}
-            onClose={() => setSelected(null)}
-            onNavigate={(t) => setSelected(t)}
+            brief={submitted}
+            onClose={closeTalent}
+            onNavigate={navigateTalent}
             onInvite={(tl) => invite.mutate(tl.id)}
             inviting={invite.isPending && invite.variables === selected.id}
           />

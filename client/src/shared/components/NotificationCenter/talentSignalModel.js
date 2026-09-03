@@ -68,6 +68,13 @@ export function classifySignal(item) {
     return BAND.ACTION;
   }
 
+  // An agency asking for an application is the talent's move to make, so it
+  // belongs with the things waiting on them rather than under "who's looking".
+  // Attention is interest; a request is a question.
+  if (type === 'agency_invitation') {
+    return BAND.ACTION;
+  }
+
   if (type === 'application_status' && AWAITING_TALENT_STATUSES.has(item?.metadata?.status)) {
     return BAND.ACTION;
   }
