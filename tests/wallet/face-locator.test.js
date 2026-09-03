@@ -41,6 +41,31 @@ describe("Pholio ID face locator", () => {
     expect(subject.focal.x).toBeCloseTo(0.5, 5);
   });
 
+  test("finds the face in a real photograph with the wasm cascade detector", async () => {
+    // eslint-disable-next-line global-require
+    const path = require("path");
+    // eslint-disable-next-line global-require
+    const fs = require("fs");
+    const photo = fs.readFileSync(path.resolve(__dirname, "../../client/public/assets/model_studio_warm.jpg"));
+    const subject = await locateSubject(photo, {});
+    expect(subject.source).toBe("detector");
+    expect(subject.face.x).toBeGreaterThan(0.3);
+    expect(subject.face.x).toBeLessThan(0.45);
+    expect(subject.face.y).toBeLessThan(0.2);
+    expect(subject.focal.y).toBeGreaterThan(0.15);
+    expect(subject.focal.y).toBeLessThan(0.3);
+  }, 30000);
+
+  test("prefers the highest of comparably sized face candidates", () => {
+    // eslint-disable-next-line global-require
+    const { primaryFace } = require("../../src/domains/pdf/composition/perception/faces");
+    const face = { x: 0.42, y: 0.32, w: 0.16, h: 0.12 };
+    const knee = { x: 0.43, y: 0.54, w: 0.19, h: 0.14 };
+    const speck = { x: 0.1, y: 0.05, w: 0.03, h: 0.02 };
+    expect(primaryFace([knee, face, speck])).toBe(face);
+    expect(primaryFace([])).toBeNull();
+  });
+
   test("caps saliency with the people prior on portrait frames, and leaves landscapes alone", async () => {
     const bright = (w, h, cy) => sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" fill="#101010"/><circle cx="${w * 0.7}" cy="${cy}" r="${Math.min(w, h) * 0.08}" fill="#f4f4f4"/></svg>`)).jpeg().toBuffer();
     const portrait = await locateSubject(await bright(600, 900, 800), {});

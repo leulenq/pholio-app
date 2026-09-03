@@ -19,11 +19,11 @@
  *                                  bottom edge, header text sits over the top
  * Images ship at @2x and @3x per Apple's current guidance.
  *
- * The artwork carries two veils in the theme's own color: a soft one at the
- * top under the wordmark and header, a deeper one at the bottom under the
- * title and footer strip. They make the pass text legible on any photograph
- * without touching the face, which the crop keeps in the clear band between
- * them. The photograph emerges from ink, or from paper.
+ * The pass is a designed object, not a photograph with type on it: two flat
+ * fields of the theme's material with a band of the other material across
+ * the middle, and a circular portrait medallion straddling the upper
+ * boundary. Photography and typography never overlap; every element has a
+ * zone. See POSTER and DISC below.
  */
 
 const path = require("path");
@@ -46,10 +46,7 @@ const PT = Object.freeze({
 });
 
 /** Where the face lands, as a fraction of the crop's height (top = 0). */
-const FOCAL_Y = Object.freeze({ artwork: 0.4, thumbnail: 0.44 });
-
-/** Veil bands as fractions of artwork height. */
-const VEIL = Object.freeze({ top: 0.24, bottomStart: 0.56 });
+const FOCAL_Y = Object.freeze({ thumbnail: 0.44 });
 
 const ICON_BACKGROUND = "#1A1815";
 const ICON_GOLD = "#C9A55A";
@@ -196,78 +193,97 @@ async function normalizedPhoto(photo) {
   return { buffer, width: meta.width, height: meta.height };
 }
 
-/** Face height as a fraction of the thumbnail when a face box is known. */
-const THUMBNAIL_FACE_FRACTION = 0.42;
-
 /**
- * Square headshot for the generic face: rounded corners, transparent PNG.
- * With a face box the crop tightens to a headshot (face ≈ 42% of the
- * square); without one it is the largest square around the focal point.
+ * The portrait disc. The reference object for Pholio ID is a medallion: a
+ * circular portrait that straddles the boundary between two fields. The crop
+ * is a headshot (face ≈ 46% of the diameter) when a face box is known,
+ * otherwise a head-and-shoulders square around the focal point. A thin gold
+ * ring separates the disc from both fields whatever the photograph's own
+ * background does.
  */
-async function renderThumbnail(photo, { focal, face, scale }) {
+const DISC = Object.freeze({ faceFraction: 0.46, looseSide: 0.72, looseSidePortrait: 0.55, tallTopCap: 0.04, ringPt: 1.5 });
+
+async function renderDisc(photo, { focal, face, diameterPx, ringPx, ringColor }) {
   const src = await normalizedPhoto(photo);
-  const side = Math.round(PT.thumbnail * scale);
-  const radius = Math.round(PT.thumbnailRadius * scale);
   const maxSide = Math.min(src.width, src.height);
   let window;
   if (face && face.h > 0) {
-    const wanted = Math.round((face.h * src.height) / THUMBNAIL_FACE_FRACTION);
-    const cropSide = clamp(wanted, Math.round(maxSide * 0.35), maxSide);
+    const wanted = Math.round((face.h * src.height) / DISC.faceFraction);
+    const side = clamp(wanted, Math.round(maxSide * 0.3), maxSide);
     const cx = (face.x + face.w / 2) * src.width;
     const cy = (face.y + face.h * 0.5) * src.height;
     window = {
-      left: Math.round(clamp(cx - cropSide / 2, 0, src.width - cropSide)),
-      top: Math.round(clamp(cy - cropSide * FOCAL_Y.thumbnail, 0, src.height - cropSide)),
-      width: cropSide,
-      height: cropSide,
+      left: Math.round(clamp(cx - side / 2, 0, src.width - side)),
+      top: Math.round(clamp(cy - side * FOCAL_Y.thumbnail, 0, src.height - side)),
+      width: side,
+      height: side,
     };
   } else {
-    window = cropWindow({ ...src, aspect: 1, focal, focalY: FOCAL_Y.thumbnail });
+    // No face box: a head-and-shoulders guess. Tall frames (three-quarter and
+    // full-length shots), and the head is near the top of the frame, so the
+    // crop is anchored there rather than trusting the focal point downward.
+    const tall = src.height > src.width * 1.2;
+    const side = Math.round(maxSide * (tall ? DISC.looseSidePortrait : DISC.looseSide));
+    const fx = clamp(Number(focal?.x) || 0.5, 0, 1);
+    const fy = clamp(Number(focal?.y) || 0.38, 0, 1);
+    const wantedTop = fy * src.height - side * FOCAL_Y.thumbnail;
+    const topCap = tall ? src.height * DISC.tallTopCap : src.height;
+    window = {
+      left: Math.round(clamp(fx * src.width - side / 2, 0, src.width - side)),
+      top: Math.round(clamp(Math.min(wantedTop, topCap), 0, src.height - side)),
+      width: side,
+      height: side,
+    };
   }
-  const square = await sharp(src.buffer).extract(window).resize(side, side).toBuffer();
-  const mask = Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}"><rect width="${side}" height="${side}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`,
+  const inner = diameterPx - ringPx * 2;
+  const square = await sharp(src.buffer).extract(window).resize(inner, inner).toBuffer();
+  const circle = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${inner}" height="${inner}"><circle cx="${inner / 2}" cy="${inner / 2}" r="${inner / 2}" fill="#fff"/></svg>`,
   );
-  return sharp(square).ensureAlpha().composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
+  const portrait = await sharp(square).ensureAlpha().composite([{ input: circle, blend: "dest-in" }]).png().toBuffer();
+  const ring = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${diameterPx}" height="${diameterPx}"><circle cx="${diameterPx / 2}" cy="${diameterPx / 2}" r="${diameterPx / 2 - ringPx / 2}" fill="none" stroke="${ringColor}" stroke-width="${ringPx}"/></svg>`,
+  );
+  return transparent(diameterPx, diameterPx)
+    .composite([{ input: portrait, left: ringPx, top: ringPx }, { input: ring }])
+    .png()
+    .toBuffer();
 }
 
-function veilSvg(width, height, color) {
-  const topH = Math.round(height * VEIL.top);
-  const bottomY = Math.round(height * VEIL.bottomStart);
-  return Buffer.from(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  <defs>
-    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${color}" stop-opacity="0.84"/>
-      <stop offset="0.5" stop-color="${color}" stop-opacity="0.4"/>
-      <stop offset="1" stop-color="${color}" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="b" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${color}" stop-opacity="0"/>
-      <stop offset="0.45" stop-color="${color}" stop-opacity="0.62"/>
-      <stop offset="1" stop-color="${color}" stop-opacity="0.96"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="${width}" height="${topH}" fill="url(#t)"/>
-  <rect x="0" y="${bottomY}" width="${width}" height="${height - bottomY}" fill="url(#b)"/>
-</svg>`,
-  );
-}
-
-/** Full-bleed photographic face for iOS 27+: focal crop plus the theme's veils. */
-async function renderArtwork(photo, { focal, theme, scale }) {
+/** iOS 26 thumbnail: the disc itself, transparent outside the circle, at Wallet's 90pt. */
+async function renderThumbnail(photo, { focal, face, scale, theme }) {
   const palette = resolveTheme(theme);
-  const src = await normalizedPhoto(photo);
+  const diameterPx = Math.round(PT.thumbnail * scale);
+  return renderDisc(photo, { focal, face, diameterPx, ringPx: Math.max(1, Math.round(DISC.ringPt * scale)), ringColor: palette.hex.ring });
+}
+
+/**
+ * Poster composition (358×448pt), fractions of height:
+ *   0.00–0.28  field      wordmark top-left, height header top-right (Wallet)
+ *   0.28–0.51  band       the medallion straddles the 0.28 boundary
+ *   0.51–1.00  field      Wallet's title sits here, then the footer strip + QR
+ * Field and band are the theme's two materials; the three text positions
+ * Wallet controls all fall on the field, so one foreground color serves all.
+ */
+const POSTER = Object.freeze({ bandTop: 0.28, bandBottom: 0.51, discDiameter: 0.4 });
+
+async function renderArtwork(photo, { focal, face, theme, scale }) {
+  const palette = resolveTheme(theme);
   const width = Math.round(PT.artworkWidth * scale);
   const height = Math.round(PT.artworkHeight * scale);
-  const window = cropWindow({ ...src, aspect: PT.artworkWidth / PT.artworkHeight, focal, focalY: FOCAL_Y.artwork });
-  return sharp(src.buffer)
-    .extract(window)
-    .resize(width, height)
-    .composite([{ input: veilSvg(width, height, palette.hex.background) }])
-    // Palette PNG: ~40% of the lossless size at this resolution with no
-    // visible banding in the veils (dithered); Apple asks for small images.
-    .png({ palette: true, quality: 90, dither: 1, compressionLevel: 9 })
+  const bandTop = Math.round(height * POSTER.bandTop);
+  const bandBottom = Math.round(height * POSTER.bandBottom);
+  const diameterPx = Math.round(width * POSTER.discDiameter);
+  const disc = await renderDisc(photo, { focal, face, diameterPx, ringPx: Math.max(1, Math.round(DISC.ringPt * scale)), ringColor: palette.hex.ring });
+  const band = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect x="0" y="${bandTop}" width="${width}" height="${bandBottom - bandTop}" fill="${palette.hex.band}"/></svg>`,
+  );
+  return sharp({ create: { width, height, channels: 4, background: palette.hex.background } })
+    .composite([
+      { input: band },
+      { input: disc, left: Math.round((width - diameterPx) / 2), top: Math.round(bandTop - diameterPx / 2) },
+    ])
+    .png({ compressionLevel: 9, adaptiveFiltering: true })
     .toBuffer();
 }
 
@@ -293,8 +309,8 @@ async function renderPassAssets({ photo, focal, face = null, theme }) {
         renderIcon({ scale }),
         renderWordmark({ letterHeightPt: PT.logoLetters, canvasHeightPt: PT.logoHeight, color: palette.hex.wordmark, scale }),
         renderWordmark({ letterHeightPt: PT.primaryLogoLetters, canvasHeightPt: PT.primaryLogoHeight, color: palette.hex.wordmark, scale }),
-        renderThumbnail(photo, { focal, face, scale }),
-        renderArtwork(photo, { focal, theme: palette.id, scale }),
+        renderThumbnail(photo, { focal, face, scale, theme: palette.id }),
+        renderArtwork(photo, { focal, face, theme: palette.id, scale }),
       ]);
       files[named("icon", scale)] = icon;
       files[named("logo", scale)] = logo;
@@ -310,11 +326,13 @@ module.exports = {
   SCALES,
   PT,
   FOCAL_Y,
-  VEIL,
+  DISC,
+  POSTER,
   brandGlyphs,
   cropWindow,
   renderWordmark,
   renderIcon,
+  renderDisc,
   renderThumbnail,
   renderArtwork,
   renderPassAssets,

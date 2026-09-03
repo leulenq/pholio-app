@@ -59,14 +59,14 @@ const THEMES = Object.freeze({
     backgroundColor: "rgb(26, 24, 21)",
     foregroundColor: "rgb(250, 248, 245)",
     labelColor: "rgb(201, 165, 90)",
-    hex: Object.freeze({ background: "#1A1815", foreground: "#FAF8F5", label: "#C9A55A", wordmark: "#C9A55A" }),
+    hex: Object.freeze({ background: "#1A1815", band: "#FAF8F5", foreground: "#FAF8F5", label: "#C9A55A", wordmark: "#C9A55A", ring: "#C9A55A" }),
   }),
   paper: Object.freeze({
     id: "paper",
     backgroundColor: "rgb(250, 248, 245)",
     foregroundColor: "rgb(26, 24, 21)",
     labelColor: "rgb(138, 106, 64)",
-    hex: Object.freeze({ background: "#FAF8F5", foreground: "#1A1815", label: "#8A6A40", wordmark: "#8A6A40" }),
+    hex: Object.freeze({ background: "#FAF8F5", band: "#1A1815", foreground: "#1A1815", label: "#8A6A40", wordmark: "#8A6A40", ring: "#C9A55A" }),
   }),
 });
 const DEFAULT_THEME = "ink";

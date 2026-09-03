@@ -36,6 +36,8 @@
     # are fail-soft so nothing errors to say why. 368K.
     "data/**",
     "src/domains/pdf/templates/**",
+    # Haar cascade read at runtime by perception/faces.js (wasm OpenCV).
+    "src/domains/pdf/composition/perception/cascades/**",
     "public/agency-logos/**",
     "public/assets/**",
     "public/brand/**",

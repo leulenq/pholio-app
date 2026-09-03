@@ -45,7 +45,7 @@ of your Wallet Pass", `Pass`, `PassFieldContent`), WWDC26 session 209
 | Two generic layouts now exist. `posterGeneric` (iOS 27+) is a full-bleed 358×448pt artwork with a 30pt primary logo, header fields, primary fields (the first, unlabeled, renders as a large title), **one** footer field and a square QR. `generic` (iOS 26 and earlier) is a flat colour field with a 50–160×50pt logo, a square 60–90×90pt thumbnail, up to 3 header fields, 1 primary, and secondary+auxiliary fields (4 combined next to a square barcode), plus the QR. | One bundle carries both dictionaries. Every device gets the photographic face it can render. |
 | Text never wraps; a value Wallet cannot fit drops the whole field. | Every front value is short and deterministic: name ≤ 20 chars with graceful fallbacks, agency line ≤ 30 chars on the face (full on the back), dual-unit stats only on the wide rows. |
 | Three colours only: `backgroundColor`, `foregroundColor`, `labelColor`; `footerBackgroundColor` colours the poster's bottom strip. Wallet may adjust colours it judges illegible. | Two themes (§4) measured to WCAG AA on labels so Wallet never needs to intervene. |
-| Images ship at @2x and @3x; icon 38pt; thumbnails are square with rounded corners baked into a transparent PNG; keep files small. | `pass-artwork.js` renders exactly those files; poster artwork is a dithered palette PNG (≈500 KB at 3x) so a bundle is ≈1 MB, not 3. |
+| Images ship at @2x and @3x; icon 38pt; thumbnails are square with rounded corners baked into a transparent PNG; keep files small. | `pass-artwork.js` renders exactly those files; the flat-field artwork compresses to ≈200 KB at 3x, so a bundle is under 600 KB. |
 | Labels on the front are uppercase small text; the poster title has no label. | The name carries no label anywhere (also the house rule: no eyebrow above a heading). |
 | Wallet renders the QR itself on a light plate and shows `altText` under it. | QR payload = the short portfolio URL the comp card already uses (`/p/:slug`); altText = the typeable host path. |
 | Wallet does not follow system dark mode; the pass's colours are the pass's. | Light/dark is a theme the pass is issued in, not something the device flips. |
@@ -60,23 +60,46 @@ WWDR intermediate embedded, stored zip via do-not-zip). The signing recipe
 is byte-for-byte the one that library has shipped for years; only the
 schema gate is gone.
 
-## 3. The two faces
+## 3. The composition: a designed object
 
-### iOS 27 and later — `posterGeneric`
+The reference for Pholio ID is a medallion card, not a photograph with type
+on it. Three horizontal zones give the pass a graphic identity before a
+single word is read, and every element has a zone of its own:
 
 ```
 ┌──────────────────────────────┐
-│ PHOLIO             HEIGHT    │  ← primary logo (gold wordmark), header
+│ PHOLIO             HEIGHT    │  field (ink)   — identity: wordmark, header
 │                 178 cm / 5'10"│
+│            ╭────────╮        │
+│────────────│ portrait│───────│  ← the medallion straddles the boundary
+│            ╰────────╯        │  band (paper)  — the person, and quiet space
 │                              │
-│         [ photograph ]       │  ← full-bleed artwork, face in the clear band
-│                              │
-│ Ava Martinez                 │  ← title (primary field, no label)
+│──────────────────────────────│
+│ Ava Martinez                 │  field (ink)   — the name (Wallet's title)
 │ ─────────────────────────────│
-│ REPRESENTATION        ▣ QR   │  ← footer strip (theme colour) + square QR
+│ REPRESENTATION        ▣ QR   │  footer strip  — who books them, the code
 │ Northstar Models             │
 └──────────────────────────────┘
 ```
+
+Geometry (fractions of the 448pt artwork height): upper field 0 to 0.28,
+band 0.28 to 0.51, lower field 0.51 to 1. Disc diameter 40% of width,
+centred on the 0.28 boundary, with a 1.5pt gold ring so it reads as an
+object on both materials whatever the photograph's own background does.
+
+Why the zones fall where they do: on the poster face Wallet places the
+header top-right, the title just above the bottom strip, and the footer
+plus QR on the strip, all in one foreground colour. Those three text
+positions must share a tone, so the two fields carry the text and the band
+carries the person. Photography and typography never overlap; there are no
+veils, no gradients, nothing competing with the face.
+
+### iOS 27 and later — `posterGeneric`
+
+Artwork as above; `primaryLogo` is the gold wordmark; header HEIGHT; title
+is the name; the single footer field is the representation line; Wallet
+draws the QR on the strip, which is coloured with `footerBackgroundColor`
+to match the lower field.
 
 ### iOS 26 and earlier — `generic`
 
@@ -84,7 +107,7 @@ schema gate is gone.
 ┌──────────────────────────────┐
 │ PHOLIO             HEIGHT    │  ← logo, header
 │                 178 cm / 5'10"│
-│ Ava Martinez          [90pt] │  ← primary (no label) + square thumbnail
+│ Ava Martinez         (disc)  │  ← primary (no label) + the medallion as thumbnail
 │ REPRESENTATION               │  ← secondary (wide row)
 │ Northstar Models             │
 │ BUST      WAIST      HIPS    │  ← auxiliary: three core stats, dual units
@@ -93,6 +116,9 @@ schema gate is gone.
 │   app.pholio.studio/p/ava…   │
 └──────────────────────────────┘
 ```
+
+The thumbnail is the same disc (transparent outside the circle, ring baked
+in) on the flat field, so the two faces are one object at two ages of iOS.
 
 Collapsed in the stack Wallet shows only the logo and header: **PHOLIO ·
 HEIGHT 178 cm / 5'10"**. Height is the one number every booker checks
@@ -116,7 +142,8 @@ Two materials, one pass. Both were measured, not eyeballed.
 | foregroundColor | ivory | warm ink |
 | labelColor | brand gold `#C9A55A` — 7.6:1 on ink | deep gold `#8A6A40` — 4.7:1 on ivory |
 | Wordmark | brand gold | deep gold |
-| Artwork veils | ink at top (header) and bottom (title) | ivory at top and bottom |
+| Fields / band | ink fields, paper band | paper fields, ink band |
+| Disc ring | brand gold | brand gold |
 
 Why Ink is the default: photography on a dark field is the editorial
 standard and the language of the onboarding screen test; brand gold is
@@ -124,11 +151,12 @@ legible on ink and not on ivory (2.2:1), so the wordmark reads as itself;
 and warm ink (not black) stays a distinct object against Wallet's black
 ground. Paper is the comp card's sibling and is the one that stands out in
 a stack of dark bank cards. Both ship; `?theme=paper` selects the second.
+The two themes are the same composition with the materials exchanged.
 The icon (gold monogram on ink) is theme-independent so Mail and
 notifications always show one Pholio.
 
-Every text colour clears WCAG AA at label size; the veils guarantee it
-over any photograph (§5).
+Every text colour clears WCAG AA at label size, and no text ever sits on
+the photograph (§3).
 
 ## 5. Photography
 
@@ -139,8 +167,12 @@ eligible. Only images the public portfolio would show are candidates
 never uses a full-length frame.
 
 **Face location** (`face-locator.js`), best first, all fail-soft:
-1. face boxes from the perception engine (`@vladmandic/human` when
-   installed — recommended for production, see §8);
+1. face boxes from the perception engine: `@vladmandic/human` when
+   installed, otherwise the vendored OpenCV Haar frontal-face cascade run
+   through `@techstark/opencv-js` (WebAssembly, no native dependency,
+   150–350 ms on a 640px probe). Among candidates of comparable size the
+   highest in the frame wins, which discards the cascade's usual false
+   positives (a knee, a hand) below the head;
 2. a head estimate from the subject matte (cached on the image row from
    the comp-card pipeline, else the sharp-only studio matte on clean
    backdrops): the head is the top of the silhouette, its width gives its
@@ -151,13 +183,19 @@ never uses a full-length frame.
    comp-card crop engine and image forensics now probe a re-encoded PNG
    (fix shipped in this change, 45 existing tests still green). On
    portrait frames the prior caps the point to the upper 38% and the
-   central band, because saliency follows contrast, not faces;
+   central band, and the disc crop anchors near the top of tall frames,
+   because saliency follows contrast, not faces;
 4. the comp card's people prior (0.5, 0.38).
 
-**Crops.** Poster artwork 358×448pt: the crop keeps the face at 40% of the
-height, in the clear band between the veils (top veil covers 24%, bottom
-veil starts at 56%). Thumbnail 90pt: a headshot (face ≈ 42% of the square)
-when a face box is known, else the largest square around the focal point.
+In the preview rig 8 of 10 cases resolve through the cascade; the two
+full-length menswear frames (face turned, hand at the brow) fall through to
+the anchored fallback and still crop head-and-shoulders.
+
+**The disc.** A headshot crop (face ≈ 46% of the diameter) when a face box
+is known; otherwise a head-and-shoulders square around the focal point,
+tighter on tall frames where the head takes a smaller share of the width.
+The same disc renders at 143pt on the poster artwork and at 90pt as the
+iOS 26 thumbnail.
 
 ## 6. Information that earned a place, and what did not
 
@@ -206,10 +244,13 @@ when a face box is known, else the largest square around the focal point.
 
 - Signing needs the Pass Type ID certificate (`pass.studio.pholio.talent`),
   its key and Apple's WWDR intermediate, PEM in env (`pass-config.js`).
-- Install `@vladmandic/human` + `@tensorflow/tfjs-node` on the API host to
-  turn on real face boxes; the locator picks them up with no code change.
-- Bundle weight: ≈1 MB (poster artwork dominates). Wallet downloads it once
-  per add.
+- Face boxes work out of the box through the wasm cascade. Installing
+  `@vladmandic/human` + `@tensorflow/tfjs-node` on the API host upgrades the
+  detector; the locator picks it up with no code change. The cascade XML is
+  read from `src/domains/pdf/composition/perception/cascades/` (listed in
+  `netlify.toml` included_files) and `@techstark/opencv-js` is an esbuild
+  external.
+- Bundle weight: under 600 KB. Wallet downloads it once per add.
 - Previews are an approximation of Wallet's layout built from Apple's
   published geometry; the bytes they show are the real pass. Verify on a
   device with Pass Designer / Simulator before launch, especially the poster

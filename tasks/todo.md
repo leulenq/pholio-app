@@ -276,10 +276,16 @@ Apple HIG "Wallet" (rev. June 8 2026), WalletPasses docs, WWDC26 session 209.
 - [x] Review section below
 
 ## Review
+- First composition (full-bleed portrait, name over it, QR in a footer) was
+  rejected by the owner as "profile data on a card". Restarted from the
+  reference's structure: ink / paper / ink fields with a portrait medallion
+  straddling the upper boundary, the name in the lower field, the QR alone on
+  the strip. Lesson recorded in `tasks/lessons.md`.
 - Shipped: both Wallet faces (`posterGeneric` for iOS 27+, `generic` for iOS 26
-  and earlier) in one signed bundle; Ink and Paper themes; artwork, thumbnail,
-  icon, logo and primary logo rendered from the brand lockup and the hero
-  photo; details sheet carrying the comp-card stats block.
+  and earlier) in one signed bundle; Ink and Paper themes as one composition
+  with the materials exchanged; disc, icon, logo and primary logo rendered
+  from the brand lockup and the hero photo; details sheet carrying the
+  comp-card stats block.
 - Found and fixed on the way: libvips reports attention coordinates in its
   shrink-on-load space for JPEG input, so `computeFocalPoint` (crop engine)
   and the forensics focal clamped to (1, 1) on real photos. Both now probe a

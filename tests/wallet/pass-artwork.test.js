@@ -70,36 +70,42 @@ describe("Pholio ID artwork", () => {
     expect(cropWindow({ width: 900, height: 1200, aspect: 1, focal: { x: NaN, y: undefined }, focalY: 0.44 }).left).toBe(0);
   });
 
-  test("thumbnail is a square, transparent-cornered headshot at Wallet's 90pt", async () => {
+  test("thumbnail is the portrait disc: transparent outside the circle, gold ring, face centred", async () => {
     const photo = await portraitPhoto();
     const face = { x: 0.39, y: 0.09, w: 0.22, h: 0.22 };
-    const thumb = await renderThumbnail(photo, { focal: { x: 0.5, y: 0.2 }, face, scale: 3 });
+    const thumb = await renderThumbnail(photo, { focal: { x: 0.5, y: 0.2 }, face, scale: 3, theme: "ink" });
     const meta = await sharp(thumb).metadata();
     expect([meta.width, meta.height, meta.hasAlpha]).toEqual([270, 270, true]);
-    expect((await pixel(thumb, 0, 0))[3]).toBe(0);
-    // The head disc lands around 44% down the square when a face box is known.
+    expect((await pixel(thumb, 0, 0))[3]).toBe(0); // outside the circle
+    expect((await pixel(thumb, 135, 2))[3]).toBe(255); // the ring at the top edge
+    const ring = await pixel(thumb, 135, 2);
+    expect(ring[0]).toBeGreaterThan(150); // gold
     const centre = await pixel(thumb, 135, Math.round(270 * 0.44));
-    expect(centre[0]).toBeLessThan(90);
+    expect(centre[0]).toBeLessThan(90); // the head disc
 
-    const loose = await renderThumbnail(photo, { focal: { x: 0.5, y: 0.2 }, face: null, scale: 2 });
+    const loose = await renderThumbnail(photo, { focal: { x: 0.5, y: 0.2 }, face: null, scale: 2, theme: "paper" });
     expect((await sharp(loose).metadata()).width).toBe(180);
   });
 
-  test("artwork is 358×448pt with the theme's veils top and bottom and the face in the clear band", async () => {
+  test("artwork is the tri-band medallion composition at 358×448pt", async () => {
     const photo = await portraitPhoto({ headY: 0.3 });
     const ink = await renderArtwork(photo, { focal: { x: 0.5, y: 0.3 }, theme: "ink", scale: 2 });
     const meta = await sharp(ink).metadata();
     expect([meta.width, meta.height]).toEqual([716, 896]);
-    const top = await pixel(ink, 358, 2);
-    const bottom = await pixel(ink, 358, 893);
-    const middle = await pixel(ink, 100, 400);
-    expect(top[0]).toBeLessThan(80); // ink veil
-    expect(bottom[0]).toBeLessThan(45);
-    expect(middle[0]).toBeGreaterThan(150); // untouched backdrop
+    expect(await pixel(ink, 20, 20)).toEqual([26, 24, 21, 255]); // upper field: ink
+    expect(await pixel(ink, 20, Math.round(896 * 0.4))).toEqual([250, 248, 245, 255]); // band: paper
+    expect(await pixel(ink, 20, Math.round(896 * 0.7))).toEqual([26, 24, 21, 255]); // lower field: ink
+    expect(await pixel(ink, 358, 893)).toEqual([26, 24, 21, 255]); // under Wallet's strip: ink
+    // The disc straddles the upper boundary: photo pixels above and below 28%.
+    const above = await pixel(ink, 358, Math.round(896 * 0.2));
+    const below = await pixel(ink, 358, Math.round(896 * 0.36));
+    expect(above).not.toEqual([26, 24, 21, 255]);
+    expect(below).not.toEqual([250, 248, 245, 255]);
 
     const paper = await renderArtwork(photo, { focal: { x: 0.5, y: 0.3 }, theme: "paper", scale: 2 });
-    expect((await pixel(paper, 358, 2))[0]).toBeGreaterThan(200); // ivory veil
-    expect(ink.length).toBeLessThan(900 * 1024);
+    expect(await pixel(paper, 20, 20)).toEqual([250, 248, 245, 255]);
+    expect(await pixel(paper, 20, Math.round(896 * 0.4))).toEqual([26, 24, 21, 255]);
+    expect(ink.length).toBeLessThan(400 * 1024);
   });
 
   test("renders the full asset set at 2x and 3x", async () => {
