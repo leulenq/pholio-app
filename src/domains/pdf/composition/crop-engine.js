@@ -568,6 +568,8 @@ function assignImagesToSlots(poolAnalysis, slots, options = {}) {
 // ---------------------------------------------------------------------------
 
 const FOCAL_PROBE_SIZE = 64;
+/** Longest edge of the re-encoded probe the attention pass reads. */
+const FOCAL_PROBE_MAX = 512;
 
 /**
  * Best-effort focal point detection via sharp's attention crop strategy.
@@ -603,9 +605,19 @@ async function computeFocalPoint(buffer) {
   }
 
   try {
-    const meta = await sharp(buffer).metadata();
-    const origW = meta.width;
-    const origH = meta.height;
+    // libvips reports `attentionX/Y` in the space of the image it actually
+    // analysed. For JPEG input that is the shrink-on-load space (a power-of-two
+    // reduction chosen internally), which is not observable from here, so the
+    // photo is first re-encoded as a bounded PNG probe (EXIF orientation
+    // applied): from PNG input the coordinates are in the scaled space that
+    // the math below assumes.
+    const probe = await sharp(buffer)
+      .rotate()
+      .resize(FOCAL_PROBE_MAX, FOCAL_PROBE_MAX, { fit: "inside", withoutEnlargement: true })
+      .png({ compressionLevel: 1 })
+      .toBuffer({ resolveWithObject: true });
+    const origW = probe.info.width;
+    const origH = probe.info.height;
     if (!origW || !origH) return null;
 
     const target = FOCAL_PROBE_SIZE;
@@ -613,7 +625,7 @@ async function computeFocalPoint(buffer) {
     const scaledW = Math.max(1, Math.round(origW * scale));
     const scaledH = Math.max(1, Math.round(origH * scale));
 
-    const { info } = await sharp(buffer)
+    const { info } = await sharp(probe.data)
       .resize(target, target, {
         fit: "cover",
         position: sharp.strategy.attention,

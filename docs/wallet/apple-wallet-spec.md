@@ -1,240 +1,227 @@
-# Pholio Talent Identity Pass — Apple Wallet Product System
+# Pholio ID — the Apple Wallet pass
 
-Status: DESIGN LOCK CANDIDATE (research + product spec + design). Apple API /
-signing implementation follows after lock. Visual prototype:
-`docs/wallet/prototype/wallet-prototype.html` (+ rendered PNGs).
+Status: IMPLEMENTED (pass generation, both Wallet faces, signed bundle).
+Not yet built: the Apple update web service (M3 below), the dashboard
+preview module, share links.
 
----
-
-## 1. Research summary (verified against Apple docs, 2026-06)
-
-### 1.1 Pass architecture
-A `.pkpass` is a ZIP containing:
-- `pass.json` — content + layout + behavior
-- image assets at 1x/2x/3x (`icon.png`, `logo.png`, `thumbnail.png`, …)
-- `manifest.json` — SHA-1 of every file in the bundle
-- `signature` — detached PKCS#7 of the manifest, signed with the **Pass Type
-  ID certificate** + **WWDR G4 intermediate**
-- optional `*.lproj/pass.strings` localizations
-
-Required `pass.json` keys: `formatVersion: 1`, `passTypeIdentifier`,
-`serialNumber`, `teamIdentifier`, `organizationName`, `description`, plus one
-style dictionary (`generic` | `eventTicket` | `coupon` | `storeCard` |
-`boardingPass`). `webServiceURL` + `authenticationToken` (≥16 chars) are
-required only for updatable passes — ours are updatable by design.
-Visual keys: `foregroundColor`, `backgroundColor`, `labelColor` (rgb(...)
-strings), `logoText`. Behavior: `barcodes[]`, `voided`, `expirationDate`,
-`sharingProhibited`, relevance (`locations`, `relevantDate`, `maxDistance`),
-`semantics`.
-
-### 1.2 Correct pass type: `generic`
-A talent identity card is not a ticket, coupon, store card, or boarding pass —
-Apple's catch-all **generic** style is the correct and intended type for
-identity/membership-like passes. Layout consequences (binding):
-- Generic supports **icon + logo + thumbnail** only. **No strip, no
-  background image.** The card is a flat color field with a 90×90pt
-  thumbnail — this constraint drives the whole design (§4).
-- Field slots: `headerFields` (top right, keep to 1), `primaryFields` (1,
-  large, left of thumbnail), `secondaryFields` (row, ≤4), `auxiliaryFields`
-  (row, ≤4), `backFields` (unlimited, scrollable text-only back).
-- Image points: icon 29×29pt, logo ≤160×50pt, thumbnail 90×90pt with aspect
-  clamped to 2:3–3:2 (else Wallet crops center). Ship @1x/@2x/@3x PNGs.
-
-### 1.3 Distribution
-- MIME `application/vnd.apple.pkpass`; served over HTTPS, opened directly by
-  Safari/Mail/Messages on iOS and by macOS for Handoff.
-- "Add to Apple Wallet" badge: MUST use Apple's official artwork (never
-  recreate or restyle), minimum clear space 0.1× badge height, must be
-  secondary to our own content, never animated/decorated. (This is Apple's
-  required functional asset — it is exempt from the house no-badge rule the
-  same way the QR scrim exception works: functional, not decorative.)
-- Passes are shareable by default (share sheet). We keep
-  `sharingProhibited: false` — a comp-card-adjacent identity pass exists to
-  be shared with casters.
-- Android/non-Apple: out of scope for v1; the short link (`/p/:slug`)
-  remains the universal fallback. (Google Wallet generic pass is a natural
-  v2 with the same data model.)
-
-### 1.4 Update web service (Apple-defined REST contract)
-Wallet calls **us** at `webServiceURL` with header
-`Authorization: ApplePass <authenticationToken>`:
-- `POST   /v1/devices/:deviceLibraryId/registrations/:passTypeId/:serial`
-  body `{ pushToken }` → register device for pass updates (201/200).
-- `DELETE /v1/devices/:deviceLibraryId/registrations/:passTypeId/:serial`
-  → unregister.
-- `GET    /v1/devices/:deviceLibraryId/registrations/:passTypeId?passesUpdatedSince=:tag`
-  → `{ serialNumbers: [...], lastUpdated: tag }` (204 when none). No auth
-  header on this one — device-scoped.
-- `GET    /v1/passes/:passTypeId/:serial` → latest signed `.pkpass`
-  (supports `If-Modified-Since`/`Last-Modified`; 304 when unchanged).
-- `POST   /v1/log` → Wallet client error reports (log + 200).
-
-Update push: APNs notification with **empty payload** to each registered
-`pushToken`, topic = the passTypeIdentifier, authenticated with the SAME
-Pass Type ID certificate. Wallet then calls the registrations-since endpoint
-and re-fetches changed passes. Pushes are fire-and-forget; devices also poll
-opportunistically.
-
-### 1.5 Signing & required infrastructure (implementation phase)
-1. Apple Developer Program team (Team ID).
-2. Pass Type ID registered in the developer portal:
-   **`pass.studio.pholio.talent`**.
-3. Pass Type ID certificate (+ private key, exported .p12) and **WWDR G4**
-   intermediate — both stored in secret storage (env-injected PEM, never in
-   the repo).
-4. Node library: **`passkit-generator`** (maintained, models + buffers,
-   handles manifest SHA-1 + PKCS#7 via forge) — fits our Express stack.
-5. APNs connectivity from the backend (the pass certificate doubles as the
-   push credential for pass topics).
-6. Public HTTPS web service base: `https://app.pholio.studio/wallet`
-   (so `webServiceURL: https://app.pholio.studio/wallet`, endpoints under
-   `/wallet/v1/...`).
-7. Asset pipeline: sharp renders icon/logo/thumbnail @1x/2x/3x per pass;
-   thumbnail uses the comp-card engine's hero selection + focal crop.
+Code: `src/domains/wallet/` — `services/pass-content.js` (what the pass
+says), `services/face-locator.js` (where the face is),
+`services/pass-artwork.js` (every image), `services/pass-bundle.js`
+(manifest, PKCS#7, zip), `services/pass-builder.js` (orchestration),
+`routes/talent-wallet.js` (`GET /api/talent/wallet/pass?theme=ink|paper`).
+Review sheet: `docs/wallet/previews/*.png`, regenerated with
+`node scripts/wallet/render-previews.js`.
 
 ---
 
-## 2. Product definition
+## 1. What a Pholio ID is
 
-**Pholio Identity Pass** — a premium talent identity card that lives in
-Apple Wallet. One pass per talent profile. It is the always-current, tappable
-companion to the comp card: name, the stats a caster checks first, the hero
-headshot, representation/booking, and a QR that opens the live portfolio
-(`/p/:slug` — the same short link used by comp card NFC/QR). When the talent
-updates their profile, every copy of the pass updates itself on every device
-that holds it — including copies shared to casting directors.
+The talent's identity credential in Apple Wallet. Not a comp card (the comp
+card is a two-sided document; the pass is a card the size of a credit card
+that lives between a boarding pass and a bank card). Its job when shown or
+scanned: a booker sees the face and the name, the one number they check
+first, who books this person, and scans straight into the live book.
 
-Why it's a product system, not an export:
-- The pass is **derived state** of the profile (like the comp card), with a
-  content hash, lifecycle (issue → auto-update → void), and a registry of
-  devices holding it.
-- Updates propagate via the Apple web service contract (§1.4) — a caster who
-  added a talent's pass in March has the talent's current measurements in
-  June without anyone resending anything.
-- Voiding (talent leaves the platform / privacy request) greys out every
-  distributed copy.
+Everything else lives one tap away on the details sheet, in the comp card's
+own order and dual units. The pass **points at** the book rather than
+trying to be it; that is what keeps it honest (a shared pass cannot go
+stale on measurements a booker relies on when it carries only what a QR
+scan will refresh).
 
-### 2.1 Surfaces & UX flows
+Why talent would keep it: it is the only pass in their Wallet with their
+own photograph on it, it is instantly recognisable as Pholio in the stack,
+and it answers "send me your card" with a share sheet.
 
-**A. Talent dashboard — "Identity Pass" module** (profile/services area,
-dashboard design language: ivory canvas, ink type, gold accents, 16px cards):
-- Live preview of the pass (front), rendered from current profile data.
-- Status line: `In sync — updated May 12` / `Profile changed — pass will
-  update automatically` / `Not issued yet`.
-- Primary action: official **Add to Apple Wallet** badge → downloads the
-  signed `.pkpass`.
-- Secondary action: `Copy share link` — a tokenized public URL
-  (`/wallet/share/:token`) that serves the same `.pkpass`, so talent can
-  text/email the pass to a caster who then receives live updates too.
-- Devices row (plain text): `Active on 3 devices`.
+## 2. Apple's constraints (verified 2026-09-03)
 
-**B. Casting-side acquisition**:
-- The share link above (Safari opens the pass sheet directly on iOS).
-- v1.1: an Add to Apple Wallet badge on the public portfolio page
-  (`/portfolio/:slug`) when the talent enables it (`wallet_public` toggle).
+Sources: Human Interface Guidelines "Wallet" (change log: June 8 2026,
+"Updated to reflect guidance for iOS 27 and the Pass Designer app"), the
+WalletPasses reference ("Creating a generic pass", "Defining the metadata
+of your Wallet Pass", `Pass`, `PassFieldContent`), WWDC26 session 209
+"What's new in Wallet".
 
-**C. Automatic update flow** (invisible to users):
-profile/media/representation change → pass content hash recomputed → if
-changed: bump `updated_at` tag, APNs empty push to registered devices →
-Wallet re-fetches → done. Debounced (5 min) so a profile editing session
-causes one push, not ten.
+| Constraint | Consequence for Pholio ID |
+|---|---|
+| Two generic layouts now exist. `posterGeneric` (iOS 27+) is a full-bleed 358×448pt artwork with a 30pt primary logo, header fields, primary fields (the first, unlabeled, renders as a large title), **one** footer field and a square QR. `generic` (iOS 26 and earlier) is a flat colour field with a 50–160×50pt logo, a square 60–90×90pt thumbnail, up to 3 header fields, 1 primary, and secondary+auxiliary fields (4 combined next to a square barcode), plus the QR. | One bundle carries both dictionaries. Every device gets the photographic face it can render. |
+| Text never wraps; a value Wallet cannot fit drops the whole field. | Every front value is short and deterministic: name ≤ 20 chars with graceful fallbacks, agency line ≤ 30 chars on the face (full on the back), dual-unit stats only on the wide rows. |
+| Three colours only: `backgroundColor`, `foregroundColor`, `labelColor`; `footerBackgroundColor` colours the poster's bottom strip. Wallet may adjust colours it judges illegible. | Two themes (§4) measured to WCAG AA on labels so Wallet never needs to intervene. |
+| Images ship at @2x and @3x; icon 38pt; thumbnails are square with rounded corners baked into a transparent PNG; keep files small. | `pass-artwork.js` renders exactly those files; poster artwork is a dithered palette PNG (≈500 KB at 3x) so a bundle is ≈1 MB, not 3. |
+| Labels on the front are uppercase small text; the poster title has no label. | The name carries no label anywhere (also the house rule: no eyebrow above a heading). |
+| Wallet renders the QR itself on a light plate and shows `altText` under it. | QR payload = the short portfolio URL the comp card already uses (`/p/:slug`); altText = the typeable host path. |
+| Wallet does not follow system dark mode; the pass's colours are the pass's. | Light/dark is a theme the pass is issued in, not something the device flips. |
+| The back must carry the issuer's contact. | Support email and app host, with data detectors so they are tappable. |
+| `sharingProhibited` defaults to false. | Kept false: the pass exists to be handed to casters. |
 
-**D. Void flow**: account deletion or talent disables the pass → `voided:
-true` served on next fetch + push; Wallet greys the pass out everywhere.
+Library note: `passkit-generator` validates `pass.json` with
+`stripUnknown: true` and has no `posterGeneric` schema, so it silently
+deletes the iOS 27 face. The bundle is therefore built in-repo
+(`pass-bundle.js`: SHA-1 manifest, detached PKCS#7 via node-forge with the
+WWDR intermediate embedded, stored zip via do-not-zip). The signing recipe
+is byte-for-byte the one that library has shipped for years; only the
+schema gate is gone.
 
-### 2.2 Pass content mapping (generic style)
+## 3. The two faces
 
-| Slot | Content | Source |
-|---|---|---|
-| logo | PHOLIO wordmark, gold, letterspaced (image, not logoText — preserves tracking) | brand asset |
-| icon | Pholio "P" mark on ivory (lock screen / Mail) | brand asset |
-| header (1) | `HEIGHT · 5'10"` | stats-formatter line (imperial-first compact for header width) |
-| primary (1) | Talent name | profile |
-| secondary (≤4) | `BUST 32"` `WAIST 25"` `HIPS 35"` `SHOES US 9` (women) / chest-waist-inseam-suit (men) / age + size (kids) | **stats-formatter** (reused — same category/omission rules as the comp card) |
-| auxiliary (≤3) | `HAIR` `EYES` + `REPRESENTATION` (agency name) or `BOOKINGS` (direct) | profile + booking block logic |
-| thumbnail | Hero headshot, 3:4, focal-cropped | **photo-intelligence hero + forensics focal crop** (reused) |
-| barcode | QR → `https://app.pholio.studio/p/:slug`, altText `pholio.studio/p/slug` | portfolio-link (reused) |
-| backFields | Representation & booking block; full dual-unit stats; portfolio URL; agency contact; “Measurements updated <date>”; legal/support line | stats-formatter `lines`, booking block |
+### iOS 27 and later — `posterGeneric`
 
-Colors (dashboard language adapted to Wallet's flat-color constraint):
-`backgroundColor rgb(250,248,245)` (ivory `--ag-surface-0`),
-`foregroundColor rgb(26,24,21)` (ink), `labelColor rgb(166,132,92)`
-(deep gold — the print-safe gold from the comp card system; Wallet labels
-are small, deep gold keeps contrast on ivory). The pass reads as a sibling
-of the comp card: ivory field, ink type, gold micro-labels, photography.
-
-Behavioral keys: `sharingProhibited: false`; no `expirationDate` (identity,
-not a ticket); `voided` lifecycle-driven; v1 ships **no** relevance keys
-(casting-location relevance is a v2 idea once castings have geo data);
-`semantics` omitted (no meaningful generic semantics today).
-
-### 2.3 Data model (migration in implementation phase)
-
-```js
-// wallet_passes — one row per issued pass (1:1 with profiles)
-table.uuid("id").primary();
-table.uuid("profile_id").notNullable().unique()
-     .references("id").inTable("profiles").onDelete("CASCADE");
-table.string("serial_number").notNullable().unique();   // opaque UUID
-table.string("authentication_token").notNullable();      // ≥16B random, hashed at rest
-table.string("pass_type_identifier").notNullable();      // pass.studio.pholio.talent
-table.string("content_hash").notNullable();              // sha256 of rendered pass.json+assets meta
-table.string("share_token").unique();                    // tokenized public download
-table.boolean("voided").notNullable().defaultTo(false);
-table.timestamp("issued_at");
-table.timestamp("updated_at");                            // the update tag Wallet syncs on
-
-// wallet_devices — Wallet installations that registered for updates
-table.uuid("id").primary();
-table.string("device_library_identifier").notNullable().unique();
-table.string("push_token").notNullable();
-table.timestamp("created_at");
-
-// wallet_registrations — many-to-many pass<>device
-table.uuid("id").primary();
-table.uuid("wallet_pass_id").references("wallet_passes.id").onDelete("CASCADE");
-table.uuid("wallet_device_id").references("wallet_devices.id").onDelete("CASCADE");
-table.unique(["wallet_pass_id", "wallet_device_id"]);
-table.timestamp("created_at");
+```
+┌──────────────────────────────┐
+│ PHOLIO             HEIGHT    │  ← primary logo (gold wordmark), header
+│                 178 cm / 5'10"│
+│                              │
+│         [ photograph ]       │  ← full-bleed artwork, face in the clear band
+│                              │
+│ Ava Martinez                 │  ← title (primary field, no label)
+│ ─────────────────────────────│
+│ REPRESENTATION        ▣ QR   │  ← footer strip (theme colour) + square QR
+│ Northstar Models             │
+└──────────────────────────────┘
 ```
 
-### 2.4 Backend surface (implementation phase)
+### iOS 26 and earlier — `generic`
 
-Domain module `src/domains/wallet/`:
-- `services/pass-builder.js` — profile → pass.json + assets (reuses
-  stats-formatter, photo-intelligence/forensics focal crop, booking block,
-  portfolio-link short URL; sharp renders thumbnail/logo/icon @1x/2x/3x).
-- `services/pass-signer.js` — passkit-generator wrapper; certs from env.
-- `services/pass-updates.js` — change-detection hook (profile/media/
-  representation writes), 5-min debounce, APNs fan-out.
-- `routes/wallet.js`:
-  - authed: `GET /api/talent/wallet/pass` (issue-or-fetch `.pkpass`),
-    `GET /api/talent/wallet/status`, `POST /api/talent/wallet/share-token`,
-    `DELETE /api/talent/wallet` (void).
-  - public: `GET /wallet/share/:token` → `.pkpass`.
-  - Apple contract (public, ApplePass auth): the five `/wallet/v1/...`
-    endpoints from §1.4.
-- Guardrail reuse: pass issuance requires the same profile-legibility checks
-  as the comp card (name + at least a hero image); stats omissions follow
-  stats-formatter rules (never DOB for adults, etc.).
+```
+┌──────────────────────────────┐
+│ PHOLIO             HEIGHT    │  ← logo, header
+│                 178 cm / 5'10"│
+│ Ava Martinez          [90pt] │  ← primary (no label) + square thumbnail
+│ REPRESENTATION               │  ← secondary (wide row)
+│ Northstar Models             │
+│ BUST      WAIST      HIPS    │  ← auxiliary: three core stats, dual units
+│ 81 cm/32" 61 cm/24"  89 cm/35"│
+│          ▣ QR                │
+│   app.pholio.studio/p/ava…   │
+└──────────────────────────────┘
+```
 
-Security: authentication_token compared constant-time and stored hashed;
-share tokens revocable; certs/keys via env/KMS only; `/v1/log` rate-limited.
+Collapsed in the stack Wallet shows only the logo and header: **PHOLIO ·
+HEIGHT 178 cm / 5'10"**. Height is the one number every booker checks
+first and the one fact that identifies a talent card among bank cards.
 
-### 2.5 Rollout
-1. **M1 — design lock** (this doc + prototype).
-2. **M2 — pass generation**: pass-builder + signer + authed download +
-   dashboard module behind a feature flag (pass works, no auto-update yet;
-   `webServiceURL` already included so M3 needs no re-adds).
-3. **M3 — update service**: the five Apple endpoints + registrations +
-   APNs fan-out + change hooks.
-4. **M4 — distribution polish**: share tokens, portfolio-page badge,
-   void flows, device counts in dashboard.
-5. **v2 candidates**: Google Wallet sibling, casting-location relevance,
-   per-casting passes (eventTicket style) for call sheets.
+### Details sheet (back fields, both faces)
 
-### 2.6 Open questions for lock
-1. Share-by-default? (Current spec: yes, via explicit share link only.)
-2. Should agency users be able to pull a represented talent's pass from the
-   agency dashboard? (Spec assumption: v1.1, talent-controlled toggle.)
-3. Pass on the public portfolio page at launch or v1.1? (Spec: v1.1.)
+PORTFOLIO (tappable link) · the full comp-card stats block in the comp
+card's order and dual units (HEIGHT, BUST/CHEST, WAIST, HIPS/INSEAM,
+DRESS/SUIT, SHOES, HAIR, EYES) · MOTHER AGENCY / PLACEMENT rows with market
+and exclusivity · MEASUREMENTS UPDATED (Wallet-formatted date) · ISSUED ·
+ABOUT THIS PASS · PHOLIO (host + support email).
+
+## 4. Themes: Ink and Paper
+
+Two materials, one pass. Both were measured, not eyeballed.
+
+| | Ink (default) | Paper |
+|---|---|---|
+| backgroundColor / poster strip | `rgb(26,24,21)` warm ink | `rgb(250,248,245)` ivory |
+| foregroundColor | ivory | warm ink |
+| labelColor | brand gold `#C9A55A` — 7.6:1 on ink | deep gold `#8A6A40` — 4.7:1 on ivory |
+| Wordmark | brand gold | deep gold |
+| Artwork veils | ink at top (header) and bottom (title) | ivory at top and bottom |
+
+Why Ink is the default: photography on a dark field is the editorial
+standard and the language of the onboarding screen test; brand gold is
+legible on ink and not on ivory (2.2:1), so the wordmark reads as itself;
+and warm ink (not black) stays a distinct object against Wallet's black
+ground. Paper is the comp card's sibling and is the one that stands out in
+a stack of dark bank cards. Both ship; `?theme=paper` selects the second.
+The icon (gold monogram on ink) is theme-independent so Mail and
+notifications always show one Pholio.
+
+Every text colour clears WCAG AA at label size; the veils guarantee it
+over any photograph (§5).
+
+## 5. Photography
+
+**Hero choice** reuses the comp card's photo-intelligence ranking with its
+rights and status gates; the talent's own primary photo wins when it is
+eligible. Only images the public portfolio would show are candidates
+(active, not excluded from public, moderation-visible). A minor's pass
+never uses a full-length frame.
+
+**Face location** (`face-locator.js`), best first, all fail-soft:
+1. face boxes from the perception engine (`@vladmandic/human` when
+   installed — recommended for production, see §8);
+2. a head estimate from the subject matte (cached on the image row from
+   the comp-card pipeline, else the sharp-only studio matte on clean
+   backdrops): the head is the top of the silhouette, its width gives its
+   height;
+3. sharp's attention focal, corrected — libvips reports attention
+   coordinates in its internal shrink-on-load space for JPEG input, which
+   made every cached focal land on the bottom-right corner. Both the
+   comp-card crop engine and image forensics now probe a re-encoded PNG
+   (fix shipped in this change, 45 existing tests still green). On
+   portrait frames the prior caps the point to the upper 38% and the
+   central band, because saliency follows contrast, not faces;
+4. the comp card's people prior (0.5, 0.38).
+
+**Crops.** Poster artwork 358×448pt: the crop keeps the face at 40% of the
+height, in the clear band between the veils (top veil covers 24%, bottom
+veil starts at 56%). Thumbnail 90pt: a headshot (face ≈ 42% of the square)
+when a face box is known, else the largest square around the focal point.
+
+## 6. Information that earned a place, and what did not
+
+| On the face | Why |
+|---|---|
+| Wordmark | Instant recognition, including collapsed in the stack |
+| Height, dual units | The first number a booker checks; short; universal |
+| Name | Identity; the title |
+| Who books them | Load-bearing for a caster: REPRESENTATION agency, or BOOKINGS Direct, or the declared "Seeking representation" |
+| QR to the live book | The reason to scan; refreshes anything the pass cannot |
+| Three core stats (iOS 26 face only) | The poster face has no room; the flat face has four slots, and the wide one is representation |
+
+| Not on the face | Why |
+|---|---|
+| Hair, eyes, shoe, dress/suit | On the details sheet; the face is a credential, not a data sheet |
+| Age or date of birth | Never for adults (comp-card rule); kids track shows age on the front row as the industry's kids cards do, and only with recorded guardian consent |
+| Weight, city, contact details | Not identity; contact goes through the book |
+| Status badges, "verified", scores | Banned patterns; nothing on a pass claims more than a declared profile |
+
+## 7. Edge cases (all exercised by `tests/wallet/*` and the preview rig)
+
+- **No height:** header omitted; the stack shows the wordmark alone.
+- **No measurements:** auxiliary row omitted; the face still reads as a card.
+- **Long names:** full ≤ 20 chars → "First L." → first name → cut with an
+  ellipsis; the accessibility `description` always carries the full name.
+- **Long agency names:** cut at 30 on the face, full on the back.
+- **Representation states:** active mother agency before placements; a
+  legacy `current_agency` string on a profile with no structured rows still
+  counts; `seeking_representation` is shown as declared; otherwise
+  BOOKINGS Direct. Every active row appears on the back with market,
+  territory, division and exclusivity.
+- **Menswear / womenswear / kids:** the comp-card stats block decides the
+  set and the order (chest/waist/inseam; bust/waist/hips; age/clothing
+  size/shoes). No body measurements for minors, ever.
+- **Minors:** without `guardian_consent_at` the pass is refused with
+  `WALLET_GUARDIAN_CONSENT_REQUIRED` (parity with the comp-card export).
+- **Photo missing or unreadable:** `WALLET_PHOTO_REQUIRED` /
+  `WALLET_PHOTO_UNAVAILABLE`; name missing: `WALLET_NAME_REQUIRED`.
+- **Units:** dual, metric-first, the comp card's strings exactly. The
+  language lexicon's "US-facing surfaces lead imperial" is a shared
+  follow-up for the comp card and the pass together, not a divergence here.
+- **Unsigned environment:** without the five `APPLE_WALLET_*` variables the
+  route answers 503 `WALLET_NOT_CONFIGURED`; nothing unsigned is ever sent.
+
+## 8. Operating notes
+
+- Signing needs the Pass Type ID certificate (`pass.studio.pholio.talent`),
+  its key and Apple's WWDR intermediate, PEM in env (`pass-config.js`).
+- Install `@vladmandic/human` + `@tensorflow/tfjs-node` on the API host to
+  turn on real face boxes; the locator picks them up with no code change.
+- Bundle weight: ≈1 MB (poster artwork dominates). Wallet downloads it once
+  per add.
+- Previews are an approximation of Wallet's layout built from Apple's
+  published geometry; the bytes they show are the real pass. Verify on a
+  device with Pass Designer / Simulator before launch, especially the poster
+  footer strip height and how far the title sits above it.
+
+## 9. Roadmap (unchanged in intent)
+
+- **M3 update service:** `webServiceURL` + `authenticationToken`, the five
+  Apple endpoints, APNs fan-out, change hooks on profile / media /
+  representation writes. Until then the ABOUT field says the pass reflects
+  the profile at issue date and the QR is the live source.
+- **Dashboard module:** live preview (both faces), Add to Apple Wallet
+  badge, theme choice, share link.
+- **v2:** Google Wallet sibling on the same content model; casting-day
+  relevance once castings carry location and time.
