@@ -147,27 +147,6 @@
   padding: 0 24px 20px;
   z-index: 3;
 }
-/* meta line + match chip on one row; the chip sits just after type · location */
-.tp-identity-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.tp-meta-type {
-  flex: 0 1 auto;
-  min-width: 0;
-  font-family: var(--ag-font-mono, monospace);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: #FFFFFF;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 2px 8px rgba(0, 0, 0, 0.7);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 /* Match score chip — anchored flush to bottom-right of hero photo container */
 .tp-hero-match.match-score {
   position: absolute;
@@ -215,21 +194,21 @@
   color: #efe9df;
   font-variant-numeric: tabular-nums;
 }
-.tp-band-v { text-align: center; }
-.tp-band-k {
-  display: block;
-  font-family: var(--ag-font-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(239, 233, 223, 0.5);
-  margin-bottom: 4px;
+/* Each value is a Figure: the meta system sets the key, the number and the
+   unit. The band owns only the spacing that keeps them evenly read. */
+.tp-band-v { align-items: center; }
+
+/* The facts under the name, on the hero's photographic ground — legible
+   against whatever the frame happens to be. */
+.tp-spec {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
 }
-.tp-band-n {
-  font-family: var(--ag-font-display, 'Playfair Display', serif);
-  font-size: 1.08rem;
-  line-height: 1;
+.tp-spec .cm-stage,
+.tp-spec .cm-notations {
+  color: rgba(244, 238, 226, 0.62);
 }
+.tp-spec .cm-note--warning { color: #e8b45e; }
+.tp-spec .cm-note--danger { color: #e88f7f; }
 
 /* ---------- BODY (scroll) ---------- */
 .tp-body {

@@ -184,6 +184,7 @@ async function createSchema() {
     table.string("last_name", 100).nullable();
     table.string("city", 100).nullable();
     table.integer("height_cm").nullable();
+    table.date("date_of_birth").nullable();
   });
   await knex.schema.createTable("applications", (table) => {
     table.string("id", 36).primary();
@@ -339,6 +340,9 @@ async function seedFixture() {
       last_name: row.last,
       city: "Brooklyn",
       height_cm: 178,
+      // The organizer's rows print height, age and city; a fixture without a
+      // date of birth could not prove the age half.
+      date_of_birth: "2000-04-02",
     })),
   );
   await knex("applications").insert([
@@ -444,6 +448,12 @@ describe("pool", () => {
     expect(response.body.data.limit).toBe(2);
     const names = response.body.data.applicants.map((a) => a.name);
     expect(names).not.toContain("Dev Doyle");
+    // The facts a pick-list row prints under a name.
+    expect(response.body.data.applicants[0]).toMatchObject({
+      city: "Brooklyn",
+      heightCm: 178,
+    });
+    expect(response.body.data.applicants[0].age).toBeGreaterThan(0);
   });
 
   test("filters by lifecycle stage and rejects an invented one", async () => {
@@ -681,7 +691,10 @@ describe("rollups and selections", () => {
     expect(response.body.data.applicants[0]).toMatchObject({
       name: "Ada Ames",
       status: "shortlisted",
+      city: "Brooklyn",
+      heightCm: 178,
     });
+    expect(response.body.data.applicants[0].age).toBeGreaterThan(0);
     expect(response.body.data.applicants[0].pickedBy).toHaveLength(2);
     expect(response.body.data.applicants[1].maybeBy).toHaveLength(1);
     expect(response.body.data.counts).toMatchObject({ claimed: 2, offered: 0 });

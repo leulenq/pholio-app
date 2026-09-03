@@ -20,6 +20,7 @@ export { Place } from './Place';
 export { Moment, Freshness } from './Moment';
 export { Notation, FieldKey } from './Notation';
 export { MetaLine } from './MetaLine';
+export { CardMeta } from './CardMeta';
 
 export {
   placeParts,

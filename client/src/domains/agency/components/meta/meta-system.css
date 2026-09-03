@@ -308,11 +308,15 @@
 }
 
 .ml--wrap {
-  flex-wrap: wrap;
+  /* Inline flow instead of flex: a wrapped line breaks only where the
+     markup allows (before a separator), never between a dot and its value. */
+  display: inline;
 }
-.ml--wrap .ml__item {
+.ml--wrap .ml__item,
+.ml--wrap .ml__sep {
+  display: inline;
   overflow: visible;
-  white-space: normal;
+  white-space: nowrap;
 }
 
 /* ============================================================

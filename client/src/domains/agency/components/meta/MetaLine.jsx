@@ -53,8 +53,11 @@ export function MetaLine({
            identity of its own, and is re-rendered whole. */
         <React.Fragment key={i}>
           {i > 0 && (
+            /* When the line may wrap, the only break opportunity is the
+               zero-width space BEFORE the dot, so a separator never ends a
+               line: the dot travels with the value it introduces. */
             <span className="ml__sep" aria-hidden="true">
-              ·
+              {wrap ? '\u200B' : null}·
             </span>
           )}
           <span className="ml__item">{child}</span>

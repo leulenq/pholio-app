@@ -18,42 +18,38 @@
 /* ---------- WORDMARK LETTERFORMS ----------
    The client name set as type. Family/weight come from the board's
    letterform register; tracking from the identity. */
-.sg-wordmark, .rr-wordmark {
+.sg-wordmark {
   text-transform: uppercase; color: var(--bd-ink, #16130D);
   letter-spacing: var(--bd-track, 0.3em);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
 }
-[data-letterform="serif"] :is(.sg-wordmark, .rr-wordmark) { font-family: 'Playfair Display', serif; font-weight: 600; }
-[data-letterform="didone"] :is(.sg-wordmark, .rr-wordmark) { font-family: 'Playfair Display', serif; font-weight: 700; }
-[data-letterform="sans"] :is(.sg-wordmark, .rr-wordmark) { font-family: 'Inter', sans-serif; font-weight: 700; }
-[data-letterform="sans-light"] :is(.sg-wordmark, .rr-wordmark) { font-family: 'Inter', sans-serif; font-weight: 400; }
+[data-letterform="serif"] .sg-wordmark { font-family: 'Playfair Display', serif; font-weight: 600; }
+[data-letterform="didone"] .sg-wordmark { font-family: 'Playfair Display', serif; font-weight: 700; }
+[data-letterform="sans"] .sg-wordmark { font-family: 'Inter', sans-serif; font-weight: 700; }
+[data-letterform="sans-light"] .sg-wordmark { font-family: 'Inter', sans-serif; font-weight: 400; }
 .sg-wordmark { font-size: 13px; }
 [data-letterform="didone"] .sg-wordmark { font-size: 14.5px; }
 [data-letterform="sans"] .sg-wordmark, [data-letterform="sans-light"] .sg-wordmark { font-size: 11.5px; }
-.rr-wordmark { font-size: 16px; }
-[data-letterform="didone"] .rr-wordmark { font-size: 18px; }
-[data-letterform="sans"] .rr-wordmark, [data-letterform="sans-light"] .rr-wordmark { font-size: 14px; }
 
 /* Client logo (agency-uploaded) replaces the wordmark when present. */
-.sg-plate-logo, .rr-plate-logo { display: block; width: auto; max-width: 55%; object-fit: contain; object-position: left center; }
+.sg-plate-logo { display: block; width: auto; max-width: 55%; object-fit: contain; object-position: left center; }
 .sg-plate-logo { height: 18px; }
-.rr-plate-logo { height: 24px; }
 
 /* ---------- PLATE TREATMENTS ----------
    ink   — plate drenched in the house color, type reversed out
    paper — tinted stock, ink type (the default look)
    cover — cover image under a house-color scrim, reversed type
    The house ink is the client's voice; gold stays the platform's. */
-[data-treatment="ink"] :is(.sg-plate, .rr-plate) {
+[data-treatment="ink"] .sg-plate {
   background: var(--bd-ink, #16130D);
   border-bottom-color: color-mix(in srgb, var(--bd-ink, #16130D) 60%, #16130D);
 }
-[data-treatment="ink"] :is(.sg-wordmark, .rr-wordmark) { color: #FBF7F1; }
-[data-treatment="ink"] :is(.sg-plate-meta, .rr-plate-meta) { color: rgba(251, 247, 241, 0.92); }
-[data-treatment="ink"] :is(.sg-plate-meta, .rr-plate-meta).is-soon { color: #FBF7F1; }
-[data-treatment="ink"] :is(.sg-plate-logo, .rr-plate-logo) { filter: brightness(0) invert(1); }
+[data-treatment="ink"] .sg-wordmark { color: #FBF7F1; }
+[data-treatment="ink"] .sg-plate-meta { color: rgba(251, 247, 241, 0.92); }
+[data-treatment="ink"] .sg-plate-meta.is-soon { color: #FBF7F1; }
+[data-treatment="ink"] .sg-plate-logo { filter: brightness(0) invert(1); }
 
-[data-treatment="cover"] :is(.sg-plate, .rr-plate) {
+[data-treatment="cover"] .sg-plate {
   background-image:
     linear-gradient(color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent), color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent)),
     var(--bd-cover);
@@ -62,11 +58,10 @@
   border-bottom-color: color-mix(in srgb, var(--bd-ink, #16130D) 70%, transparent);
 }
 [data-treatment="cover"] .sg-plate { min-height: 76px; }
-[data-treatment="cover"] .rr-plate { min-height: 96px; }
-[data-treatment="cover"] :is(.sg-wordmark, .rr-wordmark) { color: #FDFBF7; text-shadow: 0 1px 10px rgba(10, 8, 5, 0.35); }
-[data-treatment="cover"] :is(.sg-plate-meta, .rr-plate-meta) { color: rgba(253, 251, 247, 0.94); }
-[data-treatment="cover"] :is(.sg-plate-meta, .rr-plate-meta).is-soon { color: #FDFBF7; }
-[data-treatment="cover"] :is(.sg-plate-logo, .rr-plate-logo) { filter: brightness(0) invert(1); }
+[data-treatment="cover"] .sg-wordmark { color: #FDFBF7; text-shadow: 0 1px 10px rgba(10, 8, 5, 0.35); }
+[data-treatment="cover"] .sg-plate-meta { color: rgba(253, 251, 247, 0.94); }
+[data-treatment="cover"] .sg-plate-meta.is-soon { color: #FDFBF7; }
+[data-treatment="cover"] .sg-plate-logo { filter: brightness(0) invert(1); }
 
 /* ---------- SIGNING — HEADER ---------- */
 .sg-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 8px 0 26px; flex-wrap: wrap; }
@@ -179,204 +174,12 @@
 .sg-empty-sub { font-size: 13px; color: #8A8073; margin: 10px auto 0; max-width: 46ch; line-height: 1.55; }
 .sg-new--empty { margin-top: 22px; }
 
-/* ============================================================
-   REVIEW ROOM — a single board opened for work
-   ============================================================ */
-.rr-back {
-  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 14px;
-  background: none; border: none; cursor: pointer; padding: 4px 0;
-  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ag-text-2);
-  transition: color 0.18s;
-}
-.rr-back:hover { color: var(--ag-gold); }
-.rr-back:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); border-radius: 4px; }
-
-/* Masthead — the folio anatomy at full size. */
-.rr-masthead {
-  background: var(--bd-paper, #F2EFE9);
-  border: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 14%, transparent);
-  border-radius: 14px; overflow: hidden; margin-bottom: 22px;
-}
-.rr-plate {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: 15px 28px; background: var(--bd-paper, #F2EFE9);
-  border-bottom: 2px solid color-mix(in srgb, var(--bd-ink, #16130D) 80%, transparent);
-}
-.rr-plate-meta {
-  flex: none; margin-left: auto;
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: color-mix(in srgb, var(--bd-ink, #16130D) 82%, #FFFFFF);
-}
-.rr-plate-meta.is-soon { color: #B4462F; }
-
-/* Quiet identity-edit affordance living inside the plate; inherits the
-   plate's text color on every treatment. */
-.rr-idbtn {
-  display: inline-flex; align-items: center; gap: 6px; flex: none;
-  background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px;
-  font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase;
-  color: inherit; opacity: 0.62; transition: opacity 0.15s;
-}
-.rr-plate .rr-idbtn { color: color-mix(in srgb, var(--bd-ink, #16130D) 82%, #FFFFFF); }
-[data-treatment="ink"] .rr-plate .rr-idbtn, [data-treatment="cover"] .rr-plate .rr-idbtn { color: rgba(251, 247, 241, 0.92); }
-.rr-idbtn:hover { opacity: 1; }
-.rr-idbtn:focus-visible { outline: none; opacity: 1; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.45); }
-
-.rr-masthead-body { display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 44px; padding: 24px 28px 28px; }
-.rr-title { font-family: 'Playfair Display', serif; font-size: 30px; color: #16130D; line-height: 1.06; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-.rr-brief { font-size: 14.5px; line-height: 1.65; color: #3E3830; margin: 13px 0 0; max-width: 62ch; }
-
-/* Docket — the working counts as a typographic ledger, not stat tiles.
-   Figures pick up a text-safe darkening of the house ink. */
-.rr-docket { margin: 2px 0 0; }
-.rr-docket-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0; }
-.rr-docket-row + .rr-docket-row { border-top: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 18%, transparent); }
-.rr-docket dt { font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #5C554B; }
-.rr-docket dd {
-  margin: 0; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--bd-ink, #16130D) 76%, #16130D);
-}
-.rr-docket dd.is-soon { color: #B4462F; }
-.rr-docket dd.is-gold { color: #8A6420; }
-
-/* Cover panel — a full-height image column on the masthead when the board
-   carries a cover image. Hidden unless :has() can widen the grid for it. */
-.rr-cover { display: none; }
-.rr-masthead-body:has(.rr-cover) { grid-template-columns: minmax(0, 1fr) 240px 216px; gap: 36px; }
-.rr-masthead-body:has(.rr-cover) .rr-cover {
-  display: block; border-radius: 10px; min-height: 168px;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--bd-ink, #16130D) 18%, transparent), color-mix(in srgb, var(--bd-ink, #16130D) 18%, transparent)),
-    var(--bd-cover);
-  background-size: cover; background-position: center;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bd-ink, #16130D) 22%, transparent);
-}
-
-/* ---------- THE CASTING RAIL ----------
-   Three working columns separated by ledger rules — not chip tabs,
-   not a gray-lane kanban. Soft outcomes live on the shelf below. */
-.rr-rail { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
-.rr-col { min-width: 0; padding: 0 20px; }
-.rr-col:first-child { padding-left: 0; }
-.rr-col:last-child { padding-right: 0; }
-.rr-col + .rr-col { border-left: 1px solid var(--ag-rule); }
-
-.rr-col-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 2px 2px 10px; border-bottom: 1px solid var(--ag-rule); margin-bottom: 14px; }
-.rr-col-title { font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #4A443C; }
-.rr-col-count { font-size: 12px; font-weight: 600; color: #8A8073; font-variant-numeric: tabular-nums; }
-.rr-col-note { font-size: 11.5px; color: #6B6256; margin: -6px 0 12px; }
-.rr-col-cards { display: flex; flex-direction: column; gap: 14px; }
-.rr-col-empty {
-  font-size: 12.5px; line-height: 1.5; color: #7C7263; text-align: center;
-  border: 1px dashed #DDD5C6; border-radius: 10px; padding: 26px 18px; margin: 0;
-}
-
-/* Drag-and-drop: cards lift while dragged; the hovered column tints. */
-.rr-cardwrap { touch-action: manipulation; }
-.rr-cardwrap--drag { position: relative; z-index: 30; cursor: grabbing; }
-.rr-cardwrap--drag .rr-card { box-shadow: 0 22px 48px rgba(20, 18, 14, 0.22); border-color: #E2DAC9; }
-.rr-col--over { background: color-mix(in srgb, var(--bd-ink, #16130D) 4%, transparent); border-radius: 12px; }
-
-/* Rail card — photo-led, plain-text metadata. */
-.rr-card {
-  background: #FFFFFF; border: 1px solid #ECE4D4; border-radius: 12px; overflow: hidden;
-  cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s, border-color 0.2s;
-}
-.rr-card:hover { box-shadow: 0 14px 32px rgba(20, 18, 14, 0.12); border-color: #E2DAC9; }
-.rr-card:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
-.rr-card--skeleton { height: 300px; animation: sg-pulse 1.4s ease-in-out infinite; pointer-events: none; }
-
-.rr-photo {
-  position: relative; aspect-ratio: 3 / 4;
-  background-size: cover; background-position: center top; background-color: #E7E2D8;
-}
-.rr-acts {
-  position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 6px; padding: 10px;
-  background: linear-gradient(to top, rgba(20, 18, 14, 0.5), transparent 42%);
-  opacity: 0; transition: opacity 0.18s;
-}
-.rr-card:hover .rr-acts, .rr-card:focus-within .rr-acts { opacity: 1; }
-.rr-act {
-  flex: 1; border: none; border-radius: 6px; padding: 8px 0; cursor: pointer;
-  background: rgba(250, 246, 239, 0.94); color: #16130D;
-  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
-  box-shadow: 0 3px 10px rgba(20, 18, 14, 0.24);
-  transition: background 0.15s, color 0.15s, transform 0.15s;
-}
-.rr-act:hover { transform: translateY(-1px); }
-.rr-act--sign { background: var(--ag-gold); color: #16130D; }
-.rr-act--sign:hover { background: #B8956A; }
-.rr-act--pass:hover { background: #C0563F; color: #FFFFFF; }
-.rr-act:disabled { opacity: 0.5; cursor: default; transform: none; }
-.rr-act:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.55); }
-
-.rr-card-body { padding: 11px 14px 13px; }
-.rr-card-name { font-family: 'Playfair Display', serif; font-size: 15.5px; font-weight: 500; color: #16130D; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rr-card-meta { display: block; font-size: 10px; letter-spacing: 0.11em; text-transform: uppercase; color: #6B6560; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rr-card-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 8px; }
-.rr-card-status { font-size: 11px; }
-
-/* ---------- SHELVES — kept on file / passed ---------- */
-.rr-shelves { margin-top: 34px; border-top: 1px solid var(--ag-rule); }
-.rr-shelf + .rr-shelf { border-top: 1px solid var(--ag-rule); }
-.rr-shelf-head {
-  width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 4px;
-  background: none; border: none; cursor: pointer; text-align: left;
-  transition: color 0.15s;
-}
-.rr-shelf-head:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); border-radius: 8px; }
-.rr-shelf-title { font-size: 12px; font-weight: 600; color: #4A443C; flex: none; }
-.rr-shelf-faces { display: flex; margin-left: 4px; }
-.rr-shelf-face {
-  width: 30px; height: 30px; border-radius: 50%; flex: none;
-  background-color: #E7E2D8; background-size: cover; background-position: center top;
-  border: 2px solid #FAF6EF; box-shadow: 0 2px 6px rgba(20, 18, 14, 0.14);
-}
-.rr-shelf-face + .rr-shelf-face { margin-left: -9px; }
-.rr-shelf-chev { margin-left: auto; color: #8A8073; transition: transform 0.2s; flex: none; }
-.rr-shelf-chev.is-open { transform: rotate(180deg); }
-
-.rr-shelf-list { list-style: none; margin: 0; padding: 0 0 12px; overflow: hidden; }
-.rr-shelf-row {
-  width: 100%; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto;
-  align-items: center; gap: 14px; padding: 8px 6px;
-  background: none; border: none; border-radius: 8px; cursor: pointer; text-align: left;
-  transition: background 0.15s;
-}
-.rr-shelf-row:hover { background: var(--ag-surface-2, #F5F2EE); }
-.rr-shelf-row:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
-.rr-shelf-face--row { width: 36px; height: 36px; border-radius: 8px; border: none; box-shadow: none; }
-.rr-shelf-name { font-size: 13px; font-weight: 600; color: #16130D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rr-shelf-meta { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A8073; }
-
-.rr-note { font-size: 12px; color: var(--ag-text-2); padding: 48px 12px; text-align: center; }
-
-/* ---------- RESPONSIVE ---------- */
-@media (max-width: 1080px) {
-  .rr-masthead-body { grid-template-columns: minmax(0, 1fr) 224px; gap: 28px; }
-  .rr-masthead-body:has(.rr-cover) { grid-template-columns: minmax(0, 1fr) 224px; }
-  .rr-masthead-body:has(.rr-cover) .rr-cover { display: none; }
-}
-@media (max-width: 860px) {
-  .rr-masthead-body { grid-template-columns: 1fr; gap: 8px; padding: 20px 22px 22px; }
-  .rr-plate { padding: 13px 22px; }
-  .rr-docket { border-top: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 11%, transparent); margin-top: 16px; }
-  .rr-rail { grid-template-columns: 1fr; }
-  .rr-col { padding: 0; }
-  .rr-col + .rr-col { border-left: none; border-top: 1px solid var(--ag-rule); margin-top: 26px; padding-top: 22px; }
-  .rr-col-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
-  .rr-shelf-meta { display: none; }
-}
-
 /* ---------- REDUCED MOTION ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .sg-folio, .rr-card, .sg-new, .rr-act, .rr-shelf-chev { transition: none; }
-  .sg-folio:hover, .rr-card:hover, .sg-new:hover, .rr-act:hover { transform: none; }
-  .sg-folio--skeleton, .rr-card--skeleton { animation: none; }
+  .sg-folio, .sg-new { transition: none; }
+  .sg-folio:hover, .sg-new:hover { transform: none; }
+  .sg-folio--skeleton { animation: none; }
 }
-
 /* ============================================================
    NEW BOARD — centered modal
    ============================================================ */

@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Search, Star, Check, X, LayoutGrid, Rows3, ArrowUpRight, ChevronDown, Columns3 } from 'lucide-react';
+import { Search, LayoutGrid, Rows3, ArrowUpRight, ChevronDown } from 'lucide-react';
 import {
   getApplicants, getBoards, getCastingBoardPipeline,
   acceptApplication, shortlistApplication, declineApplication, bulkDeclineApplications,
+  bulkUpdateCastingApplicationStage,
   keepOnFileApplication, requestMoreApplication, getApplicationDetails,
   requestMeetingApplication, offerDevelopmentApplication, updateCastingApplicationStage,
   createNote,
@@ -15,14 +16,17 @@ import {
 import BoardSelect from '../components/BoardSelect';
 import { resolveBoardIdentity, boardIdentityStyle } from '../lib/board-identity';
 import ReviewRoom from '../components/review/ReviewRoom';
-import { DeclineReasonModal } from '../components/decline/DeclineReasonModal';
-import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState, StatusCell } from '../components/ui';
-import { resolveDivision } from '../components/status';
+import { SkeletonRow, SkeletonCard, SkeletonStrip, AgencyEmptyState } from '../components/ui';
 import { ErrorBoundary } from '../../../shared/components/ErrorBoundary';
 import { EmptyErrorState } from '../../../shared/components/states';
 import ShortcutHelp from '../components/ShortcutHelp';
-import { formatLocation } from '../../../shared/utils/locationFormat';
-import { Moment } from '../components/meta';
+import { CardMeta, Moment } from '../components/meta';
+import VerdictBar from '../components/verdict/VerdictBar';
+import { useTalentSelection } from '../hooks/useTalentSelection';
+import { useAgencyPermissions } from '../hooks/useAgencyPermissions';
+import {
+  ageNotation, legalActions, restorableStatus, standingOf, standingWord,
+} from '../lib/standing';
 import {
   isConfirmedApplicationStatus,
   isRepresentedApplicationStatus,
@@ -48,9 +52,6 @@ const initials = (name) => (name || '')
   .slice(0, 2)
   .join('')
   .toUpperCase();
-
-/** `%s` in a label is the talent's name — accessible names read as sentences. */
-const withName = (template, name) => String(template).replace('%s', name);
 
 const INITIAL_FILTERS = {
   status: [],
@@ -115,8 +116,21 @@ function mapRow(p) {
     photo: img ? (img.public_url || img.path) : null,
     status,
     appliedAt: p.application_created_at,
+    /* When the standing last moved — what the standing line counts from.
+       Absent on an older API response; the line then counts from the
+       submission, which is the truth for a row nobody has decided. */
+    statusChangedAt: p.status_changed_at ?? p.statusChangedAt ?? null,
     slug: p.slug,
-    type: p.archetype || 'editorial',
+    // What gates a first look: height, age, market. Every one of these
+    // renders nothing when the response does not carry it; a card never
+    // guesses a measurement.
+    heightCm: p.height_cm ?? null,
+    age: p.age ?? null,
+    ageUnknown: p.ageUnknown,
+    isMinor: p.is_minor,
+    // The dossier engine's shape, verbatim. Absent on an older API response —
+    // the card then says nothing about digitals rather than "none".
+    digitalsFreshness: p.digitalsFreshness ?? null,
     // Plain-data truth fields (design: open-call-applicant-flow). Undefined on
     // an older API response — the row renders nothing for those, never a guess.
     emailVerified: p.emailVerified,
@@ -137,8 +151,15 @@ function mapCandidate(c) {
     photo: c.avatar || null,
     status: c.backendStatus || 'submitted',
     appliedAt: c.created_at,
+    statusChangedAt: c.statusChangedAt ?? c.status_changed_at ?? null,
     slug: c.slug,
-    type: c.archetype || 'editorial',
+    // The board-candidates route already resolves these; a legacy "178 cm"
+    // string is left to `heightFigure`, which reads a number or nothing.
+    heightCm: c.heightCm ?? null,
+    age: c.age ?? null,
+    ageUnknown: c.ageUnknown,
+    isMinor: c.isMinor,
+    digitalsFreshness: c.digitalsFreshness ?? null,
     // The board-candidates endpoint does not yet resolve identity truth
     // fields — undefined here, same "render nothing" contract as mapRow.
     emailVerified: c.emailVerified,
@@ -149,136 +170,91 @@ function mapCandidate(c) {
   };
 }
 
-/** Plain-text truth fragments for a row's meta line — undefined fields render
- *  nothing (older API), and email state is only meaningful for identity rows
- *  (a profile row already went through Pholio's own signup verification). */
-function identityMetaParts(a) {
-  const parts = [];
-  if (a.identitySource === 'submission' && typeof a.emailVerified === 'boolean') {
-    parts.push(a.emailVerified ? 'Email verified' : 'Email unverified');
+/**
+ * The notations a submission carries — the least a booker needs to route the
+ * decision, in order: the compliance fact, then digitals, then identity.
+ *
+ * Undefined/null `digitalsFreshness` means the response never carried it (an
+ * identity-only row, or an older API) — the card says nothing about digitals
+ * rather than claiming there are none.
+ */
+function submissionNotations(a) {
+  const notes = [];
+  const ageNote = ageNotation(a);
+  if (ageNote) notes.push({ text: ageNote, tone: 'warning' });
+  if (a.digitalsFreshness && !a.digitalsFreshness.hasDigitals) {
+    notes.push({ text: 'No digitals', tone: 'warning' });
   }
-  if (a.identityDisputed) parts.push('Identity disputed');
-  return parts;
+  if (a.identityDisputed) notes.push({ text: 'Identity disputed', tone: 'danger' });
+  return notes;
 }
 
 /**
- * The line under the name: discipline, then where they are, then the identity
- * notes.
- *
- * The discipline is deliberately NOT a DivisionMark. A mark's rectangle exists
- * to carry standing on a board (see meta-system.css: only a thing you hold
- * standing in earns a container), and an applicant holds no standing yet — so
- * every card in the book drew a dashed box around the same word, announcing
- * "standing unknown" and out-weighing the name above it. A market descriptor
- * is notation: it leads the line in slightly firmer ink, and nothing more.
+ * Where a submission stands, in the words the signing wall uses — one standing
+ * model for both surfaces, so a face cannot be `Shortlisted` on one screen and
+ * something else on the other (talent-card-metadata §9, defect 1).
  */
-function SubmissionSpec({ a, className }) {
-  const discipline = resolveDivision(a.type || 'editorial').label;
-  const rest = [
-    a.city ? formatLocation(a.city) : null,
-    ...identityMetaParts(a),
-  ].filter(Boolean);
-
-  return (
-    <div className={className}>
-      <span className="ap-spec-lead">{discipline}</span>
-      {rest.map((part) => (
-        <React.Fragment key={part}>
-          {/* The separator is an element so it can be quieter than the terms
-              it divides, and out of the accessibility tree. */}
-          <span className="ap-spec-sep" aria-hidden="true">·</span>
-          <span className="ap-spec-part">{part}</span>
-        </React.Fragment>
-      ))}
-    </div>
-  );
+function submissionStanding(a) {
+  return standingOf({ status: a.status, statusChangedAt: a.statusChangedAt || a.appliedAt });
 }
 
-/** Multi-select checkbox affordance — a square control, not a status marker.
- *  Two grounds: 'ink' rides over card photos, 'paper' sits on the ledger row. */
-function PickButton({ name, picked, variant, onToggle }) {
-  return (
-    <button
-      type="button"
-      className={`ap-pick ap-pick--${variant}${picked ? ' is-picked' : ''}`}
-      aria-label={`${picked ? 'Deselect' : 'Select'} ${name}`}
-      aria-pressed={picked}
-      onClick={(e) => { e.stopPropagation(); onToggle(e.shiftKey); }}
-      // Contain only the button's own activation keys — everything else
-      // (Escape, J/K, S/A/X) must bubble to the page's keyboard handler.
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') e.stopPropagation();
-      }}
-    >
-      {picked && <Check size={14} color="var(--ag-black, #16130D)" aria-hidden="true" />}
-    </button>
-  );
+/** Every card and row prints the same content: the figures line, the standing
+ *  where the tab does not already say it, then whatever notations are
+ *  actionable.
+ *
+ *  `stage: false` is the ledger, where the standing has a column of its own
+ *  and printing it twice in one row is noise, not hierarchy. */
+function submissionMeta(a, { stage = true } = {}) {
+  const meta = {
+    figures: { heightCm: a.heightCm, age: a.age },
+    /* `Place` parses the stored free-text location itself and prints the
+       city; the full string stays one hover away. */
+    context: { city: a.city },
+    notations: submissionNotations(a),
+  };
+  /* The To review tab is already the answer to "where does this stand": a
+     line reading `Filed` under every face on it says nothing. */
+  if (stage && !isNew(a.status)) {
+    const standing = submissionStanding(a);
+    meta.stage = { text: standing.text, since: standing.since };
+  }
+  return meta;
 }
 
-/** The three triage verbs, icon-only with a shared tooltip treatment. */
-function TriageActions({
-  a, busy, onShortlist, onAccept, onDecline, light = false,
-  labels = DEFAULT_ACTION_LABELS,
-}) {
-  const shortlisted = a.status === 'shortlisted';
-  const cls = `ap-icon${light ? ' ap-icon--light' : ''}`;
-  return (
-    <>
-      {!shortlisted && (
-        <button
-          type="button"
-          className={cls}
-          aria-label={withName(labels.shortlist.aria, a.name)}
-          data-tip={labels.shortlist.tip}
-          disabled={busy}
-          onClick={() => onShortlist(a.applicationId)}
-        >
-          <Star size={15} aria-hidden="true" />
-        </button>
-      )}
-      <button
-        type="button"
-        className={`${cls} ap-icon--sign`}
-        aria-label={withName(labels.accept.aria, a.name)}
-        data-tip={labels.accept.tip}
-        disabled={busy}
-        onClick={() => onAccept(a.applicationId)}
-      >
-        <Check size={15} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        className={`${cls} ap-icon--pass`}
-        aria-label={withName(labels.decline.aria, a.name)}
-        data-tip={labels.decline.tip}
-        disabled={busy}
-        onClick={() => onDecline(a.applicationId)}
-      >
-        <X size={15} aria-hidden="true" />
-      </button>
-    </>
-  );
-}
+/**
+ * Book view — one sheet on the light table.
+ *
+ * A face selects on click, opens on its name or a double click, and carries
+ * nothing in its corners: no checkbox, no hover icons over the photo. The
+ * verdict bar below is where a decision is taken, on whatever is selected —
+ * the same language the signing wall speaks (talent-card-metadata §9).
+ */
+function SubmissionCard({ a, selected, focused, tabbable, busy, onSelect, onOpen, onFocus }) {
+  const ref = useRef(null);
 
-/** Book view — one sheet on the light table. Photo-led; actions rise on hover. */
-function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onShortlist, onAccept, onDecline, busy, cardRef, onFocus, actionLabels }) {
-  const decided = isDecided(a.status);
-  const quietStatus = isNew(a.status);
+  /* Focus follows the keyboard: J/K move it, and the element it lands on
+     takes real DOM focus so the browser scrolls it into view and a screen
+     reader reads it. */
+  useEffect(() => {
+    if (focused && ref.current && document.activeElement !== ref.current) {
+      ref.current.focus({ preventScroll: true });
+      ref.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [focused]);
+
   return (
     <div
-      ref={cardRef}
-      className={`ap-card${focused ? ' ap-card--focused' : ''}${picked ? ' ap-card--picked' : ''}`}
-      role="button"
-      tabIndex={0}
-      aria-selected={focused || undefined}
-      onFocus={onFocus}
-      onClick={() => onOpen(a)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          onOpen(a);
-        }
-      }}
+      ref={ref}
+      className={`ap-card${focused ? ' ap-card--focused' : ''}${selected ? ' ap-card--selected' : ''}${busy ? ' is-busy' : ''}`}
+      role="option"
+      aria-selected={selected}
+      /* The listbox has one tab stop. Until the keyboard has moved the focus
+         it is the first face, so Tab reaches the set at all. */
+      tabIndex={focused || tabbable ? 0 : -1}
+      data-id={a.applicationId}
+      onFocus={() => onFocus(a.applicationId)}
+      onClick={(e) => onSelect(a.applicationId, { additive: e.metaKey || e.ctrlKey, range: e.shiftKey })}
+      onDoubleClick={() => onOpen(a.applicationId)}
     >
       <span className="ap-card-photo">
         {a.photo ? (
@@ -286,61 +262,49 @@ function SubmissionCard({ a, index, focused, picked, onToggleSelect, onOpen, onS
         ) : (
           <span className="ap-card-img ap-card-img--empty">{initials(a.name)}</span>
         )}
-        {!decided && (
-          <PickButton
-            name={a.name}
-            picked={picked}
-            variant="ink"
-            onToggle={(shift) => onToggleSelect(a.applicationId, index, shift)}
-          />
-        )}
-        {!decided && (
-          <span className="ap-card-acts" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-            <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} labels={actionLabels} light />
-          </span>
-        )}
       </span>
+      {/* The name IS the way in — a scrim over the face carrying the word
+          "Open" would hide the one thing the card is for. */}
       <span className="ap-card-row">
-        <span className="ap-card-name">{a.name}</span>
+        <button
+          type="button"
+          className="ap-card-name"
+          tabIndex={-1}
+          onClick={(e) => { e.stopPropagation(); onOpen(a.applicationId); }}
+        >
+          {a.name}
+        </button>
       </span>
-      <SubmissionSpec a={a} className="ap-card-spec" />
-      <span className="ap-card-state">
-        <Moment value={a.appliedAt} className="ap-card-when" />
-        {!quietStatus && <StatusCell status={a.status} className="ap-card-status" />}
-      </span>
+      <CardMeta className="ap-card-spec" {...submissionMeta(a)} />
     </div>
   );
 }
 
-/** Ledger view — the dense scanning row. */
-function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortlist, onAccept, onDecline, busy, rowRef, onFocus, actionLabels }) {
-  const decided = isDecided(a.status);
+/** Ledger view — the dense scanning row. A table earns its columns; the
+ *  standing lives in one of them rather than under the name. */
+function LedgerRow({ a, selected, focused, tabbable, busy, onSelect, onOpen, onFocus }) {
+  const ref = useRef(null);
+  const standing = submissionStanding(a);
+
+  useEffect(() => {
+    if (focused && ref.current && document.activeElement !== ref.current) {
+      ref.current.focus({ preventScroll: true });
+      ref.current.scrollIntoView({ block: 'nearest' });
+    }
+  }, [focused]);
+
   return (
     <div
-      ref={rowRef}
-      className={`ap-row${focused ? ' ap-row--focused' : ''}${picked ? ' ap-row--picked' : ''}`}
-      role="button"
-      tabIndex={0}
-      aria-selected={focused || undefined}
-      onFocus={onFocus}
-      onClick={() => onOpen(a)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          onOpen(a);
-        }
-      }}
+      ref={ref}
+      className={`ap-row${focused ? ' ap-row--focused' : ''}${selected ? ' ap-row--selected' : ''}${busy ? ' is-busy' : ''}`}
+      role="option"
+      aria-selected={selected}
+      tabIndex={focused || tabbable ? 0 : -1}
+      data-id={a.applicationId}
+      onFocus={() => onFocus(a.applicationId)}
+      onClick={(e) => onSelect(a.applicationId, { additive: e.metaKey || e.ctrlKey, range: e.shiftKey })}
+      onDoubleClick={() => onOpen(a.applicationId)}
     >
-      <span className="ap-pick-cell" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        {!decided && (
-          <PickButton
-            name={a.name}
-            picked={picked}
-            variant="paper"
-            onToggle={(shift) => onToggleSelect(a.applicationId, index, shift)}
-          />
-        )}
-      </span>
       <span className="ap-pic">
         {a.photo ? (
           <span className="ap-pic-img" style={{ backgroundImage: `url(${a.photo})` }} />
@@ -349,22 +313,24 @@ function LedgerRow({ a, index, focused, picked, onToggleSelect, onOpen, onShortl
         )}
       </span>
       <div className="ap-id">
-        <span className="ap-name">{a.name}</span>
-        <SubmissionSpec a={a} className="ap-meta" />
+        <button
+          type="button"
+          className="ap-name"
+          tabIndex={-1}
+          onClick={(e) => { e.stopPropagation(); onOpen(a.applicationId); }}
+        >
+          {a.name}
+        </button>
+        <CardMeta className="ap-meta" {...submissionMeta(a, { stage: false })} />
       </div>
       <Moment value={a.appliedAt} className="ap-applied" />
+      {/* The same words the card prints, as plain type: a state is not a
+          designed cell, and a tinted box around it is a badge by another
+          name. */}
       <span className="ap-status">
-        {isNew(a.status)
-          ? <span className="ap-status-quiet">Submitted</span>
-          : <StatusCell status={a.status} />}
+        {standing.text}
+        {standing.since && <span className="ap-status-since">{standing.since}</span>}
       </span>
-      <div className="ap-actions" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-        {decided ? (
-          <span className="ap-decided" aria-hidden="true">Decided</span>
-        ) : (
-          <TriageActions a={a} busy={busy} onShortlist={onShortlist} onAccept={onAccept} onDecline={onDecline} labels={actionLabels} />
-        )}
-      </div>
     </div>
   );
 }
@@ -416,6 +382,109 @@ function BoardBand({ board }) {
   );
 }
 
+/** The comparison overlay's ceiling, and the desk's. */
+const LINEUP_LIMIT = 6;
+
+/** Which permission each verb needs. Absent = always allowed. */
+const ACTION_PERMISSION = {
+  shortlist: 'applications.update_status',
+  request_digitals: 'applications.update_status',
+  invite_meeting: 'applications.update_status',
+  keep_on_file: 'applications.update_status',
+  reopen: 'applications.update_status',
+  offer: 'applications.accept',
+  development: 'applications.accept',
+  pass: 'applications.decline',
+  file_to_board: 'boards.assign_application',
+};
+
+/** What the same verb needs when it is taken against a set, not a person. A
+ *  batch write is its own permission on the server (route-permissions.js);
+ *  gating a bulk shortlist against the single-write grant is how a seat gets a
+ *  control the API will refuse. */
+const BULK_ACTION_PERMISSION = {
+  shortlist: 'applications.bulk_update_status',
+  keep_on_file: 'applications.bulk_update_status',
+  pass: 'applications.bulk_decline',
+};
+
+/**
+ * The inbox's verb set for the shared verdict bar.
+ *
+ * Curated, not copied: the desk files to a board and shortlists a batch, which
+ * a board meeting never does, and it has no `Mark represented`, which is the
+ * wall's own verb. Everything else — the arming, the keys, the ink register —
+ * is the one language both surfaces speak.
+ */
+const INBOX_VERBS = [
+  { action: 'open', label: 'Open', key: 'Enter', kind: 'plain' },
+  { action: 'lineup', label: 'Line up', key: 'L', kind: 'plain', bulk: true, max: LINEUP_LIMIT },
+  { action: 'shortlist', label: 'Shortlist', key: 'S', kind: 'plain', bulk: true },
+  { action: 'request_digitals', label: 'Request digitals', key: 'D', kind: 'plain' },
+  { action: 'invite_meeting', label: 'Invite to meet', key: 'M', kind: 'plain' },
+  { action: 'keep_on_file', label: 'Keep on file', key: 'F', kind: 'plain', bulk: true },
+  { action: 'reopen', label: 'Reopen', kind: 'plain' },
+  { action: 'clear', label: 'Clear', key: 'Esc', kind: 'plain', single: false, bulk: true },
+  { action: 'pass', label: 'Pass', key: 'X', kind: 'arm', armLabel: 'Confirm pass', bulk: true },
+  { action: 'file_to_board', label: 'File to board', key: 'B', kind: 'arm' },
+  { action: 'offer', label: 'Offer representation', key: 'A', kind: 'arm' },
+];
+
+/**
+ * One row per verb the bar can fire: the standing the optimistic write
+ * records, the call for one id, the batch route where one exists (its absence
+ * is what makes a verb single-only), and the toast in the agency register
+ * (signing spec §4.3).
+ */
+const VERB_API = {
+  shortlist: {
+    status: 'shortlisted',
+    single: (id) => shortlistApplication(id),
+    bulk: (ids) => bulkUpdateCastingApplicationStage(ids, { status: 'shortlisted' }),
+    toast: (name) => `Shortlisted ${name}`,
+    bulkToast: (n) => `${n} shortlisted`,
+  },
+  request_digitals: {
+    status: 'requested_more',
+    single: (id) => requestMoreApplication(id),
+    toast: (name) => `Digitals requested from ${name}`,
+  },
+  invite_meeting: {
+    status: 'meeting_requested',
+    single: (id) => requestMeetingApplication(id),
+    toast: (name) => `Meeting requested with ${name}`,
+  },
+  offer: {
+    status: 'accepted',
+    single: (id) => acceptApplication(id),
+    toast: (name) => `Offer sent to ${name}`,
+  },
+  development: {
+    status: 'development',
+    single: (id) => offerDevelopmentApplication(id),
+    toast: (name) => `Development offer sent to ${name}`,
+  },
+  keep_on_file: {
+    status: 'kept_on_file',
+    single: (id) => keepOnFileApplication(id),
+    bulk: (ids) => bulkUpdateCastingApplicationStage(ids, { status: 'kept_on_file' }),
+    toast: (name) => `${name} kept on file`,
+    bulkToast: (n) => `${n} kept on file`,
+  },
+  pass: {
+    status: 'declined',
+    single: (id, opts) => declineApplication(id, { declineReason: opts?.declineReason || null }),
+    bulk: (ids, opts) => bulkDeclineApplications(ids, opts?.declineReason || null),
+    toast: (name) => `Passed on ${name}`,
+    bulkToast: (n) => `Passed on ${n}`,
+  },
+  reopen: {
+    status: 'shortlisted',
+    single: (id) => updateCastingApplicationStage(id, { status: 'shortlisted' }),
+    toast: (name) => `Reopened ${name}`,
+  },
+};
+
 /**
  * The submissions desk.
  *
@@ -463,21 +532,17 @@ function ApplicationsPage({
     }, { replace: !push });
   }, [setSearchParams]);
   const [boardId, setBoardId] = useState(null);
-  const [focusedIndex, setFocusedIndex] = useState(-1);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(() => new Set());
-  const [bulkBusy, setBulkBusy] = useState(false);
-  const [compareOpen, setCompareOpen] = useState(false);
-  // Single-row decline confirmation (the mouse-driven "Pass" affordance).
-  // The 'x' keyboard shortcut stays instant/reason-less — that fast lane is
-  // the point of keyboard triage — this is only the deliberate click path.
-  const [declineTarget, setDeclineTarget] = useState(null);
-  const [bulkDeclineOpen, setBulkDeclineOpen] = useState(false);
+  const [lineupIds, setLineupIds] = useState([]);
+  /* The verdict bar reports its own arming so the page can stand down from
+     Enter and Escape while a decision is one keystroke from being taken. */
+  const [barArmed, setBarArmed] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [busyIds, setBusyIds] = useState(() => new Set());
 
-  const rowRefs = useRef([]);
+  const { can } = useAgencyPermissions();
   const sentinelRef = useRef(null);
-  const lastPickIndex = useRef(null);
 
   useEffect(() => {
     if (!filterOpen) return;
@@ -490,10 +555,7 @@ function ApplicationsPage({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [filterOpen]);
 
-  const changeView = useCallback((next) => {
-    setView(next);
-    try { localStorage.setItem(VIEW_KEY, next); } catch { /* private mode */ }
-  }, []);
+
 
   const boardsQuery = useQuery({
     queryKey: ['agency-boards'],
@@ -559,9 +621,14 @@ function ApplicationsPage({
   }, [qc]);
 
   // Which cached query backs the current view, and its raw record shape.
+  /* The server params are part of the key because they are part of the
+     question: an optimistic write keyed on a prefix would silently miss the
+     cache entry the view is actually reading. */
   const activeKey = useCallback(
-    () => (boardId == null ? ['applicants', openCallLinkId] : ['board-candidates', boardId]),
-    [boardId, openCallLinkId],
+    () => (boardId == null
+      ? ['applicants', openCallLinkId, serverParams]
+      : ['board-candidates', boardId]),
+    [boardId, openCallLinkId, serverParams],
   );
 
   // Write a status into the RAW cache shape for the active query so an actioned
@@ -693,13 +760,11 @@ function ApplicationsPage({
       const next = list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
       return { ...prev, [category]: next };
     });
-    setFocusedIndex(-1);
     setVisibleCount(PAGE_SIZE);
   };
 
   const resetFilters = () => {
     setFilters(INITIAL_FILTERS);
-    setFocusedIndex(-1);
     setVisibleCount(PAGE_SIZE);
   };
 
@@ -800,29 +865,47 @@ function ApplicationsPage({
   const decidedCount = keptCount + passedCount;
   const passRate = decidedCount ? Math.round((passedCount / decidedCount) * 100) : null;
 
+  // ---- selection ----
+  /* One selection language with the signing wall: click selects, cmd/ctrl
+     toggles, shift ranges along the visible order (spec §9, defect 2). The
+     order is the filtered working set, so a range picked in the book means
+     the same thing in the ledger. */
+  const filteredIds = useMemo(() => filtered.map((a) => a.applicationId), [filtered]);
+  const selection = useTalentSelection(filteredIds);
+  const { selectedIds } = selection;
+  const selected = useMemo(
+    () => filtered.filter((a) => selectedIds.has(a.applicationId)),
+    [filtered, selectedIds],
+  );
+
   // Reset triage focus + windowing whenever the working set changes. Done in the
   // change handlers (not an effect) so we never chain renders off derived state.
   const resetTriage = useCallback(() => {
-    setFocusedIndex(-1);
     setVisibleCount(PAGE_SIZE);
-    setSelectedIds(new Set());
+    selection.clear();
+    setLineupIds([]);
     setReviewId(null);
-    lastPickIndex.current = null;
-  }, [setReviewId]);
+  }, [setReviewId, selection]);
   const changeTab = useCallback((next) => { setTab(next); resetTriage(); }, [resetTriage]);
   const changeQuery = useCallback((next) => { setQ(next); resetTriage(); }, [resetTriage]);
   const changeBoard = useCallback((next) => { setBoardId(next); resetTriage(); }, [resetTriage]);
+  /* A selection belongs to the set a booker can see, so the third way that set
+     changes underneath one — the book/ledger toggle — clears it too. */
+  const changeView = useCallback((next) => {
+    setView(next);
+    selection.clear();
+    try { localStorage.setItem(VIEW_KEY, next); } catch { /* private mode */ }
+  }, [selection]);
 
-  const focusRow = useCallback((i) => {
-    const el = rowRefs.current[i];
-    if (el) {
-      el.focus({ preventScroll: true });
-      el.scrollIntoView({ block: 'nearest' });
-    }
-  }, []);
+  /* Focus can walk past the rendered window; the window is derived so it
+     already reaches the focused row on the render that moved the focus,
+     rather than the focus stopping at an invisible edge. */
+  const { focusedId } = selection;
+  const focusIndex = focusedId ? filteredIds.indexOf(focusedId) : -1;
+  const windowSize = Math.max(visibleCount, focusIndex + 1);
 
   // Latest triage state in a ref so the single keyboard handler binds once.
-  const triageRef = useRef({ filtered, focusedIndex, visibleCount, reviewId, helpOpen, selectedIds });
+  const triageRef = useRef({ filtered, reviewId, helpOpen });
 
   // ---- Review queue ----
   const openReview = useCallback((a) => { if (a) setReviewId(a.applicationId, { push: true }); }, [setReviewId]);
@@ -893,137 +976,186 @@ function ApplicationsPage({
     setReviewId(nextId);
   }, [shortlist, accept, decline, keepOnFile, requestMore, meeting, development, assignBoard, reopen, qc, setReviewId]);
 
-  // ---- Multi-select ----
-  const toggleSelect = useCallback((applicationId, index, shiftKey) => {
-    const list = triageRef.current.filtered;
-    setSelectedIds((prev) => {
+  // ---- the verdict bar ----
+  /* What the standing allows, then what this seat is allowed to do. An action
+     a status makes meaningless, or one the viewer cannot perform, is absent
+     rather than disabled: a row of greyed verbs is how a bar stops being
+     readable. */
+  const legal = useMemo(() => {
+    const raw = legalActions(selected.map((a) => a.status));
+    /* Filing to a board is the inbox's own verb and not part of the standing
+       ladder: it is legal on anything still on the desk, and meaningless on a
+       submission that has already been decided. */
+    if (selected.length === 1 && !isDecided(selected[0].status)) raw.add('file_to_board');
+    const bulk = selected.length > 1;
+    return new Set([...raw].filter((action) => {
+      const permission = (bulk && BULK_ACTION_PERMISSION[action]) || ACTION_PERMISSION[action];
+      return !permission || can(permission);
+    }));
+  }, [selected, can]);
+
+  const markBusy = useCallback((ids, on) => {
+    setBusyIds((prev) => {
       const next = new Set(prev);
-      if (shiftKey && lastPickIndex.current != null) {
-        const lo = Math.min(lastPickIndex.current, index);
-        const hi = Math.max(lastPickIndex.current, index);
-        for (let i = lo; i <= hi; i += 1) {
-          const row = list[i];
-          if (row && !isDecided(row.status)) next.add(row.applicationId);
-        }
-      } else {
-        const row = list[index];
-        if (row && isDecided(row.status)) return prev; // decided rows never select
-        if (next.has(applicationId)) next.delete(applicationId);
-        else next.add(applicationId);
-      }
+      ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
       return next;
     });
-    lastPickIndex.current = index;
   }, []);
 
-  const clearSelection = useCallback(() => {
-    setSelectedIds(new Set());
-    lastPickIndex.current = null;
-  }, []);
+  const nameFor = useCallback(
+    (id) => triageRef.current.filtered.find((a) => a.applicationId === id)?.name || 'Unnamed applicant',
+    [],
+  );
 
-  // The bulk bar speaks the same vocabulary as the row actions: "Offer
-  // representation" on a standing call, "Offer slot" on an event cast.
-  const bulkVerbs = {
-    shortlist: actionLabels.shortlist.bulk,
-    accept: actionLabels.accept.bulk,
-    decline: actionLabels.decline.bulk,
-  };
-
-  const selectableIds = useCallback(() => {
-    const list = triageRef.current.filtered;
-    return [...triageRef.current.selectedIds].filter((id) => {
-      const row = list.find((a) => a.applicationId === id);
-      return row && !isDecided(row.status);
-    });
-  }, []);
-
-  const runBulk = useCallback(async (kind) => {
-    const ids = selectableIds();
-    if (!ids.length) return;
-    const fn = { shortlist: shortlistApplication, accept: acceptApplication }[kind];
-    if (!fn) return;
-    // Flip the whole batch optimistically; the settle path reconciles from
-    // server truth (and we hard-roll-back if the entire batch fails).
+  /**
+   * Undo: PATCH each id back to the standing it held. It restores the record,
+   * not the notification — the toast copy is careful about that difference,
+   * and it names the standing that was actually written, never the raw prior.
+   */
+  const undoVerb = useCallback(async (priors) => {
+    const restore = priors
+      .map((prior) => ({ id: prior.id, status: restorableStatus(prior.status) }))
+      .filter((prior) => prior.status);
+    if (restore.length === 0) return;
+    const ids = restore.map((prior) => prior.id);
     await qc.cancelQueries({ queryKey: activeKey() });
-    const snapshot = applyOptimistic(new Set(ids), STATUS_FOR[kind]);
-    setBulkBusy(true);
-    const results = await Promise.allSettled(ids.map((id) => fn(id)));
-    setBulkBusy(false);
-    const ok = results.filter((r) => r.status === 'fulfilled').length;
-    const failed = results.length - ok;
-    const verb = actionLabels[kind]?.toast || 'Done';
-    if (ok === 0) { rollback(snapshot); toast.error(`${verb} 0 · ${failed} failed`); }
-    else if (failed) toast(`${verb} ${ok} · ${failed} failed`);
-    else toast.success(`${verb} ${ok}`);
-    clearSelection();
-    refresh();
-  }, [selectableIds, clearSelection, refresh, qc, activeKey, applyOptimistic, rollback, actionLabels]);
-
-  // Bulk decline is one request carrying one optional reason for the whole
-  // batch (POST /applications/bulk-decline) — not a loop of single declines —
-  // so the reason picker's confirm goes straight to bulkDeclineApplications.
-  const confirmBulkDecline = useCallback(async (declineReason) => {
-    const ids = selectableIds();
-    setBulkDeclineOpen(false);
-    if (!ids.length) return;
-    await qc.cancelQueries({ queryKey: activeKey() });
-    const snapshot = applyOptimistic(new Set(ids), STATUS_FOR.decline);
-    setBulkBusy(true);
+    /* One snapshot, taken before the first write: a snapshot per row would
+       capture a cache the previous row had already mutated. */
+    const snapshot = { key: activeKey(), prev: qc.getQueryData(activeKey()) };
+    restore.forEach((prior) => applyOptimistic(prior.id, prior.status));
+    markBusy(ids, true);
     try {
-      const result = await bulkDeclineApplications(ids, declineReason);
-      const count = result?.count ?? ids.length;
-      toast.success(`${actionLabels.decline?.toast || 'Passed'} ${count}`);
-    } catch (e) {
+      await Promise.all(restore.map((prior) => updateCastingApplicationStage(prior.id, { status: prior.status })));
+      setSessionDecided((n) => Math.max(0, n - restore.length));
+      toast.success(restore.length === 1
+        ? `Restored ${nameFor(restore[0].id)} to ${standingWord(restore[0].status)}`
+        : `Restored ${restore.length} to prior standing`);
+    } catch {
       rollback(snapshot);
-      toast.error(e?.message || 'Action failed');
+      toast.error('Action failed');
     } finally {
-      setBulkBusy(false);
-      clearSelection();
+      markBusy(ids, false);
       refresh();
     }
-  }, [selectableIds, clearSelection, refresh, qc, activeKey, applyOptimistic, rollback, actionLabels]);
+  }, [qc, activeKey, applyOptimistic, rollback, refresh, markBusy, nameFor]);
 
-  // List-mode keyboard triage. Mirrors the review room's advance: act, then if
-  // the row leaves the current filtered view, move focus (index + real DOM) to
-  // the row that slides into its place. Optimistic updates (P0-1) flip status
-  // synchronously, so we predict the next view against the freshly-written status.
-  const runAction = useCallback((kind, a) => {
-    if (!a) return;
-    if (isDecided(a.status)) return;
-    if (kind === 'shortlist' && a.status === 'shortlisted') return;
-    const mutation = { shortlist, accept, decline }[kind];
-    if (!mutation) return;
+  /** The toast every decision ends on: the words, and Undo where the prior
+   *  standing is one an agency may write back. */
+  const settle = useCallback((message, priors) => {
+    setSessionDecided((n) => n + priors.length);
+    const undoable = priors.every((prior) => restorableStatus(prior.status));
+    toast.success(
+      message,
+      undoable ? { action: { label: 'Undo', onClick: () => undoVerb(priors) } } : undefined,
+    );
+  }, [undoVerb]);
 
-    const { filtered: list, focusedIndex: cur } = triageRef.current;
-    const idx = (cur >= 0 && list[cur]?.applicationId === a.applicationId)
-      ? cur
-      : list.findIndex((r) => r.applicationId === a.applicationId);
+  /**
+   * File a submission to a board. The confirm shortlists a face nobody has
+   * shortlisted yet — a name on a board that is still sitting in "To review"
+   * is a board with an unread name on it — and then assigns it.
+   */
+  const fileToBoard = useCallback(async (row, { boardId: destId, boardName }) => {
+    if (!row || !destId) return;
+    const id = row.applicationId;
+    const prior = row.status;
+    const shouldShortlist = isNew(prior);
+    await qc.cancelQueries({ queryKey: activeKey() });
+    const snapshot = applyOptimistic(id, shouldShortlist ? 'shortlisted' : prior);
+    markBusy([id], true);
+    try {
+      if (shouldShortlist) await shortlistApplication(id);
+      await assignToBoard(id, destId);
+    } catch (e) {
+      rollback(snapshot);
+      toast.error(e?.message || 'Could not file to board');
+      return;
+    } finally {
+      markBusy([id], false);
+      refresh();
+    }
+    /* Undo restores the standing, which is all it has ever claimed to do:
+       the toast never says the board assignment was taken back. */
+    settle(`Filed ${row.name} to ${boardName}`, [{ id, status: prior }]);
+  }, [qc, activeKey, applyOptimistic, rollback, refresh, markBusy, settle]);
 
-    mutation.mutate(a.applicationId);
+  /**
+   * Every verb the bar fires, against the current selection. The optimistic
+   * write flips the rows synchronously so the tab re-sorts under the hand;
+   * the settle path reconciles from server truth.
+   */
+  const runVerb = useCallback(async (action, opts = {}) => {
+    const rows = selected;
+    if (rows.length === 0) return;
 
-    if (idx < 0) return;
-    // Search filters on name/city (unaffected by status), so staying in view
-    // hinges purely on whether the new status still matches the active tab.
-    const matcher = (lifecycleTabs.find((t) => t.key === tab) || lifecycleTabs[0]).match;
-    if (matcher(STATUS_FOR[kind])) return; // row remains; leave focus put
-    const nextLen = list.length - 1;
-    const target = nextLen <= 0 ? -1 : Math.min(idx, nextLen - 1);
-    setFocusedIndex(target);
-    if (target >= 0) requestAnimationFrame(() => focusRow(target));
-  }, [shortlist, accept, decline, tab, focusRow, lifecycleTabs]);
+    if (action === 'file_to_board') {
+      await fileToBoard(rows[0], opts);
+      selection.clear();
+      return;
+    }
+
+    const spec = VERB_API[action];
+    const ids = rows.map((a) => a.applicationId);
+    if (!spec) return;
+    if (ids.length > 1 && !spec.bulk) return;
+
+    const priors = rows.map((a) => ({ id: a.applicationId, status: a.status || 'submitted' }));
+    // A verdict settles the working set: the faces move to their new standing
+    // and the bar steps back, the way the Review Room advances.
+    selection.clear();
+
+    await qc.cancelQueries({ queryKey: activeKey() });
+    const snapshot = applyOptimistic(new Set(ids), spec.status);
+    markBusy(ids, true);
+    try {
+      if (ids.length > 1) await spec.bulk(ids, opts);
+      else await spec.single(ids[0], opts);
+    } catch (e) {
+      rollback(snapshot);
+      markBusy(ids, false);
+      toast.error(e?.message || 'Action failed');
+      return;
+    }
+
+    // The house note rides alongside a pass; a failed note must not read as a
+    // failed decision, so it is reported on its own.
+    const note = typeof opts.note === 'string' ? opts.note.trim() : '';
+    if (note) {
+      const results = await Promise.allSettled(ids.map((id) => createNote(id, note)));
+      if (results.some((r) => r.status === 'rejected')) toast.error('Could not save the note');
+    }
+
+    markBusy(ids, false);
+    settle(
+      ids.length > 1 ? spec.bulkToast(ids.length) : spec.toast(rows[0].name),
+      priors,
+    );
+    refresh();
+  }, [selected, selection, fileToBoard, qc, activeKey, applyOptimistic, rollback, refresh, markBusy, settle]);
+
+  const openLineup = useCallback(() => {
+    const ids = selection.selectedInOrder().slice(0, LINEUP_LIMIT);
+    if (ids.length < 2) return;
+    setLineupIds(ids);
+  }, [selection]);
 
   // Keep the latest triage state fresh so the keyboard handler can bind once.
   // The effective reviewId is nulled when its row is not in view, so the
   // keyboard never falls into review mode with no panel showing.
   useEffect(() => {
     const effectiveReviewId = reviewRow ? reviewId : null;
-    triageRef.current = { filtered, focusedIndex, visibleCount, reviewId: effectiveReviewId, helpOpen, selectedIds };
-  }, [filtered, focusedIndex, visibleCount, reviewId, reviewRow, helpOpen, selectedIds]);
+    triageRef.current = { filtered, reviewId: effectiveReviewId, helpOpen };
+  }, [filtered, reviewId, reviewRow, helpOpen]);
 
-  // Fresh action closures for the bound-once keyboard handler.
+  // Fresh action closures for the bound-once keyboard handler. `openLineup`
+  // closes over the current selection, so routing it through the ref keeps one
+  // binding for the life of the surface instead of resubscribing on every click.
   const kbdRef = useRef(null);
   useEffect(() => {
-    kbdRef.current = { openReview, goNextReview, goPrevReview, decideFromReview, runAction, toggleSelect };
+    kbdRef.current = {
+      openReview, goNextReview, goPrevReview, decideFromReview,
+      selection, openLineup, barArmed, lineupOpen: lineupIds.length > 0,
+    };
   });
 
   // Warm the neighbours so review-room paging feels instant.
@@ -1039,50 +1171,42 @@ function ApplicationsPage({
     });
   }, [reviewId, reviewIndex, filtered, qc]);
 
+  /* The bar owns S, D, M, F, B, A, X and N — and Enter and Escape while it is
+     armed. What stays here is the surface's own: moving the focus, selecting,
+     opening a record, lining a set up, and unwinding one layer at a time. */
   useEffect(() => {
-    const move = (dir) => {
-      const { filtered: list, focusedIndex: cur } = triageRef.current;
-      const n = list.length;
-      if (!n) return;
-      let next = cur < 0 ? (dir > 0 ? 0 : n - 1) : cur + dir;
-      next = Math.max(0, Math.min(n - 1, next));
-      setFocusedIndex(next);
-      if (next >= triageRef.current.visibleCount) {
-        setVisibleCount(next + PAGE_SIZE);
-        requestAnimationFrame(() => focusRow(next));
-      } else {
-        focusRow(next);
-      }
-    };
-
     const onKey = (e) => {
       const t = e.target;
-      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
-      const { filtered: list, focusedIndex: cur, reviewId: rid, helpOpen: help, selectedIds: sel } = triageRef.current;
+      const isTyping = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      const { reviewId: rid, helpOpen: help } = triageRef.current;
       const k = kbdRef.current;
 
       // '?' toggles help from anywhere (never mid-typing / modifier chord).
       if (e.key === '?') {
-        if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+        if (isTyping || e.metaKey || e.ctrlKey || e.altKey) return;
         e.preventDefault(); setHelpOpen((v) => !v); return;
       }
 
-      // Escape unwinds one layer at a time: help → review → selection.
+      /* Escape unwinds one layer at a time, outermost first: help, the review
+         room, the lineup, then — once the bar has disarmed itself — the
+         selection. An armed verdict owns Escape alone, or one press would
+         disarm and clear in the same breath. */
       if (e.key === 'Escape') {
-        if (typing) { t.blur(); return; }
+        if (isTyping) { t.blur(); return; }
         if (help) { setHelpOpen(false); return; }
         if (rid != null) { setReviewId(null); return; }
-        if (sel.size > 0) { clearSelection(); return; }
+        if (k.lineupOpen) { setLineupIds([]); return; }
+        if (k.barArmed) return;
+        k.selection.clear();
         return;
       }
 
       // Never hijack keys while the booker is typing or using a modifier chord.
-      if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTyping || e.metaKey || e.ctrlKey || e.altKey) return;
 
       // Review open — navigation and decision shortcuts are handled by the review
-      // room itself (with confirmation modals for irreversible decisions). Keep
-      // this branch so list-mode shortcuts do not also fire through the page.
-      if (rid != null) {
+      // room itself. Keep this branch so list-mode shortcuts do not also fire.
+      if (rid != null || k.lineupOpen) {
         switch (e.key) {
           case 'j': case 'J': case 'k': case 'K': case 'ArrowDown': case 'ArrowUp':
           case 's': case 'S': case 'a': case 'A': case 'x': case 'X':
@@ -1095,25 +1219,30 @@ function ApplicationsPage({
         return;
       }
 
-      // Review closed — list triage.
-      const row = cur >= 0 ? list[cur] : null;
       switch (e.key) {
-        case 'j': case 'J': case 'ArrowDown':
-          e.preventDefault(); move(1); break;
-        case 'k': case 'K': case 'ArrowUp':
-          e.preventDefault(); move(-1); break;
-        case 'Enter':
-          if (row) { e.preventDefault(); k.openReview(row); } break;
-        case 's': case 'S':
-          if (row) { e.preventDefault(); k.runAction('shortlist', row); } break;
-        case 'a': case 'A':
-          if (row) { e.preventDefault(); k.runAction('accept', row); } break;
-        case 'x': case 'X':
-          if (row) { e.preventDefault(); k.runAction('decline', row); } break;
+        case 'j': case 'J': case 'ArrowDown': case 'ArrowRight':
+          e.preventDefault(); k.selection.moveFocus(1); break;
+        case 'k': case 'K': case 'ArrowUp': case 'ArrowLeft':
+          e.preventDefault(); k.selection.moveFocus(-1); break;
         case ' ': case 'Spacebar':
-          if (t && t.tagName === 'BUTTON') return; // let a focused pick button act natively
-          if (row) { e.preventDefault(); k.toggleSelect(row.applicationId, cur, false); }
+          /* On a real control Space is that control's own activation. Taking
+             it here as well would press the button and toggle a card. */
+          if (t && (t.tagName === 'BUTTON' || t.tagName === 'A')) return;
+          if (k.selection.focusedId) {
+            e.preventDefault();
+            k.selection.toggle(k.selection.focusedId);
+          }
           break;
+        case 'Enter':
+          /* An armed verdict has already claimed Enter as its confirmation. */
+          if (k.barArmed) break;
+          if (k.selection.focusedId) {
+            e.preventDefault();
+            setReviewId(k.selection.focusedId, { push: true });
+          }
+          break;
+        case 'l': case 'L':
+          e.preventDefault(); k.openLineup(); break;
         default:
           break;
       }
@@ -1121,7 +1250,27 @@ function ApplicationsPage({
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [focusRow, clearSelection, setReviewId]);
+  }, [setReviewId]);
+
+  /* The bar's own note field is inside the bar, not another layer over it:
+     focusing it must silence the PAGE's keys without unmounting the armed
+     strip the field belongs to. So a field inside `.sbv-bar` is typing for the
+     page and not for the bar. */
+  useEffect(() => {
+    const onFocusChange = () => {
+      const el = document.activeElement;
+      const inBar = Boolean(el && typeof el.closest === 'function' && el.closest('.sbv-bar'));
+      const tag = el?.tagName;
+      const isField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el?.isContentEditable;
+      setTyping(Boolean(isField) && !inBar);
+    };
+    document.addEventListener('focusin', onFocusChange);
+    document.addEventListener('focusout', onFocusChange);
+    return () => {
+      document.removeEventListener('focusin', onFocusChange);
+      document.removeEventListener('focusout', onFocusChange);
+    };
+  }, []);
 
   // Incremental rendering — grow the window when the sentinel scrolls into view.
   useEffect(() => {
@@ -1139,7 +1288,7 @@ function ApplicationsPage({
   const hasActiveFilter = tab !== 'to_review' || Boolean(q.trim()) || hasActiveFilters;
   const isGenuineEmpty = applicants.length === 0;
   const hasNoResults = !isGenuineEmpty && filtered.length === 0;
-  const visible = filtered.slice(0, visibleCount);
+  const visible = filtered.slice(0, windowSize);
 
   const retrySubmissions = () => {
     boardsQuery.refetch();
@@ -1170,20 +1319,17 @@ function ApplicationsPage({
   }
 
   const selectionMode = selectedIds.size > 0;
+  const barActive = !reviewRow && !helpOpen && lineupIds.length === 0 && !typing;
 
   const rowProps = (a, i) => ({
     a,
-    index: i,
-    focused: focusedIndex === i,
-    picked: selectedIds.has(a.applicationId),
-    onToggleSelect: toggleSelect,
-    busy: inFlight === a.applicationId,
-    onFocus: () => setFocusedIndex(i),
-    onOpen: openReview,
-    actionLabels,
-    onShortlist: () => shortlist.mutate(a.applicationId),
-    onAccept: () => accept.mutate(a.applicationId),
-    onDecline: () => setDeclineTarget(a),
+    selected: selectedIds.has(a.applicationId),
+    focused: selection.focusedId === a.applicationId,
+    tabbable: !selection.focusedId && i === 0,
+    busy: busyIds.has(a.applicationId) || inFlight === a.applicationId,
+    onFocus: selection.setFocused,
+    onSelect: selection.select,
+    onOpen: (id) => setReviewId(id, { push: true }),
   });
 
   return (
@@ -1493,13 +1639,6 @@ function ApplicationsPage({
 
       {activeBoard && <BoardBand board={activeBoard} />}
 
-      {compareOpen && (
-        <ComparisonOverlay
-          applicationIds={[...selectedIds]}
-          onClose={() => setCompareOpen(false)}
-        />
-      )}
-
       {isPoolTruncated && (
         <p className="ap-truncation-note">
           This desk is showing the first {SUBMISSIONS_SHOWN_CAP.toLocaleString()} submissions.
@@ -1543,15 +1682,16 @@ function ApplicationsPage({
       )}
 
       {!isGenuineEmpty && !hasNoResults && (view === 'book' ? (
-        <div className={`ap-book${selectionMode ? ' is-selecting' : ''}`}>
+        <div
+          className={`ap-book${selectionMode ? ' is-selecting' : ''}`}
+          role="listbox"
+          aria-multiselectable="true"
+          aria-label="Submissions"
+        >
           {visible.map((a, i) => (
-            <SubmissionCard
-              key={a.applicationId}
-              cardRef={(el) => { rowRefs.current[i] = el; }}
-              {...rowProps(a, i)}
-            />
+            <SubmissionCard key={a.applicationId} {...rowProps(a, i)} />
           ))}
-          {visibleCount < filtered.length && (
+          {windowSize < filtered.length && (
             <div ref={sentinelRef} className="ap-sentinel ap-sentinel--book" aria-hidden="true">
               <SkeletonCard count={5} />
             </div>
@@ -1561,21 +1701,16 @@ function ApplicationsPage({
         <div className={`ap-list${selectionMode ? ' is-selecting' : ''}`}>
           <div className="ap-row ap-row--head" aria-hidden="true">
             <span />
-            <span />
             <span>Talent</span>
             <span>Submitted</span>
-            <span>Match</span>
             <span>Status</span>
-            <span />
           </div>
-          {visible.map((a, i) => (
-            <LedgerRow
-              key={a.applicationId}
-              rowRef={(el) => { rowRefs.current[i] = el; }}
-              {...rowProps(a, i)}
-            />
-          ))}
-          {visibleCount < filtered.length && (
+          <div role="listbox" aria-multiselectable="true" aria-label="Submissions">
+            {visible.map((a, i) => (
+              <LedgerRow key={a.applicationId} {...rowProps(a, i)} />
+            ))}
+          </div>
+          {windowSize < filtered.length && (
             <div ref={sentinelRef} className="ap-sentinel" aria-hidden="true">
               <SkeletonRow count={3} />
             </div>
@@ -1584,43 +1719,29 @@ function ApplicationsPage({
       ))}
       </div>
 
-      {/* BULK BAR — floats when a selection exists; sits below the review drawer. */}
-      <AnimatePresence>
-        {selectionMode && (
-          <motion.div
-            className="ap-bulk"
-            role="region"
-            aria-label="Bulk actions"
-            initial={{ opacity: 0, x: "-50%", y: 8 }}
-            animate={{ opacity: 1, x: "-50%", y: 0 }}
-            exit={{ opacity: 0, x: "-50%", y: 8 }}
-            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-          >
-            <span className="ap-bulk-count">{selectedIds.size} selected</span>
-            <span className="ap-bulk-div" aria-hidden="true" />
-            <button type="button" className="ap-bulk-act" disabled={bulkBusy} onClick={() => runBulk('shortlist')}>
-              <Star size={15} aria-hidden="true" /> {bulkVerbs.shortlist}
-            </button>
-            <button type="button" className="ap-bulk-act ap-bulk-act--sign" disabled={bulkBusy} onClick={() => runBulk('accept')}>
-              <Check size={15} aria-hidden="true" /> {bulkVerbs.accept}
-            </button>
-            <button type="button" className="ap-bulk-act ap-bulk-act--pass" disabled={bulkBusy} onClick={() => setBulkDeclineOpen(true)}>
-              <X size={15} aria-hidden="true" /> {bulkVerbs.decline}
-            </button>
-            {selectedIds.size >= 2 && selectedIds.size <= 6 && (
-              <button
-                type="button"
-                className="ap-bulk-act"
-                disabled={bulkBusy}
-                onClick={() => setCompareOpen(true)}
-              >
-                <Columns3 size={15} aria-hidden="true" /> Compare
-              </button>
-            )}
-            <button type="button" className="ap-bulk-clear" disabled={bulkBusy} onClick={clearSelection}>Clear</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* THE VERDICT BAR — the same ink bar the signing wall works from,
+          carrying the inbox's own verb set. */}
+      <VerdictBar
+        selected={selected}
+        verbs={INBOX_VERBS}
+        legal={legal}
+        boards={boards}
+        busy={busyIds.size > 0}
+        active={barActive}
+        sessionDecided={sessionDecided}
+        onAction={runVerb}
+        onOpen={() => {
+          const [first] = selection.selectedInOrder();
+          if (first) setReviewId(first, { push: true });
+        }}
+        onLineUp={openLineup}
+        onClear={selection.clear}
+        onArmingChange={setBarArmed}
+      />
+
+      {lineupIds.length > 0 && (
+        <ComparisonOverlay applicationIds={lineupIds} onClose={() => setLineupIds([])} />
+      )}
 
       <AnimatePresence>
         {reviewRow && (
@@ -1642,28 +1763,8 @@ function ApplicationsPage({
         )}
       </AnimatePresence>
 
-      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} surface="submissions" />
 
-      <DeclineReasonModal
-        open={Boolean(declineTarget)}
-        talentName={declineTarget?.name}
-        busy={decline.isPending}
-        onClose={() => setDeclineTarget(null)}
-        onConfirm={(declineReason) => {
-          decline.mutate(
-            { applicationId: declineTarget.applicationId, declineReason },
-            { onSuccess: () => setDeclineTarget(null) },
-          );
-        }}
-      />
-
-      <DeclineReasonModal
-        open={bulkDeclineOpen}
-        count={selectedIds.size}
-        busy={bulkBusy}
-        onClose={() => setBulkDeclineOpen(false)}
-        onConfirm={confirmBulkDecline}
-      />
     </div>
   );
 }

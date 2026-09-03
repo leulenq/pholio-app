@@ -1,0 +1,108 @@
+/* ============================================================
+   CardMeta — the type under a face.
+
+   The whole hierarchy is INK. There is deliberately not one background,
+   border, radius or shadow in this file: the moment a figure gets a box it
+   reads as a badge, which the agency system bans, and the moment the slots
+   get their own sizes the card stops being scannable at 168px.
+
+   Ink ladder (agency tokens):
+     name        --ag-text-0   (owned by the surface, not by this file)
+     figures     --ag-text-2   (height, age, city — one line, mono figures)
+     stage       --ag-text-2, the `since` value one tier fainter
+     notations   --ag-text-3, toned only where actionable
+   ============================================================ */
+
+.cm {
+  min-width: 0;
+  /* 6px off the name, 3px between everything after it — the gap that says
+     "the name is the heading and these are its terms" without a rule. */
+  margin-top: 6px;
+}
+
+/* ---------- FIGURES ---------- */
+
+.cm-figures {
+  display: flex;
+  align-items: baseline;
+}
+
+/* Height, age and city read as ONE line at the same ink tier — restraint
+   revision, 2026-09-01: the figure/context split this system started with
+   read as more than a booker needs on first look. */
+.cm-figures .mf__val,
+.cm-figures .mf__unit {
+  color: var(--ag-text-2);
+}
+
+/* ---------- STAGE ---------- */
+
+.cm-stage {
+  margin: 3px 0 0;
+  font-family: var(--ag-font-body);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ag-text-2);
+  overflow-wrap: anywhere;
+}
+
+/* The elapsed figure — mono and tabular so a column of them aligns on the
+   digit, and quiet enough that the standing words stay the sentence. */
+.cm-since {
+  font-family: var(--ag-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--ag-text-3);
+}
+
+.cm-since::before {
+  content: ' · ';
+  color: var(--ag-text-4);
+}
+
+/* ---------- NOTATIONS ---------- */
+
+.cm-notations {
+  margin: 3px 0 0;
+  min-width: 0;
+  font-family: var(--ag-font-body);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ag-text-3);
+  /* One line, always. Notations are asides; a card that grows a third line of
+     them has stopped being a card and started being a record. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm-note {
+  color: var(--ag-text-3);
+}
+
+/* Tone is colour on the words themselves — never a dot, never a pill. Each
+   toned notation reads without its colour ("Under 18", "Identity disputed"),
+   which is the requirement. */
+.cm-note--warning {
+  color: var(--ag-warning);
+  font-weight: 500;
+}
+
+.cm-note--danger {
+  color: var(--ag-danger);
+  font-weight: 500;
+}
+
+/* Quieter than every term it divides, matching `.ml__sep`. */
+.cm-sep {
+  margin: 0 5px;
+  color: var(--ag-text-4);
+  letter-spacing: 0;
+}
+
+@media (forced-colors: active) {
+  .cm-note--warning,
+  .cm-note--danger {
+    color: CanvasText;
+  }
+}

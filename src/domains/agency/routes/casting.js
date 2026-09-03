@@ -14,9 +14,44 @@ const {
   hasApplicantIdentitySupport,
   resolveApplicantIdentities,
 } = require("../services/applicant-identity");
+const {
+  computeAge,
+  hasRecordedDateOfBirth,
+  isMinorProfile,
+} = require("../../../shared/lib/talent-age");
+const {
+  digitalsFreshness,
+} = require("../../talent/services/digitals-freshness");
 
 const router = express.Router();
 mountAgencyApiGuard(router);
+
+/**
+ * Statuses folded into each board count (design §3). Mirrors the section
+ * groupings `boardModel.js` (client) derives from the same canonical status
+ * list, so the docket total and the wall sections never disagree.
+ */
+const WAITING_STATUSES = new Set(["requested_more", "meeting_requested"]);
+const OFFER_STATUSES = new Set(["accepted", "development"]);
+const ON_FILE_STATUSES = new Set(["kept_on_file"]);
+
+function toIsoOrNull(value) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+/**
+ * Same null-guard `talent-dossier.js`'s `buildDigitalsFreshness` applies
+ * before handing images to the engine: a set with no `image_type` on any
+ * frame is "no data", not "no digitals", and the engine must not be asked to
+ * call that current.
+ */
+function buildCandidateDigitalsFreshness(rawImages) {
+  const images = Array.isArray(rawImages) ? rawImages : [];
+  if (!images.some((image) => image && image.image_type)) return null;
+  return digitalsFreshness(images);
+}
 
 // POST /api/agency/applications/:applicationId/assign-board - Assign application to board
 router.post(
@@ -122,11 +157,14 @@ router.get(
           "a.id as application_id",
           "a.status as application_status",
           "a.created_at as application_created_at",
+          "a.status_changed_at as application_status_changed_at",
+          "a.decline_reason as application_decline_reason",
           ...(identitySupported ? ["a.applicant_identity_id"] : []),
           "p.id as profile_id",
           "p.first_name",
           "p.last_name",
           "p.city",
+          "p.date_of_birth",
           "p.height_cm",
           "p.bust_cm",
           "p.waist_cm",
@@ -184,6 +222,38 @@ router.get(
         imagesByProfile.get(image.profile_id).push(image);
       }
 
+      // Two batched reads for the whole board — never per candidate.
+      const applicationIds = applicationRows.map((row) => row.application_id);
+      const [noteCountRows, tagRows] = applicationIds.length
+        ? await Promise.all([
+            knex("application_notes")
+              .whereIn("application_id", applicationIds)
+              .whereNull("deleted_at")
+              .groupBy("application_id")
+              .select("application_id")
+              .count({ count: "*" }),
+            knex("application_tags")
+              .whereIn("application_id", applicationIds)
+              .orderBy("created_at", "asc")
+              .select("id", "application_id", "tag", "color"),
+          ])
+        : [[], []];
+
+      const notesCountByApplication = new Map(
+        noteCountRows.map((row) => [row.application_id, Number(row.count) || 0]),
+      );
+      const tagsByApplication = new Map();
+      for (const row of tagRows) {
+        if (!tagsByApplication.has(row.application_id)) {
+          tagsByApplication.set(row.application_id, []);
+        }
+        tagsByApplication.get(row.application_id).push({
+          id: row.id,
+          tag: row.tag,
+          color: row.color || null,
+        });
+      }
+
       const candidates = applicationRows.map((row) => {
         // Identity-backed rows carry no live profile, so their name, city,
         // height and images come off the frozen snapshot instead.
@@ -198,6 +268,37 @@ router.get(
         const heightCm = row.height_cm ?? identity?.heightCm ?? null;
         const location = row.city || identity?.city || null;
 
+        // DOB-derived, per the industry audit — never the stale `profiles.age`
+        // column. Identity-only rows never carry a DOB (design §3.1, ruling
+        // Q1: an 18+ attestation, not a date), so `identity?.dateOfBirth` is
+        // always null today; the fallback exists so a future snapshot that
+        // does carry one is honored without another route change.
+        const dateOfBirth = row.profile_id
+          ? row.date_of_birth
+          : identity?.dateOfBirth || null;
+        const age = computeAge(dateOfBirth);
+        const isMinor = isMinorProfile({ date_of_birth: dateOfBirth });
+        // Age unknown is not age cleared (src/shared/lib/talent-age.js). A row
+        // with no readable DOB cannot be proven adult, so `isMinor: false`
+        // alone would ship full measurements for someone who may be a child.
+        // The board says so plainly instead, and withholds the stats.
+        const ageUnknown = !hasRecordedDateOfBirth({
+          date_of_birth: dateOfBirth,
+        });
+
+        const rawMeasurements = row.profile_id
+          ? formatCastingMeasurements(row)
+          : identity?.measurements?.text || null;
+
+        // Same fallback chain as `avatar` (digital headshot, else primary,
+        // else first), spelled out because a headshot must not silently
+        // become a full-length frame the way "first image" alone could.
+        const digitalHeadshot = profileImages.find(
+          (image) =>
+            image.image_type === "digital" && image.shot_type === "headshot",
+        );
+        const headshotImage = digitalHeadshot || primaryImage;
+
         return {
           id: row.application_id,
           applicationId: row.application_id,
@@ -211,14 +312,27 @@ router.get(
           backendStatus: row.application_status || "submitted",
           height: heightCm ? `${heightCm} cm` : null,
           location,
-          measurements: row.profile_id
-            ? formatCastingMeasurements(row)
-            : identity?.measurements?.text || null,
+          // Never printed for a minor (design §2.5): body measurements are
+          // withheld at the data layer, not merely hidden client-side.
+          measurements: isMinor || ageUnknown ? null : rawMeasurements,
           portfolio: profileImages.map((image) => ({
             id: image.id,
             url: image.path,
           })),
           created_at: row.application_created_at,
+          submittedAt: toIsoOrNull(row.application_created_at),
+          statusChangedAt: toIsoOrNull(row.application_status_changed_at),
+          age,
+          isMinor,
+          ageUnknown,
+          city: location,
+          headshot: headshotImage?.path || null,
+          digitalsFreshness: row.profile_id
+            ? buildCandidateDigitalsFreshness(profileImages)
+            : null,
+          notesCount: notesCountByApplication.get(row.application_id) || 0,
+          tags: tagsByApplication.get(row.application_id) || [],
+          declineReason: row.application_decline_reason || null,
         };
       });
 
@@ -227,12 +341,24 @@ router.get(
         return accumulator;
       }, {});
 
+      let waitingCount = 0;
+      let offerCount = 0;
+      let onFileCount = 0;
+      for (const candidate of candidates) {
+        if (WAITING_STATUSES.has(candidate.backendStatus)) waitingCount += 1;
+        else if (OFFER_STATUSES.has(candidate.backendStatus)) offerCount += 1;
+        else if (ON_FILE_STATUSES.has(candidate.backendStatus)) onFileCount += 1;
+      }
+
       return res.json({
         board: {
           ...board,
           application_count: candidates.length,
           submitted_count: counts.Applied || 0,
           represented_count: counts.Represented || 0,
+          waiting_count: waitingCount,
+          offer_count: offerCount,
+          on_file_count: onFileCount,
         },
         stages: CASTING_PIPELINE_STAGES,
         candidates,

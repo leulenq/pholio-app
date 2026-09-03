@@ -319,7 +319,7 @@
 
 .ev-assign-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--ag-border);
@@ -328,8 +328,10 @@
 }
 .ev-assign-row:last-child { border-bottom: 0; }
 
-.ev-assign-name { font-weight: 500; color: var(--ag-text-0); }
-.ev-assign-meta { margin-left: auto; font-size: 0.75rem; color: var(--ag-text-2); }
+.ev-assign-main { min-width: 0; flex: 1; }
+.ev-assign-name { display: block; font-weight: 500; color: var(--ag-text-0); }
+/* CardMeta owns the type under the name; the row owns only the gap. */
+.ev-assign-spec { margin-top: 3px; }
 
 /* Square check — the desk's multi-select affordance, not a status marker. */
 .ev-check {

@@ -115,6 +115,7 @@ const {
 const {
   computeAge,
   isMinorProfile,
+  hasRecordedDateOfBirth,
 } = require("../../../shared/lib/talent-age");
 const {
   applyMinorSubmissionFilter,
@@ -165,6 +166,18 @@ function identityProfileRow(dto) {
     // makes `is_minor` false and `age` null, which is the honest answer.
     date_of_birth: null,
   };
+}
+
+/**
+ * Same null-guard `casting.js`'s `buildCandidateDigitalsFreshness` applies
+ * before handing images to the engine: a set with no `image_type` on any
+ * frame is "no data", not "no digitals", and the engine must not be asked to
+ * call that current.
+ */
+function buildRowDigitalsFreshness(rawImages) {
+  const images = Array.isArray(rawImages) ? rawImages : [];
+  if (!images.some((image) => image && image.image_type)) return null;
+  return digitalsFreshness(images);
 }
 
 /**
@@ -1076,6 +1089,7 @@ async function fetchSubmissionCandidates(
         "applications.status as application_status",
         "applications.id as application_id",
         "applications.created_at as application_created_at",
+        "applications.status_changed_at as application_status_changed_at",
         "applications.profile_id as application_profile_id",
         // Plain-data truth fields (design §6 requirement 2) — read from the
         // two authoritative columns rather than through the resolver, which
@@ -1501,6 +1515,21 @@ router.get(
         // An identity-backed row has no live profile at all, so the resolver DTO
         // is fed through the SAME snapshot builder — one shape for the SPA,
         // whichever source it came from.
+        // Same source split as `submitted.images` below, fed to the freshness
+        // engine BEFORE it is shaped into a public image DTO — the DTO drops
+        // `captured_at`, and the engine cannot judge a set it cannot date.
+        const digitalsSourceImages = submissionPackage?.profile
+          ? submissionPackage.images || []
+          : profile.id
+            ? imagesByProfile[profile.id] || []
+            : identityDto?.images || [];
+        // Age unknown is not age cleared (src/shared/lib/talent-age.js).
+        // Identity-only rows never carry a DOB (design §3.1, ruling Q1: an
+        // 18+ attestation, not a date), so this is always true for them.
+        const ageUnknown = profile.id
+          ? !hasRecordedDateOfBirth({ date_of_birth: profile.date_of_birth })
+          : true;
+
         const submitted = submissionPackage?.profile
           ? {
               ...submissionPackage.profile,
@@ -1523,8 +1552,13 @@ router.get(
           application_status: profile.application_status,
           application_id: profile.application_id,
           application_created_at: profile.application_created_at,
+          statusChangedAt: profile.application_status_changed_at
+            ? new Date(profile.application_status_changed_at).toISOString()
+            : null,
           submission_package: submissionPackage || null,
           tags: tagsByApplication[profile.application_id] || [],
+          digitalsFreshness: buildRowDigitalsFreshness(digitalsSourceImages),
+          ageUnknown,
           ...identityTruthFields(
             profile.application_profile_id
               ? {
@@ -4227,6 +4261,13 @@ router.get(
           ? buildAgencySubmissionDTO(profile, { images, social })
           : buildAgencyDiscoveryDTO(profile, { images, social });
 
+      const freshnessSource = images || [];
+      const profileDigitalsFreshness = freshnessSource.some(
+        (img) => img && img.image_type,
+      )
+        ? digitalsFreshness(freshnessSource)
+        : null;
+
       return res.json({
         application: application
           ? {
@@ -4241,6 +4282,7 @@ router.get(
           : null,
         profile: profileDto,
         submissionPackage: submittedPackage,
+        digitalsFreshness: profileDigitalsFreshness,
         notes,
         tags,
       });
@@ -4346,8 +4388,11 @@ router.get(
           applicationId: app.application_id,
           profileId: app.profile_id || null,
           name: fullName,
-          location: app.city || identity?.city || "Location not specified",
+          // Absence is silence — a card never prints a placeholder where a
+          // city should be (talent-card metadata spec §7).
+          location: app.city || identity?.city || null,
           height: app.height_cm || identity?.heightCm || null,
+          heightCm: app.height_cm || identity?.heightCm || null,
           age: ageFrom(app.date_of_birth),
           profileImage:
             imageByProfile[app.profile_id] ||

@@ -62,7 +62,7 @@ after shortlist stays available in the bar ("File to board" appears once shortli
 
 ## Implementation checklist
 
-- [ ] Server: `/api/agency/applications/:id/details` adds `digitalsFreshness`
+- [x] Server: `/api/agency/applications/:id/details` adds `digitalsFreshness`
       (mirror dossier: live image rows when profile exists, identity images otherwise).
 - [ ] ApplicantsPage wiring: meeting/development/reopen mutations, decline note persisted via
       `createNote`, session tally, URL sync (`useSearchParams`, back closes), undo toasts,
@@ -296,3 +296,55 @@ Apple HIG "Wallet" (rev. June 8 2026), WalletPasses docs, WWDC26 session 209.
   module, share links, on-device verification of the poster strip geometry.
 - Validation: 75 tests across wallet + touched pdf suites; 10 preview cases
   (5 fixtures × 2 themes) in `docs/wallet/previews/`.
+
+---
+
+# Signing Board rebuild — expanded board (2026-09-01)
+
+Spec: `docs/superpowers/specs/2026-09-01-signing-board-design.md`
+
+## Plan
+- [x] Research: industry skill, language skill, agency DESIGN.md, review-room precedent, code inventory, outside sources (BFC best-practice guide, scout interviews)
+- [x] Product decision: wall of standings + ledger + lineup + verdict bar; no Kanban (decisions notify talent, must be armed/undoable)
+- [x] Spec written with pinned interfaces and file ownership
+- [x] Lane B (Sonnet): enrich `GET /boards/:id/candidates` + test (15 jest tests)
+- [x] Lane W (Opus): page, model, masthead, wall, ledger, shelves, route swap
+- [x] Lane V (Opus): selection hook, decisions hook, verdict bar
+- [x] Integrate: delete CastingDetailPage + `.rr-*`, lint, build, vitest, jest
+- [x] Opus code review → 21-item fix pass (done; 93 signing vitest, 17 jest)
+- [x] Browser verification on scratch SQLite (:3100 + Vite :5175), screenshots at 1280/1680
+- [x] Review section below
+
+## Review (2026-09-01)
+
+- Structure shipped: masthead (identity plate kept) → Wall in ruled standing
+  sections → Ledger toggle → Lineup (existing ComparisonOverlay) → ink verdict
+  bar with inline arming and Undo → record in the Review Room with the board as
+  the queue. No Kanban, no drag.
+- Verified in a real browser on a scratch SQLite: range/toggle selection, bulk
+  pass with reason strip, single represent + Undo toast, keep on file + Undo,
+  ledger sort/selection, lineup, deep-linked review, minors withheld
+  (server-side), long names in 168px tiles, no backdrop-filter, no gradients.
+- Fixed from review: armed pass surviving the note field, ledger digitals
+  column, undo to unwritable statuses, shelved record opening, Enter/Escape
+  double-handling, DOB-unknown fail-open, review-room legality gate, lineup
+  param validation, bulk permissions, token drift, "today" label, name-as-open.
+- Left as recorded limits: package boards still write `represented`;
+  lineup shows "Unknown applicant" for candidates without a frozen submission
+  package; interviews are a status only (tables are dead).
+- Verification stack lesson recorded in `tasks/lessons.md` (APP_URL must match
+  the verification Vite origin; toasts after HMR need a fresh load).
+
+# Talent card metadata — Submissions + Signing (2026-09-01)
+
+Spec: `docs/superpowers/specs/2026-09-01-talent-card-metadata.md`
+
+- [x] First-principles pass: what gates a first look vs a signing decision; per-surface content table
+- [x] `CardMeta` grammar in `components/meta` (figures → context → stage → notations, ink levels only)
+- [x] Submissions: removed invented `EDITORIAL` lead; height+imperial, age, city, board applied for, digitals read, received
+- [x] Signing wall/shelves/ledger: figures, city, standing, notes count, tags column
+- [x] Backend: list rows carry `digitalsFreshness` + `ageUnknown` (5 new jest tests)
+- [x] Verified: eslint clean, vitest 255, jest agency 406, browser pass on scratch stack
+- [x] Restraint revision (owner: "too much"): cards now name · one facts line · standing (wall) · notation only when true; spec §7; feedback memory recorded
+- [x] Universal application (owner): Overview strip, Scout cards + detail, talent drawer header + vitals, event pick-list and lineup rows now print through CardMeta; invented archetype/'available'/'—' fallbacks removed; pool/lineup/recent-applicants payloads carry heightCm/age/city; MetaLine wrap keeps the dot with its value
+- [x] Submissions coherence (owner): StatusCell replaced by the CardMeta standing line on every tab and the ledger; click-select + shared `components/verdict/VerdictBar` with an inbox verb set (File to board strip, bulk Shortlist, no bulk offer); standing/legal-actions lifted to `lib/standing.js`, selection hook to `hooks/useTalentSelection.js`; list rows carry `statusChangedAt`; verified in browser (file to Women → toast + Undo, Shortlisted tab, ledger)

@@ -1,0 +1,407 @@
+/* ============================================================
+   PHOLIO AGENCY — The Signing Board
+
+   The wall in a new-faces office. Faces on the cream canvas, ruled into
+   sections in decision order, with type beneath. There are no cards on this
+   screen: a card around a face turns a person into an item, and the whole
+   point of the wall is that the face is the object.
+
+   Board identity (lib/board-identity.js) arrives as CSS vars on the root:
+     --bd-ink    the client's voice (wordmark, plate, rules)
+     --bd-paper  the client's paper tint
+     --bd-track  wordmark letter-spacing
+   Pholio gold stays the platform voice: selection, focus, the armed action,
+   and nothing else. It is held well under 10% of the screen by construction —
+   one 2px ring per selected tile.
+   ============================================================ */
+
+.sb {
+  padding: 10px var(--ag-pad-x, 40px) 120px;
+  position: relative;
+  z-index: 1;
+}
+
+.sb-back {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 14px;
+  background: none; border: none; cursor: pointer; padding: 4px 0;
+  font-family: var(--ag-font-body);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ag-text-2);
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-back:hover { color: var(--ag-gold-deep); }
+.sb-back:focus-visible { outline: none; border-radius: 2px; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+
+/* ---------- MASTHEAD ----------
+   The identity plate ported from the casting room, then the board name in
+   Playfair (the one serif on this screen) and the docket as a ruled ledger.
+   Docket rows are not stat tiles; a stat tile is a card. */
+.sb-masthead {
+  background: var(--bd-paper, #F2EFE9);
+  border: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 14%, transparent);
+  border-radius: var(--ag-radius-lg);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.sb-plate {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 15px 28px;
+  background: var(--bd-paper, #F2EFE9);
+  border-bottom: 2px solid color-mix(in srgb, var(--bd-ink, #16130D) 80%, transparent);
+}
+
+.sb-wordmark {
+  text-transform: uppercase;
+  color: var(--bd-ink, #16130D);
+  letter-spacing: var(--bd-track, 0.3em);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  font-size: 16px;
+}
+[data-letterform="serif"] .sb-wordmark { font-family: var(--ag-font-display); font-weight: 600; }
+[data-letterform="didone"] .sb-wordmark { font-family: var(--ag-font-display); font-weight: 700; font-size: 18px; }
+[data-letterform="sans"] .sb-wordmark { font-family: var(--ag-font-body); font-weight: 700; font-size: 14px; }
+[data-letterform="sans-light"] .sb-wordmark { font-family: var(--ag-font-body); font-weight: 400; font-size: 14px; }
+
+.sb-plate-logo { display: block; width: auto; height: 24px; max-width: 55%; object-fit: contain; object-position: left center; }
+
+[data-treatment="ink"] .sb-plate {
+  background: var(--bd-ink, #16130D);
+  border-bottom-color: color-mix(in srgb, var(--bd-ink, #16130D) 60%, #16130D);
+}
+[data-treatment="ink"] .sb-wordmark { color: #FBF7F1; }
+[data-treatment="ink"] .sb-plate-logo { filter: brightness(0) invert(1); }
+
+[data-treatment="cover"] .sb-plate {
+  min-height: 96px;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent), color-mix(in srgb, var(--bd-ink, #16130D) 58%, transparent)),
+    var(--bd-cover);
+  background-size: cover;
+  background-position: center;
+  border-bottom-color: color-mix(in srgb, var(--bd-ink, #16130D) 70%, transparent);
+}
+[data-treatment="cover"] .sb-wordmark { color: #FDFBF7; }
+[data-treatment="cover"] .sb-plate-logo { filter: brightness(0) invert(1); }
+
+.sb-idbtn {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 4px;
+  font-family: var(--ag-font-body); font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--bd-ink, #16130D) 82%, #FFFFFF);
+  opacity: 0.62;
+  transition: opacity var(--ag-duration-fast) var(--ag-ease);
+}
+[data-treatment="ink"] .sb-idbtn, [data-treatment="cover"] .sb-idbtn { color: rgba(251, 247, 241, 0.92); }
+.sb-idbtn:hover { opacity: 1; }
+.sb-idbtn:focus-visible { outline: none; opacity: 1; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.45); }
+
+.sb-masthead-body {
+  display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 44px;
+  padding: 24px 28px 28px;
+}
+.sb-title {
+  font-family: var(--ag-font-display);
+  font-size: 30px; font-weight: 600; line-height: 1.06; letter-spacing: -0.01em;
+  color: var(--ag-text-0); margin: 0; text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.sb-brief {
+  font-family: var(--ag-font-body);
+  font-size: 14.5px; line-height: 1.65; color: var(--ag-text-1);
+  margin: 13px 0 0; max-width: 62ch;
+}
+
+.sb-docket { margin: 2px 0 0; font-family: var(--ag-font-body); }
+.sb-docket-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0;
+}
+.sb-docket-row + .sb-docket-row {
+  border-top: 1px solid color-mix(in srgb, var(--bd-ink, #16130D) 18%, transparent);
+}
+.sb-docket dt {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--ag-text-2);
+}
+.sb-docket dd {
+  margin: 0; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--bd-ink, #16130D) 76%, #16130D);
+}
+
+/* ---------- VIEW TOGGLE ---------- */
+.sb-viewbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+.sb-viewtoggle {
+  background: none; border: none; cursor: pointer; padding: 4px 2px;
+  font-family: var(--ag-font-body);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--ag-text-2);
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-viewtoggle:hover { color: var(--ag-text-0); }
+.sb-viewtoggle:focus-visible { outline: none; border-radius: 2px; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+
+/* ---------- SECTIONS ----------
+   A full-width hairline with a tracked key and a plain count. This is a
+   section key, not an eyebrow: nothing sits above a heading here. */
+.sb-section { margin: 0 0 40px; }
+.sb-section-rule {
+  display: flex; align-items: baseline; gap: 12px;
+  padding-bottom: 8px; margin-bottom: 20px;
+  border-bottom: 1px solid var(--ag-rule, #ddd5c6);
+}
+.sb-section-label {
+  font-family: var(--ag-font-body);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ag-text-1);
+}
+.sb-section-count {
+  font-family: var(--ag-font-mono);
+  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ag-text-3);
+}
+.sb-section-empty {
+  font-family: var(--ag-font-body);
+  font-size: 13px; color: var(--ag-text-2); margin: 0; padding: 4px 0 12px;
+}
+
+/* ---------- THE WALL ---------- */
+.sb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  column-gap: 20px;
+  row-gap: 28px;
+}
+@media (min-width: 1600px) {
+  .sb-grid { grid-template-columns: repeat(auto-fill, minmax(168px, 220px)); }
+}
+
+/* Tile — a bare image on the canvas. No card, no border, no shadow, nothing
+   in the corners. 2px radius is the whole of its geometry. */
+.sb-tile {
+  min-width: 0;
+  cursor: pointer;
+  outline: none;
+}
+.sb-tile-frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--ag-surface-4);
+  transition: box-shadow var(--ag-duration-fast) var(--ag-ease),
+              transform var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-tile-img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.sb-tile-img--empty { background: var(--ag-surface-4); }
+
+/* Hover lifts the image one tone and no more; scale is capped at 1.01 so a
+   wall of a hundred faces never ripples. */
+.sb-tile:hover .sb-tile-frame { background: var(--ag-surface-2); transform: scale(1.01); }
+
+/* Selected: the one gold — a 2px ring OUTSIDE the image, so the crop is never
+   eaten by the state. */
+.sb-tile.is-selected .sb-tile-frame {
+  box-shadow: 0 0 0 2px var(--ag-gold);
+}
+.sb-tile:focus-visible .sb-tile-frame {
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.45);
+}
+.sb-tile.is-selected:focus-visible .sb-tile-frame {
+  box-shadow: 0 0 0 2px var(--ag-gold), 0 0 0 5px rgba(201, 165, 90, 0.3);
+}
+.sb-tile.is-busy { opacity: 0.55; pointer-events: none; }
+
+/* The open affordance is the name itself: no scrim over the face, nothing in
+   a corner. It underlines on hover with a hairline and nothing more. */
+.sb-tile-nameline { margin: 10px 0 3px; }
+.sb-tile-name {
+  display: -webkit-box;
+  padding: 0; border: none; background: none; cursor: pointer;
+  text-align: left;
+  font-family: var(--ag-font-body);
+  font-size: 14px; font-weight: 600; line-height: 1.25; color: var(--ag-text-0);
+  /* A very long name must wrap inside 168px rather than push the grid. */
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-decoration: none;
+  transition: box-shadow var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-tile-name:hover,
+.sb-tile-name:focus-visible {
+  box-shadow: inset 0 -1px 0 0 var(--ag-text-2);
+  outline: none;
+}
+/* Everything under the name is CardMeta's — the figures, the city, the
+   standing line and the notations, in the same grammar the submissions book
+   uses. The tile only says where the block sits. */
+.sb-tile .sb-tile-meta { margin-top: 4px; }
+
+/* The waiting figure in the ledger's own Waiting column. Inside CardMeta the
+   same value is `.cm-since` and carries its own separator. */
+.sb-since {
+  font-family: var(--ag-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--ag-text-3);
+}
+
+/* ---------- LEDGER ---------- */
+.sb-ledger { overflow-x: auto; margin-bottom: 40px; }
+.sb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--ag-font-body);
+}
+.sb-th {
+  text-align: left;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--ag-rule, #ddd5c6);
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--ag-text-2);
+  white-space: nowrap;
+}
+.sb-th--face { width: 44px; padding-left: 0; }
+.sb-th--fig { text-align: right; }
+.sb-sort {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-sort:hover { color: var(--ag-text-0); }
+.sb-sort:focus-visible { outline: none; border-radius: 2px; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+.sb-th[aria-sort="ascending"] .sb-sort,
+.sb-th[aria-sort="descending"] .sb-sort { color: var(--ag-text-0); }
+
+.sb-row {
+  height: var(--ag-row-h-compact, 44px);
+  cursor: pointer;
+  border-bottom: 1px solid var(--ag-border);
+  outline: none;
+  transition: background var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-row:hover { background: var(--ag-surface-2); }
+/* Selected row: an active ground and a 1px gold edge — a hairline, never a
+   stripe. */
+.sb-row.is-selected { background: var(--ag-surface-4); box-shadow: inset 1px 0 0 0 var(--ag-gold); }
+.sb-row:focus-visible { box-shadow: inset 0 0 0 2px rgba(201, 165, 90, 0.45); }
+.sb-row.is-selected:focus-visible { box-shadow: inset 1px 0 0 0 var(--ag-gold), inset 0 0 0 2px rgba(201, 165, 90, 0.45); }
+.sb-row.is-busy { opacity: 0.55; pointer-events: none; }
+
+.sb-cell { padding: 0 12px; font-size: 13px; color: var(--ag-text-1); vertical-align: middle; }
+.sb-cell--face { width: 44px; padding-left: 0; }
+.sb-cell--fig { text-align: right; white-space: nowrap; }
+.sb-cell--name { max-width: 260px; }
+.sb-cell--tags { max-width: 180px; }
+.sb-tags {
+  display: block; font-size: 12px; color: var(--ag-text-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sb-cell--standing { white-space: nowrap; color: var(--ag-text-2); }
+.sb-row-name { font-weight: 600; color: var(--ag-text-0); overflow-wrap: anywhere; }
+.sb-row-minor { margin-left: 8px; }
+
+.sb-face {
+  display: block; width: 32px; height: 32px; border-radius: 2px;
+  object-fit: cover; object-position: center top;
+  background: var(--ag-surface-4);
+}
+.sb-face--empty { background: var(--ag-surface-4); }
+
+.sb-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- SHELVES ---------- */
+.sb-shelves { margin-top: 8px; border-top: 1px solid var(--ag-rule, #ddd5c6); }
+.sb-shelf { border-bottom: 1px solid var(--ag-border); }
+.sb-shelf-head {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  background: none; border: none; cursor: pointer;
+  padding: 14px 2px;
+  font-family: var(--ag-font-body); text-align: left;
+  transition: color var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-shelf-head:focus-visible { outline: none; border-radius: 2px; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+.sb-shelf-title {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ag-text-1);
+}
+.sb-shelf-count {
+  font-family: var(--ag-font-mono); font-size: 11px; font-variant-numeric: tabular-nums;
+  color: var(--ag-text-3);
+}
+.sb-shelf-faces { display: inline-flex; gap: 3px; margin-left: auto; }
+.sb-shelf-face {
+  display: block; width: 26px; height: 34px; border-radius: 2px;
+  background: var(--ag-surface-4) center top / cover no-repeat;
+}
+.sb-shelf-chev { color: var(--ag-text-3); transition: transform var(--ag-duration) var(--ag-ease); }
+.sb-shelf-chev.is-open { transform: rotate(180deg); }
+
+.sb-shelf-list { list-style: none; margin: 0; padding: 0 0 10px; overflow: hidden; }
+.sb-shelf-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 6px 8px; border-radius: 2px; cursor: pointer; outline: none;
+  transition: background var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-shelf-row:hover { background: var(--ag-surface-2); }
+.sb-shelf-row.is-selected { background: var(--ag-surface-4); box-shadow: inset 1px 0 0 0 var(--ag-gold); }
+.sb-shelf-row:focus-visible { box-shadow: inset 0 0 0 2px rgba(201, 165, 90, 0.45); }
+.sb-shelf-name {
+  font-family: var(--ag-font-body); font-size: 13px; font-weight: 600; color: var(--ag-text-0);
+  overflow-wrap: anywhere;
+}
+/* A shelf row reads across, not down, so the figures line and the settled
+   standing sit on one baseline, with the outcome pushed to the right edge
+   where the eye scans for it. */
+.sb-shelf-row .sb-shelf-meta {
+  display: flex; align-items: baseline; gap: 14px;
+  flex: 1; min-width: 0; margin-top: 0;
+}
+.sb-shelf-meta .cm-figures,
+.sb-shelf-meta .cm-stage,
+.sb-shelf-meta .cm-notations { margin-top: 0; }
+.sb-shelf-meta .cm-stage { margin-left: auto; white-space: nowrap; }
+
+
+/* ---------- STATES ---------- */
+.sb-state { padding: 64px 0 80px; }
+.sb-state-text {
+  font-family: var(--ag-font-body); font-size: 14px; color: var(--ag-text-2);
+  margin: 0; max-width: 52ch;
+}
+.sb-state-action {
+  display: inline-block; margin-top: 14px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-family: var(--ag-font-body); font-size: 13px; font-weight: 600;
+  color: var(--ag-gold-deep); text-decoration: none;
+  border-bottom: 1px solid var(--ag-border-gold);
+  transition: border-color var(--ag-duration-fast) var(--ag-ease);
+}
+.sb-state-action:hover { border-bottom-color: var(--ag-gold); }
+.sb-state-action:focus-visible { outline: none; border-radius: 2px; box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.4); }
+
+/* ---------- LOADING ----------
+   Skeleton tiles in the wall grid. A section that renders empty while loading
+   would state, briefly and wrongly, that nothing needs a decision. */
+.sb-tile--skeleton { pointer-events: none; animation: sb-pulse 1.4s ease-in-out infinite; }
+.sb-skel { display: block; background: var(--ag-surface-4); border-radius: 2px; }
+.sb-skel--label { width: 140px; height: 11px; }
+.sb-skel--name { width: 70%; height: 12px; margin-top: 10px; }
+.sb-skel--meta { width: 45%; height: 10px; margin-top: 6px; }
+@keyframes sb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+@media (max-width: 1100px) {
+  .sb-masthead-body { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-tile-frame,
+  .sb-tile-name,
+  .sb-shelf-chev,
+  .sb-row { transition: none; }
+  .sb-tile:hover .sb-tile-frame { transform: none; }
+  .sb-tile--skeleton { animation: none; }
+}

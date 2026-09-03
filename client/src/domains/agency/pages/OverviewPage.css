@@ -248,7 +248,8 @@
   .ov-strip-img::after { transition: none; }
 }
 .ov-strip-name { display: block; font-size: 12.5px; font-weight: 600; color: #16130D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 9px; }
-.ov-strip-meta { display: block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ag-text-2); margin-top: 3px; }
+/* CardMeta owns the type; the strip owns only the gap under the name. */
+.ov-strip-meta { margin-top: 3px; }
 
 /* ---------- ACTIVITY AVATARS ---------- */
 .ov-act-av { position: relative; width: 32px; height: 32px; border-radius: 50%; background-size: cover; background-position: center; flex: none; background-color: #e7e2d8; box-shadow: 0 1px 4px rgba(0,0,0,.16); }

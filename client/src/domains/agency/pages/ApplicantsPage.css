@@ -280,30 +280,8 @@
 .ap-band-link:hover { color: #ffffff; background: var(--ag-text-0, #16130D); border-color: var(--ag-text-0, #16130D); }
 .ap-band-link:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); }
 
-/* ---------- ICON ACTIONS + TOOLTIP ----------
-   One triage-action treatment everywhere: icon-only, labels on
-   hover/focus via tooltip. No layout shift, no expanding buttons. */
-.ap-icon {
-  position: relative; width: 30px; height: 30px; flex: none;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--ag-border-strong); border-radius: var(--ag-radius-sm);
-  background: var(--ag-surface-1); color: var(--ag-text-2); cursor: pointer;
-  transition: background var(--ag-duration-fast) var(--ag-ease), border-color var(--ag-duration-fast) var(--ag-ease), color var(--ag-duration-fast) var(--ag-ease), opacity var(--ag-duration-fast) var(--ag-ease);
-}
-.ap-icon:hover { border-color: var(--ag-gold); color: var(--ag-text-0); }
-.ap-icon--sign:hover { border-color: var(--ag-gold); background: var(--ag-gold); color: var(--ag-black); }
-.ap-icon--pass:hover { border-color: var(--ag-danger); color: var(--ag-danger); }
-.ap-icon:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); }
-.ap-icon:disabled { opacity: 0.4; cursor: default; }
-
-/* the light variant lives on the ink bar over card photos */
-.ap-icon--light {
-  border-color: rgba(255, 255, 255, 0.22); background: transparent; color: rgba(255, 255, 255, 0.85);
-}
-.ap-icon--light:hover { border-color: var(--ag-gold); color: #fff; background: rgba(255, 255, 255, 0.08); }
-.ap-icon--light.ap-icon--sign:hover { background: var(--ag-gold); color: var(--ag-black); }
-.ap-icon--light.ap-icon--pass:hover { border-color: var(--ag-danger); color: #ffb4a8; background: transparent; }
-
+/* ---------- TOOLTIP ----------
+   Labels on hover/focus for the icon-only view controls. */
 /* tooltip — CSS only, from data-tip */
 [data-tip] { position: relative; }
 [data-tip]::after {
@@ -318,46 +296,13 @@
 [data-tip]:hover::after,
 [data-tip]:focus-visible::after { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-/* ---------- PICK CONTROL (multi-select) ----------
-   A square checkbox affordance, not a status marker. Hidden at rest, it
-   surfaces on hover/focus, when its row is picked, or in selection mode.
-   Two grounds: 'ink' rides over card photos, 'paper' sits on the ledger. */
-.ap-pick {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; box-sizing: border-box; flex: none; padding: 0;
-  border-radius: var(--ag-radius-sm); cursor: pointer;
-  opacity: 0; user-select: none; -webkit-user-select: none;
-  transition: opacity var(--ag-duration-fast) var(--ag-ease), background var(--ag-duration-fast) var(--ag-ease), border-color var(--ag-duration-fast) var(--ag-ease);
-}
-.ap-pick:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); opacity: 1; }
-
-/* ink — over the card photo */
-.ap-pick--ink {
-  position: absolute; top: 8px; left: 8px; z-index: 2;
-  border: 1.5px solid rgba(255, 255, 255, 0.75); background: rgba(16, 13, 9, 0.35);
-}
-.ap-pick--ink:hover { border-color: #fff; }
-.ap-pick--ink.is-picked { background: var(--ag-gold); border-color: var(--ag-gold); }
-.ap-card:hover .ap-pick--ink,
-.ap-card:focus-within .ap-pick--ink,
-.ap-card--picked .ap-pick--ink,
-.ap-book.is-selecting .ap-pick--ink { opacity: 1; }
-
-/* paper — on the ledger row */
-.ap-pick-cell { display: flex; align-items: center; justify-content: center; }
-.ap-pick--paper {
-  border: 1px solid var(--ag-border-strong); background: var(--ag-surface-1); color: var(--ag-text-2);
-}
-.ap-pick--paper:hover { border-color: var(--ag-gold); }
-.ap-pick--paper.is-picked { background: var(--ag-gold); border-color: var(--ag-gold); }
-.ap-row:hover .ap-pick--paper,
-.ap-row:focus-within .ap-pick--paper,
-.ap-row--picked .ap-pick--paper,
-.ap-list.is-selecting .ap-pick--paper { opacity: 1; }
-
-/* picked-row indication — quieter than focus (no glow) */
-.ap-card--picked .ap-card-img { outline: 2px solid var(--ag-gold); outline-offset: -2px; }
-.ap-row--picked { background: var(--ag-gold-ghost); }
+/* ---------- SELECTION ----------
+   Click selects; the only mark is a gold ring on the face and a warm ground
+   on the ledger row. No checkbox, no corner control, nothing over the photo:
+   the verdict bar below is where a decision is taken. */
+.ap-card--selected .ap-card-img { outline: 2px solid var(--ag-gold); outline-offset: -2px; }
+.ap-row--selected { background: var(--ag-gold-ghost); }
+.ap-card.is-busy, .ap-row.is-busy { opacity: 0.55; pointer-events: none; }
 
 /* The tabpanel the stage rail controls — a transparent flow wrapper so the
    book/ledger keep their own layout while the tabs relate to a real region. */
@@ -388,42 +333,25 @@
 .ap-card--focused .ap-card-img,
 .ap-card:focus-visible .ap-card-img { outline: 2px solid var(--ag-gold); outline-offset: -2px; box-shadow: 0 10px 26px rgba(201, 165, 90, 0.28); }
 
-/* triage bar — rises over the photo's lower edge on hover/focus */
-.ap-card-acts {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 10px 8px;
-  border-radius: 0 0 var(--ag-radius-md) var(--ag-radius-md);
-  background: linear-gradient(to top, rgba(16, 13, 9, 0.82), rgba(16, 13, 9, 0.55) 68%, transparent);
-  opacity: 0; transform: translateY(4px); pointer-events: none;
-  transition: opacity 0.18s var(--ag-ease), transform 0.18s var(--ag-ease);
-}
-.ap-card:hover .ap-card-acts,
-.ap-card--focused .ap-card-acts,
-.ap-card:focus-within .ap-card-acts { opacity: 1; transform: translateY(0); pointer-events: auto; }
-@media (hover: none) {
-  .ap-card-acts { opacity: 1; transform: none; pointer-events: auto; }
-}
-
 .ap-card-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; }
 .ap-card-name {
-  min-width: 0; font-family: var(--ag-font-display); font-size: 15.5px; font-weight: 500;
+  min-width: 0; max-width: 100%; padding: 0; border: 0; background: none; text-align: left;
+  font-family: var(--ag-font-display); font-size: 15.5px; font-weight: 500;
   color: var(--ag-text-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color var(--ag-duration-fast) var(--ag-ease);
 }
-.ap-card-spec {
-  display: block; margin-top: 5px;
-  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ag-text-3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.ap-card-state { display: flex; align-items: center; gap: 10px; margin-top: 6px; min-width: 0; }
-.ap-card-when { font-size: 11px; color: var(--ag-text-3); flex: none; }
-.ap-card-status.ag-status-cell { padding: 3px 8px; font-size: 10.5px; }
+.ap-card-name:hover { color: var(--ag-gold-hover); }
+/* The metadata block itself is CardMeta's; the card only says where it sits.
+   Its own type — sizes, ink levels, the figures line and notations — belongs
+   to the meta system so the book and the signing wall cannot drift apart. */
+.ap-card-spec { display: block; }
 
 /* ---------- THE LEDGER (dense list) ---------- */
 .ap-list { display: flex; flex-direction: column; }
 .ap-row {
   display: grid;
-  grid-template-columns: 28px 56px minmax(0, 1fr) 92px 96px 150px 118px;
+  grid-template-columns: 56px minmax(0, 1fr) 96px minmax(0, 150px);
   align-items: center; gap: 16px;
   padding: 11px 12px;
   border-bottom: 1px solid var(--ag-border);
@@ -456,35 +384,22 @@
 
 .ap-id { min-width: 0; }
 .ap-name {
-  display: block; font-family: var(--ag-font-display); font-size: 16px; font-weight: 500;
+  display: block; max-width: 100%; padding: 0; border: 0; background: none; text-align: left;
+  font-family: var(--ag-font-display); font-size: 16px; font-weight: 500;
   color: var(--ag-text-0); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color var(--ag-duration-fast) var(--ag-ease);
 }
-.ap-meta {
-  display: block; margin-top: 5px;
-  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ag-text-3);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-/* ---------- THE SPEC LINE (discipline · place · identity notes) ----------
-   Shared by the card and the ledger row. The discipline is notation, not a
-   mark: an applicant holds no standing on a board, so it gets no container —
-   it leads the line on weight alone and then hands off to the quieter terms.
-   Colour cannot do this work here; --ag-text-2 and --ag-text-3 are ten points
-   of luminance apart. */
-.ap-spec-lead { font-weight: 600; color: var(--ag-text-2); }
-.ap-spec-part { font-weight: 400; }
-.ap-spec-sep {
-  margin: 0 5px;
-  /* Quieter than every term it divides, so it structures the line without
-     being read as content. Matches .ml__sep in the meta system. */
-  color: var(--ag-text-4); letter-spacing: 0;
-}
+.ap-name:hover { color: var(--ag-gold-hover); }
+.ap-meta { display: block; }
 .ap-applied { font-size: 11px; color: var(--ag-text-2); }
-.ap-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ap-status-quiet { font-size: 12px; color: var(--ag-text-2); }
-
-.ap-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-.ap-decided { font-size: 11px; color: var(--ag-text-3); margin-right: 4px; }
+.ap-status {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; color: var(--ag-text-1, var(--ag-text-2));
+}
+.ap-status-since {
+  margin-left: 8px; font-family: var(--ag-font-mono); font-size: 11px; color: var(--ag-text-3);
+}
 
 /* ---------- EMPTY / SENTINEL ---------- */
 .ap-empty-action {
@@ -500,43 +415,6 @@
   gap: 22px 16px;
 }
 
-/* ---------- BULK ACTION BAR ----------
-   Floats bottom-center while a selection exists. Ink surface, light controls,
-   sits above the light table but below the review drawer. No glass. */
-.ap-bulk {
-  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
-  z-index: 30;
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 14px;
-  background: var(--ag-black); border-radius: var(--ag-radius-lg);
-  box-shadow: 0 12px 40px rgba(26, 24, 21, 0.28);
-}
-.ap-bulk-count {
-  font-family: var(--ag-font-body); font-weight: 600; font-size: 13px; color: #fff;
-  white-space: nowrap; user-select: none;
-}
-.ap-bulk-div { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.16); flex: none; }
-.ap-bulk-act {
-  display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; flex: none;
-  border: 1px solid rgba(255, 255, 255, 0.22); border-radius: var(--ag-radius-sm);
-  background: transparent; color: rgba(255, 255, 255, 0.9);
-  font-family: var(--ag-font-body); font-size: 12.5px; font-weight: 600; cursor: pointer;
-  transition: background var(--ag-duration-fast) var(--ag-ease), border-color var(--ag-duration-fast) var(--ag-ease), color var(--ag-duration-fast) var(--ag-ease);
-}
-.ap-bulk-act:hover { border-color: var(--ag-gold); }
-.ap-bulk-act--sign:hover { background: var(--ag-gold); border-color: var(--ag-gold); color: var(--ag-black); }
-.ap-bulk-act--pass:hover { border-color: var(--ag-danger); color: #ffb4a8; }
-.ap-bulk-act:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); }
-.ap-bulk-act:disabled { opacity: 0.5; cursor: default; }
-.ap-bulk-clear {
-  background: none; border: none; padding: 4px 6px; cursor: pointer;
-  font-family: var(--ag-font-body); font-size: 12.5px; font-weight: 500; color: rgba(255, 255, 255, 0.65);
-  transition: color var(--ag-duration-fast) var(--ag-ease);
-}
-.ap-bulk-clear:hover { color: #fff; }
-.ap-bulk-clear:disabled { opacity: 0.5; cursor: default; }
-.ap-bulk-clear:focus-visible { outline: none; box-shadow: var(--agency-shadow-focus); border-radius: var(--ag-radius-sm); }
-
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 1180px) {
   .ap-hero-top { flex-direction: column; align-items: flex-start; }
@@ -551,23 +429,19 @@
   .ap-hero-ledger { margin: 24px 0 28px; }
 }
 @media (max-width: 860px) {
-  .ap-row { grid-template-columns: 28px 44px minmax(0, 1fr) auto; gap: 12px; }
+  .ap-row { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; }
   .ap-pic { width: 44px; height: 57px; }
-  .ap-applied, .ap-row--head span:nth-child(4) { display: none; }
-  .ap-score-cell, .ap-row--head span:nth-child(5) { display: none; }
-  .ap-status, .ap-row--head span:nth-child(6) { display: none; }
+  .ap-applied, .ap-row--head span:nth-child(3) { display: none; }
   .ap-book { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ap-tab, .ap-tab-label, .ap-tab-count, .ap-row, .ap-pic-img, .ap-icon,
+  .ap-tab, .ap-tab-label, .ap-tab-count, .ap-row, .ap-pic-img,
   .ap-aside-item, .ap-aside-label, .ap-aside-count, .ap-band-link, .ap-search,
-  .ap-card-img, .ap-card-acts, [data-tip]::after,
-  .ap-pick, .ap-bulk-act, .ap-bulk-clear {
+  .ap-card-img, .ap-card-name, .ap-name, [data-tip]::after {
     transition-duration: 0.01ms !important;
   }
   .ap-row:hover .ap-pic-img { transform: none; }
-  .ap-card-acts { transform: none; }
 }
 
 /* Server-backed filter controls.

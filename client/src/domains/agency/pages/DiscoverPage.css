@@ -478,27 +478,23 @@ body.is-agency .dc-bar-input:focus {
   text-shadow: 0 1px 16px rgba(0, 0, 0, 0.55);
 }
 
-.dc-card-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* The facts under the face. CardMeta owns the type; the card owns only the
+   gap under the name and the legibility the photograph demands. `meta--onDark`
+   carries the ink ladder over to a dark ground. */
+.dc-card-spec {
   margin-top: 6px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
 }
 
-.dc-card-line .dc-card-arch { color: rgba(201, 165, 90, 0.95); }
-.dc-card-line .dc-card-loc { color: rgba(255, 255, 255, 0.62); }
-
-.dc-dot {
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(201, 165, 90, 0.6);
-  flex-shrink: 0;
+.dc-card-spec .cm-stage,
+.dc-card-spec .cm-notations {
+  color: rgba(244, 238, 226, 0.62);
 }
+
+/* The warm cream-ground warning ink goes muddy on a photograph; it lifts
+   rather than inverts, exactly as the meta system does on dark. */
+.dc-card-spec .cm-note--warning { color: #e8b45e; }
+.dc-card-spec .cm-note--danger { color: #e88f7f; }
 
 /* ── Reveal — controls appear only on interaction ── */
 .dc-card-reveal {
@@ -524,41 +520,6 @@ body.is-agency .dc-bar-input:focus {
 .dc-card:hover .dc-card-reveal-inner,
 .dc-card:focus-within .dc-card-reveal-inner { opacity: 1; transform: translateY(0); }
 
-/* Vital stats — structured, comp-card treatment (gold label / serif value) */
-.dc-card-stats {
-  display: flex;
-  align-items: flex-end;
-  margin-top: 15px;
-}
-
-.dc-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.dc-stat:not(:first-child) {
-  margin-left: 18px;
-  padding-left: 18px;
-  border-left: 1px solid rgba(255, 255, 255, 0.18);
-}
-
-.dc-stat-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(201, 165, 90, 0.9);
-}
-
-.dc-stat-value {
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 1.05rem;
-  font-weight: 500;
-  line-height: 1;
-  color: #fff;
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.55);
-}
 
 .dc-card-actions {
   display: flex;
@@ -898,7 +859,7 @@ body.is-agency .dc-bar-input--brief {
   color: rgba(232, 205, 134, 0.72);
 }
 
-/* ── show more ── */
+/* ── show more / outside-spec affordances ── */
 .dc-more {
   display: flex;
   justify-content: center;

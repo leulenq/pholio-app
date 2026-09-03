@@ -46,6 +46,7 @@ const {
   hasApplicantIdentitySupport,
   resolveApplicantIdentities,
 } = require("./applicant-identity");
+const { computeAge } = require("../../../shared/lib/talent-age");
 
 /**
  * INCLUDES UNCLAIMED APPLICANTS (design §4, §6 requirement 1).
@@ -405,6 +406,7 @@ async function listPool(
         "p.last_name",
         "p.city",
         "p.height_cm",
+        "p.date_of_birth",
         ...(identitySupported ? ["a.applicant_identity_id"] : []),
       )
       .orderBy([
@@ -436,6 +438,10 @@ async function listPool(
         name: applicantName(row, resolved),
         city: row.city || identity?.city || null,
         heightCm: row.height_cm ?? identity?.heightCm ?? null,
+        /* The organizer's own applicants, so the exact age is theirs to read —
+           the same figure the submissions desk prints. Null where no date of
+           birth was ever recorded; the row then prints no age at all. */
+        age: computeAge(row.date_of_birth ?? identity?.dateOfBirth),
         status: row.status,
         appliedAt: row.applied_at,
         marks: marksByApplication.get(row.application_id) || emptyMarkRollup(),
@@ -1041,6 +1047,8 @@ async function buildLineup(db, { agencyId, linkId }) {
       "p.first_name",
       "p.last_name",
       "p.city",
+      "p.height_cm",
+      "p.date_of_birth",
     )
     .orderBy([
       { column: "p.last_name", order: "asc" },
@@ -1070,6 +1078,11 @@ async function buildLineup(db, { agencyId, linkId }) {
       applicationId: row.application_id,
       name: applicantName(row, resolved),
       city: row.city || resolved.get(row.application_id)?.city || null,
+      heightCm:
+        row.height_cm ?? resolved.get(row.application_id)?.heightCm ?? null,
+      age: computeAge(
+        row.date_of_birth ?? resolved.get(row.application_id)?.dateOfBirth,
+      ),
       status: row.application_status,
       pickedBy: [],
       maybeBy: [],

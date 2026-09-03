@@ -993,3 +993,16 @@ Rules:
 - Test-anchor trap: `findByText` on a string that also renders from the *row prop* fallback
   (e.g. "General consideration") resolves before the query lands, so assertions run against a
   half-loaded room. Anchor waits on data that can only exist post-payload.
+
+## 2026-09-01 — Verifying agency mutations on a second Vite port needs APP_URL
+
+- The same-origin mutation guard (`src/shared/middleware/same-origin-mutation.js`)
+  trusts only :3000, :5173, :3001/3002 and `APP_URL`. A verification Vite on
+  another port can read everything and every POST/PATCH returns 403
+  `untrusted_origin`. Start the scratch backend with `APP_URL=http://localhost:<port>`.
+- Sonner toasts can stop rendering in a tab after several Vite HMR edits even
+  though `toast.success` is called and the store receives them. Verify
+  toast/undo flows on a fresh page load before calling them broken.
+- A consequential decision surface should not be a drag-and-drop board: stage
+  moves that notify talent need arming, a reason, and undo. Reuse the Review
+  Room verdict idiom instead of inventing a second one.

@@ -8,8 +8,8 @@ import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
-import { DivisionMark } from './status';
-import { MetaLine, Notation, Place } from './meta';
+import { CardMeta, Figure } from './meta';
+import { measurementFigure } from './meta/metaFormat';
 import {
   isOfferedApplicationStatus,
   isRepresentedApplicationStatus,
@@ -23,22 +23,44 @@ const getInitials = (name) => {
     : (parts[0]?.[0] || '');
 };
 
-const VITALS = [
-  ['Height', 'height_cm'],
-  ['Bust', 'bust_cm'],
-  ['Waist', 'waist_cm'],
-  ['Hips', 'hips_cm'],
-];
-
-/** Ink vitals band — the four measurements a booker checks first. */
+/**
+ * Ink vitals band — the measured values this record actually holds.
+ *
+ * A measurement that was never taken is omitted rather than set as an
+ * em-dash: the placeholder said only that the column existed, and four of
+ * them read as a person with no measurements at all. With nothing recorded
+ * the band does not render.
+ */
 function VitalsBand({ measurements }) {
+  const m = measurements || {};
+  const band = measurementFigure(m);
+  const figures = [];
+
+  const height = Number(m.height_cm);
+  if (Number.isFinite(height) && height > 0) {
+    figures.push({ key: 'height', label: 'Height', value: String(Math.round(height)) });
+  }
+  if (band && !band.value.includes('\u2014')) {
+    figures.push({ key: 'band', label: band.key, value: band.value });
+  } else {
+    const parts = [
+      ['bust', m.bust_cm != null ? 'Bust' : 'Chest', m.bust_cm ?? m.chest_cm],
+      ['waist', 'Waist', m.waist_cm],
+      ['hips', 'Hips', m.hips_cm],
+    ];
+    for (const [key, label, raw] of parts) {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n <= 0) continue;
+      figures.push({ key, label, value: String(Math.round(n)) });
+    }
+  }
+
+  if (figures.length === 0) return null;
+
   return (
     <div className="tp-band">
-      {VITALS.map(([label, key]) => (
-        <div className="tp-band-v" key={key}>
-          <span className="tp-band-k">{label}</span>
-          <span className="tp-band-n">{measurements?.[key] != null ? measurements[key] : '—'}</span>
-        </div>
+      {figures.map((f) => (
+        <Figure key={f.key} className="tp-band-v" label={f.label} value={f.value} unit="cm" onDark />
       ))}
     </div>
   );
@@ -117,7 +139,12 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
   const identitySource = profileHydrated?.identitySource ?? talent.identitySource;
   const identityClaimed = profileHydrated?.identityClaimed ?? talent.identityClaimed;
   const identityDisputed = profileHydrated?.identityDisputed ?? talent.identityDisputed;
-  const emailVerified = profileHydrated?.emailVerified ?? talent.emailVerified;
+  const heightCm = profileHydrated?.measurements?.height_cm ?? talent.heightCm ?? null;
+  const age = talent.age ?? null;
+  const isMinor = talent.isMinor ?? (typeof age === 'number' ? age < 18 : false);
+  const notations = [];
+  if (identityDisputed) notations.push({ text: 'Identity disputed', tone: 'danger' });
+  if (isMinor) notations.push({ text: 'Under 18', tone: 'warning' });
   // The API excludes an unclaimed identity-backed applicant from messaging —
   // no confirmed way to reach them in-app yet. Fields absent (older API):
   // default to messaging allowed rather than guessing a restriction.
@@ -226,10 +253,6 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
           </div>
 
           <div className="tp-identity">
-            <div className="tp-identity-top">
-              <DivisionMark division={talent.type || talent.typeLabel || talent.archetype || 'editorial'} size="sm" onDark />
-              <Place value={talent.location || talent.city} onDark />
-            </div>
             {siteLink ? (
               <h2 className="tp-name">
                 <a
@@ -247,14 +270,15 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
             ) : (
               <h2 className="tp-name">{talent.name}</h2>
             )}
-            {(identityDisputed || (identitySource === 'submission' && typeof emailVerified === 'boolean')) && (
-              <MetaLine size="sm" onDark>
-                {identitySource === 'submission' && typeof emailVerified === 'boolean' && (
-                  <Notation onDark>{emailVerified ? 'Email verified' : 'Email unverified'}</Notation>
-                )}
-                {identityDisputed && <Notation onDark>Identity disputed</Notation>}
-              </MetaLine>
-            )}
+            {/* The same facts line every other surface prints under a face,
+                and only the notations a booker has to act on. Email plumbing
+                is not one of them. */}
+            <CardMeta
+              className="tp-spec meta--onDark"
+              figures={{ heightCm, age }}
+              context={{ city: talent.location || talent.city }}
+              notations={notations}
+            />
           </div>
         </div>
 

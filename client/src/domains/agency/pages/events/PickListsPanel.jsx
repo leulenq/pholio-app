@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Link2, RefreshCw, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { AgencyButton } from '../../components/ui/AgencyButton';
-import { Figure, Moment, Notation } from '../../components/meta';
+import { CardMeta, Figure, Moment, Notation } from '../../components/meta';
+import { getStatusLabel } from '../../components/ui/StatusText';
 import {
   addEventPickListItems,
   createEventPickList,
@@ -225,13 +226,23 @@ export default function PickListsPanel({ linkId }) {
                 picked={selected.has(applicant.applicationId)}
                 onToggle={() => toggleSelected(applicant.applicationId)}
               />
-              <span className="ev-assign-name">{applicant.name}</span>
-              {applicant.city && <Notation size="sm">{applicant.city}</Notation>}
-              <span className="ev-assign-meta">
-                {applicant.marks.pick > 0
-                  ? `Picked by ${applicant.marks.pick}`
-                  : applicant.status}
-              </span>
+              <div className="ev-assign-main">
+                <span className="ev-assign-name">{applicant.name}</span>
+                {/* The facts a designer's slice is chosen on, and where the
+                    applicant stands — the status vocabulary, never the raw
+                    enum the database happens to store. */}
+                <CardMeta
+                  className="ev-assign-spec"
+                  figures={{ heightCm: applicant.heightCm, age: applicant.age }}
+                  context={{ city: applicant.city }}
+                  stage={{
+                    text:
+                      applicant.marks.pick > 0
+                        ? `Picked by ${applicant.marks.pick}`
+                        : getStatusLabel(applicant.status),
+                  }}
+                />
+              </div>
             </li>
           ))}
         </ul>

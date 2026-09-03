@@ -181,4 +181,22 @@ describe('ReviewRoom — identity-backed applicant', () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/May be the same person as/)).not.toBeInTheDocument();
   });
+
+  test('renders digitals freshness line when digitalsFreshness is returned in payload', async () => {
+    getApplicationDetails.mockResolvedValue({
+      ...identityDetails,
+      digitalsFreshness: {
+        state: 'current',
+        label: 'Current',
+        hasDigitals: true,
+        currentSet: {
+          capturedOn: '2026-07-15T00:00:00.000Z',
+        },
+      },
+    });
+    renderRoom();
+
+    await screen.findByText('Identity disputed');
+    expect(screen.getByText(/Current · set dated 15 Jul/)).toBeInTheDocument();
+  });
 });

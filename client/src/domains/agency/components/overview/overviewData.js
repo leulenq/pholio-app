@@ -176,11 +176,17 @@ export function mapApplicant(a) {
     profileId: a.profileId ?? a.profile_id ?? null,
     name: a.name,
     photo: isDefault ? null : img,
-    type: (a.archetype || 'editorial').toLowerCase(),
-    typeLabel: a.archetype || 'Editorial',
+    // Height, age and city are the whole facts line — no archetype, because
+    // the endpoint never returned one and `Editorial` was therefore a word
+    // invented for every card (talent-card metadata spec §8).
+    heightCm: a.heightCm ?? a.height ?? a.height_cm ?? null,
+    age: a.age ?? null,
     city: a.location || a.city || null,
     location: a.location || a.city || null,
-    status: a.status || a.application_status || 'available',
+    // No `'available'` fallback: an application with no status is not a
+    // talent who is free to book, and the panel reads this to place a person
+    // on the pipeline stepper.
+    status: a.status || a.application_status || null,
     slug: a.slug || null,
   };
 }

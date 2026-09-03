@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { AgencyButton } from '../../components/ui/AgencyButton';
-import { Figure, MetaLine, Notation } from '../../components/meta';
+import { CardMeta, Figure, MetaLine, Notation } from '../../components/meta';
+import { getStatusLabel } from '../../components/ui/StatusText';
 import { eventExportUrl, getEventLineup, offerEventSlots } from '../../api/agency';
 import {
+  OFFERED_APPLICATION_STATUSES,
   isConfirmedApplicationStatus,
   isOfferedApplicationStatus,
   isTalentDeclinedApplicationStatus,
@@ -26,11 +28,19 @@ import './events.css';
  * confirmation.
  */
 
+/**
+ * Where the applicant stands, in the house status vocabulary.
+ *
+ * An offer reads exactly as it reads everywhere else in the product, because
+ * it IS the same status: the organizer's "Offer slot" writes the ordinary
+ * offered status through the ordinary path. The two talent answers are the
+ * event's own words for what the applicant did with that slot.
+ */
 function standing(applicant) {
   if (isConfirmedApplicationStatus(applicant.status)) return 'Confirmed';
   if (isTalentDeclinedApplicationStatus(applicant.status)) return 'Declined the slot';
   if (applicant.offeredAt || isOfferedApplicationStatus(applicant.status)) {
-    return 'Slot offered — awaiting their answer';
+    return getStatusLabel(OFFERED_APPLICATION_STATUSES[0]);
   }
   return null;
 }
@@ -167,20 +177,24 @@ export default function LineupPanel({ linkId }) {
           <ul className="ev-rows">
             {applicants.map((applicant) => {
               const state = standing(applicant);
+              const claims = claimLine(applicant);
               const offered = Boolean(applicant.offeredAt) || Boolean(state);
               return (
                 <li key={applicant.applicationId} className="ev-row">
                   <div className="ev-row-main">
                     <span className="ev-row-name">{applicant.name}</span>
-                    <div className="ev-row-line">
-                      {claimLine(applicant).map((line) => (
-                        <span key={line}>{line}</span>
-                      ))}
-                      {applicant.city && <span>{applicant.city}</span>}
-                    </div>
-                    {state && (
+                    {/* The facts, then where they stand. The claims are the
+                        reason this row exists, so they lead when nothing has
+                        been offered yet and follow once something has. */}
+                    <CardMeta
+                      className="ev-row-spec"
+                      figures={{ heightCm: applicant.heightCm, age: applicant.age }}
+                      context={{ city: applicant.city }}
+                      stage={{ text: state || claims.join(' · ') || null }}
+                    />
+                    {state && claims.length > 0 && (
                       <div className="ev-row-line">
-                        <span>{state}</span>
+                        <Notation size="sm">{claims.join(' · ')}</Notation>
                       </div>
                     )}
                     {applicant.notes.map((note) => (

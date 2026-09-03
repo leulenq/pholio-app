@@ -1,0 +1,329 @@
+/* ────────────────────────────────────────────────────────────────────
+   The verdict bar (.sbv-*) — the signing board's and the submissions desk's.
+
+   The Review Room's register, held deliberately: deep ink ground, cream
+   type at three levels, hairline borders, 6px radii, the agency mono for
+   key hints. Gold appears once, on the armed primary, and nowhere else.
+
+   Agency bans hold: no badges, chips, pills, dots, glass, side stripes,
+   gradient text. State is words.
+   ──────────────────────────────────────────────────────────────────── */
+
+.sbv-bar {
+  --sbv-ink: var(--ag-black);
+  --sbv-gold: #c9a55a;
+  --sbv-gold-hover: var(--ag-gold-hover);
+  --sbv-cream: rgba(245, 240, 232, 0.9);
+  --sbv-cream-soft: rgba(245, 240, 232, 0.56);
+  --sbv-cream-faint: rgba(245, 240, 232, 0.34);
+  --sbv-hair: rgba(245, 240, 232, 0.16);
+  --sbv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --sbv-radius: 6px;
+
+  position: fixed;
+  left: var(--ag-rail-w, 0px);
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 8px clamp(16px, 3vw, 40px);
+  background: var(--sbv-ink);
+  border-top: 1px solid rgba(201, 165, 90, 0.35);
+  font-family: var(--ag-font-body);
+}
+
+.sbv-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: clamp(14px, 2.2vw, 36px);
+  width: 100%;
+}
+
+/* ── who is under the verdict ───────────────────────────────────── */
+
+.sbv-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.sbv-thumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sbv-thumb {
+  width: 28px;
+  height: 36px;
+  border-radius: 2px;
+  object-fit: cover;
+  background: rgba(245, 240, 232, 0.08);
+}
+.sbv-thumb--blank {
+  display: inline-block;
+  border: 1px solid var(--sbv-hair);
+}
+.sbv-more {
+  margin-left: 2px;
+  font-family: var(--ag-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--sbv-cream-faint);
+}
+.sbv-subject {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sbv-cream);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── the soft moves ─────────────────────────────────────────────── */
+
+.sbv-softs {
+  justify-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px clamp(10px, 1.6vw, 24px);
+}
+.sbv-softs button {
+  padding: 8px 2px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--sbv-cream-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s var(--sbv-ease), border-color 0.2s var(--sbv-ease);
+}
+.sbv-softs button:hover:not(:disabled) {
+  color: var(--sbv-cream);
+  border-bottom-color: rgba(201, 165, 90, 0.24);
+}
+.sbv-softs button:disabled {
+  color: var(--sbv-cream-faint);
+  cursor: default;
+}
+
+/* ── the verbs ──────────────────────────────────────────────────── */
+
+.sbv-verbs {
+  justify-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.sbv-sitting {
+  margin-right: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--sbv-cream-faint);
+  white-space: nowrap;
+}
+.sbv-verb {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(245, 240, 232, 0.24);
+  border-radius: var(--sbv-radius);
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--sbv-cream);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s var(--sbv-ease), background 0.2s var(--sbv-ease), color 0.2s var(--sbv-ease);
+}
+.sbv-verb:hover:not(:disabled) {
+  border-color: rgba(245, 240, 232, 0.5);
+  background: rgba(245, 240, 232, 0.06);
+}
+.sbv-verb:disabled {
+  color: var(--sbv-cream-faint);
+  border-color: var(--sbv-hair);
+  cursor: default;
+}
+/* the one gold: the armed primary, and only while it is armed */
+.sbv-verb--gold {
+  border-color: transparent;
+  background: var(--sbv-gold);
+  color: #141210;
+}
+.sbv-verb--gold:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--sbv-gold-hover);
+  color: #141210;
+}
+.sbv-quiet {
+  padding: 8px 4px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--sbv-cream-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s var(--sbv-ease);
+}
+.sbv-quiet:hover { color: var(--sbv-cream); }
+
+.sbv-key {
+  margin-left: 9px;
+  font-family: var(--ag-font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+.sbv-verb--gold .sbv-key { opacity: 0.65; }
+
+/* ── arming ─────────────────────────────────────────────────────── */
+
+.sbv-arm {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+  padding: 4px 0;
+}
+.sbv-arm-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.sbv-arm-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sbv-gold);
+  white-space: nowrap;
+  max-width: 30vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sbv-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sbv-reason {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--sbv-hair);
+  border-radius: var(--sbv-radius);
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--sbv-cream-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s var(--sbv-ease), background 0.15s var(--sbv-ease), color 0.15s var(--sbv-ease);
+}
+.sbv-reason:hover {
+  border-color: rgba(245, 240, 232, 0.4);
+  color: var(--sbv-cream);
+}
+.sbv-reason.is-on {
+  border-color: var(--sbv-gold);
+  background: rgba(201, 165, 90, 0.14);
+  color: var(--sbv-cream);
+}
+.sbv-arm-tail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+.sbv-arm-preview {
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--sbv-cream-soft);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.sbv-arm-note {
+  flex: 1 1 200px;
+  min-width: 160px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--sbv-hair);
+  border-radius: var(--sbv-radius);
+  background: rgba(245, 240, 232, 0.06);
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--sbv-cream);
+}
+.sbv-arm-note::placeholder { color: var(--sbv-cream-soft); }
+.sbv-arm-note:focus {
+  outline: none;
+  border-color: var(--sbv-gold);
+  background: rgba(245, 240, 232, 0.08);
+  box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.22);
+}
+.sbv-arm--offer,
+.sbv-arm--board {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.sbv-arm--offer .sbv-arm-tail,
+.sbv-arm--board .sbv-arm-tail {
+  flex: none;
+  margin-left: auto;
+}
+
+/* The board strip can run long in a house with many boards; it scrolls
+   rather than pushing the confirm off the bar. */
+.sbv-arm--board .sbv-reasons {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 900px) {
+  .sbv-row {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 8px;
+  }
+  .sbv-softs,
+  .sbv-verbs { justify-self: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sbv-bar,
+  .sbv-bar * { transition-duration: 0.01ms !important; }
+}
+
+/* The bar belongs to the working column, never to the command rail. */
+.ag-shell--collapsed .sbv-bar { left: var(--ag-rail-w-collapsed, 0px); }
+@media (max-width: 1024px) {
+  .sbv-bar, .ag-shell--collapsed .sbv-bar { left: 0; }
+}

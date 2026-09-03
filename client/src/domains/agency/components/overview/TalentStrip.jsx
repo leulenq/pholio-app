@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MetaLine, Place } from '../meta';
+import { CardMeta } from '../meta';
 
 const DRAG_THRESHOLD = 6;
 
@@ -93,16 +93,34 @@ export default function TalentStrip({ title, talents, onSelect, viewAllTo }) {
       ) : (
         <div className="ov-strip" ref={stripRef}>
           {talents.map((t) => (
-            <button key={t.id} type="button" className="ov-strip-card" onClick={() => onSelect(t)}>
+            /* A div with the button role, matching the submissions book card:
+               CardMeta renders block elements, which a real <button> may not
+               contain. */
+            <div
+              key={t.id}
+              className="ov-strip-card"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelect(t)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(t);
+                }
+              }}
+            >
               <span className="ov-strip-photo">
                 <span className="ov-strip-img" style={{ backgroundImage: t.photo ? `url(${t.photo})` : 'none' }} />
               </span>
               <span className="ov-strip-name">{t.name}</span>
-              <MetaLine size="sm" className="ov-strip-meta">
-                {t.typeLabel}
-                <Place value={t.city} size="sm" />
-              </MetaLine>
-            </button>
+              {/* One grammar with the submissions book and the signing wall:
+                  height, age, city, and nothing a card cannot know. */}
+              <CardMeta
+                className="ov-strip-meta"
+                figures={{ heightCm: t.heightCm, age: t.age }}
+                context={{ city: t.city }}
+              />
+            </div>
           ))}
         </div>
       )}
