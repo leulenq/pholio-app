@@ -1,6 +1,7 @@
 # Industry alignment audit, Stage 1 pre-launch
 
 **Date:** 2026-09-03
+**Companion:** `industry-audit-2026-09-stage1/STRATEGY-RECONCILIATION.md` reconciles this report with the August strategy documents.
 **Scope:** every user-facing surface and state of pholio-app, talent and agency sides, plus
 generated artefacts: comp-card PDFs, digitals sheets, the off-Pholio export ZIP, CSV export and
 webhook, transactional emails, in-app notifications, the public portfolio page, and the Apple
