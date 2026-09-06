@@ -15,7 +15,7 @@ For any user-facing string, state name, field label, or model name in Pholio, as
 | Published photo / feature | **Tearsheet** ("tears") | Proof of real published work; a career currency |
 | Category / tag / type (for the division) | **Board** / **division** | Bookers sit on boards; it's organizational, not a tag |
 | Practice/free shoot | **Test** (often **TFP** — trade for prints) | "Testing" builds the book; a real verb |
-| Job application / cover letter (to an agency) | **Submission** / **getting scouted** / **open call** | You submit *digitals*, not a résumé + cover letter |
+| Job application / cover letter (to an agency) | **Submission** / **open call** | You submit *digitals*, not a résumé + cover letter |
 | Interview (for meeting a client) | **Go-see** (general) / **casting** (specific job) / **call-back** | "Interview" is fine agency↔talent; wrong for client meetings |
 | Reserved / pending (on the calendar) | **Option** (1st / 2nd) / **hold** | The booking calendar runs on options & holds, not "pending" |
 | Unavailable (talent-set) | **Bookout** | Talent "books out" dates; precise term |
@@ -26,6 +26,12 @@ For any user-facing string, state name, field label, or model name in Pholio, as
 | Agency cut / platform fee | **Commission** (and **split** with mother agency) | Commission is the word; splits are structural |
 | Sign-up bonus / payout (instant) | **Net pay** (after commission, **60–90 days**) | Pay is net and slow; "instant payout" is fiction |
 | Stats / about (freeform) | **Measurements** (structured, dual-unit, dated) | Measurements are a typed, localized data model |
+
+**"Scouted" / "getting scouted"** describes the scouting pipeline — a scout or mother
+agent approaching a prospect in the street, at a mall, or via DM — not the product
+flow above. A talent submitting to an agency through Pholio is making a
+**submission**, not getting scouted; do not use "scouted" / "getting scouted" as
+product copy.
 
 ## Core term definitions (quick reference)
 

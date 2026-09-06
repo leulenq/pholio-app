@@ -166,7 +166,7 @@ not (lessons.md §21).
   Swimwear, Fitness, Couture.
 
 **Application statuses** (talent-facing labels): Under Review, Shortlisted,
-More Requested, Go-See Requested, Development Offer (short: New Face),
+More Requested, Meeting Requested, Development Offer (short: New Face),
 Offer / Moving Forward, Represented, Not Selected, Closed, No Response,
 Withdrawn, Kept on File (short: On File). Off-platform tracker: awaiting,
 heard back, closed by talent; 30-day default window; 6-month re-apply

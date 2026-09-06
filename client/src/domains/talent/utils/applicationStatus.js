@@ -103,13 +103,13 @@ export function statusConfig(status, options = {}) {
       detail: 'The agency wants additional digitals or specific shots before deciding.',
     },
     meeting_requested: {
-      label: 'Go-See Requested',
-      short: 'Go-See',
+      label: 'Meeting Requested',
+      short: 'Meeting',
       tone: 'pending',
       group: 'advancing',
       icon: Calendar,
-      next: 'The agency wants to meet — watch for go-see details, or reply to lock in a time.',
-      detail: 'The agency invited you to a meeting (a go-see).',
+      next: 'The agency wants to meet — watch for meeting details, or reply to lock in a time.',
+      detail: 'The agency invited you to a meeting.',
     },
     development: {
       label: 'Development Offer',
