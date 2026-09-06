@@ -372,3 +372,24 @@ measurements because their age is "unknown" by design (the `identity.measurement
 fallback is therefore dead); new board/pick-list payloads compute exact ages from
 DOB instead of going through `deriveAudienceAge`; bulk tag routes are N+1;
 `build:function` in `netlify.toml` bundles an unused entry.
+
+# Strategic-analysis decisions — executed 2026-09-06
+
+Decision record: `docs/audits/2026-09-06-strategic-analysis-decisions.md`.
+Five lanes with disjoint file ownership; lead reviewed and committed each.
+
+- [x] Public portfolio is one page for every tier; "Studio+" badge and tier-gated sections gone; orphaned pro layout and assets removed (Phase 7 item 1 closed)
+- [x] Industry audit P0 2.1: comp cards resolve representation from `talent_representations`; a represented card never carries the model's phone, contact band included
+- [x] Industry audit P0 2.2: agency availability map knows limited / unavailable / not stated; never defaults to available
+- [x] Industry audit P0 2.3: age derives from DOB only; digitals sheet uses the canonical formatter (kids suppression, real suit size) and is gated to the talent, an unblocked agency, or a live share token, with an HMAC render token for the headless browser
+- [x] Industry audit P0 2.4: client shoe converter mirrors the server (EU = US + 31/33 by track); server UK input converts by track (women +2, men +1)
+- [x] False calendar claims ("options, or holds", "Clear for N days") reworded to bookouts only
+- [x] Signing loop: `represented` writes a pending, talent-confirmed representation row inside the status transaction; closed on exit and on decline; pending never counts as represented; talent confirm/decline routes and API methods
+- [x] Governing documents reconciled: PRODUCT.md scope line, industry skill commission claim, "Meeting Requested", glossary "getting scouted"
+
+Remaining, in priority order:
+1. Talent-facing UI + notification for a pending signing (confirm / decline, 409 "already recorded" case); copy through `pholio-app-language`
+2. Finish the booking-desk amputation in schema and read paths (`talent_commitments`, `interviews`, `reminders`; dossier `calendarSpans` commitments branch)
+3. Teach `audience-dto.js` the viewing agency id so a confirmed signing reads as "represented by us" in Discover
+4. `useIsolatedDatabase` leaks `DATABASE_URL` process-wide (new suites must restore it in `afterAll`); fix at source
+5. Verify the walk video path end to end before FWB casting opens; get FWB form counts; California counsel before the paid relaunch
