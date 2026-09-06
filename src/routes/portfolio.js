@@ -191,7 +191,8 @@ function getDemoProfile(slug) {
       bio_curated:
         "Elara Keats brings a polished presence to every production. Based in Los Angeles, she balances editorial edge with commercial versatility. Standing at 5'11\" with measurements of 32-25-35, she brings a commanding presence to both high-fashion editorials and commercial campaigns.",
       // hero_image_path removed from demo as it is derived
-      is_pro: true,
+      // is_pro intentionally omitted: the public portfolio render path no
+      // longer forks on payment tier, so the demo profile carries no tier flag.
       pdf_theme: null,
       pdf_customizations: null,
       phone: null,
@@ -469,8 +470,10 @@ router.get("/portfolio/:slug", async (req, res, next) => {
 
     // Render portfolio page
     res.locals.currentPage = "portfolio";
-    // Use pro layout for pro portfolios (no header/footer), regular layout for free
-    const layoutType = profile.is_pro ? "portfolio-pro" : "layout";
+    // Product invariant: the public portfolio is identical for every talent
+    // regardless of payment tier, so a single layout is used unconditionally
+    // (no is_pro fork).
+    const layoutType = "layout";
 
     // Signed-in owner previews and automated crawlers do not represent audience
     // traffic. Await tracking so the session cookie is written before render
@@ -537,9 +540,6 @@ router.get("/portfolio/:slug", async (req, res, next) => {
       if (demoData) {
         console.log("[Portfolio Route] Using demo fallback in catch handler");
         res.locals.currentPage = "portfolio";
-        const demoLayoutType = demoData.profile.is_pro
-          ? "portfolio-pro"
-          : "layout";
         return res.render("portfolio/show", {
           title: `${demoData.profile.first_name} ${demoData.profile.last_name}`,
           profile: demoData.profile,
@@ -548,7 +548,7 @@ router.get("/portfolio/:slug", async (req, res, next) => {
           // Demo is a marketing showcase — keep the full stat block.
           stats: buildCanonicalStats(demoData.profile),
           ageBand: publicAgeBand(demoData.profile),
-          layout: demoLayoutType,
+          layout: "layout",
           currentPage: "portfolio",
         });
       }

@@ -1,302 +1,190 @@
-<% if (profile.is_pro) { %>
-  <!-- Pro Portfolio - Vogue Editorial Style -->
-  <div class="portfolio-pro-wrapper">
-    <div class="portfolio-pro-container">
-      <!-- Hero Section - Editorial Style -->
-      <section class="portfolio-pro-hero">
-        <div class="portfolio-pro-hero__bg">
-          <% if (profile.hero_image_path) { %>
-            <div class="portfolio-pro-hero__image-wrapper">
-              <img src="<%= profile.hero_image_path %>" alt="<%= profile.first_name %> <%= profile.last_name %>" class="portfolio-pro-hero__image">
-              <div class="portfolio-pro-hero__overlay"></div>
-            </div>
-          <% } %>
-        </div>
-        
-        <div class="portfolio-pro-hero__content">
-          <div class="portfolio-pro-hero__card">
-            <div class="portfolio-pro-hero__header">
-              <span class="portfolio-pro-badge">Studio+</span>
-              <span class="portfolio-pro-eyebrow">Pholio Portfolio</span>
-            </div>
-            
-            <h1 class="portfolio-pro-name">
-              <span class="portfolio-pro-name__first"><%= profile.first_name %></span>
-              <span class="portfolio-pro-name__last"><%= profile.last_name %></span>
-            </h1>
-            
-            <p class="portfolio-pro-location"><%= profile.city %></p>
-            
-            <!-- Stats Grid - Editorial Style -->
-            <%
-              // Wave 2C: stats (canonical, track-driven) render ONLY when the
-              // profile opted measurements into the PUBLIC audience. `stats` is
-              // null by default (agency-visible only, per profile_field_visibility).
-              // Age is shown as an audience-safe BAND, never the exact age.
-              // TODO(public-portfolio-DTO): gender, city, and social handles are
-              // still rendered raw here — route this whole template through a
-              // public-card DTO + per-field visibility in the follow-up pass.
-              const publicStats = (typeof stats !== 'undefined' && stats) ? stats : null;
-              const publicAgeBand = (typeof ageBand !== 'undefined') ? ageBand : null;
-            %>
-            <div class="portfolio-pro-stats">
-            <% if (publicStats) { %>
-              <% publicStats.fields.forEach((line) => { %>
-                <div class="portfolio-pro-stat">
-                  <span class="portfolio-pro-stat__label"><%= line.label %></span>
-                  <span class="portfolio-pro-stat__value"><%= line.value %></span>
-                </div>
-              <% }) %>
-              <% if (publicStats.weight) { %>
-                <div class="portfolio-pro-stat">
-                  <span class="portfolio-pro-stat__label">Weight</span>
-                  <span class="portfolio-pro-stat__value"><%= publicStats.weight.dual %></span>
-                </div>
-              <% } %>
-            <% } %>
-            <% if (profile.gender) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Gender</span>
-                <span class="portfolio-pro-stat__value"><%= profile.gender %></span>
-              </div>
-            <% } %>
-            <% if (publicAgeBand) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Age</span>
-                <span class="portfolio-pro-stat__value"><%= publicAgeBand %></span>
-              </div>
-            <% } %>
-            <% if (profile.is_pro && profile.languages) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Languages</span>
-                <span class="portfolio-pro-stat__value">
-                  <% 
-                    let languagesArray = [];
-                    try {
-                      languagesArray = typeof profile.languages === 'string' ? JSON.parse(profile.languages) : profile.languages;
-                    } catch {
-                      languagesArray = [];
-                    }
-                    const languagesDisplay = Array.isArray(languagesArray) && languagesArray.length > 0 
-                      ? languagesArray.join(', ') 
-                      : (typeof profile.languages === 'string' ? profile.languages : '');
-                  %>
-                  <%= languagesDisplay %>
-                </span>
-              </div>
-            <% } %>
-            <% if (profile.is_pro && (profile.availability_travel !== null || profile.availability_schedule)) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Availability</span>
-                <span class="portfolio-pro-stat__value">
-                  <% 
-                    const availabilityParts = [];
-                    if (profile.availability_schedule) availabilityParts.push(profile.availability_schedule);
-                    if (profile.availability_travel === true) availabilityParts.push('Willing to travel');
-                    const availabilityDisplay = availabilityParts.length > 0 ? availabilityParts.join(' • ') : '';
-                  %>
-                  <%= availabilityDisplay %>
-                </span>
-              </div>
-            <% } %>
-            <% if (profile.is_pro && profile.experience_level) { %>
-              <div class="portfolio-pro-stat">
-                <span class="portfolio-pro-stat__label">Experience</span>
-                <span class="portfolio-pro-stat__value"><%= profile.experience_level %></span>
-              </div>
-            <% } %>
-          </div>
-        </div>
-      </div>
-    </section>
-
-      <!-- Bio Section - Editorial Style -->
-      <section class="portfolio-pro-bio">
-        <div class="portfolio-pro-bio__card">
-          <h2 class="portfolio-pro-section-title">About</h2>
-          <div class="portfolio-pro-bio__content">
-            <p><%= profile.bio_curated %></p>
-            
-            <% if (profile.is_pro && profile.training) { %>
-              <div class="portfolio-pro-bio__subsection">
-                <h3>Training</h3>
-                <p><%= profile.training %></p>
-              </div>
-            <% } %>
-            
-            <% if (profile.portfolio_url) { %>
-              <div class="portfolio-pro-bio__subsection">
-                <h3>Portfolio</h3>
-                <p><a href="<%= profile.portfolio_url %>" target="_blank" rel="noopener" class="portfolio-pro-link"><%= profile.portfolio_url %></a></p>
-              </div>
-            <% } %>
-            
-            <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
-              <div class="portfolio-pro-bio__subsection">
-                <h3>Social Media</h3>
-                <ul class="portfolio-pro-social">
-                  <% if (profile.instagram_handle) { %>
-                    <li>
-                      <% if (profile.is_pro && profile.instagram_url) { %>
-                        <a href="<%= profile.instagram_url %>" target="_blank" rel="noopener" class="portfolio-pro-link">Instagram: @<%= profile.instagram_handle %></a>
-                      <% } else { %>
-                        Instagram: @<%= profile.instagram_handle %>
-                      <% } %>
-                    </li>
-                  <% } %>
-                  <% if (profile.twitter_handle) { %>
-                    <li>
-                      <% if (profile.is_pro && profile.twitter_url) { %>
-                        <a href="<%= profile.twitter_url %>" target="_blank" rel="noopener" class="portfolio-pro-link">Twitter: @<%= profile.twitter_handle %></a>
-                      <% } else { %>
-                        Twitter: @<%= profile.twitter_handle %>
-                      <% } %>
-                    </li>
-                  <% } %>
-                  <% if (profile.tiktok_handle) { %>
-                    <li>
-                      <% if (profile.is_pro && profile.tiktok_url) { %>
-                        <a href="<%= profile.tiktok_url %>" target="_blank" rel="noopener" class="portfolio-pro-link">TikTok: @<%= profile.tiktok_handle %></a>
-                      <% } else { %>
-                        TikTok: @<%= profile.tiktok_handle %>
-                      <% } %>
-                    </li>
-                  <% } %>
-                </ul>
-              </div>
-            <% } %>
-            
-            <% if (profile.is_pro && (profile.nationality || profile.union_membership || profile.ethnicity)) { %>
-              <div class="portfolio-pro-bio__subsection">
-                <h3>Additional Information</h3>
-                <ul class="portfolio-pro-info">
-                  <% if (profile.nationality) { %>
-                    <li><span>Nationality:</span> <%= profile.nationality %></li>
-                  <% } %>
-                  <% if (profile.union_membership) { %>
-                    <li><span>Union:</span> <%= profile.union_membership %></li>
-                  <% } %>
-                  <% if (profile.ethnicity) { %>
-                    <li><span>Ethnicity:</span> <%= profile.ethnicity %></li>
-                  <% } %>
-                </ul>
-              </div>
-            <% } %>
-            
-            <% if (profile.is_pro && (profile.tattoos === true || profile.piercings === true)) { %>
-              <div class="portfolio-pro-bio__subsection">
-                <h3>Physical Characteristics</h3>
-                <ul class="portfolio-pro-info">
-                  <% if (profile.tattoos === true) { %>
-                    <li>Has visible tattoos</li>
-                  <% } %>
-                  <% if (profile.piercings === true) { %>
-                    <li>Has visible piercings</li>
-                  <% } %>
-                </ul>
-              </div>
-            <% } %>
-          </div>
-        </div>
-      </div>
-    </section>
-
-      <!-- Gallery Section - Editorial Style -->
-      <section class="portfolio-pro-gallery">
-        <div class="portfolio-pro-container">
-          <h2 class="portfolio-pro-section-title">Gallery</h2>
-          <div class="portfolio-pro-gallery__grid">
-            <% images.forEach((item) => { %>
-              <figure class="portfolio-pro-gallery__item" data-image-id="<%= item.id %>">
-                <img src="<%= item.path %>" alt="<%= item.label || 'Portfolio image' %>" class="portfolio-pro-gallery__image">
-                <% if (item.label) { %>
-                  <figcaption class="portfolio-pro-gallery__caption"><%= item.label %></figcaption>
-                <% } %>
-              </figure>
-            <% }) %>
-          </div>
-        </div>
-      </section>
-    </div>
-  </div>
-<% } else { %>
-  <!-- Free Portfolio - Existing Design -->
-  <section class="portfolio-hero">
-    <div class="portfolio-hero__meta">
-      <span class="eyebrow">Pholio portfolio</span>
-      <h1 class="display"><%= profile.first_name %> <%= profile.last_name %></h1>
-      <p class="portfolio-location"><%= profile.city %></p>
-      <%
-        // Wave 2C: measurements render only when opted public (default: agency-
-        // only). Age shown as a band, never exact. See TODO in the pro block for
-        // the remaining public-DTO follow-up (gender/city/handles).
-        const publicStatsFree = (typeof stats !== 'undefined' && stats) ? stats : null;
-        const publicAgeBandFree = (typeof ageBand !== 'undefined') ? ageBand : null;
-      %>
-      <ul class="portfolio-stats">
-        <% if (publicStatsFree) { %>
-          <% publicStatsFree.fields.forEach((line) => { %>
-            <li><span><%= line.label %></span> <%= line.value %></li>
-          <% }) %>
-          <% if (publicStatsFree.weight) { %>
-            <li><span>Weight</span> <%= publicStatsFree.weight.dual %></li>
-          <% } %>
-        <% } %>
-        <% if (profile.gender) { %>
-          <li><span>Gender</span> <%= profile.gender %></li>
-        <% } %>
-        <% if (publicAgeBandFree) { %>
-          <li><span>Age</span> <%= publicAgeBandFree %></li>
-        <% } %>
-      </ul>
-    </div>
-    <% if (profile.hero_image_path) { %>
-      <figure class="portfolio-hero__image">
-        <img src="<%= profile.hero_image_path %>" alt="Hero image for <%= profile.first_name %> <%= profile.last_name %>">
-      </figure>
-    <% } %>
-  </section>
-
-  <section class="portfolio-body">
-    <article class="portfolio-bio">
-      <h2>About</h2>
-      <p><%= profile.bio_curated %></p>
-      <% if (profile.portfolio_url) { %>
-        <div class="portfolio-portfolio">
-          <h3>Portfolio</h3>
-          <p><a href="<%= profile.portfolio_url %>" target="_blank" rel="noopener"><%= profile.portfolio_url %></a></p>
-        </div>
-      <% } %>
-      <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
-        <div class="portfolio-social">
-          <h3>Social Media</h3>
-          <ul class="portfolio-social-list">
-            <% if (profile.instagram_handle) { %>
-              <li>Instagram: @<%= profile.instagram_handle %></li>
-            <% } %>
-            <% if (profile.twitter_handle) { %>
-              <li>Twitter: @<%= profile.twitter_handle %></li>
-            <% } %>
-            <% if (profile.tiktok_handle) { %>
-              <li>TikTok: @<%= profile.tiktok_handle %></li>
-            <% } %>
-          </ul>
-        </div>
-      <% } %>
-    </article>
-    <section class="portfolio-gallery">
-      <h2>Gallery</h2>
-      <div class="portfolio-grid">
-        <% images.forEach((item) => { %>
-          <figure data-image-id="<%= item.id %>">
-            <img src="<%= item.path %>" alt="<%= item.label || 'Portfolio image' %>">
-            <figcaption><%= item.label || 'Portfolio image' %></figcaption>
-          </figure>
+<%
+  // Public portfolio: ONE rendering for every talent, regardless of payment
+  // tier. Payment may only change what the talent keeps (e.g. PDF exports) —
+  // never what an agency (or anyone else) sees on this page. Do not
+  // reintroduce an `is_pro` fork here; gate content only on the field itself
+  // being present, or on a non-tier visibility control (profile_field_visibility,
+  // minorPublicExposureAllowed, etc.) computed upstream in the route.
+%>
+<section class="portfolio-hero">
+  <div class="portfolio-hero__meta">
+    <h1 class="display"><%= profile.first_name %> <%= profile.last_name %></h1>
+    <p class="portfolio-location"><%= profile.city %></p>
+    <%
+      // Wave 2C: measurements render only when opted public (default: agency-
+      // only). Age shown as an audience-safe band, never exact.
+      // TODO(public-portfolio-DTO): gender, city, and social handles are still
+      // rendered raw here — route this whole template through a public-card
+      // DTO + per-field visibility in a follow-up pass.
+      const publicStats = (typeof stats !== 'undefined' && stats) ? stats : null;
+      const publicAgeBand = (typeof ageBand !== 'undefined') ? ageBand : null;
+    %>
+    <ul class="portfolio-stats">
+      <% if (publicStats) { %>
+        <% publicStats.fields.forEach((line) => { %>
+          <li><span><%= line.label %></span> <%= line.value %></li>
         <% }) %>
+        <% if (publicStats.weight) { %>
+          <li><span>Weight</span> <%= publicStats.weight.dual %></li>
+        <% } %>
+      <% } %>
+      <% if (profile.gender) { %>
+        <li><span>Gender</span> <%= profile.gender %></li>
+      <% } %>
+      <% if (publicAgeBand) { %>
+        <li><span>Age</span> <%= publicAgeBand %></li>
+      <% } %>
+      <% if (profile.languages) { %>
+        <%
+          let languagesArray = [];
+          try {
+            languagesArray = typeof profile.languages === 'string' ? JSON.parse(profile.languages) : profile.languages;
+          } catch {
+            languagesArray = [];
+          }
+          const languagesDisplay = Array.isArray(languagesArray) && languagesArray.length > 0
+            ? languagesArray.join(', ')
+            : (typeof profile.languages === 'string' ? profile.languages : '');
+        %>
+        <% if (languagesDisplay) { %>
+          <li><span>Languages</span> <%= languagesDisplay %></li>
+        <% } %>
+      <% } %>
+      <% if (profile.availability_travel !== null || profile.availability_schedule) { %>
+        <%
+          const availabilityParts = [];
+          if (profile.availability_schedule) availabilityParts.push(profile.availability_schedule);
+          if (profile.availability_travel === true) availabilityParts.push('Willing to travel');
+          const availabilityDisplay = availabilityParts.join(' • ');
+        %>
+        <% if (availabilityDisplay) { %>
+          <li><span>Availability</span> <%= availabilityDisplay %></li>
+        <% } %>
+      <% } %>
+      <% if (profile.experience_level) { %>
+        <li><span>Experience</span> <%= profile.experience_level %></li>
+      <% } %>
+    </ul>
+  </div>
+  <% if (profile.hero_image_path) { %>
+    <figure class="portfolio-hero__image">
+      <img src="<%= profile.hero_image_path %>" alt="Hero image for <%= profile.first_name %> <%= profile.last_name %>">
+    </figure>
+  <% } %>
+</section>
+
+<section class="portfolio-body">
+  <article class="portfolio-bio">
+    <h2>About</h2>
+    <p><%= profile.bio_curated %></p>
+
+    <% if (profile.training) { %>
+      <div class="portfolio-training">
+        <h3>Training</h3>
+        <p><%= profile.training %></p>
       </div>
-    </section>
+    <% } %>
+
+    <% if (profile.portfolio_url) { %>
+      <div class="portfolio-portfolio">
+        <h3>Portfolio</h3>
+        <p><a href="<%= profile.portfolio_url %>" target="_blank" rel="noopener"><%= profile.portfolio_url %></a></p>
+      </div>
+    <% } %>
+
+    <% if (profile.instagram_handle || profile.twitter_handle || profile.tiktok_handle) { %>
+      <div class="portfolio-social">
+        <h3>Social Media</h3>
+        <ul class="portfolio-social-list">
+          <% if (profile.instagram_handle) { %>
+            <li>
+              <% if (profile.instagram_url) { %>
+                <a href="<%= profile.instagram_url %>" target="_blank" rel="noopener" class="portfolio-social-link">Instagram: @<%= profile.instagram_handle %></a>
+              <% } else { %>
+                Instagram: @<%= profile.instagram_handle %>
+              <% } %>
+            </li>
+          <% } %>
+          <% if (profile.twitter_handle) { %>
+            <li>
+              <% if (profile.twitter_url) { %>
+                <a href="<%= profile.twitter_url %>" target="_blank" rel="noopener" class="portfolio-social-link">Twitter: @<%= profile.twitter_handle %></a>
+              <% } else { %>
+                Twitter: @<%= profile.twitter_handle %>
+              <% } %>
+            </li>
+          <% } %>
+          <% if (profile.tiktok_handle) { %>
+            <li>
+              <% if (profile.tiktok_url) { %>
+                <a href="<%= profile.tiktok_url %>" target="_blank" rel="noopener" class="portfolio-social-link">TikTok: @<%= profile.tiktok_handle %></a>
+              <% } else { %>
+                TikTok: @<%= profile.tiktok_handle %>
+              <% } %>
+            </li>
+          <% } %>
+        </ul>
+      </div>
+    <% } %>
+
+    <%
+      // Multi-value json columns: pg hands back arrays, SQLite the JSON text.
+      const listDisplay = (value) => {
+        if (!value) return '';
+        let list = value;
+        if (typeof value === 'string') {
+          try { list = JSON.parse(value); } catch (e) { list = value; }
+        }
+        if (Array.isArray(list)) return list.filter(Boolean).join(', ');
+        return typeof list === 'string' ? list : '';
+      };
+      const unionDisplay = listDisplay(profile.union_membership);
+      const ethnicityDisplay = listDisplay(profile.ethnicity);
+    %>
+    <% if (profile.nationality || unionDisplay || ethnicityDisplay) { %>
+      <div class="portfolio-additional-info">
+        <h3>Additional Information</h3>
+        <ul class="portfolio-info-list">
+          <% if (profile.nationality) { %>
+            <li><span>Nationality:</span> <%= profile.nationality %></li>
+          <% } %>
+          <% if (unionDisplay) { %>
+            <li><span>Union:</span> <%= unionDisplay %></li>
+          <% } %>
+          <% if (ethnicityDisplay) { %>
+            <li><span>Ethnicity:</span> <%= ethnicityDisplay %></li>
+          <% } %>
+        </ul>
+      </div>
+    <% } %>
+
+    <% if (profile.tattoos === true || profile.piercings === true) { %>
+      <div class="portfolio-physical-characteristics">
+        <h3>Physical Characteristics</h3>
+        <ul class="portfolio-info-list">
+          <% if (profile.tattoos === true) { %>
+            <li>Has visible tattoos</li>
+          <% } %>
+          <% if (profile.piercings === true) { %>
+            <li>Has visible piercings</li>
+          <% } %>
+        </ul>
+      </div>
+    <% } %>
+  </article>
+
+  <section class="portfolio-gallery">
+    <h2>Gallery</h2>
+    <div class="portfolio-grid">
+      <% images.forEach((item) => { %>
+        <figure data-image-id="<%= item.id %>">
+          <img src="<%= item.path %>" alt="<%= item.label || 'Portfolio image' %>">
+          <figcaption><%= item.label || 'Portfolio image' %></figcaption>
+        </figure>
+      <% }) %>
+    </div>
   </section>
-<% } %>
+</section>
 
 <script>
   (function() {
@@ -310,7 +198,7 @@
     };
 
     // Track Bio View (Engagement)
-    const bioSection = document.querySelector('.portfolio-pro-bio, .portfolio-bio');
+    const bioSection = document.querySelector('.portfolio-bio');
     if (bioSection) {
       let bioViewStartTime = null;
       let bioTracked = false;
@@ -340,7 +228,7 @@
       if (href.includes('instagram.com')) trackEvent('social_click', { platform: 'instagram', url: href });
       else if (href.includes('twitter.com')) trackEvent('social_click', { platform: 'twitter', url: href });
       else if (href.includes('tiktok.com')) trackEvent('social_click', { platform: 'tiktok', url: href });
-      else if (link.classList.contains('portfolio-pro-link') || link.closest('.portfolio-portfolio')) {
+      else if (link.classList.contains('portfolio-social-link') || link.closest('.portfolio-portfolio')) {
         trackEvent('portfolio_click', { url: href });
       }
     });
@@ -430,7 +318,7 @@
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ agencyId, token })
               });
-              
+
               if (res.status === 401 || res.status === 403) {
                   // Redirect to login
                   alert('Please login to accept this invitation.');
@@ -439,7 +327,7 @@
               }
 
               const data = await res.json();
-              
+
               if (res.ok && data.success) {
                   modal.innerHTML = `
                     <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000; font-family: sans-serif;">
