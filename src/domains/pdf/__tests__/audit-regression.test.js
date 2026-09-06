@@ -28,6 +28,16 @@ const FULLSET = [
   IMG("i4", null, "lifestyle", 900, 1350, { sort: 4 }),
 ];
 
+/** A date of birth `years` ago — keeps age-dependent cases stable over time. */
+function dobYearsAgo(years) {
+  const now = new Date();
+  return new Date(
+    Date.UTC(now.getUTCFullYear() - years, now.getUTCMonth(), Math.min(now.getUTCDate(), 28)),
+  )
+    .toISOString()
+    .slice(0, 10);
+}
+
 function compose({ profile, casting = {}, archetype = null, images = FULLSET, representation = null, seed = "audit" }) {
   const statsBlock = buildStatsBlock(profile, {
     signals: {
@@ -86,11 +96,16 @@ describe("audit battery — real-world scenarios", () => {
 
   test("kids card: age shown, no B/W/H, guardian contact framing", () => {
     const { statsBlock, plan } = compose({
-      profile: { slug: "remy", first_name: "Remy", last_name: "Cole", gender: "Female", age: 9, city: "Chicago", phone: "+1 312", height_cm: 134, dress_size: "8", shoe_size: "3", hair_color: "brown", eye_color: "hazel" },
+      // A stale adult `age` on the row must not beat the date of birth
+      // (audit §2.3) — this child stays on the kids track either way.
+      profile: { slug: "remy", first_name: "Remy", last_name: "Cole", gender: "Female", age: 31, date_of_birth: dobYearsAgo(9), city: "Chicago", phone: "+1 312", height_cm: 134, bust_cm: 70, waist_cm: 61, hips_cm: 74, dress_size: "8", shoe_size: "3", hair_color: "brown", eye_color: "hazel" },
     });
     const labels = statsBlock.lines.map((l) => l.label);
     expect(labels).toContain("AGE");
     expect(labels).not.toContain("BUST");
+    expect(labels).not.toContain("WAIST");
+    expect(labels).not.toContain("HIPS");
+    expect(statsBlock.inline).not.toMatch(/BUST|WAIST|HIPS/);
     expect(plan.back.booking.label).toBe("Guardian Contact");
     assertCoreInvariants(plan, 4);
   });

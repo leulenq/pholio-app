@@ -100,12 +100,18 @@ describe("shoeDual", () => {
     expect(shoeDual("40", "women")).toBe("US 9 / EU 40");
   });
 
-  test('labeled UK: "8 UK" women → US 9 / EU 40', () => {
-    expect(shoeDual("8 UK", "women")).toBe("US 9 / EU 40");
+  // Women's UK and US scales sit two sizes apart (UK 7 = US 9); men's one
+  // (UK 8 = US 9). The old flat +1 printed a woman's UK 7 as US 8.
+  test('labeled UK: "7 UK" women → US 9 / EU 40', () => {
+    expect(shoeDual("7 UK", "women")).toBe("US 9 / EU 40");
   });
 
-  test('explicit region UK: "8" with region UK → US 9 / EU 40', () => {
-    expect(shoeDual("8", "women", "UK")).toBe("US 9 / EU 40");
+  test('explicit region UK: "7" with region UK → US 9 / EU 40', () => {
+    expect(shoeDual("7", "women", "UK")).toBe("US 9 / EU 40");
+  });
+
+  test('labeled UK, men: "8 UK" → US 9 / EU 42', () => {
+    expect(shoeDual("8 UK", "men")).toBe("US 9 / EU 42");
   });
 
   test('explicit region EU: "40" with region EU → US 9 / EU 40', () => {
@@ -150,8 +156,27 @@ describe("resolveStatsCategory", () => {
     expect(resolveStatsCategory({ gender: "FEMALE" }, NOW)).toBe("women");
   });
 
-  test("age column < 18 → kids, beating gender", () => {
-    expect(resolveStatsCategory({ gender: "Male", age: 12 }, NOW)).toBe("kids");
+  test("date of birth < 18 → kids, beating gender", () => {
+    expect(
+      resolveStatsCategory({ gender: "Male", date_of_birth: "2014-01-04" }, NOW),
+    ).toBe("kids");
+  });
+
+  test("a stale adult `age` column never overrides a minor's date of birth", () => {
+    // Industry audit §2.3, path A: `profiles.age` used to win here, so a
+    // legacy adult value sitting on a minor's row rendered the ADULT track.
+    expect(
+      resolveStatsCategory(
+        { gender: "Female", age: 24, date_of_birth: "2014-01-04" },
+        NOW,
+      ),
+    ).toBe("kids");
+  });
+
+  test("`age` alone proves nothing — the column is not a source of truth", () => {
+    // No DOB ⇒ unknown age. It must not silently confer a kids OR adult claim
+    // from a denormalized copy.
+    expect(resolveStatsCategory({ gender: "Male", age: 12 }, NOW)).toBe("men");
   });
 
   test('date_of_birth "2012-03-15" → kids (age 14 at reference date)', () => {
@@ -375,13 +400,30 @@ describe("buildStatsBlock — kids track", () => {
     );
   });
 
-  test("kids resolved from age column", () => {
+  test("a minor carrying a stale adult `age` still gets the kids track", () => {
+    // Industry audit §2.3, path A — the regression that printed a child's
+    // bust, waist and hips on a comp card.
     const block = buildStatsBlock(
-      { gender: "Male", age: 10, height_cm: 140, shoe_size: "2" },
+      {
+        gender: "Male",
+        age: 27, // legacy denormalized value, wrong and never rewritten
+        date_of_birth: "2016-02-11",
+        height_cm: 140,
+        shoe_size: "2",
+        bust_cm: 70,
+        waist_cm: 60,
+        hips_cm: 74,
+      },
       { referenceDate: NOW },
     );
     expect(block.category).toBe("kids");
     expect(lineMap(block).age).toBe("10");
+    const labels = block.lines.map((line) => line.label);
+    expect(labels).not.toContain("BUST");
+    expect(labels).not.toContain("CHEST");
+    expect(labels).not.toContain("WAIST");
+    expect(labels).not.toContain("HIPS");
+    expect(block.inline).not.toMatch(/BUST|WAIST|HIPS/);
   });
 });
 

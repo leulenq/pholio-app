@@ -45,6 +45,8 @@ const SUIT_REGULAR_MAX_CM = 183;
 
 /** EU ≈ US shoe-size offsets by presentation track. */
 const SHOE_EU_OFFSET = { women: 31, men: 33 };
+/** US ≈ UK + offset by presentation track (women's scales sit two apart, men's one). */
+const SHOE_UK_OFFSET = { women: 2, men: 1 };
 /**
  * Dress-size conversions from the US convention. Standard women's grading:
  *   US 4 = EU 36 = UK 8 = FR 38 = IT 40 (each step is +2 within a system).
@@ -176,7 +178,8 @@ function renderShoe(raw, category, units, shoeRegion) {
   if (parsed.system === "eu") {
     us = parsed.value - offset;
   } else if (parsed.system === "uk") {
-    us = parsed.value + 1; // standard offset UK to US
+    // UK→US differs by track: women's scales sit two sizes apart, men's one.
+    us = parsed.value + (SHOE_UK_OFFSET[category] ?? SHOE_UK_OFFSET.women);
     eu = us + offset;
   } else { // us
     eu = parsed.value + offset;
@@ -294,15 +297,25 @@ function ageFromDob(dob, ref) {
 }
 
 /**
- * Resolve the talent's age from the `age` column, falling back to
- * `date_of_birth`.
+ * Resolve the talent's age from `date_of_birth` — the ONLY source of truth.
+ *
+ * `profile.age` used to win here, and that is how a minor with a stale adult
+ * `age` rendered the adult stats track, bust/waist/hips and all (industry
+ * audit §2.3, path A). The `profiles.age` COLUMN has since been dropped
+ * (migrations/20260824090000_reconcile_profiles_ai_drift.js), but this
+ * formatter is called with profile-SHAPED objects too — snapshots, wallet pass
+ * inputs, fixtures — any of which may still carry an `age` key. A denormalized
+ * age is never truth, wherever it arrives from.
+ *
+ * A profile with no date of birth has an UNKNOWN age. Unknown is not adult:
+ * the kids suppression rules below key off `category === 'kids'`, and a
+ * profile with no DOB simply never claims an age line.
+ *
  * @param {object} profile
  * @param {Date} ref
  * @returns {number|null}
  */
 function resolveAge(profile, ref) {
-  const direct = toPositiveNumber(profile?.age);
-  if (direct != null) return Math.floor(direct);
   return ageFromDob(profile?.date_of_birth, ref);
 }
 
@@ -330,7 +343,7 @@ function parseMeasurements(raw) {
 
 /**
  * Resolve the presentation track for a profile.
- * Precedence: kids (< 18, from `age` or `date_of_birth`) → gender (Male →
+ * Precedence: kids (< 18, from `date_of_birth` only) → gender (Male →
  * 'men', Female → 'women', case-insensitive) → measurement heuristic for
  * non-binary/unknown gender (bust present → 'women', else 'men').
  * @param {object} profile
@@ -672,7 +685,7 @@ function buildStatsBlock(profile, options) {
   pushLine("eyes", "EYES", eyes, "Eye color missing — line skipped.");
 
   // --- Skip-list enforcement (explainability) -------------------------------
-  if (category !== "kids" && (p.age != null || p.date_of_birth != null)) {
+  if (category !== "kids" && p.date_of_birth != null) {
     omitted.push({
       key: "age",
       reason: "Age/DOB is never printed for adults.",

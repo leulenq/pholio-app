@@ -793,18 +793,26 @@ async function renderCompCard(slug, theme = null, opts = null) {
  * frames + measurements that agencies request ("send me your digitals").
  * Distinct from the comp card: no composition engine, no styling — a clean
  * contact sheet of the unretouched set. Navigates to /pdf/digitals/view/:slug.
+ *
+ * The headless browser carries no session cookie, so the caller (which has
+ * already authorized the viewer) passes a short-lived signed render token that
+ * lets the document route recognize its own renderer. See render-token.js.
+ *
+ * @param {string} slug
+ * @param {{ renderToken?: string|null }} [options]
  */
-async function renderDigitalsSheet(slug) {
+async function renderDigitalsSheet(slug, options = {}) {
   if (config.nodeEnv === "test") {
     return Buffer.from(`Digitals sheet placeholder for ${slug}`);
   }
 
   let browser = null;
   try {
-    const target = new URL(
-      `/pdf/digitals/view/${slug}`,
-      config.pdfBaseUrl,
-    ).toString();
+    const targetUrl = new URL(`/pdf/digitals/view/${slug}`, config.pdfBaseUrl);
+    if (options && options.renderToken) {
+      targetUrl.searchParams.set("rt", options.renderToken);
+    }
+    const target = targetUrl.toString();
 
     const puppeteerArgs = [
       "--no-sandbox",

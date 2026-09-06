@@ -45,6 +45,15 @@ const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const knex = require("../../../shared/db/knex");
 const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
 const { buildCanonicalStats } = require("../../../shared/lib/stats-formatter");
+const { buildStatsBlock } = require("../composition/stats-formatter");
+const { resolveRepresentation } = require("../representation");
+const {
+  isAgencyBlockedForTalent,
+} = require("../../../shared/lib/blocked-agencies");
+const {
+  mintRenderToken,
+  verifyRenderToken,
+} = require("../render-token");
 const QRCode = require("qrcode");
 const config = require("../../../config");
 const { v4: uuidv4 } = require("uuid");
@@ -938,19 +947,17 @@ async function renderComposedView(req, res, data, isDemo) {
     // and the engine simply skips mask-dependent moves.
     const matteById = await loadCompCardMattes(images, { isDemo });
 
-    // Representation: a represented talent's card leads with the agency.
-    let representation = null;
-    if (!isDemo && profile.partner_agency_id) {
-      try {
-        const agency = await knex("agencies")
-          .where({ id: profile.partner_agency_id })
-          .select("name")
-          .first();
-        representation = agency?.name || null;
-      } catch {
-        representation = null;
-      }
-    }
+    // Representation: a represented talent's card leads with the agency, and
+    // never with the model's own phone (audit §2.1). Resolved from
+    // `talent_representations` and scoped to the preset's market when the
+    // saved card carries one — presets are market-scoped by design.
+    const representation = isDemo
+      ? null
+      : await resolveRepresentation({
+          knex,
+          profile,
+          market: presetRow ? presetRow.market : null,
+        });
 
     const { plan, statsBlock, guardrailReport, poolAnalysis } = await composeCompCard({
       profile,
@@ -1994,43 +2001,17 @@ function buildDigitalsSheetData(profile, images) {
       capturedLabel: fmtMonth(img.captured_at) || "Undated",
     }));
 
-  const measure = (keys) => {
-    for (const k of keys) {
-      const v = profile[k];
-      if (v !== null && v !== undefined && v !== "") return v;
-    }
-    return null;
-  };
-  const cmIn = (cm) => `${cm} cm / ${(Number(cm) / 2.54).toFixed(1)}″`;
-  const gender = norm(profile.gender);
-  const isMale = ["male", "man", "men", "m"].includes(gender);
-
-  const stats = [];
-  const heightCm = measure(["height_cm"]);
-  if (heightCm) {
-    const ftin = toFeetInches(heightCm);
-    stats.push({ label: "Height", value: `${heightCm} cm / ${ftin}` });
-  }
-  const bust = measure(["bust_cm", "bust", "chest_cm", "chest"]);
-  if (bust) stats.push({ label: isMale ? "Chest" : "Bust", value: cmIn(bust) });
-  const waist = measure(["waist_cm", "waist"]);
-  if (waist) stats.push({ label: "Waist", value: cmIn(waist) });
-  const hips = measure(["hips_cm", "hips"]);
-  if (hips) stats.push({ label: "Hips", value: cmIn(hips) });
-  const inseam = measure(["inseam_cm"]);
-  if (isMale && inseam) stats.push({ label: "Inseam", value: cmIn(inseam) });
-  const shoe = measure(["shoe_size"]);
-  if (shoe) stats.push({ label: "Shoe", value: String(shoe) });
-  const dress = measure(["dress_size"]);
-  if (dress) stats.push({ label: isMale ? "Suit" : "Dress", value: String(dress) });
-  const hair = measure(["hair_color", "hair"]);
-  const eyes = measure(["eye_color", "eyes"]);
-  if (hair || eyes) {
-    stats.push({
-      label: "Hair · Eyes",
-      value: [hair, eyes].filter(Boolean).join(" · "),
-    });
-  }
+  /* Measurements come from the CANONICAL formatter, never from a local
+     gender/measurement guess (industry audit §2.3, path B). The old block here
+     derived `isMale` from `gender`, pushed bust/waist/hips with no age check —
+     printing a minor's body measurements — and read a man's suit size out of
+     the `dress_size` column. buildStatsBlock applies the kids track (age,
+     height, clothing size, shoes, hair, eyes — never bust/waist/hips), the
+     `stats_track` decision and the correct `suit_size` column. */
+  const stats = buildStatsBlock(profile, { units: "dual" }).lines.map((line) => ({
+    label: line.label,
+    value: line.value,
+  }));
 
   const name = [profile.first_name, profile.last_name]
     .filter(Boolean)
@@ -2051,6 +2032,63 @@ function buildDigitalsSheetData(profile, images) {
   };
 }
 
+/**
+ * Who may read a digitals sheet.
+ *
+ * A comp card is a leave-behind: it is made to circulate, and it stays public.
+ * A digitals sheet is the opposite — the raw, undated-if-you-are-careless set
+ * of unretouched frames plus current measurements that an agency asks for by
+ * name. It was reachable by anyone who could guess `firstname-lastname`
+ * (industry audit §2.3): the route was mounted with no auth and gated only on
+ * guardian consent, which a consented minor passes.
+ *
+ * Legitimate viewers, and only these:
+ *   - the talent themselves (their own dashboard download);
+ *   - a signed-in AGENCY session (the party that asks for digitals);
+ *   - the holder of a live, unrevoked share token for THIS profile (`?st=`),
+ *     the same credential the public portfolio honors.
+ *
+ * @param {object} req
+ * @param {object} profile
+ * @returns {Promise<boolean>}
+ */
+async function mayViewDigitals(req, profile) {
+  const session = req.session || {};
+  if (session.userId && profile && session.userId === profile.user_id) return true;
+  if (session.userId && session.role === "AGENCY") {
+    /* A talent who blocked this agency has withdrawn the digitals along with
+       everything else; an agency session stores the agency id in userId. */
+    if (!profile || !profile.user_id) return false;
+    try {
+      return !(await isAgencyBlockedForTalent(knex, profile.user_id, session.userId));
+    } catch (error) {
+      console.error("[Digitals] blocked-agency check failed:", error.message);
+      return false;
+    }
+  }
+
+  const raw = req.query ? req.query.st : null;
+  const token = typeof raw === "string" ? raw.trim() : "";
+  if (!token || token.length > 64 || !profile || !profile.id) return false;
+  try {
+    /* Read-only on purpose: fetching a document is not a "link open", so this
+       must not advance the token's open counters the way the portfolio does. */
+    const row = await knex("share_tokens")
+      .where({ token, profile_id: profile.id })
+      .whereNull("revoked_at")
+      .first();
+    return Boolean(row);
+  } catch (error) {
+    console.error("[Digitals] share token check failed:", error.message);
+    return false;
+  }
+}
+
+const DIGITALS_FORBIDDEN = {
+  error: "Digitals are shared with agencies, not published.",
+  code: "DIGITALS_ACCESS_REQUIRED",
+};
+
 // GET /pdf/digitals/view/:slug — printable HTML the PDF renderer navigates to.
 router.get("/pdf/digitals/view/:slug", async (req, res, next) => {
   try {
@@ -2060,6 +2098,15 @@ router.get("/pdf/digitals/view/:slug", async (req, res, next) => {
       return res
         .status(403)
         .send("Guardian consent is required before digitals can be shared.");
+    }
+    /* The headless renderer navigates here with no cookie, so it presents the
+       signed token minted by the PDF route below (which authorized the viewer
+       first). A human hitting this HTML directly still has to be one. */
+    const authorized =
+      verifyRenderToken(req.query.rt, "digitals", req.params.slug) ||
+      (await mayViewDigitals(req, data.profile));
+    if (!authorized) {
+      return res.status(403).send(DIGITALS_FORBIDDEN.error);
     }
     return res.render(path.join(pdfTemplateDir, "digitals-sheet.ejs"), {
       layout: false,
@@ -2083,7 +2130,12 @@ router.get("/pdf/digitals/:slug", async (req, res, next) => {
         code: "MINOR_CONSENT_REQUIRED",
       });
     }
-    const rawPdf = await renderDigitalsSheet(slug);
+    if (!(await mayViewDigitals(req, data.profile))) {
+      return res.status(403).json(DIGITALS_FORBIDDEN);
+    }
+    const rawPdf = await renderDigitalsSheet(slug, {
+      renderToken: mintRenderToken("digitals", slug),
+    });
     const buffer = Buffer.isBuffer(rawPdf) ? rawPdf : Buffer.from(rawPdf);
     if (req.query.download) {
       res.setHeader(
@@ -2539,18 +2591,13 @@ async function freezePresetPlan(slug, presetRow) {
     const { profile, images } = data;
     const forensicsById = await loadCompCardForensics(images, { isDemo: false });
     const matteById = await loadCompCardMattes(images, { isDemo: false });
-    let representation = null;
-    if (profile.partner_agency_id) {
-      try {
-        const agency = await knex("agencies")
-          .where({ id: profile.partner_agency_id })
-          .select("name")
-          .first();
-        representation = agency?.name || null;
-      } catch {
-        representation = null;
-      }
-    }
+    // Same representation rule as the live render — a frozen plan must carry
+    // the agency block the talent saw when they saved the card.
+    const representation = await resolveRepresentation({
+      knex,
+      profile,
+      market: presetRow ? presetRow.market : null,
+    });
     const gridIds = (() => {
       try {
         const parsed = typeof presetRow.lock_grid_ids === "string"

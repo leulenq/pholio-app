@@ -169,7 +169,8 @@ describe("editions enabled — resolution inputs and cycling gestures", () => {
     for (let i = 0; i < 10; i++) {
       const { plan } = await compose(
         { seed: `kid-${i}`, editionsEnabled: true },
-        { age: 12 },
+        // Age is derived from the date of birth only (audit §2.3).
+        { date_of_birth: "2014-05-01" },
       );
       expect(KIDS_POOL).toContain(plan.edition.id);
       expect(plan.edition.field).not.toBe("dark");

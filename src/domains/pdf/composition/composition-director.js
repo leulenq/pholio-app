@@ -121,8 +121,19 @@ function nearestToneLabel(tone, statsBlock) {
   return "editorial-classic";
 }
 
-/** Contact line from city / instagram / phone. Never an address. */
-function buildContactLine(profile) {
+/**
+ * Contact line from city / instagram / phone. Never an address.
+ *
+ * `includePhone: false` is how a represented card is built: an agency's card
+ * must not carry the model's personal number ANYWHERE on it, not just outside
+ * the booking block (industry audit §2.1).
+ *
+ * @param {object} profile
+ * @param {{ includePhone?: boolean }} [options]
+ * @returns {string}
+ */
+function buildContactLine(profile, options = {}) {
+  const includePhone = options.includePhone !== false;
   const parts = [];
   const city = typeof profile?.city === "string" ? profile.city.trim() : "";
   if (city) parts.push(city);
@@ -130,7 +141,32 @@ function buildContactLine(profile) {
     typeof profile?.instagram_handle === "string" ? profile.instagram_handle.trim() : "";
   if (handleRaw) parts.push(handleRaw.startsWith("@") ? handleRaw : `@${handleRaw}`);
   const phone = typeof profile?.phone === "string" ? profile.phone.trim() : "";
-  if (phone) parts.push(phone);
+  if (includePhone && phone) parts.push(phone);
+  return parts.join("  ·  ");
+}
+
+/**
+ * Represented cards carry the AGENCY's contact line, never the model's phone
+ * (industry audit §2.1 — printing the model's number under an agency's name
+ * is an invitation to book around the agency). The agency's own line is used
+ * when we have one; otherwise the card falls back to the model's city and
+ * handle, which are public booking context rather than a private channel.
+ * @param {object} profile
+ * @param {{ contactLine?: string }|null} representation
+ * @returns {string}
+ */
+function buildRepresentedContactLine(profile, representation) {
+  const agencyLine =
+    representation && typeof representation.contactLine === "string"
+      ? representation.contactLine.trim()
+      : "";
+  if (agencyLine) return agencyLine;
+  const parts = [];
+  const city = typeof profile?.city === "string" ? profile.city.trim() : "";
+  if (city) parts.push(city);
+  const handleRaw =
+    typeof profile?.instagram_handle === "string" ? profile.instagram_handle.trim() : "";
+  if (handleRaw) parts.push(handleRaw.startsWith("@") ? handleRaw : `@${handleRaw}`);
   return parts.join("  ·  ");
 }
 
@@ -142,10 +178,12 @@ function buildContactLine(profile) {
  *
  *   REPRESENTATION                 DIRECT BOOKINGS
  *   Icon Management                +1 (212) 555 0101
- *   New York · @ana                New York · @ana
+ *   New York · info@icon.com       New York · @ana
  *
  * @param {object} profile
- * @param {string|null} representation — agency name when represented
+ * @param {string|{name: string, contactLine?: string}|null} representation —
+ *   the resolved representation (src/domains/pdf/representation.js), or a bare
+ *   agency name for legacy callers
  * @param {{ kids?: boolean }} [options] — kids cards label direct contact as
  *   guardian contact (industry convention: a child's card carries the
  *   parent/guardian line, never the child's own booking identity)
@@ -153,16 +191,22 @@ function buildContactLine(profile) {
  *             primary: string|null, line: string }}
  */
 function buildBookingBlock(profile, representation, options = {}) {
+  const resolved =
+    representation && typeof representation === "object"
+      ? representation
+      : typeof representation === "string" && representation.trim()
+        ? { name: representation.trim() }
+        : null;
   const agency =
-    typeof representation === "string" && representation.trim()
-      ? representation.trim()
+    resolved && typeof resolved.name === "string" && resolved.name.trim()
+      ? resolved.name.trim()
       : null;
   if (agency) {
     return {
       mode: "represented",
       label: "Representation",
       primary: agency,
-      line: buildContactLine(profile),
+      line: buildRepresentedContactLine(profile, resolved),
     };
   }
   // Direct: lead with the strongest booking channel; the rest support it.
@@ -349,7 +393,7 @@ function designComposition(input = {}) {
     seed,
     advice = null,
     brief = null, // art-director design brief (validated by art-director.js)
-    representation = null, // agency name when represented (route supplies)
+    representation = null, // resolved representation object (route supplies)
     overrides = null,
     cropEngine,
     // Editions threading (opt-in — composition/index.js resolves these once
@@ -892,9 +936,13 @@ function designComposition(input = {}) {
     area: `c${i}`,
   }));
 
-  const contactLine = buildContactLine(profile);
   const booking = buildBookingBlock(profile, representation, {
     kids: statsBlock?.category === "kids",
+  });
+  // Represented ⇒ the agency owns the booking channel; the model's phone is
+  // off the card entirely, contact band included (audit §2.1).
+  const contactLine = buildContactLine(profile, {
+    includePhone: booking.mode !== "represented",
   });
   decide(
     "booking",
