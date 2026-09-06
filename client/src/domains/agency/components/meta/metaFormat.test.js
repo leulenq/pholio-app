@@ -189,6 +189,15 @@ describe('ageFigure', () => {
     expect(ageFigure({}, NOW)).toBeNull();
     expect(ageFigure(null, NOW)).toBeNull();
   });
+
+  it('turns on the birthday itself, read from calendar parts rather than a local getter', () => {
+    // The old implementation read the DOB back through local Date getters —
+    // in a UTC-negative zone that shifts the UTC-midnight "YYYY-MM-DD" a day
+    // earlier and undercounts a birthday that has already happened in UTC.
+    const turnsEighteen = new Date('2026-09-06T03:00:00Z');
+    expect(ageFigure({ date_of_birth: '2008-09-06' }, turnsEighteen).value).toBe('18');
+    expect(ageFigure({ date_of_birth: '2008-09-07' }, turnsEighteen).value).toBe('17');
+  });
 });
 
 describe('freshness', () => {

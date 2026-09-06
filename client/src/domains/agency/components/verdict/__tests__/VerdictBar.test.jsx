@@ -156,3 +156,73 @@ describe('VerdictBar — the board strip', () => {
     expect(screen.getByRole('radio', { name: 'Women' })).toBeInTheDocument();
   });
 });
+
+describe('VerdictBar — a chosen pass reason belongs to the person it was chosen for', () => {
+  const REASONS = [
+    { id: 'r1', label: 'Not the right fit', talentMessage: 'Not the right fit for us right now.' },
+  ];
+
+  const treeFor = (props, onAction, qc) => (
+    <QueryClientProvider client={qc}>
+      <AgencyPermissionsContext.Provider value={{ can: () => true, canAny: () => true, canAll: () => true }}>
+        <VerdictBar
+          selected={[face('app-1', 'Jamie Rivera')]}
+          verbs={INBOX_VERBS}
+          legal={ALL}
+          boards={BOARDS}
+          active
+          sessionDecided={0}
+          {...props}
+          onAction={onAction}
+        />
+      </AgencyPermissionsContext.Provider>
+    </QueryClientProvider>
+  );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getDeclineReasons.mockResolvedValue(REASONS);
+  });
+
+  test('does not leak to the next face selected into the bar', async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const faceA = face('app-1', 'Jamie Rivera');
+    const faceB = face('app-2', 'Nour Haddad');
+
+    const { rerender } = render(treeFor({ selected: [faceA] }, onAction, qc));
+
+    await user.keyboard('x');
+    await screen.findByText('Not the right fit');
+    await user.click(screen.getByText('Not the right fit'));
+    await user.keyboard('{Enter}');
+    expect(onAction).toHaveBeenNthCalledWith(1, 'pass', { declineReason: 'r1', note: null });
+
+    rerender(treeFor({ selected: [faceB] }, onAction, qc));
+
+    await user.keyboard('x');
+    await user.keyboard('{Enter}');
+    expect(onAction).toHaveBeenNthCalledWith(2, 'pass', { declineReason: null, note: null });
+  });
+
+  test('an armed pass disarms when the bar stops owning the keys and stays disarmed once it does again', async () => {
+    const user = userEvent.setup();
+    const onAction = vi.fn();
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    const { rerender } = render(treeFor({}, onAction, qc));
+
+    await user.keyboard('x');
+    await screen.findByText('Not the right fit');
+    expect(screen.getByRole('button', { name: /Confirm pass/ })).toBeInTheDocument();
+
+    rerender(treeFor({ active: false }, onAction, qc));
+    rerender(treeFor({ active: true }, onAction, qc));
+
+    // The strip is closed — arming a plain Enter now should be a no-op, not a pass.
+    expect(screen.queryByRole('button', { name: /Confirm pass/ })).not.toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(onAction).not.toHaveBeenCalled();
+  });
+});
