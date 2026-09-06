@@ -85,8 +85,16 @@ export const getLadderIndex = (stage) => {
 
 /* ---------- State / availability — role + fill firmness ---------- */
 // fill: 'tint' = soft/pending, 'solid' = confirmed.
+//
+// `available` / `limited` / `unavailable` are the only three values the
+// talent-declared availability endpoint ever writes
+// (src/domains/talent/routes/availability.js — AVAILABILITY_STATUSES).
+// The rest of this map covers agency-side booking states that live
+// elsewhere in the product's vocabulary.
 export const STATES = {
-  available:  { label: 'Available',  c: 'var(--ss-live)',   fill: 'tint'  },
+  available:   { label: 'Available',   c: 'var(--ss-live)',   fill: 'tint'  },
+  limited:     { label: 'Limited',     c: 'var(--ss-motion)', fill: 'tint'  },
+  unavailable: { label: 'Unavailable', c: 'var(--ss-pass)',   fill: 'solid' },
   onbooking:  { label: 'On Booking', c: 'var(--ss-motion)', fill: 'tint'  },
   booking:    { label: 'On Booking', c: 'var(--ss-motion)', fill: 'tint'  },
   option:     { label: '1st Option', c: 'var(--ss-motion)', fill: 'tint'  },
@@ -98,8 +106,11 @@ export const STATES = {
   bookout:    { label: 'Bookout',    c: 'var(--ss-hold)',   fill: 'tint'  },
   released:   { label: 'Released',   c: 'var(--ss-pass)',   fill: 'tint'  },
   inactive:   { label: 'Inactive',   c: 'var(--ss-off)',    fill: 'tint'  },
+  // Missing or unrecognised input. Never defaults to `available` — an
+  // unstated availability status must never be read as a green light.
+  unknown:     { label: 'Availability not stated', c: 'var(--ss-off)', fill: 'tint' },
 };
 
-export const getState = (status) => STATES[norm(status)] || STATES.available;
+export const getState = (status) => STATES[norm(status)] || STATES.unknown;
 
 /* `titleCase` is re-exported from divisions.js via the module barrel. */

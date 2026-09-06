@@ -45,7 +45,7 @@ export function CalendarLine({ availability }) {
           <div className="dx-cal__rule dx-cal__rule--empty" aria-hidden="true">
             <span className="dx-cal__today" />
           </div>
-          <Quiet>No bookouts, options, or holds on record for this window.</Quiet>
+          <Quiet>No bookouts recorded for this window.</Quiet>
         </>
       ) : (
         <div className="dx-cal__grid">

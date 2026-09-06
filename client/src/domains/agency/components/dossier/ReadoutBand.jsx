@@ -57,7 +57,7 @@ export function ReadoutBand({ dossier, onJump }) {
     ? `${calendar.next.kindLabel || 'Bookout'} ${fmtDayMonth(calendar.next.from)}${
         calendar.next.to ? `–${fmtDayMonth(calendar.next.to)}` : ''
       }`
-    : `Clear for ${calendar.windowDays} days`;
+    : `No bookouts in the next ${calendar.windowDays} days`;
 
   const freshness = pkg.freshness;
   const packageNote = pkg.set.missingSlots.length

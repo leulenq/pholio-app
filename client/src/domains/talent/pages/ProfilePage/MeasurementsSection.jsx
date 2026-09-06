@@ -208,7 +208,7 @@ export function MeasurementsSection({
                 <div className={styles.shoeConversions}>
                   <div className={styles.shoeConvItem}>
                     <span className={styles.shoeConvValue}>
-                      {getShoeConversions(watch('shoe_size'), shoeRegion)}
+                      {getShoeConversions(watch('shoe_size'), shoeRegion, track)}
                     </span>
                   </div>
                 </div>
