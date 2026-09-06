@@ -2700,9 +2700,15 @@ router.post(
       absolute_path: image.absolute_path || null,
     };
 
+    // Pixels revert to the original bytes, so a matte cached against the
+    // edited image is stale — same rule as /replace.
+    const restoredMeta = parseImageMetadataFromDb(image.metadata);
+    delete restoredMeta.matte;
+
     await knex("images")
       .where({ id: imageId })
       .update({
+        metadata: JSON.stringify(restoredMeta),
         path: image.original_path,
         public_url: image.original_public_url || null,
         storage_key: image.original_storage_key || null,

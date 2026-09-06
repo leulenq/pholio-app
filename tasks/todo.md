@@ -348,3 +348,27 @@ Spec: `docs/superpowers/specs/2026-09-01-talent-card-metadata.md`
 - [x] Restraint revision (owner: "too much"): cards now name · one facts line · standing (wall) · notation only when true; spec §7; feedback memory recorded
 - [x] Universal application (owner): Overview strip, Scout cards + detail, talent drawer header + vitals, event pick-list and lineup rows now print through CardMeta; invented archetype/'available'/'—' fallbacks removed; pool/lineup/recent-applicants payloads carry heightCm/age/city; MetaLine wrap keeps the dot with its value
 - [x] Submissions coherence (owner): StatusCell replaced by the CardMeta standing line on every tab and the ledger; click-select + shared `components/verdict/VerdictBar` with an inbox verb set (File to board strip, bulk Shortlist, no bulk offer); standing/legal-actions lifted to `lib/standing.js`, selection hook to `hooks/useTalentSelection.js`; list rows carry `statusChangedAt`; verified in browser (file to Women → toast + Undo, Shortlisted tab, ledger)
+
+# Bug sweep — 2026-09-06
+
+Read-only review agents (per-domain) surfaced candidates; each was verified by
+hand against the code before fixing. Confirmed and fixed:
+
+- [x] `stats.js` `toFeetInches`: double rounding printed `5' 12"` (182.6 cm); round total inches once
+- [x] `/api/public/session`: agency sessions looked up `users` by the agency id → always `authenticated:false`; resolve via `resolveAccountUserId`
+- [x] `/stripe/checkout/success`: no check that the Checkout Session belongs to the caller
+- [x] `agency/activity`: `JSON.parse` on pg jsonb (already an object) threw and emptied metadata
+- [x] `agency/messages/threads`: avatar ignored `public_url` and prefixed `/` onto `/uploads/...` (`//uploads` = protocol-relative host)
+- [x] `agency/setup/complete`: `setup_return_to` never cleared, so a retried completion re-bounced to the stale path
+- [x] `media/:id/restore`: cached comp-card `metadata.matte` survived a pixel revert (replace already drops it)
+- [x] `applications/prompt-context`: withdrawn application still counted as "already applied"
+- [x] client `ageFigure` / dossier date-only formatters: UTC-midnight `Date` read through local getters → one day early west of UTC; use calendar parts
+- [x] Signing Board commit: digitals freshness judged from the package DTO (no `captured_at`) → always "undated"; decline routes never stamped `status_changed_at`/`declined_at`; board tags not agency-scoped; `decline_reason` select unguarded pre-migration; VerdictBar leaked the chosen pass reason to the next person and re-armed after a layer closed
+- [x] migration `20260212000000` `down()`: SQLite json strings never `Array.isArray` → rollback wiped ethnicity/union data
+- [x] `uploader.js`: local logo/image writes assumed the uploads dir existed (failing `agency-logo-upload` test)
+
+Left as judgment calls (not changed): identity-only board rows always withhold
+measurements because their age is "unknown" by design (the `identity.measurements`
+fallback is therefore dead); new board/pick-list payloads compute exact ages from
+DOB instead of going through `deriveAudienceAge`; bulk tag routes are N+1;
+`build:function` in `netlify.toml` bundles an unused entry.

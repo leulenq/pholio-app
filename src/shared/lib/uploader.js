@@ -362,6 +362,7 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       const processedPath = path.join(config.uploadsDir, `${uuid}.webp`);
       const thumbPath = path.join(config.uploadsDir, `${uuid}_400w.webp`);
 
+      fs.mkdirSync(config.uploadsDir, { recursive: true });
       fs.writeFileSync(processedPath, processedBuffer);
       fs.writeFileSync(thumbPath, thumbBuffer);
 
@@ -524,6 +525,7 @@ async function processAgencyLogo(
   }
 
   const processedPath = path.join(config.uploadsDir, `${uuid}${logoExt}`);
+  fs.mkdirSync(config.uploadsDir, { recursive: true });
   fs.writeFileSync(processedPath, processedBuffer);
 
   try {

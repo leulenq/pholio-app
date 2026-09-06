@@ -4,6 +4,9 @@ const router = express.Router();
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
 const {
+  resolveAccountUserId,
+} = require("../../domains/auth/middleware/require-auth");
+const {
   getAllThemes,
   getFreeThemes,
   getProThemes,
@@ -764,10 +767,12 @@ router.get("/session", async (req, res) => {
   res.set("Vary", "Cookie");
 
   try {
-    if (req.session && req.session.userId) {
-      const user = await knex("users")
-        .where({ id: req.session.userId })
-        .first();
+    // Agency sessions store the agency id in `userId`; the signed-in
+    // member's users.id lives in `memberUserId`. Resolve it the same way
+    // requireAuth does, or every agency member reads as signed out here.
+    const accountUserId = resolveAccountUserId(req.session);
+    if (accountUserId) {
+      const user = await knex("users").where({ id: accountUserId }).first();
 
       if (!user) {
         return res.json({ authenticated: false });

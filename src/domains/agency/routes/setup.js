@@ -499,15 +499,18 @@ router.post(
         });
       }
 
+      const redirect = state.agency.setupReturnTo || "/dashboard/agency";
       await knex("agencies").where({ id: agencyId }).update({
         status: "ACTIVE",
         onboarding_completed_at: knex.fn.now(),
         onboarding_completed_by_user_id: actorUserId,
+        // Consume the invite return path so a retried completion does not
+        // keep bouncing the agency back to a stale destination.
+        setup_return_to: null,
         updated_at: knex.fn.now(),
       });
 
       req.session.agencyOnboardingCompletedAt = new Date().toISOString();
-      const redirect = state.agency.setupReturnTo || "/dashboard/agency";
       delete req.session.agencySetupReturnTo;
       await new Promise((resolve, reject) => req.session.save((err) => (err ? reject(err) : resolve())));
 

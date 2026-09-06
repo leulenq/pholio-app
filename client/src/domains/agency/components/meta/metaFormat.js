@@ -19,6 +19,7 @@
  */
 
 import { normalizeLocation, formatLocation } from '../../../../shared/utils/locationFormat';
+import { computeAge } from '../../../../shared/utils/talentAge';
 
 /* Locale is pinned. Left to the runtime, the same roster renders "12 Mar" for
    one booker and "Mar 12" for their colleague, and screenshots in a shared
@@ -239,14 +240,10 @@ export function ageFigure(profile, now = Date.now()) {
   const raw = profile?.date_of_birth ?? profile?.dob;
   if (!raw) return bandFigure(profile?.age_band);
 
-  const dob = parseDate(String(raw).slice(0, 10));
-  if (!dob) return null;
-
-  const ref = new Date(now);
-  let years = ref.getFullYear() - dob.getFullYear();
-  const monthDelta = ref.getMonth() - dob.getMonth();
-  if (monthDelta < 0 || (monthDelta === 0 && ref.getDate() < dob.getDate())) years -= 1;
-  if (years < 0 || years > 120) return null;
+  // computeAge works from the calendar parts, so a UTC-midnight "YYYY-MM-DD"
+  // is not read back through local getters (which shift it a day west of UTC).
+  const years = computeAge(String(raw).slice(0, 10), new Date(now));
+  if (years == null || years > 120) return null;
 
   return { value: String(years), unit: 'yrs', sub: null };
 }

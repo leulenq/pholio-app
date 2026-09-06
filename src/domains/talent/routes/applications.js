@@ -802,7 +802,8 @@ router.get(
     if (targetAgencyId) {
       const existing = await knex("applications")
         .where({ profile_id: profile.id, agency_id: targetAgencyId })
-        .first();
+        .whereNot("status", "withdrawn")
+        .first("id");
       alreadyAppliedToTarget = !!existing;
     }
 

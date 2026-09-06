@@ -1473,6 +1473,37 @@ router.get(
         imagesByProfile[img.profile_id].push(img);
       });
 
+      // Digitals freshness must be judged from the dated live rows even when
+      // a frozen package supplies the displayed frames: the package DTO drops
+      // `captured_at`, so feeding it to the engine reports every set as
+      // undated. Same rule as the submission detail route and the dossier.
+      // Only the dating columns are read; nothing here is exposed as media.
+      const packagedProfileIds = profiles
+        .filter(
+          (profile) =>
+            profile.id &&
+            profile.application_id &&
+            submissionPackages.has(profile.application_id),
+        )
+        .map((profile) => profile.id);
+      const freshnessImagesByProfile = { ...imagesByProfile };
+      if (packagedProfileIds.length > 0) {
+        await ensureModerationColumnChecked(knex);
+        const freshnessQuery = knex("images")
+          .whereIn("profile_id", packagedProfileIds)
+          .select("id", "profile_id", "image_type", "shot_type", "captured_at");
+        applyImageVisibility(freshnessQuery, AUDIENCE.AGENCY_DISCOVERY, {
+          table: "images",
+        });
+        const freshnessRows = await freshnessQuery;
+        freshnessRows.forEach((img) => {
+          if (!freshnessImagesByProfile[img.profile_id]) {
+            freshnessImagesByProfile[img.profile_id] = [];
+          }
+          freshnessImagesByProfile[img.profile_id].push(img);
+        });
+      }
+
       // Batched with the image query above — same live-fallback profileIds,
       // one query for the whole page (audit P1-4, avoids N+1).
       const socialByProfile = await loadSocialAccountsForProfiles(profileIds);
@@ -1518,10 +1549,10 @@ router.get(
         // Same source split as `submitted.images` below, fed to the freshness
         // engine BEFORE it is shaped into a public image DTO — the DTO drops
         // `captured_at`, and the engine cannot judge a set it cannot date.
-        const digitalsSourceImages = submissionPackage?.profile
-          ? submissionPackage.images || []
-          : profile.id
-            ? imagesByProfile[profile.id] || []
+        const digitalsSourceImages = profile.id
+          ? freshnessImagesByProfile[profile.id] || []
+          : submissionPackage?.profile
+            ? submissionPackage.images || []
             : identityDto?.images || [];
         // Age unknown is not age cleared (src/shared/lib/talent-age.js).
         // Identity-only rows never carry a DOB (design §3.1, ruling Q1: an
@@ -1905,6 +1936,8 @@ router.post(
         .update({
           status: "declined",
           ...(reasonColumnReady ? { decline_reason: declineReasonId } : {}),
+          status_changed_at: knex.fn.now(),
+          declined_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
 
@@ -2284,6 +2317,8 @@ router.post(
         .update({
           status: "declined",
           ...(reasonColumnReady ? { decline_reason: declineReasonId } : {}),
+          status_changed_at: knex.fn.now(),
+          declined_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
 
@@ -4224,17 +4259,19 @@ router.get(
         });
       }
 
-      let images;
-      if (submittedPackage?.profile) {
-        images = submittedPackage.images;
-      } else {
-        await ensureModerationColumnChecked(knex);
-        const imageQuery = knex("images").where({ profile_id: profileId });
-        applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
-          table: "images",
-        });
-        images = await imageQuery.orderBy(["sort", "created_at"]);
-      }
+      // Live rows are always loaded: they are the displayed frames for a
+      // legacy application, and the dated source for digitals freshness when
+      // a frozen package supplies the frames (the package DTO has no
+      // `captured_at`).
+      await ensureModerationColumnChecked(knex);
+      const imageQuery = knex("images").where({ profile_id: profileId });
+      applyImageVisibility(imageQuery, AUDIENCE.AGENCY_DISCOVERY, {
+        table: "images",
+      });
+      const liveImages = await imageQuery.orderBy(["sort", "created_at"]);
+      const images = submittedPackage?.profile
+        ? submittedPackage.images
+        : liveImages;
 
       // If application exists, get notes and tags
       let notes = [];
@@ -4261,7 +4298,7 @@ router.get(
           ? buildAgencySubmissionDTO(profile, { images, social })
           : buildAgencyDiscoveryDTO(profile, { images, social });
 
-      const freshnessSource = images || [];
+      const freshnessSource = liveImages || [];
       const profileDigitalsFreshness = freshnessSource.some(
         (img) => img && img.image_type,
       )

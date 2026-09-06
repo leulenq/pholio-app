@@ -20,16 +20,30 @@ const DAY_MS = 86400000;
 
 /* ------------------------------------------------------------------ dates */
 
+/**
+ * `date` columns (started_on, ends_on, …) arrive as bare "YYYY-MM-DD".
+ * `new Date("YYYY-MM-DD")` is UTC midnight, which local formatters render as
+ * the previous day anywhere west of UTC — so build those as local dates.
+ */
+export const parseDateValue = (value) => {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  }
+  return new Date(value);
+};
+
 export const fmtDate = (value) => {
   if (!value) return null;
-  const d = new Date(value);
+  const d = parseDateValue(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 export const fmtDayMonth = (value) => {
   if (!value) return null;
-  const d = new Date(value);
+  const d = parseDateValue(value);
   if (Number.isNaN(d.getTime())) return null;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
@@ -284,8 +298,8 @@ export function calendarSpans(availability) {
 
   const clamp = (v) => Math.min(1, Math.max(0, v));
   const toSpan = (from, to, kind, label, tier) => {
-    const s = new Date(from).getTime();
-    const e = to ? new Date(to).getTime() + DAY_MS : endMs;
+    const s = parseDateValue(from).getTime();
+    const e = to ? parseDateValue(to).getTime() + DAY_MS : endMs;
     if (!Number.isFinite(s)) return null;
     const endAt = Number.isFinite(e) ? e : endMs;
     if (endAt < startMs || s > endMs) return null;

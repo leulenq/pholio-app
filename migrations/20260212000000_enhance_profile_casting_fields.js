@@ -70,14 +70,28 @@ exports.down = async function down(knex) {
 
   const profiles = await knex('profiles').select('id', 'ethnicity', 'union_membership');
   
+  // SQLite returns json columns as raw strings; pg parses them to arrays.
+  const toArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string') return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
   for (const profile of profiles) {
      const updates = {};
      // Take first element of array
-     if (profile.ethnicity && Array.isArray(profile.ethnicity) && profile.ethnicity.length > 0) {
-       updates.ethnicity_old = profile.ethnicity[0];
+     const ethnicity = toArray(profile.ethnicity);
+     const unionMembership = toArray(profile.union_membership);
+     if (ethnicity.length > 0) {
+       updates.ethnicity_old = ethnicity[0];
      }
-     if (profile.union_membership && Array.isArray(profile.union_membership) && profile.union_membership.length > 0) {
-        updates.union_membership_old = profile.union_membership[0];
+     if (unionMembership.length > 0) {
+        updates.union_membership_old = unionMembership[0];
      }
      
      if (Object.keys(updates).length > 0) {

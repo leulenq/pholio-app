@@ -108,18 +108,18 @@ router.get(
               .where("is_primary", true)
           : [];
 
+      // R2 uploads store only public_url (path is null); local uploads store
+      // an absolute "/uploads/..." path. Either is already a usable src.
       const imageMap = {};
       images.forEach((img) => {
-        imageMap[img.profile_id] = img.path;
+        imageMap[img.profile_id] = img.public_url || img.path || null;
       });
 
       // Format threads for frontend
       const formattedThreads = threads.map((t) => ({
         id: t.id,
         senderName: t.senderName,
-        senderAvatar: imageMap[t.profile_id]
-          ? `/${imageMap[t.profile_id]}`
-          : null,
+        senderAvatar: imageMap[t.profile_id] || null,
         applicationLabel: `Application #${t.id.substring(0, 4).toUpperCase()} · ${t.board_name || "General"}`,
         preview: t.preview,
         timestamp: t.timestamp,

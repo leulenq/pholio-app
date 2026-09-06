@@ -88,6 +88,14 @@ export function VerdictBar({
   // Room, the lineup or a modal takes over, an armed pass is not merely
   // unreachable, it is not armed.
   const arming = active ? armingRaw : null;
+  // …and it stays disarmed once the bar takes the keys back: a pass armed
+  // before a layer opened must not come back armed when the layer closes.
+  // (Render-phase reset, the same pattern as the working-set key below.)
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && armingRaw !== null) setArming(null);
+  }
   const { reasons } = useDeclineReasons({ enabled: arming === 'pass' });
 
   /* Enter and Escape mean something here that they cannot also mean on the
@@ -137,6 +145,7 @@ export function VerdictBar({
   if (prevSetKey !== setKey) {
     setPrevSetKey(setKey);
     setArming(null);
+    setPassReason('');
     setPassNote('');
     setBoardChoice(null);
   }
@@ -156,6 +165,8 @@ export function VerdictBar({
 
   const confirmPass = () => {
     fire('pass', { declineReason: passReason || null, note: passNote.trim() || null });
+    // A reason belongs to the person it was chosen for; the next pass starts clean.
+    setPassReason('');
     setPassNote('');
   };
 

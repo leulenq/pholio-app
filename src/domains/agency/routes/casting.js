@@ -12,6 +12,7 @@ const {
 } = require("./casting-stage-helpers");
 const {
   hasApplicantIdentitySupport,
+  hasColumnCached,
   resolveApplicantIdentities,
 } = require("../services/applicant-identity");
 const {
@@ -138,6 +139,13 @@ router.get(
       }
 
       const identitySupported = await hasApplicantIdentitySupport(knex);
+      // Deploy-before-migrate: `decline_reason` arrives with 20260824100000.
+      // Same guard as the decline routes, so the board never 500s on it.
+      const reasonColumnReady = await hasColumnCached(
+        knex,
+        "applications",
+        "decline_reason",
+      );
 
       /* INCLUDES UNCLAIMED APPLICANTS (design §4, §6 requirement 1). Nothing
          stops an organizer assigning an open-call application to a board —
@@ -158,7 +166,9 @@ router.get(
           "a.status as application_status",
           "a.created_at as application_created_at",
           "a.status_changed_at as application_status_changed_at",
-          "a.decline_reason as application_decline_reason",
+          ...(reasonColumnReady
+            ? ["a.decline_reason as application_decline_reason"]
+            : []),
           ...(identitySupported ? ["a.applicant_identity_id"] : []),
           "p.id as profile_id",
           "p.first_name",
@@ -234,6 +244,7 @@ router.get(
               .count({ count: "*" }),
             knex("application_tags")
               .whereIn("application_id", applicationIds)
+              .where({ agency_id: agencyId })
               .orderBy("created_at", "asc")
               .select("id", "application_id", "tag", "color"),
           ])

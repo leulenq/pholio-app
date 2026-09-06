@@ -150,8 +150,15 @@ router.get(
         return res.redirect(`${BILLING_HOME}?checkout=invalid`);
       }
 
-      const userId = session.metadata.userId;
+      const userId = session.metadata && session.metadata.userId;
       const subscriptionId = session.subscription;
+
+      // The Checkout Session was created for a specific account; never let a
+      // different signed-in user finalise it (or read its outcome).
+      if (!userId || String(userId) !== String(req.session.userId)) {
+        addMessage(req, "error", "Invalid checkout session");
+        return res.redirect(`${BILLING_HOME}?checkout=invalid`);
+      }
 
       if (!subscriptionId) {
         addMessage(req, "error", "Subscription not found in checkout session");

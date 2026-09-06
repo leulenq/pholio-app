@@ -102,9 +102,14 @@ router.get("/api/agency/activity", requireRole("AGENCY"), async (req, res) => {
       : new Map();
 
     const data = rows.map((row) => {
+      // jsonb comes back pre-parsed on PostgreSQL and as text on SQLite.
       let metadata = {};
       try {
-        metadata = row.metadata ? JSON.parse(row.metadata) : {};
+        if (row.metadata && typeof row.metadata === "object") {
+          metadata = row.metadata;
+        } else if (typeof row.metadata === "string" && row.metadata) {
+          metadata = JSON.parse(row.metadata) || {};
+        }
       } catch (_) {}
       return {
         id: row.id,

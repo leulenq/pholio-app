@@ -515,4 +515,5 @@ module.exports = {
   enforceAgencyRoutePermissions,
   requireActiveAccount,
   requireTalentDashboardEligibility,
+  resolveAccountUserId,
 };
