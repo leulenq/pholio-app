@@ -193,8 +193,10 @@ describe('ageFigure', () => {
   it('turns on the birthday itself, read from calendar parts rather than a local getter', () => {
     // The old implementation read the DOB back through local Date getters —
     // in a UTC-negative zone that shifts the UTC-midnight "YYYY-MM-DD" a day
-    // earlier and undercounts a birthday that has already happened in UTC.
-    const turnsEighteen = new Date('2026-09-06T03:00:00Z');
+    // earlier, so a birthday tomorrow was counted as today. Noon UTC is the
+    // same calendar day in every zone, so only the DOB shift can move the
+    // answer: under the old code, the 7th read as '18' west of UTC.
+    const turnsEighteen = new Date('2026-09-06T12:00:00Z');
     expect(ageFigure({ date_of_birth: '2008-09-06' }, turnsEighteen).value).toBe('18');
     expect(ageFigure({ date_of_birth: '2008-09-07' }, turnsEighteen).value).toBe('17');
   });
