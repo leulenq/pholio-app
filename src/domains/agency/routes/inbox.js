@@ -1477,7 +1477,8 @@ router.get(
       // a frozen package supplies the displayed frames: the package DTO drops
       // `captured_at`, so feeding it to the engine reports every set as
       // undated. Same rule as the submission detail route and the dossier.
-      // Only the dating columns are read; nothing here is exposed as media.
+      // These rows feed the freshness engine only; nothing here is exposed
+      // as media (the package still supplies the displayed frames).
       const packagedProfileIds = profiles
         .filter(
           (profile) =>
@@ -1489,9 +1490,10 @@ router.get(
       const freshnessImagesByProfile = { ...imagesByProfile };
       if (packagedProfileIds.length > 0) {
         await ensureModerationColumnChecked(knex);
-        const freshnessQuery = knex("images")
-          .whereIn("profile_id", packagedProfileIds)
-          .select("id", "profile_id", "image_type", "shot_type", "captured_at");
+        const freshnessQuery = knex("images").whereIn(
+          "profile_id",
+          packagedProfileIds,
+        );
         applyImageVisibility(freshnessQuery, AUDIENCE.AGENCY_DISCOVERY, {
           table: "images",
         });
