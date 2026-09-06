@@ -236,6 +236,8 @@ async function loadRepresentationRecord(db, profileId) {
   if (!(await tableExists(db, "talent_representations"))) return [];
   const hasDisclose = await ensureRepresentationDiscloseColumnChecked(db);
 
+  const hasBoardName = await hasBoardNameColumnChecked(db);
+
   const columns = [
     "tr.profile_id",
     "tr.agency_id",
@@ -251,6 +253,7 @@ async function loadRepresentationRecord(db, profileId) {
     "a.name as agency_name",
   ];
   if (hasDisclose) columns.push("tr.disclose_agency_name");
+  if (hasBoardName) columns.push("tr.board_name");
 
   const rows = await db("talent_representations as tr")
     .leftJoin("agencies as a", "a.id", "tr.agency_id")
@@ -260,6 +263,56 @@ async function loadRepresentationRecord(db, profileId) {
   return hasDisclose
     ? rows
     : rows.map((row) => ({ ...row, disclose_agency_name: false }));
+}
+
+// Deploy-before-migrate guard for `talent_representations.board_name`, keyed by
+// db instance exactly like `ensureRepresentationDiscloseColumnChecked`.
+const _boardNameColumnCacheByDb = new WeakMap();
+
+async function hasBoardNameColumnChecked(db) {
+  if (!_boardNameColumnCacheByDb.has(db)) {
+    let present = false;
+    try {
+      present = await db.schema.hasColumn("talent_representations", "board_name");
+    } catch {
+      present = false;
+    }
+    _boardNameColumnCacheByDb.set(db, present);
+  }
+  return _boardNameColumnCacheByDb.get(db);
+}
+
+/**
+ * Rows the talent has not answered yet (migration
+ * `20260906120000_agency_written_representations`, decision §7.6). An agency
+ * moving an application to `represented` writes a `pending` row; representation
+ * is a two-party fact, so until the talent confirms it that row is not
+ * representation — not even to the agency that wrote it.
+ */
+function withoutPendingRepresentations(rows) {
+  return (rows || []).filter((row) => row?.status !== "pending");
+}
+
+/**
+ * A pending row is shown ONLY on the dossier of the agency that wrote it,
+ * where it reads as "we recorded this, they have not confirmed". Showing it to
+ * a rival would leak the fact that somebody is signing this talent — the exact
+ * disclosure `disclose_agency_name` exists to prevent, minus even a name.
+ */
+function visiblePendingRepresentations(rows, viewingAgencyId) {
+  return (rows || []).filter(
+    (row) =>
+      row?.status !== "pending" ||
+      (Boolean(viewingAgencyId) && row.agency_id === viewingAgencyId),
+  );
+}
+
+/** Active relationships first, then unanswered signings, then history. */
+const REPRESENTATION_LINE_RANK = { active: 0, pending: 1, ended: 2 };
+
+function representationLineRank(status) {
+  const rank = REPRESENTATION_LINE_RANK[status];
+  return rank === undefined ? REPRESENTATION_LINE_RANK.ended : rank;
 }
 
 /**
@@ -296,13 +349,20 @@ function buildRepresentationLines(rows, viewingAgencyId) {
         division: row.division || null,
         is_exclusive: row.is_exclusive === true || row.is_exclusive === 1,
         status: row.status || null,
+        // The agency's board label at signing, and the applicant's own
+        // answer still outstanding — both only ever set on a row this agency
+        // originated, so both are null on everyone else's rows.
+        board_name: row.board_name || null,
+        pending_confirmation: row.status === "pending",
         started_on: row.started_on || null,
         ended_on: row.ended_on || null,
       };
     })
     .sort((a, b) => {
       // Active first, then mother agency before placements, then most recent.
-      if (a.status !== b.status) return a.status === "active" ? -1 : 1;
+      if (a.status !== b.status) {
+        return representationLineRank(a.status) - representationLineRank(b.status);
+      }
       if (a.relationship_type !== b.relationship_type) {
         return a.relationship_type === "mother" ? -1 : 1;
       }
@@ -812,7 +872,11 @@ async function buildTalentDossier(db, { application, agencyId }) {
   const representationRows = await loadRepresentationRecord(db, profile.id);
   const { representation_status, represented_by } = deriveRepresentationStatus(
     profile,
+    withoutPendingRepresentations(representationRows),
+  );
+  const visibleRepresentationRows = visiblePendingRepresentations(
     representationRows,
+    agencyId,
   );
 
   const [standing, availability, truth, seasonMemory] = await Promise.all([
@@ -855,7 +919,7 @@ async function buildTalentDossier(db, { application, agencyId }) {
     representation: {
       status: representation_status,
       represented_by,
-      lines: buildRepresentationLines(representationRows, agencyId),
+      lines: buildRepresentationLines(visibleRepresentationRows, agencyId),
     },
     availability,
     standing,

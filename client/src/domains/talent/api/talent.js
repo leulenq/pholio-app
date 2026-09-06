@@ -19,6 +19,20 @@ export const talentApi = {
     apiClient.delete(`/profile/representations/${encodeURIComponent(id)}`, {
       body: JSON.stringify(endedOn ? { ended_on: endedOn } : {}),
     }),
+  // An agency that moved an application to "represented" writes a
+  // representation row the talent has not answered yet — it arrives in the
+  // `pending` bucket of getRepresentations() and is only ever confirmed or
+  // declined, never edited.
+  confirmRepresentation: (id) =>
+    apiClient.post(
+      `/profile/representations/${encodeURIComponent(id)}/confirm`,
+      {},
+    ),
+  declineRepresentation: (id) =>
+    apiClient.post(
+      `/profile/representations/${encodeURIComponent(id)}/decline`,
+      {},
+    ),
   // Dev/staging-only mock OAuth disconnect (mirrors the "Connect & Verify"
   // popup flow — /socials/oauth/mock/:platform — which is also dev-gated).
   disconnectSocialOauth: (platform) =>

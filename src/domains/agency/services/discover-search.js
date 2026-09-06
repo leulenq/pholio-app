@@ -216,6 +216,22 @@ async function loadLanesByProfile(knex, profileIds) {
   return lanesByProfile;
 }
 
+/**
+ * Drop agency-originated rows the talent has not answered yet (migration
+ * `20260906120000_agency_written_representations`, decision §7.6).
+ *
+ * An agency writing `represented` on an application now writes a `pending`
+ * representation row. Representation is a two-party fact, so a row only one
+ * party has asserted must not read as representation to anybody — including
+ * the agency that wrote it. Filtering here rather than inside
+ * `deriveRepresentationStatus` also keeps that function's legacy
+ * `current_agency` fallback intact: it triggers on "no rows at all", and a
+ * pending proposal is not evidence that the legacy column is stale.
+ */
+function withoutPendingRepresentations(rows) {
+  return (rows || []).filter((row) => row?.status !== "pending");
+}
+
 async function loadRepresentationStatusMap(knex, profiles) {
   const profileIds = profiles.map((profile) => profile.id);
   const representations = await loadTalentRepresentationsForProfiles(profileIds, {
@@ -226,7 +242,7 @@ async function loadRepresentationStatusMap(knex, profiles) {
   for (const profile of profiles) {
     const { representation_status: status } = deriveRepresentationStatus(
       profile,
-      representations.get(profile.id) || [],
+      withoutPendingRepresentations(representations.get(profile.id)),
     );
     statuses.set(profile.id, status);
   }
@@ -305,7 +321,9 @@ async function attachImagesAndInvites(
     const dto = buildAgencyDiscoveryDTO(profile, {
       images: imagesByProfile[profile.id] || [],
       social: socialByProfile.get(profile.id) || [],
-      representations: representationsByProfile.get(profile.id) || [],
+      representations: withoutPendingRepresentations(
+        representationsByProfile.get(profile.id),
+      ),
       lanes: lanesByProfile.get(profile.id) || [],
     });
     dto.is_invited = applicationMap.has(profile.id);

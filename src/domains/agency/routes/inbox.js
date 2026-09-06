@@ -37,6 +37,10 @@ const {
   createInvitation,
 } = require("../services/agency-invitations");
 const {
+  recordSigning,
+  endRepresentation: endAgencyRepresentation,
+} = require("../services/representations");
+const {
   findDismissal,
   createDismissal,
   removeDismissal,
@@ -1819,6 +1823,19 @@ router.patch(
           `Application moved to ${requestedStatus}`,
           { old_status: row.status, new_status: requestedStatus },
         );
+        // The signing loop (§7.6): `represented` is a decision about a
+        // relationship, so it writes a representation row — inside this same
+        // transaction, so the status and the row can never disagree.
+        if (isRepresentedApplicationStatus(requestedStatus)) {
+          await recordSigning({
+            trx,
+            applicationId,
+            agencyId,
+            actorUserId: getSessionActorUserId(req.session),
+          });
+        } else if (isRepresentedApplicationStatus(row.status)) {
+          await endAgencyRepresentation({ trx, applicationId, agencyId });
+        }
         return row;
       });
 
@@ -1942,6 +1959,10 @@ router.post(
           declined_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
+      // A decline is also an exit from `represented`: close any signing row
+      // this agency opened for the application so no live relationship
+      // outlives the decision (idempotent when there is none).
+      await endAgencyRepresentation({ trx: knex, applicationId, agencyId });
 
       // Log activity
       await logActivity(
@@ -2234,6 +2255,22 @@ router.patch(
               bulk_operation: true,
             },
           );
+          // Same signing loop as the single-status path — a bulk triage that
+          // signs ten people signs them for real.
+          if (isRepresentedApplicationStatus(requestedStatus)) {
+            await recordSigning({
+              trx,
+              applicationId: application.id,
+              agencyId,
+              actorUserId: getSessionActorUserId(req.session),
+            });
+          } else if (isRepresentedApplicationStatus(application.status)) {
+            await endAgencyRepresentation({
+              trx,
+              applicationId: application.id,
+              agencyId,
+            });
+          }
         }
         return rows;
       });
@@ -2323,6 +2360,14 @@ router.post(
           declined_at: knex.fn.now(),
           updated_at: knex.fn.now(),
         });
+      // Same exit rule as the single decline (see above).
+      for (const application of applications) {
+        await endAgencyRepresentation({
+          trx: knex,
+          applicationId: application.id,
+          agencyId,
+        });
+      }
 
       // Log activities for each
       for (const app of applications) {
