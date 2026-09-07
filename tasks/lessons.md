@@ -1006,3 +1006,28 @@ Rules:
 - A consequential decision surface should not be a drag-and-drop board: stage
   moves that notify talent need arming, a reason, and undo. Reuse the Review
   Room verdict idiom instead of inventing a second one.
+
+## 2026-09-07 — "Pre-production testing" means the built app in a real browser
+
+- The owner corrected a Jest-shaped reading of "pre-production testing". The
+  suite had already run three times that day; what was wanted was the
+  production client bundle served by Express and driven in Chromium.
+- Verification stack that works from a cold container: `npm run client:build`,
+  Express in the development runtime (dev sign-in via `POST /api/dev/bootstrap`
+  needs `AUTH_PASSTHROUGH_ENABLED=1`) on a scratch SQLite file, and a tiny
+  static-plus-proxy server on :5173 that serves `public/dashboard-app` for SPA
+  routes — Express redirects every dashboard route to :5173 outside
+  production, and `staging`/`production` disable the dev sign-in.
+- Chromium resolves `localhost` to ::1 and honours the sandbox proxy; launch
+  with `--no-proxy-server --host-resolver-rules="MAP localhost 127.0.0.1"` and
+  keep the `localhost` origin so the session cookie (`Domain=localhost`)
+  behaves as deployed. Do not switch to 127.0.0.1: the cookie is then rejected
+  and dev auto-auth silently mints a fresh session per request, which reads as
+  "authenticated" on role-hinted API paths and as signed-out everywhere else.
+- Mutations need the same-origin guard's shape: `Origin`, `Referer`, and
+  `x-pholio-request: same-origin`. A seeded agency must accept the current
+  policy manifest (`GET /api/agency/legal-status` → `POST
+  /api/agency/legal-acceptance` with `acceptances[]` of policyKey / version /
+  contentDigest / accepted) before any agency API answers.
+- Puppeteer needs `PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium-*/chrome-linux/chrome`
+  when dependencies were installed with `--ignore-scripts`.

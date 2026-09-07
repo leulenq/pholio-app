@@ -393,3 +393,23 @@ Remaining, in priority order:
 3. Teach `audience-dto.js` the viewing agency id so a confirmed signing reads as "represented by us" in Discover
 4. `useIsolatedDatabase` leaks `DATABASE_URL` process-wide (new suites must restore it in `afterAll`); fix at source
 5. Verify the walk video path end to end before FWB casting opens; get FWB form counts; California counsel before the paid relaunch
+
+# Pre-production browser run — 2026-09-07
+
+Production client bundle + Express (dev runtime, scratch SQLite, seeded) +
+Netlify function bundle, driven in headless Chromium. 34 of 34 checks pass:
+every talent and agency dashboard route renders with no console errors and no
+failed same-origin requests; comp-card and digitals PDFs render through
+Puppeteer; anonymous digitals are refused; the public portfolio prints an age
+band and no tier badge; the agency session endpoint reads the member; message
+thread avatars are absolute URLs; the signing loop round-trips (sign → pending
+row with market → talent confirms → active → status change ends it).
+Environment blockers hit and resolved are recorded in `tasks/lessons.md`.
+
+Observed, not changed:
+- The Submissions desk prints an exact age for a 17-year-old applicant
+  (seed data); the exact-age policy for agency audiences is still the open
+  ruling in the decision record §8 item 8.
+- The post-unlock reveal (`ProfileUnlockExperience`) still gates the first
+  dashboard visit until dismissed; the August analysis lists "reveal remnants"
+  for removal — owner's call.
