@@ -172,7 +172,7 @@ function dashboardPathForRole(role) {
 
 
 // POST /api/public/agency-access-requests
-// Public intake endpoint for the pholio-landing agency request form. This route
+// Public intake endpoint for the pholio-site agency request form. This route
 // stores only agency/request metadata — no roster files, talent data, contracts,
 // billing data, or minor-specific records are accepted here.
 router.post("/agency-access-requests", async (req, res) => {
@@ -249,7 +249,7 @@ router.post("/agency-access-requests", async (req, res) => {
         previous_status: null,
         next_status: AGENCY_ACCESS_STATUSES.SUBMITTED,
         source_ip: null,
-        metadata: jsonForDb({ source: "pholio-landing", ipHash: hashIp(ip) }),
+        metadata: jsonForDb({ source: "pholio-site", ipHash: hashIp(ip) }),
         created_at: trx.fn.now(),
       });
     });

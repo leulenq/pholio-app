@@ -3,7 +3,7 @@
 /**
  * Agency reviewed-access + setup foundation.
  *
- * Public agency request pages live in pholio-landing; this app owns the intake
+ * Public agency request pages live in pholio-site; this app owns the intake
  * API, review/provisioning persistence, authenticated agency setup state, and
  * import-intake records used after approval.
  */

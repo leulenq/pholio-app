@@ -3,13 +3,13 @@
    ============================================================ */
 
 .writer {
-  --bw-gold: var(--pf-gold, #c9a55a);
-  --bw-gold-deep: #a6845c;
-  --bw-text: var(--pf-text, #1a1a1a);
-  --bw-text-soft: var(--pf-text-soft, rgba(26, 26, 26, 0.62));
-  --bw-text-faint: var(--pf-text-faint, rgba(26, 26, 26, 0.42));
-  --bw-hair: var(--pf-hair, rgba(26, 26, 26, 0.08));
-  --bw-ease: var(--pf-ease, cubic-bezier(0.22, 1, 0.36, 1));
+  --bw-gold: var(--pf-gold, var(--app-gold, #c9a55a));
+  --bw-gold-deep: var(--pf-gold-deep, #a6845c);
+  --bw-text: var(--pf-text, var(--app-text, #1a1a1a));
+  --bw-text-soft: var(--pf-text-soft, var(--app-text-soft, rgba(26, 26, 26, 0.62)));
+  --bw-text-faint: var(--pf-text-faint, var(--app-text-faint, rgba(26, 26, 26, 0.42)));
+  --bw-hair: var(--pf-hair, var(--app-hair, rgba(26, 26, 26, 0.08)));
+  --bw-ease: var(--pf-ease, var(--app-ease, cubic-bezier(0.22, 1, 0.36, 1)));
 }
 
 /* ─── Heading, with the magic action holding the right edge ─── */
@@ -17,11 +17,26 @@
   margin-bottom: 16px;
 }
 
+.headUnderlined {
+  border-bottom: 1px solid var(--bw-hair);
+  padding-bottom: clamp(14px, 1.8vw, 20px);
+  margin-bottom: clamp(18px, 2.2vw, 26px);
+}
+
 .titleRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.titleLeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  gap: 12px 24px;
 }
 
 .title {

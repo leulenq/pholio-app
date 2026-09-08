@@ -8,7 +8,7 @@ Pholio is a full-stack talent portfolio and agency management platform. Talent u
 
 ## 🚧 Repo Boundaries (CRITICAL)
 
-- **Marketing Site (`pholio-landing`):** `/Users/lenquanhone/Projects/pholio-landing`
+- **Marketing Site (`pholio-site`):** `/Users/lenquanhone/Projects/pholio-site`
   - Handles all public-facing marketing pages.
   - Handles all legal pages (Terms of Service, Privacy Policy, Submission Program Notice).
   - Any marketing-site content must go here.
@@ -17,7 +17,7 @@ Pholio is a full-stack talent portfolio and agency management platform. Talent u
 
 ## Tech Stack
 
-- **Marketing Site:** Next.js 16 (TypeScript, Tailwind 4) in separate repo `pholio-landing`
+- **Marketing Site:** Next.js 16 (TypeScript, Tailwind 4) in separate repo `pholio-site`
 - **Backend:** Node.js 20, Express 5, CommonJS modules in `src/`
 - **Frontend:** React 19 SPA (Vite, ES modules) in `client/`
 - **Database:** SQLite3 (local dev) or PostgreSQL/Neon (production), via Knex.js
@@ -159,7 +159,7 @@ cd client && npm run lint     # React SPA
 
 | App | Tech | Location | Port | Domain |
 |-----|------|----------|------|--------|
-| Marketing | Next.js 16 SSG/SSR | `pholio-landing` repo | 3001 | www.pholio.studio |
+| Marketing | Next.js 16 SSG/SSR | `pholio-site` repo | 3001 | www.pholio.studio |
 | React SPA | Vite + React 19 | `client/` | 5173 | app.pholio.studio |
 | Express API | Node.js + Express 5 | `src/` | 3000 | app.pholio.studio |
 

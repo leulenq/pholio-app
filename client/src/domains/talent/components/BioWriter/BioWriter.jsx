@@ -156,13 +156,33 @@ export default function BioWriter({
   field,
   error,
   value = '',
+  onChange,
   isWorking = false,
   options = { length: 'standard', person: 'third' },
   onOptionsChange,
   onWrite,
   onRefine,
   previousBio,
+  previousValue,
   onRevert,
+  title = (
+    <h3 className={styles.title}>
+      About <em>you</em>
+    </h3>
+  ),
+  lede = 'The paragraph an agency reads before they meet you.',
+  headerExtra = null,
+  underlinedHeader = false,
+  placeholder = 'Tell us about yourself, your passions, and what drives your career...',
+  rows = 6,
+  noun = 'bio',
+  id,
+  maxLength,
+  emptyCountLabel = null,
+  showOptions = true,
+  lengthOptions = LENGTHS,
+  voiceOptions = VOICES,
+  className = '',
 }) {
   const reduceMotion = useReducedMotion();
   const panelId = `bio-composer-${useId()}`;
@@ -183,6 +203,22 @@ export default function BioWriter({
       : engaged || open
         ? 'awake'
         : 'idle';
+
+  const hasLengthOptions = showOptions && Array.isArray(lengthOptions) && lengthOptions.length > 0;
+  const hasVoiceOptions = showOptions && Array.isArray(voiceOptions) && voiceOptions.length > 0;
+  const hasAnyOptions = hasLengthOptions || hasVoiceOptions;
+
+  const isNote = noun === 'note';
+  const writeActionLabel = isNote ? 'Draft a note with Pholio' : 'Write your bio with Pholio';
+  const refineActionLabel = isNote ? 'Refine note with Pholio' : 'Refine your bio with Pholio';
+  const writeActionTitle = isNote ? 'Draft note with Pholio' : 'Write bio with Pholio';
+  const refineActionTitle = isNote ? 'Refine note with Pholio' : 'Refine bio with Pholio';
+  const dialogLabel = isNote ? 'Pholio note writer' : 'Pholio bio writer';
+  const lengthGroupLabel = isNote ? 'Note length' : 'Bio length';
+  const voiceGroupLabel = isNote ? 'Note voice' : 'Bio voice';
+  const workingDraftText = isNote ? 'Pholio is drafting your note' : 'Pholio is writing your bio';
+  const workingRefineText = isNote ? 'Pholio is refining your note' : 'Pholio is refining your bio';
+  const revertValue = previousBio !== undefined ? previousBio : previousValue;
 
   const setOption = (patch) => {
     onOptionsChange?.({ length, person, ...patch });
@@ -249,7 +285,7 @@ export default function BioWriter({
       touchPrimedRef.current = false;
       return;
     }
-    if (!open) {
+    if (hasAnyOptions && !open) {
       setOpen(true);
       return;
     }
@@ -258,17 +294,20 @@ export default function BioWriter({
 
   const handlePointerDown = (event) => {
     if (event.pointerType === 'mouse' || open) return;
-    touchPrimedRef.current = true;
-    setOpen(true);
+    if (hasAnyOptions) {
+      touchPrimedRef.current = true;
+      setOpen(true);
+    }
   };
 
   return (
-    <div className={styles.writer}>
-      <div className={styles.head}>
+    <div className={`${styles.writer} ${className}`.trim()}>
+      <div className={`${styles.head} ${underlinedHeader ? styles.headUnderlined : ''}`}>
         <div className={styles.titleRow}>
-          <h3 className={styles.title}>
-            About <em>you</em>
-          </h3>
+          <div className={styles.titleLeading}>
+            {typeof title === 'string' ? <h3 className={styles.title}>{title}</h3> : title}
+            {headerExtra}
+          </div>
 
           <div
             ref={magicAnchorRef}
@@ -277,25 +316,25 @@ export default function BioWriter({
             onMouseLeave={schedulePanelClose}
           >
             <PholioIconButton
-              label={hasBio ? 'Refine your bio with Pholio' : 'Write your bio with Pholio'}
-              title={hasBio ? 'Refine bio with Pholio' : 'Write bio with Pholio'}
+              label={hasBio ? refineActionLabel : writeActionLabel}
+              title={hasBio ? refineActionTitle : writeActionTitle}
               className={`${styles.magicButton} ${open ? styles.magicOpen : ''} ${
                 isWorking ? styles.magicWorking : ''
               }`}
               loading={isWorking}
-              aria-haspopup="dialog"
-              aria-expanded={open}
-              aria-controls={open ? panelId : undefined}
+              aria-haspopup={hasAnyOptions ? 'dialog' : undefined}
+              aria-expanded={hasAnyOptions ? open : undefined}
+              aria-controls={hasAnyOptions && open ? panelId : undefined}
               onMouseEnter={() => {
                 cancelScheduledClose();
                 setEngaged(true);
-                setOpen(true);
+                if (hasAnyOptions) setOpen(true);
               }}
               onMouseLeave={() => setEngaged(false)}
               onPointerDown={handlePointerDown}
               onFocus={() => {
                 setEngaged(true);
-                setOpen(true);
+                if (hasAnyOptions) setOpen(true);
               }}
               onBlur={() => setEngaged(false)}
               onClick={handleTriggerClick}
@@ -304,11 +343,11 @@ export default function BioWriter({
             </PholioIconButton>
 
             <AnimatePresence>
-              {open && (
+              {open && hasAnyOptions && (
                 <motion.div
                   id={panelId}
                   role="dialog"
-                  aria-label="Pholio bio writer"
+                  aria-label={dialogLabel}
                   className={styles.panel}
                   initial={{ opacity: 0, y: -7, scale: 0.975 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -319,55 +358,63 @@ export default function BioWriter({
                       : { type: 'spring', stiffness: 360, damping: 28, mass: 0.62 }
                   }
                 >
-                  <div className={styles.param} role="group" aria-label="Bio length">
-                    <PholioToggleGroup className={styles.paramOptions}>
-                      {LENGTHS.map((item) => (
-                        <PholioToggleButton
-                          key={item.value}
-                          active={length === item.value}
-                          disabled={isWorking}
-                          onClick={() => setOption({ length: item.value })}
-                        >
-                          {item.label}
-                        </PholioToggleButton>
-                      ))}
-                    </PholioToggleGroup>
-                  </div>
+                  {hasLengthOptions && (
+                    <div className={styles.param} role="group" aria-label={lengthGroupLabel}>
+                      <PholioToggleGroup className={styles.paramOptions}>
+                        {lengthOptions.map((item) => (
+                          <PholioToggleButton
+                            key={item.value}
+                            active={length === item.value}
+                            disabled={isWorking}
+                            onClick={() => setOption({ length: item.value })}
+                          >
+                            {item.label}
+                          </PholioToggleButton>
+                        ))}
+                      </PholioToggleGroup>
+                    </div>
+                  )}
 
-                  <div className={styles.param} role="group" aria-label="Bio voice">
-                    <PholioToggleGroup className={styles.paramOptions}>
-                      {VOICES.map((item) => (
-                        <PholioToggleButton
-                          key={item.value}
-                          active={person === item.value}
-                          disabled={isWorking}
-                          onClick={() => setOption({ person: item.value })}
-                        >
-                          {item.label}
-                        </PholioToggleButton>
-                      ))}
-                    </PholioToggleGroup>
-                  </div>
+                  {hasVoiceOptions && (
+                    <div className={styles.param} role="group" aria-label={voiceGroupLabel}>
+                      <PholioToggleGroup className={styles.paramOptions}>
+                        {voiceOptions.map((item) => (
+                          <PholioToggleButton
+                            key={item.value}
+                            active={person === item.value}
+                            disabled={isWorking}
+                            onClick={() => setOption({ person: item.value })}
+                          >
+                            {item.label}
+                          </PholioToggleButton>
+                        ))}
+                      </PholioToggleGroup>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
 
-        <p className={styles.lede}>
-          The paragraph an agency reads before they meet you.
-        </p>
+        {lede && <p className={styles.lede}>{lede}</p>}
       </div>
 
       <div className={styles.field} data-working={isWorking ? 'true' : undefined}>
         <PholioTextarea
           label=""
-          placeholder="Tell us about yourself, your passions, and what drives your career..."
-          rows={6}
+          placeholder={placeholder}
+          rows={rows}
+          id={id}
+          maxLength={maxLength}
           error={error}
           aria-busy={isWorking || undefined}
           {...field}
           value={value}
+          onChange={(e) => {
+            field?.onChange?.(e);
+            onChange?.(e);
+          }}
         />
         <AnimatePresence>
           {isWorking && (
@@ -444,7 +491,7 @@ export default function BioWriter({
       </div>
 
       <div className={styles.footer}>
-        {previousBio ? (
+        {revertValue ? (
           <PholioButton
             variant="meta"
             onClick={onRevert}
@@ -459,11 +506,11 @@ export default function BioWriter({
 
         {isWorking ? (
           <p className={styles.status} role="status">
-            {hasBio ? 'Pholio is refining your bio' : 'Pholio is writing your bio'}
+            {hasBio ? workingRefineText : workingDraftText}
           </p>
         ) : (
           <p className={styles.count}>
-            {wordCount === 1 ? '1 word' : `${wordCount} words`}
+            {wordCount === 0 && emptyCountLabel ? emptyCountLabel : wordCount === 1 ? '1 word' : `${wordCount} words`}
           </p>
         )}
       </div>

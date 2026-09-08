@@ -1,10 +1,10 @@
 /**
  * Legal document versions — single source of truth for the app.
  *
- * The documents themselves are published by pholio-landing (/terms, /privacy,
+ * The documents themselves are published by pholio-site (/terms, /privacy,
  * /cookies, …). This constant is what the acceptance gate compares against, so
  * it MUST track `CURRENT_LEGAL_VERSION` in
- * `pholio-landing/lib/legal-constants.ts`.
+ * `pholio-site/lib/legal-constants.ts`.
  *
  * This used to be hardcoded in four places — shared/lib/legal-acceptance.js,
  * domains/agency/services/legal-acceptance.js, the SPA's LegalAcceptanceGate,

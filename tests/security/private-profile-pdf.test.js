@@ -1,17 +1,9 @@
 "use strict";
 
 /**
- * A private profile's comp card must not be readable by a stranger.
- *
- * `/pdf/view/:slug`, `/pdf/:slug`, `/pdf/digitals/:slug` and
- * `/pdf/digitals/view/:slug` carry no authentication, and `loadProfile`
- * filtered IMAGES by visibility while never checking whether the PROFILE was
- * public. Slugs are `firstname-lastname`, so this was guessable rather than
- * merely leakable, and the documents disclose name, height, bust, waist and
- * hips — including for minors.
- *
- * The check lives in `loadProfile` rather than on each route so a fifth route
- * cannot reintroduce it.
+ * Comp cards and digitals sheets are casting assets and dashboard tools,
+ * not public web portfolios. They must not be gated by `is_public` (the web portfolio toggle).
+ * Non-existent slugs must still return null.
  */
 
 const {
@@ -61,9 +53,11 @@ afterAll(async () => {
   dropIsolatedDatabase(DB_FILE);
 });
 
-describe("loadProfile refuses a private profile", () => {
-  test("a private profile yields nothing to render", async () => {
-    expect(await loadProfile("ada-private")).toBeNull();
+describe("loadProfile is not gated by is_public", () => {
+  test("a private profile still loads for comp card / digitals", async () => {
+    const data = await loadProfile("ada-private");
+    expect(data).not.toBeNull();
+    expect(data.profile.slug).toBe("ada-private");
   });
 
   test("a public profile still loads", async () => {
@@ -72,11 +66,10 @@ describe("loadProfile refuses a private profile", () => {
     expect(data.profile.slug).toBe("ada-public");
   });
 
-  test("a legacy row with no is_public value is not treated as private", async () => {
-    // NULL means "never made private" — treating it as private would silently
-    // break every existing public card.
+  test("a legacy row with no is_public value still loads", async () => {
     const data = await loadProfile("ada-legacy");
     expect(data).not.toBeNull();
+    expect(data.profile.slug).toBe("ada-legacy");
   });
 
   test("an unknown slug is still null, not an error", async () => {
@@ -84,19 +77,3 @@ describe("loadProfile refuses a private profile", () => {
   });
 });
 
-describe("the private override has to be asked for by name", () => {
-  test("an internal caller may opt in explicitly", async () => {
-    // freezePresetPlan composes the owner's own stored preset and is not
-    // serving a request.
-    const data = await loadProfile("ada-private", { allowPrivate: true });
-    expect(data).not.toBeNull();
-    expect(data.profile.slug).toBe("ada-private");
-  });
-
-  test("anything short of an explicit true still refuses", async () => {
-    expect(await loadProfile("ada-private", {})).toBeNull();
-    expect(await loadProfile("ada-private", { allowPrivate: false })).toBeNull();
-    // Truthy-but-not-true must not open it either.
-    expect(await loadProfile("ada-private", { allowPrivate: "yes" })).toBeNull();
-  });
-});

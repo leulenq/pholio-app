@@ -170,10 +170,7 @@ export function checkGatingStatus(profile, images = [], options = {}) {
 
   const imageList = Array.isArray(images) ? images : profile.images || [];
   const pkg = analyzePackageIntelligence({ images: imageList });
-  const sendReadiness = evaluateSendReadiness(profile, imageList, {
-    ...options,
-    includeDistributionRights: false,
-  });
+  const sendReadiness = evaluateSendReadiness(profile, imageList, options);
 
   const strength = calculateProfileStrength({
     ...profile,

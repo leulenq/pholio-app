@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 // Express backend the dev server proxies to. Defaults to :3000 — the port in
-// .env.example, in CLAUDE.md, and in pholio-landing's dev proxy target. These
+// .env.example, in CLAUDE.md, and in pholio-site's dev proxy target. These
 // entries were hardcoded to :3002, so with the documented .env one of the two
 // frontends always pointed at a dead port. Override with VITE_API_PROXY_TARGET
 // if you run Express somewhere else.

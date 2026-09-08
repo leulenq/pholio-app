@@ -17,7 +17,7 @@ const PROTECTED_API_PREFIXES = [
 
 // Session lifecycle endpoints. The marketing site (www.pholio.studio) calls
 // these too — but it reaches Express through the Next.js server-side rewrite in
-// pholio-landing (`next.config.ts` proxies /api/* to this app), so we cannot
+// pholio-site (`next.config.ts` proxies /api/* to this app), so we cannot
 // rely on a browser Origin header surviving that hop.
 //
 // The custom header is the load-bearing control here and it is sufficient on

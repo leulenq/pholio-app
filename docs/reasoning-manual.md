@@ -48,7 +48,7 @@ slightly less than the words say, and sometimes more.
 
 3. **Identify the unstated constraints.** For Pholio, run this fixed list every
    time:
-   - **Which repo?** Marketing and legal pages belong to `pholio-landing`, not
+   - **Which repo?** Marketing and legal pages belong to `pholio-site`, not
      here. If the request mentions the landing page, Terms of Service, or Privacy
      Policy, the answer may be "that change goes in the other repo" — say so
      instead of building it here.
@@ -614,7 +614,7 @@ entry: the tell, and the counter-move.
 The facts that most frequently turn a plausible guess wrong. Verify against
 current code before relying on them (Section 4 applies to this list too).
 
-- **Two repos:** marketing + legal → `pholio-landing`; product only → here.
+- **Two repos:** marketing + legal → `pholio-site`; product only → here.
 - **Three design systems:** talent, agency, onboarding — scoped docs under
   `client/src/domains/*/`; never blend them. Banned-UI list in root `CLAUDE.md`
   overrides all aesthetic instincts.

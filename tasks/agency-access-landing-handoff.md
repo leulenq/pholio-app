@@ -1,9 +1,9 @@
-# Agency Access Request — pholio-landing Handoff
+# Agency Access Request — pholio-site Handoff
 
-**Owner:** separate `pholio-landing` agent.
+**Owner:** separate `pholio-site` agent.
 **Do not implement this public page in `pholio-app`.** This app repo now provides the receiving API and authenticated agency setup workflow only.
 
-## Route to build in `pholio-landing`
+## Route to build in `pholio-site`
 
 Recommended public route:
 

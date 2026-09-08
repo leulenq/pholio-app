@@ -1,3 +1,205 @@
+# Photo rights gate — friction removal — 2026-09-08
+
+Audit: `docs/audits/2026-09-08-photo-rights-friction-audit.md`. Two unrelated systems share
+"rights" — `image_rights` (per-photo, gates comp card + applications, being changed here) vs
+`talent_likeness_consents` (per-profile opt-in ledger for Pholio's own marketing/AI-replica use,
+untouched). Change: "block unless explicitly cleared with full metadata" → "block only if
+explicitly denied" (a real reactive hold, e.g. after a dispute, stays enforceable; the
+default-blocks-every-upload behavior goes away). No migration, no data change — read-semantics
+only, fully reversible.
+
+Decisions made while implementing (flagged by the planning pass, resolved here):
+- `pending` status: left non-blocking by default (resolves the audit's noted inconsistency where
+  it blocked applications but not comp-card export).
+- Dashboard preflight (`profileGating.js`) now includes the rights blocker (fixes "dashboard says
+  ready, Apply then blocks"); Apply's own check stays package-scoped via
+  `includeDistributionRights: false` at its `checkGatingStatus` call site, so it keeps parity with
+  the server's package-scoped check rather than going book-wide.
+
+## Plan
+- [x] **Cluster A (Strong/Opus) — compliance logic, one unit:** `src/domains/pdf/guardrails.js`
+  (`checkRightsMetadata` — drop the missing-metadata branch, keep denial-only), `src/shared/lib/image-rights.js`
+  (`imageHasDistributionRights`/`validateImagesForDistribution` — denial-only, drop license-basis/
+  credit/date/model-release/guardian-release requirements), `client/src/shared/utils/imageRights.js`
+  (identical mirror), `src/domains/talent/services/send-readiness.js` (drop `requireGuardianRelease`
+  option; leave the two independent minor guardian-consent blockers untouched), `client/src/shared/utils/sendReadiness.js`
+  (logic + `SEND_BLOCKER_TARGETS.distribution_rights` label). Update the 4 Jest suites
+  (`guardrails.test.js`, `tests/shared/image-rights.test.js`, `tests/talent/send-readiness.test.js`,
+  `tests/talent/validate-submission-package.test.js`) and add a new client Vitest mirror
+  (`client/src/shared/utils/__tests__/imageRights.test.js`). New cases: no-metadata passes both
+  gates; explicit denial (all 5 tokens × 3 carriers) still fails both; minor guardian blockers fire
+  independently of image-level rights with zero rights metadata present.
+- [x] **Cluster B (Standard) — UI copy, disjoint files, lands after A merges:**
+  `client/src/domains/talent/components/CompCard.jsx` (blocked-download tooltip cascade + rights
+  blocking copy), `client/src/domains/talent/components/FrameEditor.jsx` (reword rights section as
+  optional metadata; drop the false "expired-rights... blocked from export" line),
+  `client/src/domains/talent/pages/ApplyPage/ApplyExperience.jsx` (reword the distribution_rights
+  check item + set `includeDistributionRights: false` on its `checkGatingStatus` call),
+  `client/src/shared/utils/profileGating.js` (drop `includeDistributionRights: false` so the
+  dashboard preflight shows the blocker), `client/src/domains/talent/components/MediaWorkspace.jsx`
+  (add one non-blocking microcopy line near upload confirming rights to use the photos uploaded).
+- [x] Run `npm test`, `cd client && npm run lint`, `cd client && npm test` — all green.
+- [x] Append an "Implemented" note to the audit doc recording denial-only (not full removal) as
+  what shipped, and why.
+- [x] Review section below.
+
+## Review — Cluster A (compliance logic)
+
+- `guardrails.js` `checkRightsMetadata`: dropped the missing-metadata branch entirely; only the
+  `RIGHTS_DENIED_VALUES` (explicit-denial) branch remains, same check id (`rights-permitted`, kept
+  for the client's `/rights/i` copy match).
+- `image-rights.js` `imageHasDistributionRights`: rewritten to `return
+  !RIGHTS_DENIED_STATUSES.has(status)`, preserving the exact multi-source token-resolution chain
+  (rights row → image columns → JSON metadata). License-basis, ownership-credit, date-range,
+  model-release, and `requireGuardianRelease` requirements deleted. `hasCompleteModelRelease`,
+  `loadImageRightsMap`, and the three status Sets kept exported (other code imports them).
+- `client/src/shared/utils/imageRights.js`: identical mirror; `hasCompleteModelRelease` exported
+  there too (was module-private, would have failed client lint as unused once its only caller was
+  removed).
+- `send-readiness.js` / client `sendReadiness.js`: dropped `requireGuardianRelease:
+  isMinorProfile(profile)` from the `validateImagesForDistribution` call. The two independent
+  minor guardian-consent blockers (`minor_guardian_consent_required`,
+  `guardian_agency_consent_required` — driven by account-level `hasGuardianConsent`/
+  `agencyConsentGranted`, not image rights) are untouched. Client `SEND_BLOCKER_TARGETS.
+  distribution_rights.label` → `'Image on hold'`.
+- Tests: `guardrails.test.js` split into a no-metadata pass case and a denial-fail case;
+  `tests/shared/image-rights.test.js` inverted the two strictness tests, added a 5-token × 3-carrier
+  denial sweep, deleted the guardian-release test (option no longer exists, pointer comment added);
+  `send-readiness.test.js` and `validate-submission-package.test.js` inverted their rights tests and
+  added cases proving a minor with zero image-level rights metadata is still correctly gated (or
+  not) purely by the guardian-consent state — proving the two systems are decoupled. New
+  `client/src/shared/utils/__tests__/imageRights.test.js` mirrors the server cases (no client test
+  for this existed before).
+- Verification: targeted 4 suites 31/31 passed; full `npm test` 283/284 suites, 3786/3797 tests (1
+  pre-existing, unrelated failure — `tests/wallet/face-locator.test.js`'s wasm cascade detector;
+  confirmed pre-existing by stashing these files and re-running, still fails identically); `cd
+  client && npm run lint` 0 errors; `cd client && npm test` 89 files/932 tests passed.
+
+## Review — Cluster B (UI copy + wiring)
+
+Copy landed (before → after):
+
+- `CompCard.jsx` `BLOCKING_COPY` rights entry — label `'Rights check'` → `'Photo on hold'`; note
+  `'Confirm usage rights on your photos — the card can only carry photos cleared for distribution.'`
+  → `'A photo on this card is marked as not available for use. Swap it out, or clear the hold in
+  your book.'` (matches guardrails.js's `"is marked as not available for use"` and
+  send-readiness.js's `"Swap it out, or clear the hold in your book."`).
+- `CompCard.jsx` blocked-download tooltip — was a static `'Add photos to generate your card'` for
+  every blocker. Now a `downloadBlockedTooltip` derived value (same priority order as the adjacent
+  `statusLabel`): minor-gated → `'Guardian consent is required to generate your card'`; no
+  slug/images → `'Add photos to generate your card'`; a guardrail block → `blocking.note` (so a
+  rights hold shows the rights copy above, a crop/placement/contact block shows its own note);
+  otherwise `'Resolve the note above to unlock'`.
+- `FrameEditor.jsx` Rights section intro — `'Required for comp card export and agency
+  distribution.'` → `'Optional metadata: useful if an agency later needs a photographer credit, or
+  to track a paid usage license.'`
+- `FrameEditor.jsx` expiry line — dropped the false trailing clause `' — expired-rights frames are
+  blocked from packages and export.'`; the neutral fact (`'Rights expire in N days'` /
+  `'Rights expired N days ago'`) is unchanged and still renders.
+- `ApplyExperience.jsx` `distribution_rights` check-item — label `'Distribution rights'` →
+  `'Image on hold'` (now matches `SEND_BLOCKER_TARGETS.distribution_rights.label`); notes for
+  0/1/many gapped package images went from `'... missing distribution rights — open it/them in
+  your book and add license details'` to `'A/One/N photo(s) in this package is/are on hold. Swap
+  it/them out, or clear the hold in your book.'` (nothing needs adding; the fix is swap or clear).
+
+Wiring (both `includeDistributionRights` sites, and why each is set the way it is):
+
+- `ApplyExperience.jsx`'s `checkGatingStatus(profile, authImages, {...})` call (used for the
+  `gating` object feeding `ProfileGateBanner`) now passes `includeDistributionRights: false`. This
+  call scores the talent's whole book; the dossier's own local `checks` array already runs
+  `validateImagesForDistribution` scoped to just the selected submission package (matching the
+  server's package-scoped check in `applications.js`). Without the flag, a denied photo sitting
+  anywhere in the book — even outside the current application's package — would double-count and
+  incorrectly block Submit here.
+- `profileGating.js`'s `checkGatingStatus` no longer forces `includeDistributionRights: false`
+  into `evaluateSendReadiness` — the default (include the blocker) now applies. This is what
+  surfaces the rights hold in the Market/Applications dashboard preflight panel ("Clear this
+  before you send") via `ApplicationsView.jsx`'s `checkGatingStatus(profile, images)` call (no
+  override there), closing the "dashboard says ready, Apply then blocks" gap. Confirmed
+  `ApplicationsView.jsx` renders it sensibly: `sendBlockerTarget(blocker)` resolves to
+  `{ label: 'Image on hold', href: '/dashboard/talent/media', actionLabel: 'Open the book' }` and
+  `sendBlockerLabel(blocker)` renders the send-readiness message
+  (`'A package image is marked as not available for distribution. Swap it out, or clear the hold
+  in your book.'`) as the row's task line — no changes needed there.
+  `MediaWorkspace.jsx`'s and `DashboardLayoutShell.jsx`'s `checkGatingStatus` calls only read
+  `isBlocked` (core-profile readiness), which is unaffected by this flag, so nothing else changed
+  behavior.
+
+Microcopy added (`MediaWorkspace.jsx`, both the populated-grid and empty-state upload areas, same
+`mw-helper` style as the existing file-spec line, factored into one `UPLOAD_RIGHTS_NOTE` constant
+rather than duplicating the string): "By uploading, you confirm you have the right to use these
+photos: your own, a test or TFP shoot, or with the photographer's permission."
+
+Verification: `cd client && npm run lint` clean (one pre-existing unrelated warning in
+`ProfilePage/index.jsx`, no errors); `cd client && npm test` — 89 files / 932 tests passed, no
+regressions and no test asserted the old copy strings (checked `ApplicationsViewLedger.test.jsx`,
+`CompCardImport*` tests, and grepped for the old strings — no hits, so no test literals needed
+updating); root `npm test -- tests/talent/ tests/shared/` — 71 suites / 671 tests passed
+(server-side Cluster A regression check).
+
+## Review — final Strong pass (`/code-review high` on the full diff)
+
+Ran an independent Opus-level review over the complete uncommitted diff before calling this done.
+One finding was real and in-scope, fixed directly (not delegated, small and well-understood):
+
+- **`guardrails.js`'s `resolveRightsToken` used `??` instead of an empty-string-aware chain**,
+  unlike `image-rights.js`'s `firstNonEmpty`. An image with e.g. `usage_rights: ""` and
+  `rights_status: "denied"` would have its denial masked at comp-card composition time (`??` only
+  skips `null`/`undefined`, not `""`) while still correctly failing at submission time — exactly
+  the kind of client/server-style drift this whole redesign was meant to eliminate, except server
+  vs. server. **Fix:** extracted the token-resolution chain into one exported function,
+  `resolveRightsStatusToken(imageRow, rightsRow)`, in `image-rights.js`; `imageHasDistributionRights`
+  and `guardrails.js`'s `resolveRightsToken` both now call it — single source of truth, bug fixed by
+  construction, duplication (the review's flagged root cause) eliminated. Removed the now-dead local
+  `normalizeToken` in `guardrails.js`. Added a regression test reproducing the exact scenario
+  (`"does not let an empty-string field mask a denied status in a lower-priority field"`).
+  Re-verified: targeted suites and full `npm test` green (283/284, same 1 pre-existing unrelated
+  failure, +1 new passing test).
+- Everything else the review flagged as CONFIRMED/PLAUSIBLE was either (a) about files this task
+  never touched — `BioWriter.jsx`, `App.jsx`, `MessagePage.test.jsx`, `ApplyExperience.css` — which
+  were already modified in the working tree before this task started and belong to unrelated,
+  separate work, left alone; or (b) a pre-existing convention in `ApplyExperience.jsx` (every
+  check-item `label` in that file is a hand-duplicated copy of `SEND_BLOCKER_TARGETS`, not something
+  this change introduced) — not worth a partial, inconsistent fix under this task's scope; or (c) an
+  intentionally-accepted tradeoff already named during planning (`hasCompleteModelRelease` becoming
+  unused dead code, kept exported on purpose); or (d) a refuted concern (`ApplicationsView.jsx`
+  double-counting rights against `ApplyExperience.jsx` — confirmed false, that dashboard call is the
+  single intended book-wide preflight banner).
+
+Not committed — implementation only, per instruction to proceed with implementation; commit is the
+user's call.
+
+---
+
+# Remove is_public gating from comp cards — 2026-09-08
+
+- [x] Remove `is_public` gating in `loadProfile` (`src/domains/pdf/generator.js`) so comp card generation/viewing is not blocked by public portfolio setting.
+- [x] Update `tests/security/private-profile-pdf.test.js` to assert that private profiles can generate/view comp cards without being gated by `is_public`.
+- [x] Verify test suite passes (`npm test -- tests/security/private-profile-pdf.test.js` & `npm test -- tests/security/`).
+- [x] Verify live database loading for private profile slugs (`natan`, `mia-voss`).
+
+## Review
+
+- Uncoupled comp card rendering from `is_public`: `loadProfile` in `src/domains/pdf/generator.js` no longer blocks profiles whose `is_public` flag is `false`.
+- Public portfolio gating (`/p/:slug` in `src/routes/portfolio.js`) and minor protection (`minorPublicExposureAllowed` in `src/domains/pdf/routes/pdf.js`) remain strictly enforced.
+- Verification: 19/19 security test suites (183 tests) passed; `loadProfile` verified on live database for previously refused slugs (`natan`, `mia-voss`).
+
+
+
+
+
+# Independent prelaunch audit — 2026-09-08
+
+Audit baseline: `dc30c46fbea5ef66aeb92da71cb97b63c18efe10`. Product code remains unchanged. Existing untracked founder-report DOCX belongs to the user.
+
+- [ ] Map actual runtime, routes, data stores, integrations, deployment, and strategy assumptions.
+- [ ] Independently review auth/tenant access, privacy/media, payments/infrastructure, and Spec Registry/workflow trust boundaries in disjoint read-only lanes.
+- [ ] Reproduce suspected defects using isolated fixtures; run guarded tests and dependency checks without accessing production data or sending communications.
+- [ ] Challenge findings, verify primary sources where needed, and distinguish evidence from unknowns.
+- [ ] Deliver threat model, prioritized concrete findings, coverage/limitations, and explicit launch/no-launch criteria in `docs/audits/2026-09-08-independent-prelaunch-audit.md`.
+
+Review: in progress. Internal research/skills supply questions and intended behavior, not authoritative evidence. High-risk audit lanes use Strong capability; mechanical follow-ups should use Standard/Fast when delegated.
+
 # Submission Review redesign — "The Review Room", rebuilt from first principles
 
 Surface: the individual-submission review experience inside `/dashboard/agency/submissions`

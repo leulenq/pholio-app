@@ -13,10 +13,19 @@ import LoadingSpinner from './LoadingSpinner';
  * change between phases reads as "the page reloaded/flashed" even though
  * nothing actually reloaded. Using the exact same component for all of them
  * means that transition is visually a no-op.
+ *
+ * `dark` matches the canvas to the ink-shell talent dashboard (`--tl-ink`,
+ * `#050505`) it is about to reveal. Every other destination (agency's cream
+ * `--ag-surface-0`, the auth pages, onboarding) is light, so that stays the
+ * default. Without this, the cream canvas below held for the entire fetch
+ * and then hard-cut to the ink shell the instant data landed — no cross-fade,
+ * just an abrupt light-to-dark flash that reads as the page reloading.
  */
-export default function PageLoadingScreen() {
+export default function PageLoadingScreen({ dark = false }) {
   return (
-    <div className="flex items-center justify-center h-screen bg-[#faf8f5]">
+    <div
+      className={`flex items-center justify-center h-screen ${dark ? 'bg-[#050505]' : 'bg-[#faf8f5]'}`}
+    >
       <LoadingSpinner size="lg" />
     </div>
   );

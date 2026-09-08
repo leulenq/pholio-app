@@ -48,6 +48,10 @@ const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 12;
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 
+// Permanent, non-blocking — a one-time warranty, not a per-photo gate.
+const UPLOAD_RIGHTS_NOTE =
+  "By uploading, you confirm you have the right to use these photos: your own, a test or TFP shoot, or with the photographer's permission.";
+
 // Frames are grouped into clear, industry-true sections instead of one flat grid.
 const SECTION_ORDER = ['digitals', 'book', 'tests', 'campaigns', 'tearsheets', 'motion'];
 const SECTION_META = {
@@ -1219,6 +1223,7 @@ export default function MediaWorkspace() {
             <>
               {SECTION_ORDER.map((key) => renderSection(key))}
               <p className="mw-helper">JPEG · PNG · WEBP — up to 25MB, 12 at a time</p>
+              <p className="mw-helper">{UPLOAD_RIGHTS_NOTE}</p>
             </>
           ) : (
             <div className="mw-empty">
@@ -1227,6 +1232,7 @@ export default function MediaWorkspace() {
                 <Upload size={14} aria-hidden /> Upload Media
               </PholioButton>
               <p className="mw-helper">JPEG · PNG · WEBP — up to 25MB, 12 at a time</p>
+              <p className="mw-helper">{UPLOAD_RIGHTS_NOTE}</p>
             </div>
           )}
         </section>

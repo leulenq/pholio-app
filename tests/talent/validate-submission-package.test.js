@@ -23,13 +23,23 @@ const ADULT_RIGHTS = {
   copyright_owner: "Alex River",
 };
 
-const GUARDIAN_RELEASE_RIGHTS = {
-  ...ADULT_RIGHTS,
-  release_ref: "guardian-release.pdf",
-  release_signer_name: "Jordan River",
-  release_signer_role: "guardian",
-  release_signed_at: "2026-06-01T00:00:00.000Z",
-};
+// Minor-path fixtures deliberately carry NO image-level rights metadata: the
+// guardian-consent blockers are an account-level gate and must fire on profile
+// state alone.
+const MINOR_PACKAGE_IMAGES = [
+  {
+    id: "1",
+    shot_type: "headshot",
+    image_type: "digital",
+    captured_at: daysAgo(10),
+  },
+  {
+    id: "2",
+    shot_type: "full_length",
+    image_type: "digital",
+    captured_at: daysAgo(10),
+  },
+];
 
 describe("validateSubmissionPackage", () => {
   test("rejects portfolio-only book frames", () => {
@@ -74,22 +84,7 @@ describe("validateSubmissionPackage", () => {
   });
 
   test("rejects a minor package without verified account guardian consent", () => {
-    const images = [
-      {
-        id: "1",
-        shot_type: "headshot",
-        image_type: "digital",
-        captured_at: daysAgo(10),
-        ...GUARDIAN_RELEASE_RIGHTS,
-      },
-      {
-        id: "2",
-        shot_type: "full_length",
-        image_type: "digital",
-        captured_at: daysAgo(10),
-        ...GUARDIAN_RELEASE_RIGHTS,
-      },
-    ];
+    const images = MINOR_PACKAGE_IMAGES;
     const profile = {
       ...BASE_PROFILE,
       date_of_birth: "2012-01-01",
@@ -107,22 +102,7 @@ describe("validateSubmissionPackage", () => {
   });
 
   test("rejects a minor package without selected-agency authorization", () => {
-    const images = [
-      {
-        id: "1",
-        shot_type: "headshot",
-        image_type: "digital",
-        captured_at: daysAgo(10),
-        ...GUARDIAN_RELEASE_RIGHTS,
-      },
-      {
-        id: "2",
-        shot_type: "full_length",
-        image_type: "digital",
-        captured_at: daysAgo(10),
-        ...GUARDIAN_RELEASE_RIGHTS,
-      },
-    ];
+    const images = MINOR_PACKAGE_IMAGES;
     const profile = {
       ...BASE_PROFILE,
       date_of_birth: "2012-01-01",
@@ -176,20 +156,41 @@ describe("validateSubmissionPackage", () => {
     expect(result.ok).toBe(false);
   });
 
-  test("rejects package images without distribution rights", () => {
+  test("accepts package images that carry no rights metadata", () => {
     const result = validateSubmissionPackage(BASE_PROFILE, [
       {
         id: "1",
         shot_type: "headshot",
         image_type: "digital",
         captured_at: daysAgo(10),
-        rights_status: "cleared",
       },
       {
         id: "2",
         shot_type: "full_length",
         image_type: "digital",
         captured_at: daysAgo(10),
+      },
+    ]);
+    expect(
+      result.errors.some((e) => e.code === "missing_distribution_rights"),
+    ).toBe(false);
+    expect(result.ok).toBe(true);
+  });
+
+  test("rejects package images explicitly marked as denied", () => {
+    const result = validateSubmissionPackage(BASE_PROFILE, [
+      {
+        id: "1",
+        shot_type: "headshot",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+      {
+        id: "2",
+        shot_type: "full_length",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+        rights_status: "denied",
       },
     ]);
     expect(result.ok).toBe(false);

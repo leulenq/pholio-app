@@ -32,9 +32,7 @@ function evaluateSendReadiness(
   const strength = calculateProfileStrength({ ...(profile || {}), images: list });
   const audit = auditSubmissionPackage({ images: list });
   const sendBlockers = [];
-  const rightsValidation = validateImagesForDistribution(list, rightsMap, {
-    requireGuardianRelease: isMinorProfile(profile),
-  });
+  const rightsValidation = validateImagesForDistribution(list, rightsMap);
 
   if (isMinorProfile(profile) && !hasGuardianConsent(profile)) {
     sendBlockers.push({
@@ -112,7 +110,7 @@ function evaluateSendReadiness(
       code: "missing_distribution_rights",
       key: "distribution_rights",
       message:
-        "Some package images are missing distribution rights. Add rights details before applying.",
+        "A package image is marked as not available for distribution. Swap it out, or clear the hold in your book.",
       errors: rightsValidation.errors,
     });
   }

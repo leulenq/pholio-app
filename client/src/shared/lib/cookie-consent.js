@@ -2,7 +2,7 @@
  * Cookie consent — React SPA client.
  *
  * Mirrors pholio-app/src/shared/lib/consent.js (server),
- * pholio-landing/lib/cookie-consent.ts (marketing site) and
+ * pholio-site/lib/cookie-consent.ts (marketing site) and
  * pholio-app/public/scripts/cookie-consent.js (EJS portfolio pages).
  * Keep CONSENT_COOKIE, CONSENT_VERSION and the payload shape identical in all four.
  *
