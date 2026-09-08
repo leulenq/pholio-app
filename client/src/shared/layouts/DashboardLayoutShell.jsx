@@ -118,7 +118,9 @@ export default function DashboardLayoutShell() {
   }
 
   if (isLoading && !isError) {
-    return <PageLoadingScreen />;
+    // Dark: the shell this is about to reveal (TalentLayout) is an ink
+    // canvas (`--tl-ink`), not the cream PageLoadingScreen defaults to.
+    return <PageLoadingScreen dark />;
   }
 
   return (

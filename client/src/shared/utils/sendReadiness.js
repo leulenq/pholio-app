@@ -70,7 +70,7 @@ const SEND_BLOCKER_TARGETS = {
     actionLabel: 'Open the book',
   },
   distribution_rights: {
-    label: 'Image rights',
+    label: 'Image on hold',
     href: '/dashboard/talent/media',
     actionLabel: 'Open the book',
   },
@@ -113,9 +113,7 @@ export function evaluateSendReadiness(profile, images = [], options = {}) {
     options.rightsMap instanceof Map
       ? options.rightsMap
       : buildImageRightsMapFromImages(imageList);
-  const rightsValidation = validateImagesForDistribution(imageList, rightsMap, {
-    requireGuardianRelease: isMinorProfile(profile),
-  });
+  const rightsValidation = validateImagesForDistribution(imageList, rightsMap);
 
   if (isMinorProfile(profile) && !hasGuardianConsent(profile)) {
     sendBlockers.push({
@@ -191,7 +189,7 @@ export function evaluateSendReadiness(profile, images = [], options = {}) {
       code: 'missing_distribution_rights',
       key: 'distribution_rights',
       message:
-        'Some package images are missing distribution rights. Add rights details before applying.',
+        'A package image is marked as not available for distribution. Swap it out, or clear the hold in your book.',
       errors: rightsValidation.errors,
     });
   }

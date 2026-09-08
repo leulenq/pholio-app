@@ -106,10 +106,6 @@ export default function LegalAcceptanceGate({ children }) {
     }
   };
 
-  if (checking) {
-    return children;
-  }
-
   const panelMotion = reduceMotion
     ? {
         initial: { opacity: 0 },
@@ -127,11 +123,18 @@ export default function LegalAcceptanceGate({ children }) {
   const effective = formatEffectiveDate(version);
   const count = changes.length;
 
+  // Always the same shape — children stay in this exact slot whether the
+  // legal-status check is still in flight or has resolved. Swapping between
+  // `return children` (unwrapped) and this Fragment used to change the
+  // element type at this position across the `checking` transition, which
+  // made React tear down and remount the entire dashboard underneath
+  // (TalentLayout, every page, all entrance animations) the instant the
+  // check landed — a spurious "reload" a beat after every page load.
   return (
     <>
       {children}
       <AnimatePresence>
-        {needsAcceptance ? (
+        {!checking && needsAcceptance ? (
           <motion.div
             key="legal-gate"
             className="legal-gate-scrim"

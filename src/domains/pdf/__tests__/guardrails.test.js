@@ -55,13 +55,13 @@ describe("evaluateCompCardGuardrails", () => {
     ).toBe(true);
   });
 
-  test("fails when rights metadata is missing and warns on low print size", () => {
+  test("warns on low print size without blocking on absent rights metadata", () => {
     const images = [
       image("img-1", { metadata: null, width: 900, height: 1300 }),
-      image("img-2"),
-      image("img-3"),
-      image("img-4"),
-      image("img-5"),
+      image("img-2", { metadata: null }),
+      image("img-3", { metadata: null }),
+      image("img-4", { metadata: null }),
+      image("img-5", { metadata: null }),
     ];
     const report = evaluateCompCardGuardrails({
       profile: { first_name: "Mia", last_name: "Voss", height_cm: null },
@@ -71,15 +71,65 @@ describe("evaluateCompCardGuardrails", () => {
       mode: "draft",
     });
 
-    expect(report.status).toBe("fail");
-    expect(report.blockingIssueCount).toBeGreaterThan(0);
+    expect(report.status).not.toBe("fail");
+    expect(report.blockingIssueCount).toBe(0);
     expect(
       report.checks.some((check) => check.id === "print-min-resolution"),
     ).toBe(true);
     expect(
-      report.checks.some(
-        (check) =>
-          check.id === "rights-metadata-present" && check.level === "error",
+      report.checks.some((check) => check.id === "rights-metadata-present"),
+    ).toBe(false);
+  });
+
+  test("fails only when an image is explicitly denied for use", () => {
+    const images = [
+      image("img-1", { metadata: JSON.stringify({ usage_rights: "denied" }) }),
+      image("img-2"),
+      image("img-3"),
+      image("img-4"),
+      image("img-5"),
+    ];
+    const report = evaluateCompCardGuardrails({
+      profile: { first_name: "Mia", last_name: "Voss", height_cm: 178 },
+      images,
+      heroImage: images[0],
+      gridImages: images.slice(1, 5),
+      mode: "master",
+    });
+
+    expect(report.status).toBe("fail");
+    expect(
+      report.blockingIssues.some(
+        (issue) => issue.id === "rights-permitted" && issue.level === "error",
+      ),
+    ).toBe(true);
+  });
+
+  test("does not let an empty-string field mask a denied status in a lower-priority field", () => {
+    // Regression: the rights token used to be resolved with `??`, which only
+    // skips null/undefined — an empty string in a higher-priority field (as
+    // real data sometimes is) stopped the lookup before it reached a real
+    // "denied" value further down the chain, silently letting a denied image
+    // through composition.
+    const images = [
+      image("img-1", { usage_rights: "", rights_status: "denied" }),
+      image("img-2"),
+      image("img-3"),
+      image("img-4"),
+      image("img-5"),
+    ];
+    const report = evaluateCompCardGuardrails({
+      profile: { first_name: "Mia", last_name: "Voss", height_cm: 178 },
+      images,
+      heroImage: images[0],
+      gridImages: images.slice(1, 5),
+      mode: "master",
+    });
+
+    expect(report.status).toBe("fail");
+    expect(
+      report.blockingIssues.some(
+        (issue) => issue.id === "rights-permitted" && issue.level === "error",
       ),
     ).toBe(true);
   });

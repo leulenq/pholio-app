@@ -3,7 +3,7 @@
  *
  * Mirrors src/shared/lib/consent.js (server),
  * client/src/shared/lib/cookie-consent.js (React SPA) and
- * pholio-landing/lib/cookie-consent.ts (marketing site).
+ * pholio-site/lib/cookie-consent.ts (marketing site).
  * Keep the cookie name, version and payload shape identical in all four.
  *
  * Why this exists: public portfolio pages (/portfolio/:slug) are EJS, not the

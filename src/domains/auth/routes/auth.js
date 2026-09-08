@@ -1074,7 +1074,7 @@ router.get("/partners", (req, res) => {
   return res.redirect(agencyRequestAccessUrl());
 });
 
-// POST /partners - Retired app-side agency signup; the public request form lives in pholio-landing.
+// POST /partners - Retired app-side agency signup; the public request form lives in pholio-site.
 router.post("/partners", async (req, res) => {
   const isJson =
     (req.headers["content-type"] || "").includes("application/json") ||

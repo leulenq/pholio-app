@@ -1,11 +1,11 @@
-const RIGHTS_CLEARED_STATUSES = new Set([
+export const RIGHTS_CLEARED_STATUSES = new Set([
   'cleared',
   'licensed',
   'owned',
   'approved',
 ]);
 
-const RIGHTS_LICENSE_BASES = new Set([
+export const RIGHTS_LICENSE_BASES = new Set([
   'owned',
   'licensed',
   'model_release',
@@ -13,7 +13,7 @@ const RIGHTS_LICENSE_BASES = new Set([
   'editorial_release',
 ]);
 
-const RIGHTS_DENIED_STATUSES = new Set([
+export const RIGHTS_DENIED_STATUSES = new Set([
   'denied',
   'blocked',
   'forbidden',
@@ -63,7 +63,7 @@ export function buildImageRightsMapFromImages(images) {
   return map;
 }
 
-function hasCompleteModelRelease(rightsRow) {
+export function hasCompleteModelRelease(rightsRow) {
   const artifact = firstNonEmpty(
     rightsRow?.release_ref,
     rightsRow?.release_url,
@@ -76,6 +76,16 @@ function hasCompleteModelRelease(rightsRow) {
   );
 }
 
+/**
+ * Distribution check — denial only.
+ *
+ * An image is distributable unless someone has actively marked it as denied
+ * (for example after a dispute or a DMCA hold). Missing licensing metadata
+ * is the default state of every upload and is not a signal of anything.
+ *
+ * `options` is retained for call-site compatibility and is unused.
+ */
+// eslint-disable-next-line no-unused-vars
 export function imageHasDistributionRights(imageRow, rightsRow, options = {}) {
   const metadata = parseMetadata(imageRow?.metadata);
   const status = normalizeToken(
@@ -89,38 +99,8 @@ export function imageHasDistributionRights(imageRow, rightsRow, options = {}) {
       metadata.license_status,
     ),
   );
-  const licenseType = normalizeToken(firstNonEmpty(
-    rightsRow?.license_type,
-    imageRow?.license_type,
-    metadata.license_type,
-  ));
-  const copyrightOwner = firstNonEmpty(
-    rightsRow?.copyright_owner,
-    imageRow?.copyright_owner,
-    metadata.copyright_owner,
-  );
-  const photographerName = firstNonEmpty(
-    rightsRow?.photographer_name,
-    imageRow?.photographer_name,
-    metadata.photographer_name,
-  );
-  const startAt = rightsRow?.start_at || imageRow?.start_at || metadata.start_at;
-  const expiresAt = rightsRow?.expires_at || imageRow?.expires_at || metadata.expires_at;
-  const now = options.now instanceof Date ? options.now : new Date();
 
-  if (!RIGHTS_CLEARED_STATUSES.has(status)) return false;
-  if (!RIGHTS_LICENSE_BASES.has(licenseType)) return false;
-  if (!copyrightOwner && !photographerName) return false;
-  if (startAt && new Date(startAt).getTime() > now.getTime()) return false;
-  if (expiresAt && new Date(expiresAt).getTime() < now.getTime()) return false;
-
-  const effectiveRights = { ...(imageRow || {}), ...(rightsRow || {}) };
-  const releaseComplete = hasCompleteModelRelease(effectiveRights);
-  if (licenseType === 'model_release' && !releaseComplete) return false;
-  if (options.requireGuardianRelease === true) {
-    return releaseComplete && normalizeToken(effectiveRights.release_signer_role) === 'guardian';
-  }
-  return true;
+  return !RIGHTS_DENIED_STATUSES.has(status);
 }
 
 export function validateImagesForDistribution(images, rightsMap, options = {}) {
@@ -135,11 +115,8 @@ export function validateImagesForDistribution(images, rightsMap, options = {}) {
       errors.push({
         imageId,
         index,
-        code: 'distribution_rights_missing',
-        message:
-          options.requireGuardianRelease === true
-            ? "Image requires a complete model release signed by the minor's guardian."
-            : 'Image requires a valid rights basis, cleared status, ownership credit, and active license dates.',
+        code: 'distribution_rights_denied',
+        message: 'This image is marked as not available for distribution.',
       });
     }
   });

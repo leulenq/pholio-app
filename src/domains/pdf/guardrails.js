@@ -1,6 +1,9 @@
 const MIN_REQUIRED_IMAGES = 5;
 const MIN_PRINT_SHORT_EDGE_PX = 1200;
-const { RIGHTS_DENIED_STATUSES } = require("../../shared/lib/image-rights");
+const {
+  RIGHTS_DENIED_STATUSES,
+  resolveRightsStatusToken,
+} = require("../../shared/lib/image-rights");
 const RIGHTS_DENIED_VALUES = RIGHTS_DENIED_STATUSES;
 
 function parseMetadata(metadata) {
@@ -11,11 +14,6 @@ function parseMetadata(metadata) {
   } catch {
     return {};
   }
-}
-
-function normalizeToken(value) {
-  if (value == null) return "";
-  return String(value).trim().toLowerCase();
 }
 
 function toInt(value) {
@@ -32,17 +30,15 @@ function resolveImageDimensions(image) {
   return { width, height };
 }
 
+// Delegates to the shared resolver in `shared/lib/image-rights.js` — this
+// used to be its own `??`-based chain, which let an empty-string value in a
+// higher-priority field (e.g. `usage_rights: ""`) mask a real "denied"
+// status sitting in a lower-priority one, silently letting a denied image
+// through comp-card composition. `firstNonEmpty` (used by the shared
+// resolver) treats an empty string as absent, matching how the submission-
+// time check already resolved the same fields.
 function resolveRightsToken(image) {
-  if (!image) return "";
-  const metadata = parseMetadata(image.metadata);
-  return normalizeToken(
-    image.usage_rights ??
-      image.rights_status ??
-      image.license_status ??
-      metadata.usage_rights ??
-      metadata.rights_status ??
-      metadata.license_status,
-  );
+  return resolveRightsStatusToken(image);
 }
 
 function checkImageSlotIntegrity(heroImage, gridImages) {
@@ -96,17 +92,12 @@ function checkSourcePaths(selectedImages) {
 }
 
 /**
- * Comp-card composition guardrail — NOT the final send-to-agency gate.
+ * Comp-card composition guardrail — denial only.
  *
- * This only needs to know (a) is the image explicitly denied for use, and
- * (b) is there any rights signal on the image at all. Full legal
- * distribution certification (license basis, copyright/photographer
- * credit, active license dates — see `imageHasDistributionRights` in
- * `shared/lib/image-rights.js`) is a stricter, separate gate enforced at
- * actual submission time by `talent/services/send-readiness.js`. Reusing
- * that stricter check here previously made nearly every real fixture
- * (e.g. `usage_rights: "granted"` with no `license_type`/copyright yet on
- * file) blocking-fail composition, which is not what this guardrail is for.
+ * An image is usable unless someone has actively marked it as denied (for
+ * example after a dispute or a DMCA hold). The absence of licensing
+ * metadata is the default state of every upload and is not itself a signal
+ * of anything, so it never blocks composition.
  */
 function checkRightsMetadata(selectedImages) {
   const checks = [];
@@ -116,18 +107,8 @@ function checkRightsMetadata(selectedImages) {
       checks.push({
         id: "rights-permitted",
         level: "error",
-        message: `Image ${image?.id || "unknown"} is marked as not licensed for use.`,
+        message: `Image ${image?.id || "unknown"} is marked as not available for use.`,
       });
-      return;
-    }
-
-    if (!rights) {
-      checks.push({
-        id: "rights-metadata-present",
-        level: "error",
-        message: `Image ${image?.id || "unknown"} is missing distribution rights metadata.`,
-      });
-      return;
     }
   });
   return checks;

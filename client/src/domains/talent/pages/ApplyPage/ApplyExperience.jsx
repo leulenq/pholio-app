@@ -31,7 +31,7 @@ import PholioButton, {
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../../shared/components/ui/PholioButton';
-import PholioSpark from '../../../../shared/components/ui/PholioSpark';
+import BioWriter from '../../components/BioWriter/BioWriter';
 import ProfileGateBanner from '../../../../shared/components/gating/ProfileGateBanner';
 import { checkGatingStatus, getProfileGateFeature } from '../../../../shared/utils/profileGating';
 import { sendBlockerLabel } from '../../../../shared/utils/sendReadiness';
@@ -877,6 +877,12 @@ export default function ApplyExperience() {
     () =>
       checkGatingStatus(profile, authImages, {
         agencyConsentGranted,
+        // This dossier's own package-scoped rights check (validateImagesForDistribution
+        // above, in `checks`) already owns this signal. checkGatingStatus scores the
+        // whole book, so leaving it in would let a denied photo elsewhere in the book
+        // (outside this submission's package) block Submit here even though the server
+        // only checks the selected package.
+        includeDistributionRights: false,
       }),
     [profile, authImages, agencyConsentGranted],
   );
@@ -1726,13 +1732,13 @@ export default function ApplyExperience() {
       },
       {
         key: 'distribution_rights',
-        label: 'Distribution rights',
+        label: 'Image on hold',
         complete: rightsValidation.ok,
         note: rightsGapCount === 1
-          ? 'One package image is missing distribution rights — open it in your book and add license details'
+          ? 'One photo in this package is on hold. Swap it out, or clear the hold in your book.'
           : rightsGapCount > 1
-            ? `${rightsGapCount} package images are missing distribution rights — open them in your book and add license details`
-            : 'Add license type and rights status on each package image before applying',
+            ? `${rightsGapCount} photos in this package are on hold. Swap them out, or clear the hold in your book.`
+            : 'A photo in this package is on hold. Swap it out, or clear the hold in your book.',
         rightsErrors: rightsValidation.errors,
       },
     ];
@@ -3867,7 +3873,7 @@ function ExternalCompCardFace({ card }) {
 
 // Words, roughly. The research sweet spot is ~40–80 words; we cue brevity past 90
 // rather than hard-capping — a maximum is fine, a minimum would be wrong.
-function MessagePage({
+export function MessagePage({
   agency,
   note,
   onNoteChange,
@@ -3880,10 +3886,10 @@ function MessagePage({
 
   const [assistBusy, setAssistBusy] = useState(false);
   const [previousNote, setPreviousNote] = useState(null);
+  const [noteOptions, setNoteOptions] = useState({ length: 'standard', person: 'first' });
 
   const trimmedNote = note.trim();
   const noteLen = trimmedNote.length;
-  const wordCount = trimmedNote ? trimmedNote.split(/\s+/).length : 0;
 
   const runAssist = async (mode) => {
     setAssistBusy(true);
@@ -3935,7 +3941,6 @@ function MessagePage({
     toast.info('Reverted to your original note');
   };
 
-  const isEmpty = noteLen < 10;
   const board = boardLabels.find(Boolean);
   const manifest = [
     board ? `${board} board` : null,
@@ -3966,57 +3971,33 @@ function MessagePage({
 
   return (
     <div className="apply-compose">
-      {/* Letterhead — a calm "to / what's attached" line so the note can stay
-          short; the package, not the prose, carries the facts. */}
-      <div className="apply-compose__letterhead">
-        <span className="apply-compose__to">
-          To <em>{name}</em>
-        </span>
-        {manifest && <span className="apply-compose__manifest">{manifest}</span>}
-      </div>
-
-      {/* The writing canvas — a full-height sheet, not a boxed input. */}
-      <div className="apply-compose__sheet">
-        <textarea
-          id="apply-note"
-          className="apply-compose__input"
-          value={note}
-          onChange={(e) => onNoteChange(e.target.value)}
-          placeholder="Introduce yourself, name the representation or board you're seeking, add one relevant fact, and close with thanks. Three or four short sentences is plenty."
-          aria-label={`Your note to ${name}`}
-        />
-      </div>
-
-      {/* Assist + count — an integrated document footer, secondary to the page. */}
-      <div className="apply-compose__foot">
-        <div className="apply-compose__assist">
-          <button
-            type="button"
-            aria-label={isEmpty ? 'Draft a note with Pholio' : 'Refine note with Pholio'}
-            title={isEmpty ? 'Draft a note with Pholio' : 'Refine note with Pholio'}
-            className={`bioSpark ${assistBusy ? 'is-working' : ''}`}
-            onClick={assistBusy ? undefined : () => runAssist(isEmpty ? 'draft' : 'sharpen')}
-            disabled={assistBusy}
-            aria-busy={assistBusy}
-          >
-            <PholioSpark size={22} />
-          </button>
-          {previousNote !== null && (
-            <PholioButton
-              type="button"
-              variant="tertiary"
-              className="apply-compose__assist-revert"
-              onClick={handleUndoAssist}
-              disabled={assistBusy}
-            >
-              Revert
-            </PholioButton>
-          )}
-        </div>
-        <span className="apply-compose__count" data-long={wordCount > 90 ? 'true' : undefined}>
-          {wordCount === 0 ? 'Optional' : `${wordCount} ${wordCount === 1 ? 'word' : 'words'}`}
-        </span>
-      </div>
+      <BioWriter
+        value={note}
+        onChange={(e) => onNoteChange(e.target.value.slice(0, 1200))}
+        isWorking={assistBusy}
+        options={noteOptions}
+        onOptionsChange={setNoteOptions}
+        onWrite={() => runAssist('draft')}
+        onRefine={() =>
+          runAssist(noteOptions?.length === 'tight' && noteLen >= 50 ? 'shorten' : 'sharpen')
+        }
+        previousBio={previousNote}
+        onRevert={handleUndoAssist}
+        title={
+          <span className="apply-compose__to">
+            To <em>{name}</em>
+          </span>
+        }
+        headerExtra={manifest ? <span className="apply-compose__manifest">{manifest}</span> : null}
+        underlinedHeader
+        lede={null}
+        placeholder="Introduce yourself, name the representation or board you're seeking, add one relevant fact, and close with thanks. Three or four short sentences is plenty."
+        noun="note"
+        rows={8}
+        maxLength={1200}
+        emptyCountLabel="Optional"
+        voiceOptions={null}
+      />
     </div>
   );
 }

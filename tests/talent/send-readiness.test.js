@@ -208,14 +208,13 @@ describe("evaluateSendReadiness", () => {
     ).toBe(true);
   });
 
-  test("missing distribution rights blocks send readiness", () => {
+  test("absent rights metadata does not block send readiness", () => {
     const result = evaluateSendReadiness(BASE_PROFILE, [
       {
         id: "headshot",
         shot_type: "headshot",
         image_type: "digital",
         captured_at: daysAgo(10),
-        rights_status: "cleared",
       },
       {
         id: "full",
@@ -225,9 +224,89 @@ describe("evaluateSendReadiness", () => {
       },
     ]);
 
+    expect(
+      result.sendBlockers.some((b) => b.code === "missing_distribution_rights"),
+    ).toBe(false);
+    expect(result.isSendReady).toBe(true);
+  });
+
+  test("an explicitly denied image blocks send readiness", () => {
+    const result = evaluateSendReadiness(BASE_PROFILE, [
+      {
+        id: "headshot",
+        shot_type: "headshot",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+      {
+        id: "full",
+        shot_type: "full_length",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+        rights_status: "denied",
+      },
+    ]);
+
     expect(result.isSendReady).toBe(false);
     expect(
       result.sendBlockers.some((b) => b.code === "missing_distribution_rights"),
     ).toBe(true);
+  });
+
+  test("a minor with full consent is send-ready with no image rights metadata", () => {
+    const minor = {
+      ...BASE_PROFILE,
+      date_of_birth: "2012-01-01",
+      guardian_consent_at: "2026-01-01T00:00:00.000Z",
+      work_permit_on_file: true,
+    };
+    const images = [
+      {
+        id: "headshot",
+        shot_type: "headshot",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+      {
+        id: "full",
+        shot_type: "full_length",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+    ];
+
+    const result = evaluateSendReadiness(minor, images, new Map(), {
+      agencyConsentGranted: true,
+    });
+    expect(result.sendBlockers).toHaveLength(0);
+    expect(result.isSendReady).toBe(true);
+  });
+
+  test("guardian consent and image rights are independent gates", () => {
+    const minor = { ...BASE_PROFILE, date_of_birth: "2012-01-01" };
+    const images = [
+      {
+        id: "headshot",
+        shot_type: "headshot",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+      {
+        id: "full",
+        shot_type: "full_length",
+        image_type: "digital",
+        captured_at: daysAgo(10),
+      },
+    ];
+
+    const result = evaluateSendReadiness(minor, images);
+    expect(
+      result.sendBlockers.some(
+        (b) => b.code === "minor_guardian_consent_required",
+      ),
+    ).toBe(true);
+    expect(
+      result.sendBlockers.some((b) => b.code === "missing_distribution_rights"),
+    ).toBe(false);
   });
 });

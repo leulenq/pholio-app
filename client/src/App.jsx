@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import PholioAuthBridge from './shared/lib/pholio-auth/PholioAuthBridge';
 import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
@@ -51,8 +51,32 @@ const ModerationQueuePage = lazy(() => import('./domains/moderation/pages/Modera
 const MockConsentPage = lazy(() => import('./domains/talent/pages/ProfilePage/MockConsentPage'));
 const InternalAgencyRequests = lazy(() => import('./domains/internal/pages/AgencyRequestsPage'));
 
+// The two standalone talent routes below (apply, open-calls) render outside
+// DashboardLayoutShell/TalentLayout and keep their own (light) canvas —
+// everything else under /dashboard/talent, plus /dashboard/moderation and the
+// bare /dashboard redirect, mounts inside TalentLayout's ink shell (`--tl-ink`).
+const STANDALONE_LIGHT_TALENT_ROUTES = new Set([
+  '/dashboard/talent/applications/apply',
+  '/dashboard/talent/open-calls',
+]);
+
+function isInkShellRoute(pathname) {
+  if (STANDALONE_LIGHT_TALENT_ROUTES.has(pathname)) return false;
+  return (
+    pathname === '/dashboard' ||
+    pathname === '/dashboard/moderation' ||
+    pathname.startsWith('/dashboard/talent')
+  );
+}
+
 function RouteFallback() {
-  return <PageLoadingScreen />;
+  // Suspense fallback rendering still sees the Router's current location, so
+  // this can match the eventual page's canvas instead of always defaulting
+  // to cream — otherwise a cold load into the ink talent shell hard-cuts from
+  // this fallback's light background straight to `--tl-ink`, which reads as
+  // the page reloading rather than settling in.
+  const { pathname } = useLocation();
+  return <PageLoadingScreen dark={isInkShellRoute(pathname)} />;
 }
 
 function LegacyAgencySigningRedirect() {

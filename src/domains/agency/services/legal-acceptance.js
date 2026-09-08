@@ -58,7 +58,7 @@ function sha256(value) {
  *
  * SCOPE, precisely: this binds an acceptance record to the wording Pholio
  * showed and to the version string in force at the time. It does NOT hash the
- * document body at `url` — that document is published by pholio-landing and is
+ * document body at `url` — that document is published by pholio-site and is
  * not readable from here. Do not cite this digest as proof of the text of the
  * Terms or Privacy Policy on the date of acceptance.
  *
@@ -67,7 +67,7 @@ function sha256(value) {
  * revision changes the version, which changes this digest, which re-prompts.
  * The residual gap is a landing-side content edit that does not bump the
  * version; the parity check in tests/shared/legal-versions.test.js and the
- * comment in pholio-landing/lib/legal-constants.ts exist to prevent that.
+ * comment in pholio-site/lib/legal-constants.ts exist to prevent that.
  */
 function policyDigest(policy) {
   return sha256(

@@ -670,7 +670,8 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                       <p className="fe-rights-error">{rightsError}</p>
                     ) : (
                       <p className="fe-rights-note">
-                        Required for comp card export and agency distribution.
+                        Optional metadata: useful if an agency later needs a photographer credit,
+                        or to track a paid usage license.
                       </p>
                     )}
                     <div className="fe-grid">
@@ -791,7 +792,6 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
                     {expiry ? (
                       <p className={`fe-rights-expiry${expiry.expired ? ' fe-rights-expiry--expired' : ''}`}>
                         {expiry.label}
-                        {expiry.expired ? ' — expired-rights frames are blocked from packages and export.' : ''}
                       </p>
                     ) : null}
                   </div>

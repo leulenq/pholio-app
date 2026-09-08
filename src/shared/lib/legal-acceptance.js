@@ -1,5 +1,5 @@
 // Sourced from shared/lib/legal-versions.js — do not hardcode a version here.
-// Terms and Privacy are published together by pholio-landing under one
+// Terms and Privacy are published together by pholio-site under one
 // CURRENT_LEGAL_VERSION, so both track the same constant.
 const { CURRENT_LEGAL_VERSION } = require("./legal-versions");
 

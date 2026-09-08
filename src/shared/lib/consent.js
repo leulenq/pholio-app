@@ -14,7 +14,7 @@
  *
  * Mirrored by:
  *   - pholio-app/client/src/shared/lib/cookie-consent.js  (React SPA)
- *   - pholio-landing/lib/cookie-consent.ts                (marketing site)
+ *   - pholio-site/lib/cookie-consent.ts                (marketing site)
  *   - pholio-app/public/scripts/cookie-consent.js         (EJS portfolio pages)
  * Keep CONSENT_COOKIE, CONSENT_VERSION and the payload shape identical in all four.
  */

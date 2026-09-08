@@ -137,8 +137,8 @@ const SUGGESTIONS = [
 // whose real blocker is photo rights must not be told "needs photos".
 const BLOCKING_COPY = [
   [/rights/i, {
-    label: 'Rights check',
-    note: 'Confirm usage rights on your photos — the card can only carry photos cleared for distribution.',
+    label: 'Photo on hold',
+    note: 'A photo on this card is marked as not available for use. Swap it out, or clear the hold in your book.',
   }],
   [/type-safety/i, {
     label: 'Placement check',
@@ -588,6 +588,16 @@ export default function CompCard({ images = [], profile }) {
         : suggestions.length > 0
           ? `${suggestions.length} ${suggestions.length === 1 ? 'note' : 'notes'}`
           : 'Ready';
+  // Mirrors the statusLabel priority so the tooltip on the blocked download
+  // button names the actual active reason instead of a static "add photos"
+  // string that was shown for every blocker, rights holds included.
+  const downloadBlockedTooltip = minorGated
+    ? 'Guardian consent is required to generate your card'
+    : !slug || !hasImages
+      ? 'Add photos to generate your card'
+      : blocking
+        ? blocking.note
+        : 'Resolve the note above to unlock';
 
   const voiceLabel = meta && VOICE_LABELS[meta.voice];
   const flipped = side === 'back';
@@ -824,7 +834,7 @@ export default function CompCard({ images = [], profile }) {
           <div className="cc-export">
             <PholioButton variant="primary" onClick={handleDownload}
               disabled={downloading || blocked}
-              title={blocked ? 'Add photos to generate your card' : 'Download PDF comp card'}
+              title={blocked ? downloadBlockedTooltip : 'Download PDF comp card'}
               className="cc-download">
               {downloading ? <><span className="cc-spinner" aria-hidden="true" /> Composing…</> : <><Download size={15} aria-hidden="true" /> Download PDF</>}
             </PholioButton>

@@ -31,13 +31,14 @@ describe("image-rights", () => {
     ]);
   });
 
-  it("requires a recognized rights basis and ownership credit", () => {
+  it("does not require a rights basis or ownership credit", () => {
+    expect(imageHasDistributionRights({ id: "img-1" }, null)).toBe(true);
     expect(
       imageHasDistributionRights(
         { id: "img-1" },
         { rights_status: "cleared", license_type: null },
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       imageHasDistributionRights(
         { id: "img-1" },
@@ -50,7 +51,7 @@ describe("image-rights", () => {
     ).toBe(true);
   });
 
-  it("rejects pending status and arbitrary license values", () => {
+  it("accepts pending status and arbitrary license values", () => {
     expect(
       imageHasDistributionRights(
         { id: "img-1" },
@@ -60,7 +61,7 @@ describe("image-rights", () => {
           photographer_name: "Photographer",
         },
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       imageHasDistributionRights(
         { id: "img-1" },
@@ -70,7 +71,24 @@ describe("image-rights", () => {
           photographer_name: "Photographer",
         },
       ),
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("reads a denial from every rights carrier", () => {
+    for (const token of RIGHTS_DENIED_STATUSES) {
+      expect(
+        imageHasDistributionRights({ id: "img-1" }, { rights_status: token }),
+      ).toBe(false);
+      expect(
+        imageHasDistributionRights({ id: "img-1", usage_rights: token }, null),
+      ).toBe(false);
+      expect(
+        imageHasDistributionRights(
+          { id: "img-1", metadata: JSON.stringify({ license_status: token }) },
+          null,
+        ),
+      ).toBe(false);
+    }
   });
 
   it("fails distribution when status is denied", () => {
@@ -86,7 +104,7 @@ describe("image-rights", () => {
     ).toBe(false);
   });
 
-  it("validates image lists and returns per-image errors", () => {
+  it("passes image lists that carry no rights metadata at all", () => {
     const images = [{ id: "a" }, { id: "b" }];
     const rightsMap = new Map([
       [
@@ -101,9 +119,21 @@ describe("image-rights", () => {
       ["b", { image_id: "b", rights_status: null, license_type: null }],
     ]);
     const result = validateImagesForDistribution(images, rightsMap);
+    expect(result.ok).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("validates image lists and returns per-image errors for denials", () => {
+    const images = [{ id: "a" }, { id: "b" }];
+    const rightsMap = new Map([
+      ["a", { image_id: "a", rights_status: "cleared" }],
+      ["b", { image_id: "b", rights_status: "denied" }],
+    ]);
+    const result = validateImagesForDistribution(images, rightsMap);
     expect(result.ok).toBe(false);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].imageId).toBe("b");
+    expect(result.errors[0].code).toBe("distribution_rights_denied");
   });
 
   it("loads rights rows into a map by image_id", async () => {
@@ -124,28 +154,5 @@ describe("image-rights", () => {
     expect(result.has("img-2")).toBe(true);
   });
 
-  it("requires an artifact signed by a guardian for minor distribution", () => {
-    const base = {
-      rights_status: "cleared",
-      license_type: "owned",
-      copyright_owner: "Talent",
-      release_ref: "release.pdf",
-      release_signer_name: "Guardian",
-      release_signed_at: "2026-06-01T00:00:00.000Z",
-    };
-    expect(
-      imageHasDistributionRights(
-        { id: "img-1" },
-        { ...base, release_signer_role: "self" },
-        { requireGuardianRelease: true },
-      ),
-    ).toBe(false);
-    expect(
-      imageHasDistributionRights(
-        { id: "img-1" },
-        { ...base, release_signer_role: "guardian" },
-        { requireGuardianRelease: true },
-      ),
-    ).toBe(true);
-  });
+  // Guardian-consent coverage now lives in tests/talent/send-readiness.test.js.
 });

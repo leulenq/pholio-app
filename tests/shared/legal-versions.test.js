@@ -12,7 +12,7 @@ const {
 } = require("../../src/domains/agency/services/legal-acceptance");
 
 /**
- * These guard the failure that actually happened: pholio-landing published
+ * These guard the failure that actually happened: pholio-site published
  * 2026-07-18 while the app kept gating on a hardcoded 2026-06-25, so nobody was
  * re-prompted and every acceptance row recorded consent to a version that was
  * no longer served.

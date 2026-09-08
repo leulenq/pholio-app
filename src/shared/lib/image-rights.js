@@ -129,9 +129,28 @@ function hasCompleteModelRelease(rightsRow) {
   );
 }
 
-function imageHasDistributionRights(imageRow, rightsRow, options = {}) {
+/**
+ * Distribution check — denial only.
+ *
+ * An image is distributable unless someone has actively marked it as denied
+ * (for example after a dispute or a DMCA hold). Missing licensing metadata
+ * is the default state of every upload and is not a signal of anything.
+ *
+ * `options` is retained for call-site compatibility and is unused.
+ */
+/**
+ * Single source of truth for resolving an image's rights-status token across
+ * every place it can live: a separate `image_rights` row, a column joined
+ * directly onto the image row, or a legacy key inside `image.metadata` JSON.
+ * Uses `firstNonEmpty` (not `??`) deliberately — an empty-string value in a
+ * higher-priority field must not mask a real status (e.g. "denied") sitting
+ * in a lower-priority one. Exported so every caller resolves the token the
+ * same way; a second, hand-duplicated copy of this chain is how the
+ * comp-card guardrail and the submission-time check drifted apart before.
+ */
+function resolveRightsStatusToken(imageRow, rightsRow) {
   const metadata = parseMetadata(imageRow?.metadata);
-  const status = normalizeToken(
+  return normalizeToken(
     firstNonEmpty(
       rightsRow?.rights_status,
       imageRow?.rights_status,
@@ -142,44 +161,11 @@ function imageHasDistributionRights(imageRow, rightsRow, options = {}) {
       metadata.license_status,
     ),
   );
-  const licenseType = normalizeToken(
-    firstNonEmpty(
-      rightsRow?.license_type,
-      imageRow?.license_type,
-      metadata.license_type,
-    ),
-  );
-  const copyrightOwner = firstNonEmpty(
-    rightsRow?.copyright_owner,
-    imageRow?.copyright_owner,
-    metadata.copyright_owner,
-  );
-  const photographerName = firstNonEmpty(
-    rightsRow?.photographer_name,
-    imageRow?.photographer_name,
-    metadata.photographer_name,
-  );
-  const startAt = rightsRow?.start_at || imageRow?.start_at || metadata.start_at;
-  const expiresAt =
-    rightsRow?.expires_at || imageRow?.expires_at || metadata.expires_at;
-  const now = options.now instanceof Date ? options.now : new Date();
+}
 
-  if (!RIGHTS_CLEARED_STATUSES.has(status)) return false;
-  if (!RIGHTS_LICENSE_BASES.has(licenseType)) return false;
-  if (!copyrightOwner && !photographerName) return false;
-  if (startAt && new Date(startAt).getTime() > now.getTime()) return false;
-  if (expiresAt && new Date(expiresAt).getTime() < now.getTime()) return false;
-
-  const effectiveRights = { ...(imageRow || {}), ...(rightsRow || {}) };
-  const releaseComplete = hasCompleteModelRelease(effectiveRights);
-  if (licenseType === "model_release" && !releaseComplete) return false;
-  if (options.requireGuardianRelease === true) {
-    return (
-      releaseComplete &&
-      normalizeToken(effectiveRights.release_signer_role) === "guardian"
-    );
-  }
-  return true;
+function imageHasDistributionRights(imageRow, rightsRow, options = {}) { // eslint-disable-line no-unused-vars
+  const status = resolveRightsStatusToken(imageRow, rightsRow);
+  return !RIGHTS_DENIED_STATUSES.has(status);
 }
 
 function validateImagesForDistribution(images, rightsMap, options = {}) {
@@ -194,11 +180,8 @@ function validateImagesForDistribution(images, rightsMap, options = {}) {
       errors.push({
         imageId,
         index,
-        code: "distribution_rights_missing",
-        message:
-          options.requireGuardianRelease === true
-            ? "Image requires a complete model release signed by the minor's guardian."
-            : "Image requires a valid rights basis, cleared status, ownership credit, and active license dates.",
+        code: "distribution_rights_denied",
+        message: "This image is marked as not available for distribution.",
       });
     }
   });
@@ -215,6 +198,7 @@ module.exports = {
   RIGHTS_LICENSE_BASES,
   loadImageRightsMap,
   hasCompleteModelRelease,
+  resolveRightsStatusToken,
   imageHasDistributionRights,
   validateImagesForDistribution,
 };
