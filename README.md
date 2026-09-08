@@ -7,7 +7,7 @@ Pholio connects talent with agencies through polished digital portfolios, AI-ass
 > [!IMPORTANT]  
 > **🚧 Repository Boundaries**  
 > This repository (`pholio-app`) is the **application product repo only**. It contains the backend API and the React SPA dashboard.  
-> **All marketing-site content and legal pages** (TOS, Privacy Policy, etc.) belong in the completely separate `pholio-landing` repository.
+> **All marketing-site content and legal pages** (TOS, Privacy Policy, etc.) belong in the completely separate `pholio-site` repository.
 
 ---
 
@@ -57,13 +57,13 @@ Pholio connects talent with agencies through polished digital portfolios, AI-ass
 
 ## Architecture
 
-Pholio runs as two separate projects across two repositories. This repository (`pholio-app`) contains the **Express API + React SPA** (the application product). The **Next.js marketing site** lives in the `pholio-landing` repository.
+Pholio runs as two separate projects across two repositories. This repository (`pholio-app`) contains the **Express API + React SPA** (the application product). The **Next.js marketing site** lives in the `pholio-site` repository.
 
 | App | Stack | Location | Dev Port | Production Domain |
 |-----|-------|----------|----------|-------------------|
 | React SPA | Vite + React 19 | `client/` | 5173 | `app.pholio.studio` |
 | API Server | Node.js 20 + Express 4 | `src/` | 3000 | `app.pholio.studio` |
-| Marketing Site | Next.js 16, TypeScript, Tailwind 4 | `pholio-landing` repo | 3001 | `www.pholio.studio` |
+| Marketing Site | Next.js 16, TypeScript, Tailwind 4 | `pholio-site` repo | 3001 | `www.pholio.studio` |
 
 The Vite dev server proxies `/api`, `/uploads`, and all auth routes to the Express server. In production, the React SPA builds to `public/dashboard-app/` and is served statically alongside the Express API, which is deployed as a Netlify Function via `serverless-http`.
 
@@ -335,9 +335,9 @@ Value: <your-site>.netlify.app
 
 ### Marketing Site — `www.pholio.studio`
 
-The marketing site is deployed from the separate `pholio-landing` repository.
+The marketing site is deployed from the separate `pholio-site` repository.
 
-Required env vars (in the `pholio-landing` project):
+Required env vars (in the `pholio-site` project):
 ```
 NEXT_PUBLIC_APP_URL=https://app.pholio.studio
 NEXT_PUBLIC_API_URL=https://app.pholio.studio/api
@@ -364,7 +364,7 @@ The dashboard uses a warm editorial palette with strong typographic hierarchy. T
 
 **Spacing:** 4px base scale (4, 8, 12, 16, 24, 32, 40, 48px). Card border-radius: 16px.
 
-Design tokens live in `client/src/styles/agency-tokens.css`. The landing page scene components in the `pholio-landing` repository define the visual and motion language for the entire product.
+Design tokens live in `client/src/styles/agency-tokens.css`. The landing page scene components in the `pholio-site` repository define the visual and motion language for the entire product.
 
 ---
 

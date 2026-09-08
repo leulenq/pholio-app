@@ -646,7 +646,7 @@ Repository ownership:
 
 - `pholio-app`: DTOs, authorization, consent enforcement, AI controls, deletion,
   export, retention, analytics, and field visibility;
-- `pholio-landing`: legal instruments and entity/provider details.
+- `pholio-site`: legal instruments and entity/provider details.
 
 Both must release together after an evidence-based claim review.
 

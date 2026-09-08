@@ -2,7 +2,7 @@
 
 **Status:** Product/system specification for implementation.
 **Date:** 2026-07-10
-**Scope:** Replace any agency path that implies open self-serve onboarding with a curated access-request, manual-review, approval, credentialing, and agency-specific post-login setup system. The public request form belongs in the separate `pholio-landing` marketing repo; the authenticated agency setup workflow belongs in this `pholio-app` product repo.
+**Scope:** Replace any agency path that implies open self-serve onboarding with a curated access-request, manual-review, approval, credentialing, and agency-specific post-login setup system. The public request form belongs in the separate `pholio-site` marketing repo; the authenticated agency setup workflow belongs in this `pholio-app` product repo.
 
 ## 1. Real frame
 
@@ -22,9 +22,9 @@ This keeps Pholio feeling curated and protects the agency side from fake agencie
 
 | Area | Current behavior | Required change |
 | --- | --- | --- |
-| Anonymous signup | `GET /signup` redirects to `/onboarding`, which is talent-specific. | Keep `/signup` talent-only. Agency CTAs should live in `pholio-landing` and point to a landing-owned request form; never send agencies to `/onboarding`. |
+| Anonymous signup | `GET /signup` redirects to `/onboarding`, which is talent-specific. | Keep `/signup` talent-only. Agency CTAs should live in `pholio-site` and point to a landing-owned request form; never send agencies to `/onboarding`. |
 | Agency self-creation | Login blocks auto-created `AGENCY` users and says agency accounts are provisioned by Pholio. | Keep this principle, but replace the dead end with a formal request-access path. |
-| Partner page | `/partners` renders a legacy agency signup page; `POST /partners` returns 403 manual-provisioning copy. | Retire as signup in `pholio-app`; redirect or link to the `pholio-landing` agency request page. Keep app-side APIs only if the landing form posts into this app. |
+| Partner page | `/partners` renders a legacy agency signup page; `POST /partners` returns 403 manual-provisioning copy. | Retire as signup in `pholio-app`; redirect or link to the `pholio-site` agency request page. Keep app-side APIs only if the landing form posts into this app. |
 | Post-login agency onboarding | `redirectForSession` contains a removed/bypassed agency onboarding block and `/dashboard/agency/onboarding` redirects to the dashboard. | Restore a dedicated agency setup gate, but under agency design language and agency data model, not the talent onboarding domain. |
 | Existing agency app | Agency dashboard already has roster, applicants, casting, boards, team, messages, reminders, analytics, and settings. | Setup should configure these operational primitives: boards, team roles, roster/imports, open-call links, inbox rules, and brand/profile details. |
 
@@ -40,7 +40,7 @@ Research points that should shape implementation:
 
 Stress-test corrections applied to this plan:
 
-- **P0 — repo boundary:** the public agency request form must be specified for `pholio-landing`; this app repo owns the authenticated setup workflow and may own the intake API.
+- **P0 — repo boundary:** the public agency request form must be specified for `pholio-site`; this app repo owns the authenticated setup workflow and may own the intake API.
 - **P0 — no agency `/onboarding`:** agency setup must not reuse the talent casting/onboarding domain, dark onboarding design system, or talent state machine.
 - **P1 — no generic platform-funnel language:** keep the external page in partnership/access language and the internal flow in agency-operations language; avoid generic sales labels where possible.
 - **P1 — dashboard fit:** post-login setup should feel like a focused agency command-center checklist embedded in the agency system, not a marketing microsite or talent reveal.
@@ -51,7 +51,7 @@ Stress-test corrections applied to this plan:
 
 ### 4.1 Page purpose, repo ownership, and positioning
 
-**Repo ownership:** the public request form belongs in **`pholio-landing`**, not `pholio-app`. Recommended marketing route: **`/agency/request-access`** or **`/partners/request-access`** in the landing repo. The app repo may expose the receiving API, but it should not own the public marketing page. If `/partners` remains in `pholio-app` for compatibility, it should redirect to the landing-owned request page or render only a thin handoff.
+**Repo ownership:** the public request form belongs in **`pholio-site`**, not `pholio-app`. Recommended marketing route: **`/agency/request-access`** or **`/partners/request-access`** in the landing repo. The app repo may expose the receiving API, but it should not own the public marketing page. If `/partners` remains in `pholio-app` for compatibility, it should redirect to the landing-owned request page or render only a thin handoff.
 
 The landing page should communicate:
 
@@ -63,7 +63,7 @@ The landing page should communicate:
 
 Avoid generic platform-funnel language: no “Sign up free,” no “Start trial,” no “Create agency account,” no “book a demo” as the primary CTA, and no dashboard screenshots that make access look instant. The page should feel like a controlled partnership request, not a sales funnel.
 
-### 4.2 Frontend design contract for `pholio-landing`
+### 4.2 Frontend design contract for `pholio-site`
 
 The public request page is a marketing-repo surface, but it should borrow the **agency command-center** visual language rather than the talent onboarding system:
 
@@ -90,7 +90,7 @@ Do not use “AI-powered,” “beta,” “live,” or decorative status badges
 
 ### 4.4 Form structure
 
-Recommendation for `pholio-landing`: **single editorial page with an embedded three-section form** rather than a long wizard. The request should feel selective but not like procurement. Keep it to **10 required fields + 6 optional fields**, with progressive disclosure for import/system details.
+Recommendation for `pholio-site`: **single editorial page with an embedded three-section form** rather than a long wizard. The request should feel selective but not like procurement. Keep it to **10 required fields + 6 optional fields**, with progressive disclosure for import/system details.
 
 Section 1 — Agency identity:
 
@@ -587,7 +587,7 @@ Existing `agencies.onboarding_completed_at` can be reused as `setup_completed_at
 
 ## 7. Routes and product surfaces
 
-Public/anonymous (`pholio-landing` owns the page; `pholio-app` may own the receiving API):
+Public/anonymous (`pholio-site` owns the page; `pholio-app` may own the receiving API):
 
 - Landing route `GET /agency/request-access` or `GET /partners/request-access` — public editorial request page in the marketing repo.
 - App API `POST /api/public/agency-access-requests` — creates request, rate-limited, spam-protected, safe CORS from the landing domain.
@@ -659,7 +659,7 @@ Activation:
 
 Must ship in V1:
 
-1. `pholio-landing` request-access page plus `pholio-app` receiving API with the field set above.
+1. `pholio-site` request-access page plus `pholio-app` receiving API with the field set above.
 2. Internal review states and manual provisioning link from request to agency/user/membership.
 3. Normal `/login` credential path for approved agencies.
 4. `pholio-app` agency setup gate at `/dashboard/agency/setup`, wired through the agency session/dashboard system.

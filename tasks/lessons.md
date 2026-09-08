@@ -1,5 +1,11 @@
 # Lessons Learned
 
+## 2026-09-08 — Independent audits must not inherit internal research assumptions
+
+- Treat internal skills, strategy, architecture documents, previous audits, and comments as hypotheses and intent, never as independent evidence of safety, legality, or industry practice.
+- Establish findings from mounted implementation, controlled reproductions, and independent primary sources. Separate verified defects, conditional risks, and unverified deployment facts.
+- Match model cost to work: Strong for adversarial security/privacy/payment reasoning and final review; Standard/Fast for bounded inventory and mechanical checks. Do not spend high-capability review effort reprinting repository inventories.
+
 ## 2026-09-03 — A photograph with type over it is not a designed object
 
 - The Wallet pass redesign was rejected after a full implementation pass: a
@@ -386,15 +392,22 @@
   research from those actual sources and distinguish source-backed industry
   practice from assumptions drawn from local product copy.
 
-## 2026-06-28 — Use the canonical sibling landing repository
+## 2026-06-28 — Use the canonical sibling marketing repository
 
 - The production marketing site is the sibling repository at
-  `/Users/lenquanhone/Projects/pholio-landing`; `.pholio-landing-ref` inside
-  `pholio-app` is only a reference checkout and must not be treated as the
-  implementation target.
-- When a task spans the app and landing site, read product behavior from
+  `/Users/lenquanhone/Projects/pholio-site`; `.pholio-landing-ref` inside
+  `pholio-app` is only a frozen reference checkout of the site's retired
+  predecessor (kept for a few asset-sourcing scripts) and must not be treated
+  as the implementation target.
+- When a task spans the app and marketing site, read product behavior from
   `pholio-app` and make marketing-site changes only in the canonical sibling
   repository.
+- Correction (2026-09-08): this file itself said `pholio-landing` was the
+  canonical repo, which is exactly the stale pointer that nearly misdirected a
+  later session — `pholio-landing` is now `pholio-site`'s own retired archive
+  (its `CLAUDE.md` calls it that explicitly). A repo-identity lesson like this
+  one needs to be corrected in place when the pointer changes, not left to rot
+  next to newer, correct entries.
 
 ## 2026-06-27 — Preserve requested inline control structure
 
