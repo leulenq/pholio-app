@@ -25,7 +25,7 @@ describe('talent-age policy', () => {
     expect(computeAge('2012-03-15', REF)).toBe(14);
   });
 
-  test('minor profile requires consent to unlock sensitive fields', () => {
+  test('guardian consent does not override the adults-only launch policy', () => {
     const minor = { date_of_birth: '2012-03-15' };
     expect(isMinorProfile(minor, REF)).toBe(true);
     expect(minorSensitiveFieldsUnlocked(minor, REF)).toBe(false);
@@ -36,8 +36,8 @@ describe('talent-age policy', () => {
       guardian_consent_at: '2026-01-01T00:00:00.000Z',
     };
     expect(hasGuardianConsent(consented)).toBe(true);
-    expect(minorSensitiveFieldsUnlocked(consented, REF)).toBe(true);
-    expect(minorPublicExposureAllowed(consented, REF)).toBe(true);
+    expect(minorSensitiveFieldsUnlocked(consented, REF)).toBe(false);
+    expect(minorPublicExposureAllowed(consented, REF)).toBe(false);
   });
 
   test('adult profile is always unlocked', () => {
@@ -49,7 +49,7 @@ describe('talent-age policy', () => {
 
   test('missing DOB is not treated as minor', () => {
     expect(isMinorProfile({}, REF)).toBe(false);
-    expect(minorSensitiveFieldsUnlocked({}, REF)).toBe(true);
+    expect(minorSensitiveFieldsUnlocked({}, REF)).toBe(false);
   });
 
   test('missing DOB fails closed for public exposure and sensitive collection', () => {
@@ -64,5 +64,18 @@ describe('talent-age policy', () => {
     const adult = { date_of_birth: '1998-01-01' };
     expect(minorPublicExposureAllowed(adult, REF)).toBe(true);
     expect(canCollectSensitiveProfileFields(adult, REF)).toBe(true);
+  });
+
+  test.each([
+    ['impossible calendar date', '2012-02-30'],
+    ['invalid Date instance', new Date('invalid')],
+    ['future DOB', '2030-01-01'],
+    ['implausibly old DOB', '1800-01-01'],
+  ])('%s fails closed', (_label, dob) => {
+    expect(() => parseDateOfBirthParts(dob)).not.toThrow();
+    expect(computeAge(dob, REF)).toBeNull();
+    expect(minorSensitiveFieldsUnlocked({ date_of_birth: dob }, REF)).toBe(false);
+    expect(minorPublicExposureAllowed({ date_of_birth: dob }, REF)).toBe(false);
+    expect(canCollectSensitiveProfileFields({ date_of_birth: dob }, REF)).toBe(false);
   });
 });

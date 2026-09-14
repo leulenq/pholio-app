@@ -1,7 +1,7 @@
 [build]
   # Run patch script first (strips browser fields from iconv-lite/readable-stream/pg
   # and silences extend-node.js) so esbuild bundles server-side versions correctly.
-  command = "node scripts/patch-express.js && npm run build:function && npm run generate:favicons && npm run setup:sender-avatar && npm --prefix client install --legacy-peer-deps --include=dev && npm --prefix client run build"
+  command = "node scripts/patch-express.js && npm run build:function && npm run generate:favicons && npm run setup:sender-avatar && npm --prefix client ci --legacy-peer-deps --include=dev && npm --prefix client run build"
   publish = "public"
 
 [build.environment]
@@ -86,6 +86,19 @@
     "better-sqlite3", "sqlite3",
     "mysql", "mysql2", "tedious", "oracledb", "mssql",
     "pg-native", "pg-query-stream",
+  ]
+
+# Count-bounded durable recovery for external-provider work. Each lane isolates
+# its own failure; deployed timing still has to be measured against Netlify's
+# fixed scheduled-function ceiling.
+[functions."recover-provider-work"]
+  schedule = "@hourly"
+  included_files = ["migrations/**"]
+  external_node_modules = [
+    "better-sqlite3", "sqlite3",
+    "mysql", "mysql2", "tedious", "oracledb", "mssql",
+    "pg-native", "pg-query-stream",
+    "firebase-admin",
   ]
 
 ##

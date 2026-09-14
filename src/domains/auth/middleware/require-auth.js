@@ -11,6 +11,9 @@ const {
 const {
   hasCurrentAgencyLegalAcceptance,
 } = require("../../agency/services/legal-acceptance");
+const {
+  isSafetyExit,
+} = require("../../../shared/middleware/launch-age-policy");
 
 function ensureSignedIn(req) {
   return Boolean(req.session && req.session.userId);
@@ -298,6 +301,13 @@ function requireActiveAccount() {
       return next();
     }
 
+    // Moderation and launch-eligibility restrictions must not trap a signed-in
+    // person's data or leave a submission active against their wishes. These
+    // routes still enforce their own authentication and ownership checks.
+    if (isSafetyExit(req)) {
+      return next();
+    }
+
     const accountUserId = resolveAccountUserId(req.session);
     if (!accountUserId) {
       return next();
@@ -381,6 +391,10 @@ function requireActiveAccount() {
 function requireTalentDashboardEligibility() {
   return async (req, res, next) => {
     if (!req.session?.userId || req.session.role !== "TALENT") {
+      return next();
+    }
+
+    if (isSafetyExit(req)) {
       return next();
     }
 

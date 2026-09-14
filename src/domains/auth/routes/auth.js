@@ -1177,6 +1177,22 @@ router.get("/api/session", async (req, res) => {
     return res.json({ authenticated: false });
   }
 
+  let agencyPermissions = null;
+  if (req.session.role === "AGENCY") {
+    try {
+      // This reloads the active membership and its current preset role before
+      // the response is composed, so an old cookie cannot report or exercise
+      // pre-demotion privileges.
+      agencyPermissions = await loadPermissionsArrayForSession(req.session);
+    } catch (error) {
+      if (error.code === "ACTIVE_AGENCY_MEMBERSHIP_REQUIRED") {
+        return res.json({ authenticated: false });
+      }
+      console.error("[Session] Failed to load agency permissions");
+      agencyPermissions = [];
+    }
+  }
+
   const payload = {
     authenticated: true,
     role: req.session.role,
@@ -1192,13 +1208,8 @@ router.get("/api/session", async (req, res) => {
     redirect: await redirectForAuthenticatedSession(req.session),
   };
 
-  if (req.session.role === "AGENCY") {
-    try {
-      payload.permissions = await loadPermissionsArrayForSession(req.session);
-    } catch {
-      console.error("[Session] Failed to load agency permissions");
-      payload.permissions = [];
-    }
+  if (agencyPermissions) {
+    payload.permissions = agencyPermissions;
   }
 
   return res.json(payload);

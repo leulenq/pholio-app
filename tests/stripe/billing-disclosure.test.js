@@ -81,6 +81,7 @@ describe("POST /stripe/create-checkout-session billing disclosure", () => {
   }, 60000);
 
   beforeEach(async () => {
+    await knex('stripe_checkout_reservations').where({ user_id: TALENT_ID }).delete();
     createCheckoutSession.mockClear();
     await knex("users").where({ id: TALENT_ID }).update({ stripe_customer_id: null });
   });

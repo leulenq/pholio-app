@@ -22,6 +22,7 @@ jest.mock("../../src/shared/services/billing-notices", () => ({
 const {
   useIsolatedDatabase,
   dropIsolatedDatabase,
+  migrate,
 } = require("../setup/isolated-db");
 
 const TEST_DB_FILE = useIsolatedDatabase("stripe-webhook-trial");
@@ -49,10 +50,14 @@ function post() {
 }
 
 describe("POST /stripe/webhook — customer.subscription.trial_will_end", () => {
-  beforeEach(() => {
+  beforeAll(async () => { await migrate(knex); }, 60000);
+  beforeEach(async () => {
+    await knex('stripe_webhook_events').delete();
+    await knex('stripe_processing_locks').delete();
     jest.clearAllMocks();
     verifyWebhookSignature.mockResolvedValue({
       id: "evt_test",
+      created: 100,
       type: "customer.subscription.trial_will_end",
       data: { object: SUBSCRIPTION },
     });
@@ -88,7 +93,11 @@ describe("POST /stripe/webhook — customer.subscription.trial_will_end", () => 
 
     const res = await post();
 
-    expect(res.status).toBe(400);
-    expect(res.text).toMatch(/SMTP down/);
+    expect(res.status).toBe(503);
+    expect(res.text).toMatch(/retry/i);
+    sendTrialWillEndNotice.mockResolvedValue({ sent: true, reason: 'sent' });
+    const retry = await post();
+    expect(retry.status).toBe(200);
+    expect(sendTrialWillEndNotice).toHaveBeenCalledTimes(2);
   });
 });

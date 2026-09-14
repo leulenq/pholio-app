@@ -57,26 +57,35 @@ async function activeWebhook(db, agencyId) {
  * @param {{ok: boolean, statusCode: number|null, error: string|null}} outcome
  */
 async function recordOutcome(db, webhook, outcome) {
-  const failures = outcome.ok ? 0 : (webhook.consecutive_failures || 0) + 1;
   const patch = {
     last_status_code: outcome.statusCode,
     last_error: outcome.error ? String(outcome.error).slice(0, 2000) : null,
-    consecutive_failures: failures,
+    consecutive_failures: outcome.ok ? 0 : db.raw("consecutive_failures + 1"),
     updated_at: db.fn.now(),
   };
   if (outcome.ok) patch.last_delivered_at = db.fn.now();
-  if (failures >= MAX_CONSECUTIVE_FAILURES) patch.disabled_at = db.fn.now();
 
   await db(TABLE).where({ id: webhook.id }).update(patch);
+  if (!outcome.ok) {
+    await db(TABLE)
+      .where({ id: webhook.id })
+      .where("consecutive_failures", ">=", MAX_CONSECUTIVE_FAILURES)
+      .whereNull("disabled_at")
+      .update({ disabled_at: db.fn.now(), updated_at: db.fn.now() });
+  }
 }
 
 /**
  * The delivered shape. Mirrors the CSV export's columns.
  *
- * @param {{application: object, profile: object|null, identity: object|null, agencyId: string}} input
+ * @param {{application: object, snapshot: object|null, agencyId: string}} input
  */
-function buildPayload({ application, profile, identity, agencyId }) {
-  const contact = profile || identity || {};
+function buildPayload({ application, snapshot, agencyId }) {
+  // Raw live profiles and anonymous identity objects are not a disclosure
+  // authorization. Only the package frozen at consent supplies applicant data.
+  const minimized = !snapshot || snapshot.minorDataMinimized || snapshot.disclosureRedacted;
+  const contact = minimized ? {} : (snapshot.profile || {});
+  const contactDetails = minimized ? {} : (snapshot.contact || {});
   return {
     event: "submission.received",
     sentAt: new Date().toISOString(),
@@ -96,8 +105,8 @@ function buildPayload({ application, profile, identity, agencyId }) {
         [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
         contact.displayName ||
         null,
-      email: contact.email || null,
-      phone: contact.phone || null,
+      email: contactDetails.email || null,
+      phone: contactDetails.phone || null,
       city: contact.city || null,
       heightCm: contact.height_cm ?? null,
     },
@@ -108,7 +117,7 @@ function buildPayload({ application, profile, identity, agencyId }) {
  * Deliver, if the agency has an endpoint. Fire-and-forget by design.
  *
  * @param {import('knex')} db
- * @param {{agencyId: string, application: object, profile?: object, identity?: object}} input
+ * @param {{agencyId: string, application: object, snapshot?: object}} input
  * @param {object} [opts] delivery overrides, for tests
  * @returns {Promise<{delivered: boolean, reason?: string}>}
  */

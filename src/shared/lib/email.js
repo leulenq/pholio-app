@@ -180,7 +180,7 @@ function stripToText(html) {
 /**
  * Send email
  */
-async function sendEmail({ to, subject, html, text, replyTo }) {
+async function sendEmail({ to, subject, html, text, replyTo, messageId }) {
   try {
     const mailOptions = {
       from: config.smtp?.from || "Pholio <noreply@pholio.studio>",
@@ -193,6 +193,7 @@ async function sendEmail({ to, subject, html, text, replyTo }) {
       text: text || stripToText(html),
     };
 
+    if (messageId) mailOptions.messageId = messageId;
     const info = await transporter.sendMail(mailOptions);
     console.log("[Email] Sent:", info.messageId, "to domain:", emailDomain(to));
     return info;
@@ -513,6 +514,7 @@ async function sendTrialEndingEmail({
   trialEndLabel,
   priceLabel,
   manageUrl,
+  messageId,
 }) {
   const subject = `Your Studio+ trial ends ${trialEndLabel || "soon"} — then ${priceLabel || "$9.99/month"}`;
   const html = buildTrialEndingEmailHtml({
@@ -526,6 +528,7 @@ async function sendTrialEndingEmail({
     subject,
     html,
     text: emailText.trialEnding({ firstName, trialEndLabel, priceLabel, manageUrl }),
+    messageId,
   });
 }
 

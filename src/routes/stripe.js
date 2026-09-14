@@ -3,16 +3,10 @@ const knex = require("../shared/db/knex");
 const { requireRole } = require("../domains/auth/middleware/require-auth");
 const { addMessage } = require("../shared/middleware/context");
 const {
-  getOrCreateCustomer,
-  createCheckoutSession,
   createCustomerPortalSession,
-  getSubscription,
 } = require("../shared/lib/stripe");
-const {
-  getSubscriptionStatus,
-  upsertSubscriptionFromStripe,
-} = require("../shared/lib/subscriptions");
 const { normalizeBillingInterval, STUDIO_PLUS_PLAN } = require("../shared/lib/billing-plan");
+const { getOrCreateReservedCheckout } = require("../shared/lib/stripe-checkout-reservation");
 const {
   evaluateCheckoutJurisdiction,
 } = require("../shared/lib/checkout-jurisdiction");
@@ -20,7 +14,6 @@ const {
 const router = express.Router();
 
 const BILLING_HOME = "/dashboard/talent/settings/subscription";
-const MANAGEABLE_STATUSES = new Set(["trialing", "active", "past_due", "unpaid"]);
 
 /**
  * Create Stripe Checkout Session for subscription
@@ -69,51 +62,8 @@ router.post(
         });
       }
 
-      // Existing non-canceled subscriptions should be managed in Stripe Portal.
-      const existingSubscription = await getSubscriptionStatus(userId);
-      if (
-        existingSubscription &&
-        MANAGEABLE_STATUSES.has(existingSubscription.status)
-      ) {
-        return res.status(400).json({
-          error: "You already have a Studio+ subscription. Manage billing from the portal.",
-          subscription: existingSubscription,
-        });
-      }
-
-      // Get or create Stripe customer
-      let customer;
-      if (user.stripe_customer_id) {
-        // Customer exists, retrieve it
-        const { stripe } = require("../shared/lib/stripe");
-        customer = await stripe.customers.retrieve(user.stripe_customer_id);
-        if (customer?.deleted) {
-          customer = await getOrCreateCustomer(userId, user.email);
-          await knex("users")
-            .where({ id: userId })
-            .update({ stripe_customer_id: customer.id });
-        }
-      } else {
-        // Create new customer
-        customer = await getOrCreateCustomer(userId, user.email);
-
-        // Save customer ID to user
-        await knex("users")
-          .where({ id: userId })
-          .update({ stripe_customer_id: customer.id });
-      }
-
-      const interval = normalizeBillingInterval(req.body?.interval);
-      const trialEligible = !existingSubscription?.trial_start;
-
-      // Create checkout session
-      const session = await createCheckoutSession(
-        customer.id,
-        userId,
-        user.email,
-        interval,
-        { trialEligible },
-      );
+      const session = await getOrCreateReservedCheckout(knex, userId,
+        normalizeBillingInterval(req.body?.interval), require("../shared/lib/stripe"));
 
       return res.json({
         sessionId: session.id,
@@ -121,6 +71,7 @@ router.post(
       });
     } catch (error) {
       console.error("[Stripe] Error creating checkout session:", error);
+      if (error.status === 409) return res.status(409).json({ error: error.message, code: error.code });
       return next(error);
     }
   },
@@ -150,7 +101,10 @@ router.get(
         return res.redirect(`${BILLING_HOME}?checkout=invalid`);
       }
 
-      const userId = session.metadata.userId;
+      const userId = session.metadata?.userId;
+      if (userId !== req.session.userId || session.status !== 'complete') {
+        return res.redirect(`${BILLING_HOME}?checkout=invalid`);
+      }
       const subscriptionId = session.subscription;
 
       if (!subscriptionId) {
@@ -158,10 +112,8 @@ router.get(
         return res.redirect(`${BILLING_HOME}?checkout=missing-subscription`);
       }
 
-      // Retrieve full subscription from Stripe
-      const subscription = await getSubscription(subscriptionId);
-
-      await upsertSubscriptionFromStripe(subscription, { userId });
+      // Entitlements are written by the serialized webhook/recovery consumer.
+      // A delayed browser return must not overwrite newer provider events.
 
       addMessage(
         req,

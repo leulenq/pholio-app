@@ -1,0 +1,14 @@
+[["GET","/api/agency/applications/ce62f2ec-e5dc-4f67-8e3f-96ca4259567b/material-request"],
+ ["POST","/api/agency/applications/202779b2-af84-4cb3-baca-2de4496cdb14/status",{"status":"shortlisted"}],
+ ["POST","/api/agency/applications/fffafab3-e54a-4cb9-8c1c-1b1a3f56e8ac/status",{"status":"shortlisted"}],
+ ["POST","/api/agency/applications/baa00c18-ddda-4f31-ad0c-940e0415af6e/status",{"status":"shortlisted"}],
+ ["POST","/api/agency/applications/321c3cc1-f27e-4db6-a4d4-a122d29d5f7c/status",{"status":"kept_on_file"}],
+ ["POST","/api/agency/applications/9d8d0501-f490-4dd2-8799-ab6658595345/decline",{"decline_reason":"board_full"}],
+ ["POST","/api/agency/applications/52262d43-3883-40e4-9824-d9a5f844ae74/accept",{}],
+ ["POST","/api/agency/applications/ce62f2ec-e5dc-4f67-8e3f-96ca4259567b/request-materials",{"kind":"refresh"}],
+ ["POST","/api/agency/applications/a30ac910-e3b7-4ab0-a729-381575622e81/notes",{"note":"Strong bone structure, great proportions. Saw her at the Chicago open call in spring. Want Elena to see the digitals before we book a go-see."}],
+ ["POST","/api/agency/applications/202779b2-af84-4cb3-baca-2de4496cdb14/notes",{"note":"Go-see booked Thursday 11:00. Bring to the men's board meeting after."}],
+ ["POST","/api/agency/applications/a30ac910-e3b7-4ab0-a729-381575622e81/tags",{"tag":"Editorial"}],
+ ["POST","/api/agency/applications/80f554d3-1a2a-4c0f-bbe8-99a3108949d9/tags",{"tag":"Beauty"}],
+ ["POST","/api/agency/applications/202779b2-af84-4cb3-baca-2de4496cdb14/tags",{"tag":"Show package"}]
+]

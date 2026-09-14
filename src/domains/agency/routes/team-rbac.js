@@ -238,7 +238,8 @@ router.delete(
   requireRole("AGENCY"),
   async (req, res) => {
     try {
-      const { agencyId, actorUserId, actorMembershipId } = getActorContext(req);
+      const { agencyId, actorUserId, actorMembershipId, actorRole } =
+        getActorContext(req);
       const { membershipId, permissionKey } = req.params;
       const effect = (req.query.effect || "ALLOW").toUpperCase();
 
@@ -246,9 +247,45 @@ router.delete(
         return res.status(400).json({ error: "Invalid effect query param" });
       }
 
+      // Removing either effect changes the resulting privilege set. In
+      // particular, removing a principal-set DENY can grant a preset power
+      // back, so self-removal is forbidden just like self-editing above.
+      if (membershipId === actorMembershipId) {
+        return res.status(403).json({
+          error: "You cannot modify your own permissions",
+        });
+      }
+
       const membership = await loadTargetMembership(agencyId, membershipId);
       if (!membership) {
         return res.status(404).json({ error: "Team member not found" });
+      }
+
+      if (effect === "DENY") {
+        const allowed = await assertCanGrant(
+          actorMembershipId,
+          actorRole,
+          permissionKey,
+        );
+        if (!allowed) {
+          return res.status(403).json({
+            error: "You cannot restore a permission you do not hold",
+            permission_key: permissionKey,
+          });
+        }
+
+        const teamAdminKeys = [
+          "team.assign_role",
+          "team.grant_permission",
+          "team.revoke_permission",
+          "org.transfer_ownership",
+        ];
+        if (actorRole === "ADMIN" && teamAdminKeys.includes(permissionKey)) {
+          return res.status(403).json({
+            error: "Only the Principal can restore administrative permissions",
+            permission_key: permissionKey,
+          });
+        }
       }
 
       const beforeGrants = await loadMembershipGrants(membershipId);

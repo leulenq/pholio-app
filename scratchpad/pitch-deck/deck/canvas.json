@@ -1,0 +1,311 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "TheClick.dc.html",
+      "x": 2040,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "IntakeToday.dc.html",
+      "x": 4080,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "WhatArrives.dc.html",
+      "x": 6120,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "FormNotFilter.dc.html",
+      "x": 8160,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Volume.dc.html",
+      "x": 10200,
+      "y": 0,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "FollowUpBreaks.dc.html",
+      "x": 0,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Impersonation.dc.html",
+      "x": 2040,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "FrontDoor.dc.html",
+      "x": 4080,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "TwoSides.dc.html",
+      "x": 6120,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "OneWeek.dc.html",
+      "x": 8160,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Brief.dc.html",
+      "x": 10200,
+      "y": 1240,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Requirements.dc.html",
+      "x": 0,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "TheLink.dc.html",
+      "x": 2040,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "ApplyFlow.dc.html",
+      "x": 4080,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "AlreadyOnPholio.dc.html",
+      "x": 6120,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Desk.dc.html",
+      "x": 8160,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "ReviewRoom.dc.html",
+      "x": 10200,
+      "y": 2480,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Verdicts.dc.html",
+      "x": 0,
+      "y": 3720,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "EveryoneHearsBack.dc.html",
+      "x": 2040,
+      "y": 3720,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "FollowUpFixed.dc.html",
+      "x": 4080,
+      "y": 3720,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Lineup.dc.html",
+      "x": 6120,
+      "y": 3720,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Board.dc.html",
+      "x": 8160,
+      "y": 3720,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "EventCall.dc.html",
+      "x": 10200,
+      "y": 3720,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "DesignerPicks.dc.html",
+      "x": 0,
+      "y": 4960,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "TalentKeeps.dc.html",
+      "x": 2040,
+      "y": 4960,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Team.dc.html",
+      "x": 4080,
+      "y": 4960,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Handoff.dc.html",
+      "x": 6120,
+      "y": 4960,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "BeforeAfter.dc.html",
+      "x": 8160,
+      "y": 4960,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "WhyChangeForm.dc.html",
+      "x": 10200,
+      "y": 4960,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "NeedPholioAlready.dc.html",
+      "x": 0,
+      "y": 6200,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Friction.dc.html",
+      "x": 2040,
+      "y": 6200,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Replaces.dc.html",
+      "x": 4080,
+      "y": 6200,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Cost.dc.html",
+      "x": 6120,
+      "y": 6200,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "DataAndAI.dc.html",
+      "x": 8160,
+      "y": 6200,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Setup.dc.html",
+      "x": 10200,
+      "y": 6200,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "StartWithOneCall.dc.html",
+      "x": 0,
+      "y": 7440,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    },
+    {
+      "file": "Close.dc.html",
+      "x": 2040,
+      "y": 7440,
+      "w": 1920,
+      "h": 1080,
+      "print": "fixed"
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

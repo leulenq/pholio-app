@@ -103,7 +103,7 @@ function priceIdFromStripeSubscription(subscription) {
 function stripeSubscriptionToFields(subscription) {
   return normalizeSubscriptionFields({
     stripeSubscriptionId: subscription.id,
-    stripeCustomerId: subscription.customer,
+    stripeCustomerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id,
     stripePriceId: priceIdFromStripeSubscription(subscription),
     status: subscription.status,
     trialStart: subscription.trial_start,
@@ -120,9 +120,10 @@ function stripeSubscriptionToFields(subscription) {
  * @param {string} userId - User ID (UUID)
  * @returns {Promise<Object|null>} Subscription object or null
  */
-async function getSubscriptionStatus(userId) {
-  const subscription = await knex('subscriptions')
+async function getSubscriptionStatus(userId, db = knex) {
+  const subscription = await db('subscriptions')
     .where({ user_id: userId })
+    .orderByRaw("CASE WHEN status IN ('active', 'trialing') THEN 0 WHEN status IN ('past_due', 'unpaid') THEN 1 ELSE 2 END")
     .orderBy('created_at', 'desc')
     .first();
 
@@ -143,16 +144,16 @@ function isSubscriptionActive(status) {
  * @param {string} userId - User ID (UUID)
  * @returns {Promise<boolean>} True if user has Pro access
  */
-async function syncProfileIsPro(userId) {
-  const subscription = await getSubscriptionStatus(userId);
-  const hasProAccess = subscription ? isSubscriptionActive(subscription.status) : false;
+async function syncProfileIsPro(userId, db = knex) {
+  const subscription = await db('subscriptions').where({ user_id: userId }).whereIn('status', ACTIVE_STATUSES).first('id');
+  const hasProAccess = Boolean(subscription);
 
   // Update profile is_pro flag
-  await knex('profiles')
+  await db('profiles')
     .where({ user_id: userId })
     .update({
       is_pro: hasProAccess,
-      updated_at: knex.fn.now()
+      updated_at: db.fn.now()
     });
 
   return hasProAccess;
@@ -201,19 +202,21 @@ function isCanceling(subscription) {
  * @param {Object} subscriptionData - Subscription data
  * @returns {Promise<Object>} Created subscription
  */
-async function createSubscription(subscriptionData) {
+async function createSubscription(subscriptionData, db = null) {
+  if (!db) return knex.transaction(trx => createSubscription(subscriptionData, trx));
+  await lockUser(db, subscriptionData.userId);
   const subscription = {
     id: uuidv4(),
     user_id: subscriptionData.userId,
     ...normalizeSubscriptionFields(subscriptionData),
-    created_at: knex.fn.now(),
-    updated_at: knex.fn.now()
+    created_at: db.fn.now(),
+    updated_at: db.fn.now()
   };
 
-  await knex('subscriptions').insert(subscription);
+  await db('subscriptions').insert(subscription);
 
   // Sync is_pro flag
-  await syncProfileIsPro(subscriptionData.userId);
+  await syncProfileIsPro(subscriptionData.userId, db);
 
   return subscription;
 }
@@ -224,46 +227,49 @@ async function createSubscription(subscriptionData) {
  * @param {Object} updates - Subscription updates
  * @returns {Promise<Object>} Updated subscription
  */
-async function updateSubscription(subscriptionId, updates) {
+async function updateSubscription(subscriptionId, updates, db = null) {
+  if (!db) return knex.transaction(trx => updateSubscription(subscriptionId, updates, trx));
   const id = String(subscriptionId || '');
   const whereClause = id.startsWith('sub_')
     ? { stripe_subscription_id: id }
     : { id };
 
+  const existing = await db('subscriptions').where(whereClause).first();
+  if (!existing) return null;
+  await lockUser(db, existing.user_id);
   const updateData = {
     ...normalizeSubscriptionFields(updates),
-    updated_at: knex.fn.now()
+    updated_at: db.fn.now()
   };
+  const current = await db('subscriptions').where(whereClause).first();
+  if (current.status === 'canceled') updateData.status = 'canceled';
 
-  await knex('subscriptions')
+  await db('subscriptions')
     .where(whereClause)
     .update(updateData);
 
-  const subscription = await knex('subscriptions')
+  const subscription = await db('subscriptions')
     .where(whereClause)
     .first();
 
   if (subscription) {
     // Sync is_pro flag
-    await syncProfileIsPro(subscription.user_id);
+    await syncProfileIsPro(subscription.user_id, db);
   }
 
   return subscription;
 }
 
 async function updateSubscriptionByUserId(userId, updates) {
-  const updateData = {
-    ...normalizeSubscriptionFields(updates),
-    updated_at: knex.fn.now()
-  };
-
-  await knex('subscriptions')
-    .where({ user_id: userId })
-    .update(updateData);
-
+  // A user can own several provider subscriptions. Never overwrite all IDs.
   const subscription = await getSubscriptionStatus(userId);
-  await syncProfileIsPro(userId);
-  return subscription;
+  return subscription ? updateSubscription(subscription.id, updates) : null;
+}
+
+async function lockUser(db, userId) {
+  // A harmless write acquires a row lock on PostgreSQL and the writer lock on
+  // SQLite. Every local subscription mutation shares this entitlement lock.
+  await db('users').where({ id: userId }).update({ stripe_customer_id: db.raw('stripe_customer_id') });
 }
 
 async function upsertSubscriptionFromStripe(stripeSubscription, options = {}) {
@@ -271,18 +277,23 @@ async function upsertSubscriptionFromStripe(stripeSubscription, options = {}) {
     throw new Error('Stripe subscription payload is missing required identifiers');
   }
 
+  if (!options.db) return knex.transaction(db => upsertSubscriptionFromStripe(stripeSubscription, { ...options, db }));
+  const db = options.db;
+  const customerId = typeof stripeSubscription.customer === 'string' ? stripeSubscription.customer : stripeSubscription.customer.id;
   let userId = options.userId || stripeSubscription.metadata?.userId || null;
   let user = null;
 
   if (userId) {
-    user = await knex('users').where({ id: userId }).first();
+    await lockUser(db, userId);
+    user = await db('users').where({ id: userId }).first();
   }
 
   if (!user) {
-    user = await knex('users')
-      .where({ stripe_customer_id: stripeSubscription.customer })
+    user = await db('users')
+      .where({ stripe_customer_id: customerId })
       .first();
     userId = user?.id || null;
+    if (userId) await lockUser(db, userId);
   }
 
   if (!user || user.role !== 'TALENT') {
@@ -293,39 +304,44 @@ async function upsertSubscriptionFromStripe(stripeSubscription, options = {}) {
     return null;
   }
 
-  if (user.stripe_customer_id !== stripeSubscription.customer) {
-    await knex('users')
+  if (user.stripe_customer_id && user.stripe_customer_id !== customerId) {
+    throw new Error('Stripe customer does not match subscription owner');
+  }
+  if (user.stripe_customer_id !== customerId) {
+    await db('users')
       .where({ id: user.id })
-      .update({ stripe_customer_id: stripeSubscription.customer });
+      .update({ stripe_customer_id: customerId });
   }
 
   const fields = stripeSubscriptionToFields(stripeSubscription);
-  const existing = await knex('subscriptions')
+  const existing = await db('subscriptions')
     .where({ stripe_subscription_id: stripeSubscription.id })
-    .orWhere({ stripe_customer_id: stripeSubscription.customer })
-    .orWhere({ user_id: user.id })
     .orderBy('created_at', 'desc')
     .first();
 
   if (existing) {
-    await knex('subscriptions')
+    if (existing.user_id !== user.id) throw new Error('Stripe subscription owner cannot change');
+    // Cancellation is terminal for a Stripe subscription ID, including events
+    // sharing a timestamp and delayed checkout-return/provider snapshots.
+    if (existing.status === 'canceled') fields.status = 'canceled';
+    await db('subscriptions')
       .where({ id: existing.id })
       .update({
         ...fields,
-        updated_at: knex.fn.now(),
+        updated_at: db.fn.now(),
       });
   } else {
-    await knex('subscriptions').insert({
+    await db('subscriptions').insert({
       id: uuidv4(),
       user_id: user.id,
       ...fields,
-      created_at: knex.fn.now(),
-      updated_at: knex.fn.now(),
+      created_at: db.fn.now(),
+      updated_at: db.fn.now(),
     });
   }
 
-  await syncProfileIsPro(user.id);
-  return getSubscriptionStatus(user.id);
+  await syncProfileIsPro(user.id, db);
+  return db('subscriptions').where({ stripe_subscription_id: stripeSubscription.id }).first();
 }
 
 module.exports = {

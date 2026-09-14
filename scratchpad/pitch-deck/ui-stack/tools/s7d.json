@@ -1,0 +1,1 @@
+[{"as": "hazel.moreau@example.com", "url": "/dashboard/talent/applications", "steps": [{"eval": "(()=>{const h=[...document.querySelectorAll('h1,h2,h3,div,p')].filter(e=>e.innerText&&e.innerText.trim()==='Submission history').pop();h&&h.scrollIntoView({block:'start'});window.scrollBy(0,-8);return !!h})()", "wait": 900}], "out": "20-talent-applications-tracker.png", "dump": 0}]

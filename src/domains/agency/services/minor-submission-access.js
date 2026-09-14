@@ -40,10 +40,8 @@ const MINOR_SUBMISSION_ENDPOINT_MATRIX = Object.freeze([
 ]);
 
 function canViewMinorSubmissions(req) {
-  return Boolean(
-    req?.agencyPermissions &&
-      hasPermission(req.agencyPermissions, MINOR_SUBMISSION_PERMISSION),
-  );
+  // Adults-only launch. Retain records for revocation/erasure, not disclosure.
+  return false;
 }
 
 function isGrantCurrent(row, now = Date.now()) {
@@ -88,19 +86,7 @@ async function getApplicationAccessDecision(
   const row = await loadApplicationAccess(knex, agencyId, applicationId);
   if (!row) return { allowed: false, reason: "not_found", row: null };
   if (!row.minor_at_submission) return { allowed: true, reason: "adult", row };
-  if (!allowMinor) {
-    return { allowed: false, reason: "permission_required", row };
-  }
-  if (!isGrantCurrent(row)) {
-    return {
-      allowed: false,
-      reason:
-        row.minor_access_revocation_reason ||
-        (row.grant_revoked_at ? "guardian_revoked" : "guardian_grant_expired"),
-      row,
-    };
-  }
-  return { allowed: true, reason: "guardian_authorized", row };
+  return { allowed: false, reason: "adults_only_launch", row };
 }
 
 function applyMinorSubmissionFilter(
@@ -111,19 +97,10 @@ function applyMinorSubmissionFilter(
   // explicitly carry the minor-access columns. It keeps the security contract
   // testable even though the global test runner disables enforcement for older
   // hand-built fixtures.
-  if (!config.minorSubmissionEnforce && !force) return query;
-  if (!allowMinor) {
-    return query.where(`${alias}.minor_at_submission`, false);
-  }
-  const now = new Date().toISOString();
-  return query.where((scope) => {
-    scope.where(`${alias}.minor_at_submission`, false).orWhere((minor) => {
-      minor
-        .where(`${alias}.minor_at_submission`, true)
-        .whereNull(`${alias}.minor_access_revoked_at`)
-        .where(`${alias}.guardian_consent_expires_at`, ">", now);
-    });
-  });
+  // Historical unit fixtures may omit this column. No deployed environment
+  // variable may disable the launch privacy restriction.
+  if (process.env.NODE_ENV === "test" && !config.minorSubmissionEnforce && !force) return query;
+  return query.where(`${alias}.minor_at_submission`, false);
 }
 
 async function purgeApplicationDisclosure(
@@ -387,13 +364,16 @@ function enforceMinorSubmissionAccess(knex) {
         });
         if (decision.reason === "not_found") continue;
         if (!decision.allowed) {
+          const permissionRequired = decision.reason === "permission_required";
+          const adultsOnly = decision.reason === "adults_only_launch";
           return res
-            .status(decision.reason === "permission_required" ? 403 : 410)
+            .status(permissionRequired ? 403 : 410)
             .json({
               error: MINOR_ACCESS_ERROR,
-              message:
-                decision.reason === "permission_required"
-                  ? "You do not have permission to access minor submissions."
+              message: permissionRequired
+                ? "You do not have permission to access minor submissions."
+                : adultsOnly
+                  ? "Minor submissions are unavailable during the adults-only launch."
                   : "Guardian authorization for this minor submission is no longer active.",
               reason: decision.reason,
             });

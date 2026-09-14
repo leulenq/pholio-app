@@ -7,16 +7,15 @@
  * THE MOST IMPORTANT ASSERTION IN THIS FILE is the frozen hash. The submission
  * fingerprint binds an applicant's consent to the exact package they saw; the
  * server recomputes it at submit and refuses anything that does not match
- * (`consent_package_changed`). Event casting adds three keys to that hash, and
+ * (`consent_package_changed`). Event casting adds call-specific keys to that hash, and
  * `canonicalJson` sorts keys and emits `null` for absent values — so if those
  * keys were added unconditionally, every representation package in existence
  * would hash to something new and every draft anyone had open would come back
  * demanding a fresh consent for a package that had not changed.
  *
- * The literals below were computed against the code as it stood BEFORE the
- * event keys existed. If a change to `canonicalSubmissionPackage` makes them
- * fail, that change breaks live drafts in production — it is not the test that
- * is wrong.
+ * The literals below freeze the consent-versioned package shape. Adding the
+ * disclosure version intentionally invalidated older consent so an in-flight
+ * draft must be reviewed against the currently displayed copy.
  *
  * The second assertion is parity: the browser mirror is compiled and run here,
  * not eyeballed. A divergence between the two would not be a cosmetic bug, it
@@ -75,18 +74,18 @@ const REPRESENTATION_PACKAGE = Object.freeze({
 const EVENT_PACKAGE = Object.freeze({
   ...REPRESENTATION_PACKAGE,
   openCallLinkId: "link-77",
+  eventTermsRevision: "call-content-sha256",
   availability: { from: "2026-09-14", to: "2026-09-18" },
   walkVideoUrl: "https://vimeo.com/1234567890",
 });
 
 /*
- * Frozen on 2026-08-15 from the pre-event-casting implementation. Regenerating
- * these to make a failing test pass would silently invalidate every in-flight
- * draft — read the header before touching them.
+ * Frozen after disclosure-version binding was added. Future copy changes must
+ * update the version, intentionally forcing re-review.
  */
-const FROZEN_REPRESENTATION_HASHES = Object.freeze({
-  full: "4ece7f4fd54cb79aa5a8ec354e4e157e645a86891b924e9e7aaf9992b80c027c",
-  empty: "b2cf5564c91b63832b4fb75d008cd9bb4ecb6ef53e7d20a7309cb2043bf3ffeb",
+const CONSENT_VERSIONED_REPRESENTATION_HASHES = Object.freeze({
+  full: "0a04ffbb882b48b79a19416b4abe9ed36dd37103ea4f4a9d20e4408b7b3069d5",
+  empty: "153d4ca46dd692665295bb1a0da4467343bc800f79f0d9186fcb6c58f54b97a0",
 });
 
 describe("submission package fingerprint — event keys", () => {
@@ -101,6 +100,8 @@ describe("submission package fingerprint — event keys", () => {
       "mediaSetId",
       "digitalSlotPicks",
       "compCardPresetId",
+      "externalCompCardId",
+      "disclosureVersion",
       "imageIds",
       "note",
     ]);
@@ -110,6 +111,8 @@ describe("submission package fingerprint — event keys", () => {
       "mediaSetId",
       "digitalSlotPicks",
       "compCardPresetId",
+      "externalCompCardId",
+      "disclosureVersion",
       "imageIds",
       "note",
     ]);
@@ -136,18 +139,19 @@ describe("submission package fingerprint — event keys", () => {
     ).toBe(buildSubmissionPackageFingerprint(REPRESENTATION_PACKAGE));
   });
 
-  test("REGRESSION: representation hashes are unchanged from before event casting", () => {
+  test("REGRESSION: consent-versioned representation hashes stay stable", () => {
     expect(buildSubmissionPackageFingerprint(REPRESENTATION_PACKAGE)).toBe(
-      FROZEN_REPRESENTATION_HASHES.full,
+      CONSENT_VERSIONED_REPRESENTATION_HASHES.full,
     );
     expect(buildSubmissionPackageFingerprint({})).toBe(
-      FROZEN_REPRESENTATION_HASHES.empty,
+      CONSENT_VERSIONED_REPRESENTATION_HASHES.empty,
     );
   });
 
-  test("event packages carry the three extra keys, sorted and normalized", () => {
+  test("event packages bind the call revision and event fields", () => {
     const canonical = canonicalSubmissionPackage(EVENT_PACKAGE);
     expect(canonical.openCallLinkId).toBe("link-77");
+    expect(canonical.eventTermsRevision).toBe("call-content-sha256");
     expect(canonical.availability).toEqual({ from: "2026-09-14", to: "2026-09-18" });
     expect(canonical.walkVideoUrl).toBe("https://vimeo.com/1234567890");
     expect(buildSubmissionPackageFingerprint(EVENT_PACKAGE)).not.toBe(
@@ -159,9 +163,25 @@ describe("submission package fingerprint — event keys", () => {
     ["availability", { availability: { from: "2026-09-15", to: "2026-09-18" } }],
     ["walk video", { walkVideoUrl: "https://vimeo.com/9999" }],
     ["call", { openCallLinkId: "link-78" }],
+    ["call terms", { eventTermsRevision: "new-call-content-sha256" }],
   ])("the event fingerprint changes when the %s changes", (_field, patch) => {
     expect(buildSubmissionPackageFingerprint({ ...EVENT_PACKAGE, ...patch })).not.toBe(
       buildSubmissionPackageFingerprint(EVENT_PACKAGE),
+    );
+  });
+
+  test("selected external artifacts and disclosure copy are consent-bound", () => {
+    expect(
+      buildSubmissionPackageFingerprint({
+        ...REPRESENTATION_PACKAGE,
+        externalCompCardId: "external-card-1",
+      }),
+    ).not.toBe(buildSubmissionPackageFingerprint(REPRESENTATION_PACKAGE));
+    expect(canonicalSubmissionPackage(REPRESENTATION_PACKAGE).disclosureVersion).toBe(
+      "2026-06-29",
+    );
+    expect(canonicalSubmissionPackage(EVENT_PACKAGE).disclosureVersion).toBe(
+      "2026-09-01",
     );
   });
 

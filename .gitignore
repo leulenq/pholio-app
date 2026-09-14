@@ -5,6 +5,7 @@ public/dashboard-app
 .env
 .env.local
 .env.live
+.env.migration
 .env.bak*
 client/.env
 client/.env.local

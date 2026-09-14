@@ -24,9 +24,9 @@
  *    entirely, and there is no legitimate reason for a webhook receiver to
  *    redirect.
  *
- * 4. **A short timeout and a size-capped read.** The delivery runs off the back
- *    of a talent's submission; it must not be able to hold that request open or
- *    stream a response into memory.
+ * 4. **A short timeout and no response-body read.** The delivery runs in a
+ *    bounded recovery worker; it must not be able to hold that worker open or
+ *    stream receiver-controlled bytes into memory.
  *
  * 5. **Signed.** HMAC-SHA256 over the exact body, in `X-Pholio-Signature`, with
  *    a timestamp header inside the signed material so a captured delivery
@@ -40,11 +40,11 @@
 const crypto = require("crypto");
 const dns = require("dns").promises;
 const net = require("net");
+const https = require("https");
+const validatedAddresses = new WeakMap();
 
 /** Long enough for a slow receiver, short enough not to hold a request. */
 const DELIVERY_TIMEOUT_MS = 5000;
-/** Responses are only read for diagnostics; nothing needs more than this. */
-const MAX_RESPONSE_BYTES = 2048;
 /** After this many consecutive failures the endpoint stops being tried. */
 const MAX_CONSECUTIVE_FAILURES = 10;
 
@@ -74,17 +74,20 @@ function isBlockedAddress(address) {
     if (a === 172 && b >= 16 && b <= 31) return true; // private
     if (a === 192 && b === 168) return true; // private
     if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
+    if (a === 192 && (b === 0 || (b === 88 && octets[2] === 99))) return true;
+    if (a === 198 && (b === 18 || b === 19 || (b === 51 && octets[2] === 100))) return true;
+    if (a === 203 && b === 0 && octets[2] === 113) return true;
     if (a >= 224) return true; // multicast + reserved
     return false;
   }
   if (version === 6) {
     const lower = address.toLowerCase();
-    if (lower === "::1" || lower === "::") return true; // loopback / unspecified
-    if (lower.startsWith("fe80")) return true; // link-local
-    if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // ULA
-    // IPv4-mapped (::ffff:10.0.0.1) — judge the embedded address.
-    const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-    if (mapped) return isBlockedAddress(mapped[1]);
+    // Only global unicast 2000::/3; this also rejects every representation of
+    // mapped IPv4, link-local /10, ULA, multicast, NAT64 and unspecified IPs.
+    const first = Number.parseInt(lower.split(":")[0], 16);
+    if (first < 0x2000 || first > 0x3fff || !Number.isFinite(first)) return true;
+    if (first === 0x2002) return true; // 6to4 embeds an unchecked IPv4 target
+    if (/^2001:(?:0{0,4}:|0?db8:)/.test(lower)) return true; // Teredo / documentation
     return false;
   }
   // Not an address we can reason about — refuse rather than guess.
@@ -120,20 +123,28 @@ async function assertDeliverableUrl(rawUrl, opts = {}) {
   }
 
   // A literal IP is judged directly; a hostname is judged by what it resolves to.
-  if (net.isIP(url.hostname)) {
-    if (isBlockedAddress(url.hostname)) {
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  if (net.isIP(hostname)) {
+    if (isBlockedAddress(hostname)) {
       throw new WebhookRejected(
         "private_address",
         "That address is not reachable from the public internet.",
       );
     }
+    validatedAddresses.set(url, [{ address: hostname, family: net.isIP(hostname) }]);
     return url;
   }
 
   const lookup = opts.resolver || ((host) => dns.lookup(host, { all: true }));
   let records;
   try {
-    records = await lookup(url.hostname);
+    let timer;
+    try {
+      records = await Promise.race([
+        lookup(hostname),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("DNS timeout")), DELIVERY_TIMEOUT_MS); }),
+      ]);
+    } finally { clearTimeout(timer); }
   } catch {
     throw new WebhookRejected(
       "unresolvable",
@@ -162,7 +173,33 @@ async function assertDeliverableUrl(rawUrl, opts = {}) {
     );
   }
 
+  validatedAddresses.set(url, addresses.map((address) => ({ address, family: net.isIP(address) })));
   return url;
+}
+
+// The socket uses exactly the checked DNS answer; there is no second lookup
+// for an attacker to rebind. TLS still validates the original hostname/SNI.
+function sendPinned(url, requestOptions, { requestImpl = https.request } = {}) {
+  const records = validatedAddresses.get(url);
+  if (!records?.length) return Promise.reject(new Error("Endpoint was not validated"));
+  return new Promise((resolve, reject) => {
+    const request = requestImpl(url, {
+      method: "POST", headers: requestOptions.headers, signal: requestOptions.signal,
+      agent: false,
+      lookup: (_hostname, options, callback) => {
+        if (options.all) callback(null, records);
+        else callback(null, records[0].address, records[0].family);
+      },
+    }, (response) => {
+      const status = response.statusCode;
+      // We need only the status. Never buffer arbitrary receiver-controlled
+      // response text, including success and redirect bodies.
+      response.destroy();
+      resolve({ status });
+    });
+    request.on("error", reject);
+    request.end(requestOptions.body);
+  });
 }
 
 /**
@@ -186,11 +223,11 @@ function signPayload(body, secret, timestamp) {
  *
  * @param {{ url: string, secret?: string|null }} endpoint
  * @param {object} payload
- * @param {{ fetchImpl?: Function, resolver?: Function, now?: () => number }} [opts]
+ * @param {{ fetchImpl?: Function, requestImpl?: Function, resolver?: Function, now?: () => number }} [opts]
  * @returns {Promise<{ok: boolean, statusCode: number|null, error: string|null}>}
  */
 async function deliver(endpoint, payload, opts = {}) {
-  const fetchImpl = opts.fetchImpl || globalThis.fetch;
+  const fetchImpl = opts.fetchImpl;
   const now = opts.now || Date.now;
 
   let url;
@@ -207,6 +244,7 @@ async function deliver(endpoint, payload, opts = {}) {
     "user-agent": "Pholio-Webhook/1",
     "x-pholio-timestamp": String(timestamp),
     "x-pholio-event": payload?.event || "submission",
+    ...(payload?.deliveryId ? { "x-pholio-delivery-id": payload.deliveryId } : {}),
   };
   if (endpoint.secret) {
     headers["x-pholio-signature"] = `sha256=${signPayload(body, endpoint.secret, timestamp)}`;
@@ -215,7 +253,7 @@ async function deliver(endpoint, payload, opts = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT_MS);
   try {
-    const response = await fetchImpl(url.toString(), {
+    const options = {
       method: "POST",
       headers,
       body,
@@ -223,7 +261,12 @@ async function deliver(endpoint, payload, opts = {}) {
       // check entirely, and a webhook receiver has no reason to redirect.
       redirect: "manual",
       signal: controller.signal,
-    });
+    };
+    const response = fetchImpl
+      ? await fetchImpl(url.toString(), options)
+      : await sendPinned(url, options, { requestImpl: opts.requestImpl });
+    // Injected fetch transports also release the body without consuming it.
+    await response.body?.cancel?.();
 
     if (response.status >= 300 && response.status < 400) {
       return {
@@ -237,16 +280,10 @@ async function deliver(endpoint, payload, opts = {}) {
       return { ok: true, statusCode: response.status, error: null };
     }
 
-    let detail = "";
-    try {
-      detail = (await response.text()).slice(0, MAX_RESPONSE_BYTES);
-    } catch {
-      detail = "";
-    }
     return {
       ok: false,
       statusCode: response.status,
-      error: detail || `Endpoint returned ${response.status}.`,
+      error: `Endpoint returned ${response.status}.`,
     };
   } catch (error) {
     return {

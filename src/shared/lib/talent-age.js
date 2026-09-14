@@ -32,6 +32,7 @@ const SENSITIVE_IMAGE_SHOT_TYPES = new Set([
  */
 function parseDateOfBirthParts(dob) {
   if (dob == null || dob === "") return null;
+  if (dob instanceof Date && !Number.isFinite(dob.getTime())) return null;
   const str = dob instanceof Date ? dob.toISOString() : String(dob);
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str.trim());
   if (!m) return null;
@@ -41,6 +42,8 @@ function parseDateOfBirthParts(dob) {
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
     return null;
   }
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month || parsed.getUTCDate() !== day) return null;
   return { year, month, day };
 }
 
@@ -93,8 +96,8 @@ function hasWorkPermitOnFile(profile) {
  * @returns {boolean}
  */
 function minorSensitiveFieldsUnlocked(profile, referenceDate = new Date()) {
-  if (!isMinorProfile(profile, referenceDate)) return true;
-  return hasGuardianConsent(profile);
+  const age = computeAge(profile?.date_of_birth ?? profile?.dob, referenceDate);
+  return age != null && age >= MINOR_AGE_THRESHOLD;
 }
 
 /**
@@ -106,7 +109,7 @@ function hasRecordedDateOfBirth(profile) {
 }
 
 /**
- * Sensitive stats require DOB on file and minor consent when under 18.
+ * Sensitive stats require a valid DOB proving the talent is at least 18.
  *
  * Fail-closed on age: without a present, valid DOB we cannot prove the talent is
  * an adult, so sensitive measurement collection is denied. Returning false for a
@@ -149,20 +152,19 @@ function isSensitiveImageShotType(shotType) {
  * "age unknown" must be treated as "not cleared" until a valid DOB (and, when it
  * indicates a minor, guardian consent) is on file.
  *
- * Allowed only when: a valid DOB is present AND (the talent is an adult OR a
- * minor with guardian consent recorded). A normal adult with a valid DOB still
- * passes unchanged.
+ * During the adults-only launch, guardian consent does not authorize public or
+ * agency exposure. Allowed only when a valid DOB proves the talent is at least
+ * 18; missing, malformed, impossible, future, and implausibly old DOBs deny.
  *
  * @param {object|null|undefined} profile
  * @param {Date} [referenceDate]
  * @returns {boolean}
  */
 function minorPublicExposureAllowed(profile, referenceDate = new Date()) {
-  // No verifiable age on file => deny (fail closed).
-  if (!hasRecordedDateOfBirth(profile)) return false;
-  // Adults with a valid DOB are allowed; minors require guardian consent.
-  if (!isMinorProfile(profile, referenceDate)) return true;
-  return hasGuardianConsent(profile);
+  // Adults-only launch: a recorded guardian mailbox confirmation is not an
+  // exception. Invalid/future/missing DOB is not evidence of adulthood.
+  const age = computeAge(profile?.date_of_birth ?? profile?.dob, referenceDate);
+  return age != null && age >= MINOR_AGE_THRESHOLD;
 }
 
 module.exports = {

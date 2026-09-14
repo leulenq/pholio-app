@@ -64,6 +64,8 @@ export function canonicalSubmissionPackage({
   mediaSetId = null,
   digitalSlotPicks = {},
   compCardPresetId = null,
+  externalCompCardId = null,
+  eventTermsRevision = null,
   imageIds = [],
   note = '',
   openCallLinkId = null,
@@ -77,11 +79,16 @@ export function canonicalSubmissionPackage({
     mediaSetId: normalizeString(mediaSetId) || null,
     digitalSlotPicks: normalizeDigitalSlotPicks(digitalSlotPicks),
     compCardPresetId: normalizeString(compCardPresetId) || null,
+    externalCompCardId: normalizeString(externalCompCardId) || null,
+    // Version of the disclosure copy this client renders; parity-tested with
+    // the server. Older deployed clients must re-consent after a copy change.
+    disclosureVersion: linkId ? '2026-09-01' : '2026-06-29',
     imageIds: normalizeStringList(imageIds),
     note: normalizeString(note).slice(0, 1200),
     ...(linkId
       ? {
           openCallLinkId: linkId,
+          eventTermsRevision: normalizeString(eventTermsRevision) || null,
           availability: normalizeAvailabilityRange(availability),
           walkVideoUrl: normalizeString(walkVideoUrl) || null,
         }

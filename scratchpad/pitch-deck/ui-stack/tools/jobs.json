@@ -1,0 +1,10 @@
+[
+{"as":"agency","url":"/dashboard/agency/settings?tab=open-call","out":"p-opencall.png","dsf":1,"dump":2500},
+{"as":"agency","url":"/dashboard/agency/settings?tab=requirements","out":"p-req.png","dsf":1,"dump":2500},
+{"as":"agency","url":"/dashboard/agency/settings?tab=export","out":"p-export.png","dsf":1,"dump":1500},
+{"as":"agency","url":"/dashboard/agency/team","out":"p-team.png","dsf":1,"dump":1500},
+{"as":"agency","url":"/dashboard/agency/signing","out":"p-signing.png","dsf":1,"dump":1500},
+{"as":"agency","url":"/dashboard/agency/events/1b3d53d0-3115-4edb-b9d7-21287ecc3eeb","out":"p-event.png","dsf":1,"dump":1500},
+{"as":"agency","url":"/dashboard/agency/messages","out":"p-msg.png","dsf":1,"dump":1000},
+{"as":"agency","url":"/dashboard/agency","out":"p-overview.png","dsf":1,"dump":1500}
+]

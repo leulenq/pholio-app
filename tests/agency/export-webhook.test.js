@@ -13,6 +13,9 @@ const {
   isBlockedAddress,
   signPayload,
 } = require("../../src/domains/agency/services/export-webhook");
+const {
+  buildPayload,
+} = require("../../src/domains/agency/services/export-webhook-dispatch");
 
 const resolvesTo = (...addresses) => async () =>
   addresses.map((address) => ({ address }));
@@ -31,6 +34,8 @@ describe("addresses that must never be fetched", () => {
     ["fe80::1", "IPv6 link-local"],
     ["fd00::1", "IPv6 unique local"],
     ["::ffff:10.0.0.1", "IPv4-mapped private"],
+    ["2001:db8::1", "IPv6 documentation"],
+    ["2002:5db8:d822::1", "IPv6 6to4"],
   ])("%s (%s) is blocked", (address) => {
     expect(isBlockedAddress(address)).toBe(true);
   });
@@ -211,10 +216,44 @@ describe("delivery", () => {
     ).resolves.toMatchObject({ ok: false, error: "ECONNREFUSED" });
   });
 
-  test("a 500 is reported with the endpoint's own words, truncated", async () => {
+  test("pins the socket lookup to the address that passed validation", async () => {
+    let connectedAddress = null;
+    let connectedFamily = null;
+    let responseDestroyed = false;
+    const requestImpl = (_url, options, onResponse) => ({
+      on: jest.fn(),
+      end: () => {
+        options.lookup("hooks.example.com", {}, (error, address, family) => {
+          expect(error).toBeNull();
+          connectedAddress = address;
+          connectedFamily = family;
+        });
+        onResponse({
+          statusCode: 204,
+          destroy: () => { responseDestroyed = true; },
+        });
+      },
+    });
+
+    const result = await deliver(
+      { url: "https://hooks.example.com/h" },
+      { event: "submission.received" },
+      { requestImpl, resolver: resolvesTo("93.184.216.34") },
+    );
+
+    expect(result).toEqual({ ok: true, statusCode: 204, error: null });
+    expect(connectedAddress).toBe("93.184.216.34");
+    expect(connectedFamily).toBe(4);
+    expect(responseDestroyed).toBe(true);
+  });
+
+  test("never reads or buffers a receiver-controlled response body", async () => {
+    const cancel = jest.fn().mockResolvedValue(undefined);
+    const text = jest.fn().mockResolvedValue("x".repeat(9999));
     const fetchImpl = async () => ({
       status: 500,
-      text: async () => "x".repeat(9999),
+      body: { cancel },
+      text,
     });
     const result = await deliver(
       { url: "https://hooks.example.com/h" },
@@ -223,6 +262,67 @@ describe("delivery", () => {
     );
     expect(result.ok).toBe(false);
     expect(result.statusCode).toBe(500);
-    expect(result.error.length).toBeLessThanOrEqual(2048);
+    expect(result.error).toBe("Endpoint returned 500.");
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(text).not.toHaveBeenCalled();
   });
+});
+
+describe("submission payload", () => {
+  const application = {
+    id: "application-1",
+    profile_id: "profile-1",
+    status: "pending",
+  };
+
+  test("uses only the frozen package rather than a live profile or identity", () => {
+    const payload = buildPayload({
+      agencyId: "agency-1",
+      application,
+      snapshot: {
+        profile: {
+          first_name: "Frozen",
+          last_name: "Applicant",
+          city: "Toronto",
+          height_cm: 177,
+        },
+        contact: { email: "frozen@example.test", phone: "+15555550100" },
+        consentConfirmed: true,
+      },
+      profile: { first_name: "Live", email: "live@example.test" },
+      identity: { displayName: "Unapproved", email: "identity@example.test" },
+    });
+
+    expect(payload.applicant).toEqual({
+      profileId: "profile-1",
+      name: "Frozen Applicant",
+      email: "frozen@example.test",
+      phone: "+15555550100",
+      city: "Toronto",
+      heightCm: 177,
+    });
+  });
+
+  test.each(["minorDataMinimized", "disclosureRedacted"])(
+    "redacts applicant fields when the frozen package has %s",
+    (marker) => {
+      const payload = buildPayload({
+        agencyId: "agency-1",
+        application,
+        snapshot: {
+          profile: { first_name: "Do", last_name: "Not Send", city: "Toronto" },
+          contact: { email: "minor@example.test", phone: "+15555550100" },
+          [marker]: true,
+        },
+      });
+      expect(payload.applicant).toEqual({
+        profileId: "profile-1",
+        name: null,
+        email: null,
+        phone: null,
+        city: null,
+        heightCm: null,
+      });
+    },
+  );
 });

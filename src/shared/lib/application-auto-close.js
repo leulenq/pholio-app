@@ -139,11 +139,9 @@ const AUTO_CLOSE_BATCH_SIZE = 500;
  * The window is per-agency, so a single portable SQL predicate would need
  * dialect-specific interval maths against a joined column.
  *
- * Paging note: a closed row leaves the candidate set, so the next page cannot
- * simply be `offset += batch`. `examined` counts only the rows this run looked
- * at and *left in place*, which is exactly the number to skip past — closed
- * rows have already vacated the offsets behind it. Each pass therefore either
- * advances `examined` or shrinks the set, so the loop always terminates.
+ * Paging uses the last observed primary key, never offsets into a changing
+ * status-filtered set. Each pass advances the cursor even when a concurrent
+ * decision prevents the conditional close.
  *
  * @param {import("knex").Knex} db
  * @param {{ now?: Date, batchSize?: number }} [options]
@@ -163,12 +161,20 @@ async function runApplicationAutoClose(
   /** One expired row, closed and announced. Shared by both passes. */
   async function closeRow(row, { metadata, description }) {
     const closedAt = now;
-    await db("applications").where({ id: row.id }).update({
+    // Compare the selected version, not merely the ID. A booker/recipient may
+    // have acted after the scan; their decision must win over stale cleanup.
+    const transition = db("applications").where({ id: row.id, status: row.status });
+    for (const field of ["status_changed_at", "updated_at"]) {
+      if (row[field] == null) transition.whereNull(field);
+      else transition.where(field, row[field]);
+    }
+    const changed = await transition.update({
       status: AUTO_CLOSED_APPLICATION_STATUS,
       auto_closed_at: closedAt,
       status_changed_at: closedAt,
       updated_at: closedAt,
     });
+    if (changed !== 1) return false;
 
     // `user_id` stays null: no person did this, and attributing it to a
     // booker would be the same lie as recording it as a pass.
@@ -212,10 +218,11 @@ async function runApplicationAutoClose(
       // must not roll back or halt the batch.
       console.error("[AutoClose] Notify failed:", error);
     }
+    return true;
   }
 
   /** Selection shared by both passes; `statuses` is what makes them differ. */
-  function candidateQuery(statuses, offset) {
+  function candidateQuery(statuses, afterId) {
     const query = db("applications as a")
       .leftJoin("agencies as ag", "ag.id", "a.agency_id")
       .whereIn("a.status", statuses)
@@ -229,10 +236,10 @@ async function runApplicationAutoClose(
         "a.created_at",
         "ag.application_review_window_days",
       )
-      // A stable order is what makes the offset mean the same thing twice.
+      // Keyset pagination stays stable when concurrent decisions remove rows.
       .orderBy("a.id", "asc")
-      .offset(offset)
       .limit(limit);
+    if (afterId) query.where("a.id", ">", afterId);
 
     if (eventColumnsReady) {
       query
@@ -252,22 +259,20 @@ async function runApplicationAutoClose(
   }
 
   // ── Pass A: nobody triaged it ───────────────────────────────────────────
-  // Rows seen and deliberately left open — the offset the next page starts at.
-  let examined = 0;
+  let afterId = null;
   for (;;) {
     const candidates = await candidateQuery(
       AWAITING_AGENCY_APPLICATION_STATUSES,
-      examined,
+      afterId,
     );
     if (!candidates.length) break;
     scanned += candidates.length;
 
     const expired = candidates.filter((row) => isExpired(row, now));
-    examined += candidates.length - expired.length;
-    closed += expired.length;
+    afterId = candidates[candidates.length - 1].id;
 
     for (const row of expired) {
-      await closeRow(row, {
+      const changed = await closeRow(row, {
         description:
           "Closed automatically — the review window lapsed with no decision.",
         metadata: {
@@ -276,6 +281,7 @@ async function runApplicationAutoClose(
           ),
         },
       });
+      if (changed) closed += 1;
     }
 
     if (candidates.length < limit) break;
@@ -290,11 +296,11 @@ async function runApplicationAutoClose(
   // tells every downstream reader (and the talent's notification) that an
   // offer expired rather than a submission going unread.
   if (eventColumnsReady) {
-    let examinedOffers = 0;
+    let afterOfferId = null;
     for (;;) {
       const page = await candidateQuery(
         OFFERED_APPLICATION_STATUSES,
-        examinedOffers,
+        afterOfferId,
       );
       if (!page.length) break;
       scanned += page.length;
@@ -304,13 +310,10 @@ async function runApplicationAutoClose(
           row.call_purpose === CALL_PURPOSES.EVENT_CASTING &&
           isOfferExpired(row, now),
       );
-      // Everything this page leaves in place — representation offers very much
-      // included — is what the next page has to skip past.
-      examinedOffers += page.length - expired.length;
-      closed += expired.length;
+      afterOfferId = page[page.length - 1].id;
 
       for (const row of expired) {
-        await closeRow(row, {
+        const changed = await closeRow(row, {
           description:
             "Closed automatically — the slot offer expired with no answer.",
           metadata: {
@@ -320,6 +323,7 @@ async function runApplicationAutoClose(
             openCallLinkId: row.open_call_link_id || null,
           },
         });
+        if (changed) closed += 1;
       }
 
       if (page.length < limit) break;

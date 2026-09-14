@@ -1,0 +1,4 @@
+[
+{"as":"agency","url":"/dashboard/agency","out":"29-agency-overview.png","dump":2500},
+{"as":"agency","url":"/dashboard/agency","steps":[{"eval":"(()=>{const h=[...document.querySelectorAll('h2,h3,div,span')].filter(e=>e.innerText&&e.innerText.trim()==='Next moves').pop();h&&h.scrollIntoView({block:'center'});return !!h})()"}],"out":"29b-agency-overview-lower.png"}
+]

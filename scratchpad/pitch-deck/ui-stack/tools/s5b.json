@@ -1,0 +1,5 @@
+[
+{"url":"/picks/gkjyBgIcGcgBQNdZeSHN9URHydxn6LHhQevmZgd0Ua0","steps":[{"eval":"(()=>{const bs=n=>[...document.querySelectorAll('button')].filter(b=>b.innerText.trim()===n);const p=bs('Pick'),m=bs('Maybe'),x=bs('Pass');p[0].click();p[1].click();m[4].click();x[6].click();return [p.length,m.length]})()","wait":1500},{"scroll":200}],"out":"15-designer-picks-desktop.png"},
+{"url":"/picks/gkjyBgIcGcgBQNdZeSHN9URHydxn6LHhQevmZgd0Ua0","mobile":true,"dsf":3,"steps":[{"eval":"(()=>{const c=[...document.querySelectorAll('button')].filter(b=>b.innerText.trim()==='Pick')[1];c.scrollIntoView({block:'end'});window.scrollBy(0,70);return 1})()","wait":800}],"out":"16-designer-picks-mobile.png"},
+{"as":"agency","url":"/dashboard/agency/events/1b3d53d0-3115-4edb-b9d7-21287ecc3eeb","steps":[{"click":"Designers","exact":true,"selector":"button,[role=tab],a"}],"out":"14-event-call-designers.png","dump":0}
+]

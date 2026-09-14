@@ -87,6 +87,7 @@ describe("POST /stripe/create-checkout-session jurisdiction gate", () => {
   }, 60000);
 
   beforeEach(async () => {
+    await knex('stripe_checkout_reservations').where({ user_id: TALENT_ID }).delete();
     createCheckoutSession.mockClear();
     getIPGeolocation.mockReset();
     delete process.env.STUDIO_BLOCKED_REGIONS; // default: block CA

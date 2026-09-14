@@ -40,6 +40,7 @@ const {
 
 const AGENCY_ID = uuidv4();
 const AGENCY_USER_ID = uuidv4();
+const AGENCY_MEMBERSHIP_ID = uuidv4();
 const TALENT_USER_ID = uuidv4();
 const PROFILE_ID = uuidv4();
 const TALENT_EMAIL = `inbox-status-talent-${TALENT_USER_ID}@example.com`;
@@ -69,7 +70,7 @@ async function seed() {
     status: "ACTIVE",
   });
   await knex("agency_memberships").insert({
-    id: uuidv4(),
+    id: AGENCY_MEMBERSHIP_ID,
     agency_id: AGENCY_ID,
     user_id: AGENCY_USER_ID,
     membership_role: "OWNER",
@@ -147,6 +148,7 @@ beforeAll(async () => {
       memberUserId: AGENCY_USER_ID,
       role: "AGENCY",
       agencyId: AGENCY_ID,
+      agencyMembershipId: AGENCY_MEMBERSHIP_ID,
       agencyMembershipRole: "OWNER",
       agencyOnboardingCompletedAt: new Date().toISOString(),
     };

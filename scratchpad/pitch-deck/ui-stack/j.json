@@ -1,0 +1,1 @@
+[{"as":"agency","url":"/dashboard/agency/submissions","out":"01-submissions-grid.png"},{"as":"agency","url":"/dashboard/agency/submissions","steps":[{"click":"SHORTLISTED","exact":true,"selector":"button,[role=tab]","wait":1200}],"out":"01b-submissions-shortlisted.png"}]

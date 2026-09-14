@@ -18,6 +18,7 @@ const TEST_DB_PATH = path.resolve(
   "../../test-agency-messages-read.sqlite3",
 );
 const AGENCY_ID = uuidv4();
+const AGENCY_MEMBERSHIP_ID = uuidv4();
 const OTHER_AGENCY_ID = uuidv4();
 const TALENT_ID = uuidv4();
 const APPLICATION_ID = uuidv4();
@@ -28,6 +29,9 @@ const app = express();
 app.use((req, _res, next) => {
   req.session = {
     userId: AGENCY_ID,
+    memberUserId: AGENCY_ID,
+    agencyId: AGENCY_ID,
+    agencyMembershipId: AGENCY_MEMBERSHIP_ID,
     role: "AGENCY",
     agencyMembershipRole: "OWNER",
     agencyOnboardingCompletedAt: new Date().toISOString(),
@@ -41,6 +45,18 @@ async function createSchema() {
     table.string("id", 36).primary();
     table.string("email").notNullable();
     table.string("role").notNullable();
+  });
+  await knex.schema.createTable("agencies", (table) => {
+    table.string("id", 36).primary();
+    table.string("name").notNullable();
+    table.string("status").notNullable();
+  });
+  await knex.schema.createTable("agency_memberships", (table) => {
+    table.string("id", 36).primary();
+    table.string("agency_id", 36).notNullable();
+    table.string("user_id", 36).notNullable();
+    table.string("membership_role").notNullable();
+    table.string("status").notNullable();
   });
   await knex.schema.createTable("applications", (table) => {
     table.string("id", 36).primary();
@@ -63,6 +79,8 @@ async function createSchema() {
 async function seedFixture() {
   await knex("messages").del();
   await knex("applications").del();
+  await knex("agency_memberships").del();
+  await knex("agencies").del();
   await knex("users").del();
 
   await knex("users").insert([
@@ -70,6 +88,17 @@ async function seedFixture() {
     { id: OTHER_AGENCY_ID, email: "other@example.test", role: "AGENCY" },
     { id: TALENT_ID, email: "talent@example.test", role: "TALENT" },
   ]);
+  await knex("agencies").insert([
+    { id: AGENCY_ID, name: "Agency", status: "ACTIVE" },
+    { id: OTHER_AGENCY_ID, name: "Other Agency", status: "ACTIVE" },
+  ]);
+  await knex("agency_memberships").insert({
+    id: AGENCY_MEMBERSHIP_ID,
+    agency_id: AGENCY_ID,
+    user_id: AGENCY_ID,
+    membership_role: "OWNER",
+    status: "ACTIVE",
+  });
   await knex("applications").insert([
     {
       id: APPLICATION_ID,

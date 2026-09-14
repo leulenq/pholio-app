@@ -32,6 +32,21 @@ const {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Stop minting new grants (including previously emailed confirmation links).
+// Existing revoke endpoints remain mounted and functional below.
+router.use((req, res, next) => {
+  const pathname = req.path.replace(/\/+$/, "");
+  if (req.method === "POST" && [
+    "/api/talent/guardian-consent/request",
+    "/api/talent/guardian-consent/confirm",
+    "/guardian-consent",
+    "/guardian-consent/confirm",
+  ].includes(pathname)) {
+    return res.status(403).json({ success: false, error: "ADULTS_ONLY_LAUNCH", message: "Pholio is currently available to adults aged 18 and over. New guardian authorizations are not being accepted." });
+  }
+  return next();
+});
+
 /**
  * Build the disclosure context shown to a guardian before they consent.
  * Resolves the talent's display name and (for agency-scoped requests) the agency

@@ -332,53 +332,9 @@ async function renderCompCard(slug, theme = null, opts = null) {
         deviceScaleFactor: 2, // Higher DPI for better quality
       });
 
-      // ── P4 vision jury (opt-in) ───────────────────────────────────────
-      // Render each front candidate to a PNG, let llama-4-scout rank them,
-      // then re-render the winning candidate. Opt-in (adds K front renders
-      // + one Groq call); silently skipped without a key or on any failure.
-      const juryOn =
-        opts && opts.jury && process.env.GROQ_API_KEY && config.nodeEnv !== "test";
-      if (juryOn) {
-        try {
-          const { rankFrontCandidates } = require("./composition/front-program/jury");
-          const K = 5;
-          const candUrl = (i) => {
-            const u = new URL(target);
-            u.searchParams.set("candidate", String(i));
-            return u.toString();
-          };
-          const renderPng = async (program) => {
-            await page.goto(candUrl(program.index), {
-              waitUntil: "networkidle0",
-              timeout: 30000,
-            });
-            await page.evaluate(async () => {
-              try { await document.fonts.ready; } catch (e) { /* continue */ }
-            });
-            await new Promise((r) => setTimeout(r, 400));
-            const el = await page.$("#front");
-            if (!el) return null;
-            return Buffer.from(await el.screenshot({ type: "png" }));
-          };
-          const candidates = Array.from({ length: K }, (_, i) => ({
-            program: { index: i },
-            score: 0, // flat aesthetics here → vision-led blend (documented)
-          }));
-          const ranked = await rankFrontCandidates({
-            candidates,
-            renderPng,
-            timeoutMs: 14000,
-          });
-          if (ranked && Number.isInteger(ranked.winnerIndex)) {
-            target = candUrl(ranked.winnerIndex);
-            console.log(
-              `[renderCompCard] jury winner candidate ${ranked.winnerIndex}: ${ranked.rationale || ""}`,
-            );
-          }
-        } catch (juryErr) {
-          console.warn("[renderCompCard] jury skipped:", juryErr.message);
-        }
-      }
+      // Launch mitigation: PDF generation is deterministic and never dispatches
+      // owner photos to a vision provider. Visitor-controlled options cannot
+      // authorize processing of another person's images.
 
       // Navigate to PDF view URL with timeout
       try {

@@ -15,10 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install root dependencies
@@ -37,10 +37,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install root dependencies
@@ -53,27 +53,22 @@ jobs:
         run: npm run --prefix client test
 
   server-test:
-    name: Server tests (informational)
+    name: Server tests (required)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install root dependencies
         run: npm ci
 
-      # TODO: make required once the pre-existing SQLite FK-quirk suites are fixed
-      # (see tasks/agency-dashboard-implementation-plan.md INF-0.1). Roughly 7 server
-      # jest suites currently fail on a SQLite foreign-key constraint quirk unrelated
-      # to the changes being tested, so this job is non-blocking for now.
       - name: Run server tests
-        continue-on-error: true
         run: npm test
 
   client-lint:
@@ -83,10 +78,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install client dependencies

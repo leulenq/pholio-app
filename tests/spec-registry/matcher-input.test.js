@@ -10,6 +10,12 @@ const {
 } = require("../../src/domains/spec-registry/matcher-input");
 
 describe("Spec Registry matcher input helpers", () => {
+  test("never selects images hidden by moderation", () => {
+    for (const moderation_status of ["review", "rejected"]) {
+      expect(isEligibleImage({ status: "active", moderation_status })).toBe(false);
+    }
+    expect(isEligibleImage({ status: "active", moderation_status: "approved" })).toBe(true);
+  });
   test("filters inactive, excluded, video, and retired images", () => {
     expect(isEligibleImage({ status: "active", asset_kind: "image" })).toBe(true);
     expect(isEligibleImage({ status: "inactive", asset_kind: "image" })).toBe(false);

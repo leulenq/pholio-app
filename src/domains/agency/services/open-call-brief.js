@@ -1,5 +1,7 @@
 "use strict";
 
+const crypto = require("crypto");
+
 /*
  * The open-call brief: who it is for, what to send, who is eligible, when it
  * closes, and what happens next.
@@ -514,7 +516,7 @@ function intakeDTO(link) {
  * is what every link in the database was before this shipped.
  */
 function eventCallDTO(link) {
-  return {
+  const dto = {
     callKind: callKindOf(link),
     event: eventDTO(link),
     compensation: compensationDTO(link),
@@ -523,6 +525,13 @@ function eventCallDTO(link) {
     offerResponseWindowHours:
       link?.offer_response_window_hours ?? DEFAULT_OFFER_RESPONSE_WINDOW_HOURS,
   };
+  // Bind the displayed call, including pay, dates, location and requirements.
+  // This revision is computed from content, not a mutable client assertion.
+  dto.consentRevision = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(dto))
+    .digest("hex");
+  return dto;
 }
 
 /**

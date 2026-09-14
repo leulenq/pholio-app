@@ -67,6 +67,8 @@ The root and client manifests do not declare an `engines` field. The root manife
 
 ### Landing-site `npm audit`
 
+**Superseded snapshot:** The result below was the lane's earlier query. The lead's final same-day registry query returned 4 findings for current `pholio-site`: 1 critical (`next`), 3 high (`sharp`, `js-yaml`, `nanoid`). Root/client final totals were 32/18. See the main audit's dependency section for exact severity counts, maintainer-advisory applicability and the harmless decoder proof. Advisory counts are time-sensitive and are not counts of proven application exploits.
+
 Command run from `/Users/lenquanhone/Projects/pholio-site` (no fixes):
 
 ```text
