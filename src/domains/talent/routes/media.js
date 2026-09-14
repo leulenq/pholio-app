@@ -2,11 +2,9 @@ const express = require("express");
 const router = express.Router();
 const knex = require("../../../shared/db/knex");
 const { requireRole, requireActiveAccount } = require("../../auth/middleware/require-auth");
-const { upload, processImage, s3 } = require("../../../shared/lib/uploader");
-const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
+const { upload, processImage } = require("../../../shared/lib/uploader");
 const { v4: uuidv4 } = require("uuid");
 const fs = require("fs").promises;
-const path = require("path");
 const config = require("../../../config");
 const { ensureUniqueSlug } = require("../../../shared/lib/slugify");
 const { logActivity } = require("../services/shared-utils");
@@ -57,6 +55,11 @@ const {
 const {
   purgeStoredImageArtifacts,
 } = require("../../../shared/lib/purge-image-artifacts");
+const {
+  collectImageArtifacts,
+  deleteMediaArtifacts,
+  recordProviderDeletionFailure,
+} = require("../../../shared/lib/media-artifact-deletion");
 const {
   submissionRetentionExpiry,
 } = require("../../../shared/lib/submission-retention");
@@ -216,6 +219,7 @@ function fieldsFromProcessed(processed) {
       delivery_size_bytes: null,
       delivery_width_px: null,
       delivery_height_px: null,
+      content_sha256: null,
     };
   }
   return {
@@ -232,6 +236,8 @@ function fieldsFromProcessed(processed) {
       processed.deliveryWidthPx ?? processed.delivery_width_px ?? null,
     delivery_height_px:
       processed.deliveryHeightPx ?? processed.delivery_height_px ?? null,
+    content_sha256:
+      processed.contentSha256 || processed.content_sha256 || null,
   };
 }
 
@@ -1075,6 +1081,10 @@ router.post(
     const hasModerationQueue = hasModerationColumns
       ? await knex.schema.hasTable("moderation_queue")
       : false;
+    const hasContentHashColumn = await knex.schema.hasColumn(
+      "images",
+      "content_sha256",
+    );
     const hasImageRightsTable = await knex.schema.hasTable("image_rights");
 
     const uploadedImages = [];
@@ -1241,6 +1251,9 @@ router.post(
               delivery_width_px: stored.delivery_width_px,
               delivery_height_px: stored.delivery_height_px,
               delivery_metadata_recorded_at: trx.fn.now(),
+              ...(hasContentHashColumn
+                ? { content_sha256: stored.content_sha256 }
+                : {}),
               label: "Portfolio image",
               sort: sort,
               metadata: JSON.stringify(initialMetadata),
@@ -2288,68 +2301,22 @@ router.delete(
       media.profile_id,
     );
 
-    // 1. Delete from R2 if storage_key exists
-    if (media.storage_key) {
-      try {
-        // Delete original, processed, and thumbnail
-        const uuid = path.basename(
-          media.storage_key,
-          path.extname(media.storage_key),
-        );
-        const prefix =
-          media.storage_key.split("/processed/")[0] ||
-          media.storage_key.split("/originals/")[0] ||
-          media.storage_key.split("/thumbnails/")[0];
-
-        const deletions = [
-          s3.send(
-            new DeleteObjectCommand({
-              Bucket: config.r2.bucket,
-              Key: media.storage_key,
-            }),
-          ),
-          // We try to delete based on standard naming if we can derive it
-          s3.send(
-            new DeleteObjectCommand({
-              Bucket: config.r2.bucket,
-              Key: `${prefix}/originals/${uuid}.jpg`,
-            }),
-          ),
-          s3.send(
-            new DeleteObjectCommand({
-              Bucket: config.r2.bucket,
-              Key: `${prefix}/originals/${uuid}.png`,
-            }),
-          ),
-          s3.send(
-            new DeleteObjectCommand({
-              Bucket: config.r2.bucket,
-              Key: `${prefix}/originals/${uuid}.jpeg`,
-            }),
-          ),
-          s3.send(
-            new DeleteObjectCommand({
-              Bucket: config.r2.bucket,
-              Key: `${prefix}/thumbnails/${uuid}_400w.webp`,
-            }),
-          ),
-        ];
-        await Promise.allSettled(deletions);
-      } catch (s3Err) {
-        console.warn("[Media Delete] R2 deletion warning:", s3Err.message);
-      }
-    }
-
-    // 2. Delete local file if absolute_path exists
-    if (media.absolute_path) {
-      try {
-        await fs.unlink(media.absolute_path).catch(() => {});
-        // Also try to unlink original and thumbnail if we can guess them
-        const base = media.absolute_path.replace(".webp", "");
-        await fs.unlink(`${base}_400w.webp`).catch(() => {});
-      } catch (e) {
-        console.warn(`[Media Delete] File unlink warning: ${e.message}`);
-      }
+    // Inventory current, thumbnail, legacy raw-original, and preserved
+    // pre-edit artifacts before the row disappears. Provider failures are
+    // durably queued; without that queue the row stays so a later retry can
+    // still rediscover every key.
+    const artifacts = collectImageArtifacts(media);
+    const purge = await deleteMediaArtifacts(knex, {
+      userId,
+      ...artifacts,
+      source: `image:${mediaId}`,
+    });
+    if (!purge.safeToDropReference) {
+      return res.status(503).json({
+        success: false,
+        code: "MEDIA_ERASURE_RETRY_UNAVAILABLE",
+        message: "The image could not be fully deleted yet. Please try again.",
+      });
     }
 
     // Handle Primary Image replacement
@@ -2384,11 +2351,14 @@ router.delete(
     // image by FK cascade; the reindex rebuilds what is left.
     scheduleDiscoverReindex(media.profile_id, { reason: "image_delete" });
 
-    return res.json({
+    return res.status(purge.fullyErased ? 200 : 202).json({
       success: true,
       deleted: mediaId,
       heroImagePath: newHeroImagePath,
-      message: "Image deleted",
+      erasureStatus: purge.fullyErased ? "complete" : "pending_provider_purge",
+      message: purge.fullyErased
+        ? "Image deleted"
+        : "Image removed. Storage cleanup is still in progress.",
     });
   }),
 );
@@ -2518,9 +2488,12 @@ router.post(
         .json({ success: false, message: "Image not found" });
     }
 
-    let processed;
+    let prepared;
     try {
-      processed = await processImage(req.file, image.profile_id);
+      prepared = await prepareUploadedFile(req.file, {
+        profile: { ...image, id: image.profile_id },
+        structuredInsert: {},
+      });
     } catch (err) {
       // processImage now fails closed rather than handing back the unprocessed
       // original, and it says why. Pass its own words and status through — "we
@@ -2533,11 +2506,16 @@ router.post(
       });
     }
 
+    if (prepared.rejected) {
+      await deleteMediaArtifacts(knex, { userId, ...collectImageArtifacts(prepared.artifact), source: `rejected-replacement:${imageId}` });
+      return res.status(422).json({ success: false, message: "This image cannot be used. Your previous image has not changed." });
+    }
+
     // Track whether the current (pre-replace) file needs to be cleaned up after the DB update.
     // Only intermediate edits are deleted; the very first original is always preserved.
     let intermediateToDelete = null;
 
-    const stored = fieldsFromProcessed(processed);
+    const stored = prepared.stored;
 
     await knex.transaction(async (trx) => {
       const currentMeta = parseImageMetadataFromDb(image.metadata);
@@ -2572,6 +2550,10 @@ router.post(
         delivery_height_px: stored.delivery_height_px,
         delivery_metadata_recorded_at: trx.fn.now(),
         metadata: JSON.stringify(mergedMeta),
+        moderation_status: prepared.effectiveModStatus,
+        moderation_reason: prepared.moderation.reason || null,
+        moderated_at: trx.fn.now(),
+        ...(prepared.isReview ? { exclude_from_public: true, exclude_from_agency: true } : {}),
       };
 
       if (!userLocked) {
@@ -2605,7 +2587,33 @@ router.post(
         };
       }
 
-      await trx("images").where({ id: imageId }).update(updatePatch);
+      // Retired edit artifacts remain discoverable after a process dies just
+      // after commit. Their deletion task commits with the replacement.
+      if (intermediateToDelete) {
+        const retired = collectImageArtifacts(intermediateToDelete);
+        for (const [provider, payload, count] of [
+          ["r2", { failedKeys: [...retired.r2Keys] }, retired.r2Keys.size],
+          ["local_media", { failedPaths: [...retired.localPaths] }, retired.localPaths.size],
+        ]) {
+          if (count && !(await recordProviderDeletionFailure(trx, { userId, provider, payload, error: "Retired replacement artifact awaiting purge" }))) {
+            throw Object.assign(new Error("Media cleanup is not ready; retry after the release migration."), { status: 503 });
+          }
+        }
+      }
+      const changed = await trx("images").where({ id: imageId, path: image.path }).update(updatePatch);
+      if (changed !== 1) throw Object.assign(new Error("The image changed during replacement. Reload and try again."), { status: 409 });
+      if (prepared.isReview) await enqueueImageForReview(trx, {
+        imageId, profileId: image.profile_id,
+        flags: { ...(prepared.moderation.flags || {}), ...(prepared.csamScreen.flags || {}), ...(prepared.csamScreen.shouldEscalate ? { csam_escalation: true } : {}) },
+      });
+      if (prepared.csamScreen.shouldEscalate) await recordCsamEscalation(trx, {
+        imageId, profileId: image.profile_id, provider: prepared.csamScreen.provider,
+        severity: prepared.csamScreen.severity, flags: prepared.csamScreen.flags,
+      });
+    }).catch(async (error) => {
+      // A failed compare-and-set or queue write must not orphan the new bytes.
+      await deleteMediaArtifacts(knex, { userId, ...collectImageArtifacts(prepared.artifact), source: `failed-replacement:${imageId}` });
+      throw error;
     });
 
     // After the DB transaction commits, clean up the intermediate file (best-effort).
@@ -2674,7 +2682,7 @@ router.post(
     const userId = req.session.userId;
 
     const image = await knex("images")
-      .select("images.*")
+      .select("images.*", "profiles.date_of_birth", "profiles.ai_processing_consent")
       .leftJoin("profiles", "images.profile_id", "profiles.id")
       .where("images.id", imageId)
       .where("profiles.user_id", userId)
@@ -2694,26 +2702,47 @@ router.post(
       });
     }
 
-    // The edited (current) file will be deleted after the DB update.
-    const editedToDelete = {
-      storage_key: image.storage_key || null,
-      absolute_path: image.absolute_path || null,
-    };
-
-    await knex("images")
-      .where({ id: imageId })
+    // A saved original is another pixel version, not an approval. Run the same
+    // metadata stripping and moderation pipeline used for a new upload.
+    const originalBuffer = await fetchImageBuffer({
+      path: image.original_path, public_url: image.original_public_url,
+      storage_key: image.original_storage_key, absolute_path: image.original_absolute_path,
+    });
+    if (!originalBuffer) return res.status(503).json({ success: false, message: "The original image could not be loaded. Try again later." });
+    const prepared = await prepareUploadedFile({ buffer: originalBuffer, originalname: "restore.webp", mimetype: "image/webp" }, {
+      profile: { ...image, id: image.profile_id }, structuredInsert: {},
+    });
+    if (prepared.rejected) {
+      await deleteMediaArtifacts(knex, { userId, ...collectImageArtifacts(prepared.artifact), source: `rejected-restore:${imageId}` });
+      return res.status(422).json({ success: false, message: "This original image cannot be used. Your current image has not changed." });
+    }
+    const stored = prepared.stored;
+    const retired = collectImageArtifacts(image);
+    await knex.transaction(async (trx) => {
+      for (const [provider, payload, count] of [
+        ["r2", { failedKeys: [...retired.r2Keys] }, retired.r2Keys.size],
+        ["local_media", { failedPaths: [...retired.localPaths] }, retired.localPaths.size],
+      ]) {
+        if (count && !(await recordProviderDeletionFailure(trx, { userId, provider, payload, error: "Restored image artifacts awaiting purge" }))) {
+          throw Object.assign(new Error("Media cleanup is not ready; retry after the release migration."), { status: 503 });
+        }
+      }
+      const changed = await trx("images")
+      .where({ id: imageId, path: image.path, original_path: image.original_path })
       .update({
-        path: image.original_path,
-        public_url: image.original_public_url || null,
-        storage_key: image.original_storage_key || null,
-        absolute_path: image.original_absolute_path || null,
-        delivery_mime_type: image.original_delivery_mime_type || null,
-        delivery_size_bytes: image.original_delivery_size_bytes ?? null,
-        delivery_width_px: image.original_delivery_width_px ?? null,
-        delivery_height_px: image.original_delivery_height_px ?? null,
-        delivery_metadata_recorded_at:
-          image.original_delivery_metadata_recorded_at || null,
+        path: stored.path, public_url: stored.public_url, storage_key: stored.storage_key,
+        absolute_path: stored.absolute_path, content_sha256: stored.content_sha256,
+        delivery_mime_type: stored.delivery_mime_type,
+        delivery_size_bytes: stored.delivery_size_bytes,
+        delivery_width_px: stored.delivery_width_px, delivery_height_px: stored.delivery_height_px,
+        delivery_metadata_recorded_at: trx.fn.now(),
+        metadata: JSON.stringify(prepared.initialMetadata),
+        shot_type: null, style_type: null, image_type: null,
+        moderation_status: prepared.effectiveModStatus,
+        moderation_reason: prepared.moderation.reason || null, moderated_at: trx.fn.now(),
+        ...(prepared.isReview ? { exclude_from_public: true, exclude_from_agency: true } : {}),
         original_path: null,
+        original_content_sha256: null,
         original_public_url: null,
         original_storage_key: null,
         original_absolute_path: null,
@@ -2723,21 +2752,14 @@ router.post(
         original_delivery_height_px: null,
         original_delivery_metadata_recorded_at: null,
       });
-
-    // Delete the edited version from storage (best-effort).
-    if (editedToDelete.storage_key) {
-      s3.send(
-        new DeleteObjectCommand({
-          Bucket: config.r2.bucket,
-          Key: editedToDelete.storage_key,
-        }),
-      ).catch((e) =>
-        console.warn("[Media Restore] Edited file S3 cleanup:", e.message),
-      );
-    }
-    if (editedToDelete.absolute_path) {
-      fs.unlink(editedToDelete.absolute_path).catch(() => {});
-    }
+      if (changed !== 1) throw Object.assign(new Error("The image changed during restore. Reload and try again."), { status: 409 });
+      if (prepared.isReview) await enqueueImageForReview(trx, { imageId, profileId: image.profile_id, flags: { ...prepared.moderation.flags, ...prepared.csamScreen.flags } });
+      if (prepared.csamScreen.shouldEscalate) await recordCsamEscalation(trx, { imageId, profileId: image.profile_id, provider: prepared.csamScreen.provider, severity: prepared.csamScreen.severity, flags: prepared.csamScreen.flags });
+    }).catch(async (error) => {
+      await deleteMediaArtifacts(knex, { userId, ...collectImageArtifacts(prepared.artifact), source: `failed-restore:${imageId}` });
+      throw error;
+    });
+    await deleteMediaArtifacts(knex, { userId, ...retired, source: `restored-image:${imageId}` });
 
     const fresh = await knex("images").where({ id: imageId }).first();
     const releaseOnFile = await imageReleaseOnFile(imageId);

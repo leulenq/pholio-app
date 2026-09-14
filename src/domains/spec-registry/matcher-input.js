@@ -1,5 +1,7 @@
 "use strict";
 
+const { isImageVisibleToViewer } = require("../../shared/lib/content-moderation");
+
 /** Database adapter for matcher.js. It intentionally returns only normalized,
  * agency-eligible facts and never lets an explicit image ID broaden scope. */
 
@@ -22,6 +24,7 @@ function uniqueStringIds(value) {
 function isEligibleImage(row) {
   return (
     String(row?.status || "active") === "active" &&
+    isImageVisibleToViewer(row) &&
     !row?.exclude_from_agency &&
     String(row?.asset_kind || "image") === "image" &&
     !row?.retired_at

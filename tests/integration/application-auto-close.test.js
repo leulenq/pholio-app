@@ -108,6 +108,36 @@ afterAll(async () => {
 });
 
 describe("application auto-close", () => {
+  test.each(["accepted", "submitted"])("does not overwrite a concurrent %s decision/version", async (status) => {
+    const id = await seedApplication({ status: "submitted", changedDaysAgo: 31 });
+    let injected = false;
+    const racingDb = (...args) => {
+      const query = knex(...args);
+      if (args[0] === "applications") {
+        const update = query.update.bind(query);
+        query.update = async (...values) => {
+          if (!injected) {
+            injected = true;
+            await knex("applications").where({ id }).update({
+              status,
+              status_changed_at: NOW.toISOString(),
+              updated_at: NOW.toISOString(),
+            });
+          }
+          return update(...values);
+        };
+      }
+      return query;
+    };
+    racingDb.schema = knex.schema;
+    const result = await runApplicationAutoClose(racingDb, { now: NOW, batchSize: 1 });
+    expect(injected).toBe(true);
+    expect(result).toMatchObject({ closed: 0, notified: 0 });
+    expect((await knex("applications").where({ id }).first()).status).toBe(status);
+    expect(await knex("application_activities")).toHaveLength(0);
+    expect(notifyTalentForApplicationStatus).not.toHaveBeenCalled();
+  });
+
   test("closes an application the agency has sat on past its review window", async () => {
     const id = await seedApplication({ status: "submitted", changedDaysAgo: 31 });
 

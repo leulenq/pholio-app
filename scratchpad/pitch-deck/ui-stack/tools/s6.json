@@ -1,0 +1,6 @@
+[
+{"as":"agency","url":"/dashboard/agency/messages","steps":[{"click":"Hazel Moreau","selector":"button,a,li,[role=button],[role=option]","wait":2000}],"out":"17-agency-messages-thread.png","dump":900},
+{"as":"agency","url":"/dashboard/agency/team","out":"18-team-and-roles.png"},
+{"as":"agency","url":"/dashboard/agency/team","steps":[{"eval":"(()=>{const h=[...document.querySelectorAll('h2,h3,h4')].find(e=>e.innerText.includes('Seats'));h&&h.scrollIntoView({block:'start'});return !!h})()"}],"out":"18b-team-seats-permissions.png"},
+{"as":"agency","url":"/dashboard/agency/settings?tab=export","steps":[{"css":"input"},{"eval":"(()=>{const el=[...document.querySelectorAll('input')].find(e=>/https/.test(e.placeholder||''));if(!el)return false;el.focus();return el.placeholder})()"},{"type":["input[placeholder*='https']","https://intake.meridian-models.example.com/pholio"]}],"out":"19-settings-export-webhook.png","dump":1200}
+]

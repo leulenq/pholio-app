@@ -95,6 +95,7 @@ beforeEach(async () => {
   await knex("profiles").insert({
     id: PROFILE_ID,
     user_id: TALENT_ID,
+    date_of_birth: "1990-01-01",
     first_name: "Nova",
     last_name: "Lane",
     slug: "nova-lane-reply-test",

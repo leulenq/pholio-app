@@ -1,6 +1,10 @@
 const crypto = require("crypto");
 const { v4: uuidv4 } = require("uuid");
 const knex = require("../../../shared/db/knex");
+const {
+  isAgencyBlockedForTalent,
+} = require("../../../shared/lib/blocked-agencies");
+const { computeAge } = require("../../../shared/lib/talent-age");
 
 // SEC-0.8: shortened from 7 days to reduce the replay window on magic links.
 const TOKEN_TTL_DAYS = 3;
@@ -68,14 +72,55 @@ async function getApplicationContext(applicationId, db = knex) {
     .select(
       "a.id as application_id",
       "a.agency_id",
+      "a.status as application_status",
       "p.id as profile_id",
+      "p.date_of_birth",
       "p.first_name as talent_first_name",
       "p.last_name as talent_last_name",
       "u.id as talent_user_id",
       "u.email as talent_email",
+      "u.account_status as talent_account_status",
       "ag.name as agency_name",
+      "ag.status as agency_status",
     )
     .first();
+}
+
+function hasOpenReplyLifecycle(ctx) {
+  if (!ctx) return false;
+
+  const accountStatus = String(
+    ctx.talent_account_status || "active",
+  ).toLowerCase();
+  const agencyStatus = String(ctx.agency_status || "").toUpperCase();
+  const applicationStatus = String(ctx.application_status || "").toLowerCase();
+  const age = computeAge(ctx.date_of_birth);
+
+  return (
+    age !== null &&
+    age >= 18 &&
+    accountStatus !== "suspended" &&
+    accountStatus !== "banned" &&
+    agencyStatus === "ACTIVE" &&
+    applicationStatus !== "withdrawn"
+  );
+}
+
+async function getAuthorizedReplyContext(applicationId, db = knex) {
+  const ctx = await getApplicationContext(applicationId, db);
+  if (!hasOpenReplyLifecycle(ctx)) return null;
+
+  if (
+    await isAgencyBlockedForTalent(
+      db,
+      ctx.talent_user_id,
+      ctx.agency_id,
+    )
+  ) {
+    return null;
+  }
+
+  return ctx;
 }
 
 async function resolveTalentUserIdForApplication(applicationId) {
@@ -176,7 +221,7 @@ async function validateReplyToken(token) {
     return null;
   }
 
-  const ctx = await getApplicationContext(row.application_id);
+  const ctx = await getAuthorizedReplyContext(row.application_id);
   if (!ctx || ctx.talent_user_id !== row.talent_user_id) {
     return null;
   }
@@ -274,7 +319,7 @@ async function consumeReplySessionToken(rawToken) {
       return null;
     }
 
-    const ctx = await getApplicationContext(replyToken.application_id, trx);
+    const ctx = await getAuthorizedReplyContext(replyToken.application_id, trx);
     if (!ctx || ctx.talent_user_id !== row.talent_user_id) {
       return null;
     }
@@ -310,4 +355,6 @@ module.exports = {
   touchReplyToken,
   resolveTalentUserIdForApplication,
   getApplicationContext,
+  getAuthorizedReplyContext,
+  hasOpenReplyLifecycle,
 };

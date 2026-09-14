@@ -1,0 +1,6 @@
+[
+{"as":"agency","url":"/dashboard/agency/events/1b3d53d0-3115-4edb-b9d7-21287ecc3eeb","out":"13-event-call-pool.png"},
+{"as":"agency","url":"/dashboard/agency/events/1b3d53d0-3115-4edb-b9d7-21287ecc3eeb","steps":[{"click":"Designers","exact":true,"selector":"button,[role=tab],a"}],"out":"14-event-call-designers.png","dump":1500},
+{"url":"/picks/gkjyBgIcGcgBQNdZeSHN9URHydxn6LHhQevmZgd0Ua0","out":"15-designer-picks-desktop.png","dump":1200},
+{"url":"/picks/gkjyBgIcGcgBQNdZeSHN9URHydxn6LHhQevmZgd0Ua0","mobile":true,"dsf":3,"out":"16-designer-picks-mobile.png"}
+]

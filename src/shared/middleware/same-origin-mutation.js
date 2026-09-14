@@ -26,6 +26,8 @@ const PROTECTED_API_PREFIXES = [
 // is checked as defense in depth when present, and a request that presents
 // neither is allowed through on the strength of the header alone.
 const HEADER_ONLY_API_PATHS = [
+  "/login",
+  "/logout",
   "/api/login",
   "/api/logout",
   "/api/auth/instagram/start",

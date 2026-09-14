@@ -167,14 +167,16 @@ async function requireActiveAgencyMember(session, db = knex) {
 
   const membership = await db("agency_memberships as membership")
     .join("agencies as agency", "agency.id", "membership.agency_id")
+    .join("users as member", "member.id", "membership.user_id")
     .where({
       "membership.id": actor.membershipId,
       "membership.agency_id": actor.agencyId,
       "membership.user_id": actor.memberUserId,
       "membership.status": "ACTIVE",
       "agency.status": "ACTIVE",
+      "member.role": "AGENCY",
     })
-    .select("membership.id")
+    .select("membership.id", "membership.membership_role")
     .first();
 
   if (!membership) {
@@ -183,7 +185,10 @@ async function requireActiveAgencyMember(session, db = knex) {
       "An active agency membership is required to access this workspace.",
     );
   }
-  return actor;
+  return {
+    ...actor,
+    membershipRole: membership.membership_role,
+  };
 }
 
 function findCurrentAcceptanceBatch(rows, manifest = AGENCY_POLICY_MANIFEST) {

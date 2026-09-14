@@ -22,7 +22,11 @@ const {
   validateSubmissionPackage,
 } = require("../services/validate-submission-package");
 const { loadImageRightsMap } = require("../../../shared/lib/image-rights");
-const { isMinorProfile, hasGuardianConsent } = require("../../../shared/lib/talent-age");
+const {
+  isMinorProfile,
+  hasGuardianConsent,
+  minorPublicExposureAllowed,
+} = require("../../../shared/lib/talent-age");
 const {
   buildSubmissionProfileSnapshot,
 } = require("../../../shared/lib/submission-profile");
@@ -36,8 +40,8 @@ const {
 const logActivity = require("../../agency/routes/agency-log-activity");
 const { v4: uuidv4 } = require("uuid");
 const {
-  dispatchSubmission,
-} = require("../../agency/services/export-webhook-dispatch");
+  enqueueSubmission,
+} = require("../../agency/services/submission-webhook-outbox");
 const {
   findInvitation,
   latestInvitationForProfile,
@@ -865,6 +869,22 @@ router.post(
       email: profile.email || user?.email || null,
     };
     const minorSubmission = isMinorProfile(submissionProfile);
+    if (!minorPublicExposureAllowed(submissionProfile)) {
+      return res.status(403).json({
+        success: false,
+        error: "ADULTS_ONLY_LAUNCH",
+        message:
+          "Submissions are currently available only to adults aged 18 and over with a valid date of birth on file.",
+      });
+    }
+    if (submissionPackage?.externalCompCardId) {
+      return res.status(409).json({
+        success: false,
+        error: "EXTERNAL_COMP_CARDS_DISABLED",
+        message:
+          "External comp cards cannot be shared. Choose a Pholio comp card and review your submission again.",
+      });
+    }
     // Minors never get social links in a submission snapshot (data
     // minimization) — skip the query entirely rather than load-then-discard.
     const submissionSocial = minorSubmission
@@ -1319,6 +1339,7 @@ router.post(
       // Conditional by construction: null on a representation submission, so
       // the hash is byte-identical to the pre-event-casting one.
       openCallLinkId: eventCall?.linkId || null,
+      eventTermsRevision: eventCall?.call?.consentRevision || null,
       availability: normalizedSubmissionReferences.availability,
       walkVideoUrl: normalizedSubmissionReferences.walkVideoUrl,
     });
@@ -1366,6 +1387,26 @@ router.post(
     );
     try {
       await knex.transaction(async (trx) => {
+        if (eventCall) {
+          let callQuery = trx("agency_open_call_links").where({
+            id: eventCall.linkId,
+            agency_id: agencyId,
+          });
+          if (trx.client.config.client === "pg") {
+            callQuery = callQuery.forUpdate();
+          }
+          const currentCall = await callQuery.first();
+          if (
+            !currentCall ||
+            currentCall.status !== eventCall.link.status ||
+            eventCallDTO(currentCall).consentRevision !==
+              eventCall.call.consentRevision
+          ) {
+            throw Object.assign(new Error("The call changed after consent."), {
+              code: "CONSENT_PACKAGE_CHANGED",
+            });
+          }
+        }
         // Row-locked only to serialize concurrent submissions. The quota does
         // not read the subscription tier — no tier lifts it.
         let quotaProfileQuery = trx("profiles")
@@ -1705,8 +1746,9 @@ router.post(
                 board: null,
                 market: null,
               };
+          const submissionPackageId = uuidv4();
           await trx("talent_submission_packages").insert({
-            id: uuidv4(),
+            id: submissionPackageId,
             application_id: applicationId,
             user_id: req.session.userId,
             profile_id: profile.id,
@@ -1785,6 +1827,7 @@ router.post(
               submittedAt: new Date().toISOString(),
             },
           });
+          await enqueueSubmission(trx, { agencyId, applicationId, packageId: submissionPackageId });
         }
 
         if (applicationNote) {
@@ -1842,6 +1885,14 @@ router.post(
           agency,
         );
         return sendDraftConflict(res, latest);
+      }
+      if (error.code === "CONSENT_PACKAGE_CHANGED") {
+        return res.status(409).json({
+          success: false,
+          error: "consent_package_changed",
+          message:
+            "The call details changed. Reload, review the current terms and confirm again.",
+        });
       }
       if (error.code === "DRAFT_CONSENT_REQUIRED") {
         return res.status(409).json({
@@ -1977,16 +2028,8 @@ router.post(
 
        The cost is bounded — delivery carries its own 5s timeout and swallows
        its own errors, and only agencies that configured an endpoint pay it. */
-    await dispatchSubmission(knex, {
-      agencyId,
-      application: {
-        id: applicationId,
-        status: "pending",
-        created_at: new Date().toISOString(),
-        profile_id: profile.id,
-      },
-      profile,
-    }).catch(() => {});
+    // The transactional outbox owns delivery. Returning this response cannot
+    // freeze an unawaited Lambda promise and lose the submission hand-off.
 
     res.json({ success: true, id: applicationId });
   }),

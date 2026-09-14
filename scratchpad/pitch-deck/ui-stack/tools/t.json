@@ -1,0 +1,6 @@
+[
+{"as":"hazel.moreau@example.com","url":"/dashboard/talent/applications","out":"p-t-apps.png","dsf":1,"dump":1500},
+{"as":"hazel.moreau@example.com","url":"/dashboard/talent","out":"p-t-home.png","dsf":1,"dump":600},
+{"as":"hazel.moreau@example.com","url":"/dashboard/talent/applications/apply","out":"p-t-apply.png","dsf":1,"dump":900},
+{"url":"http://localhost:3100/portfolio/hazel-moreau","out":"p-t-portfolio.png","dsf":1,"dump":400}
+]

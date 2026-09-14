@@ -79,10 +79,11 @@ export function useEventIntake({ basePages, claim }) {
     const trimmedVideo = (walkVideoUrl || '').trim();
     return {
       openCallLinkId,
+      eventTermsRevision: call?.consentRevision || null,
       availability: from && to ? { from, to } : null,
       walkVideoUrl: trimmedVideo || null,
     };
-  }, [availability, isEventCall, openCallLinkId, walkVideoUrl]);
+  }, [availability, call?.consentRevision, isEventCall, openCallLinkId, walkVideoUrl]);
 
   const gaps = useMemo(
     () =>

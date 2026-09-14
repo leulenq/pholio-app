@@ -190,15 +190,29 @@ user's call.
 
 # Independent prelaunch audit — 2026-09-08
 
-Audit baseline: `dc30c46fbea5ef66aeb92da71cb97b63c18efe10`. Product code remains unchanged. Existing untracked founder-report DOCX belongs to the user.
+## Remediation implementation — 2026-09-09
 
-- [ ] Map actual runtime, routes, data stores, integrations, deployment, and strategy assumptions.
-- [ ] Independently review auth/tenant access, privacy/media, payments/infrastructure, and Spec Registry/workflow trust boundaries in disjoint read-only lanes.
-- [ ] Reproduce suspected defects using isolated fixtures; run guarded tests and dependency checks without accessing production data or sending communications.
-- [ ] Challenge findings, verify primary sources where needed, and distinguish evidence from unknowns.
-- [ ] Deliver threat model, prioritized concrete findings, coverage/limitations, and explicit launch/no-launch criteria in `docs/audits/2026-09-08-independent-prelaunch-audit.md`.
+- [ ] Finish standalone unified audit and preserve the original pre-fix findings.
+- [ ] Wave 1: authorization/session/message boundaries; media approval/AI/deletion; Stripe idempotency/order/checkout. Parallel workers own disjoint files and tests; lead owns shared mounts/configuration/dependencies.
+- [ ] Wave 2: consent/event binding, atomic auto-close, minor-safe durable webhook delivery, bounded resources and supplemental findings.
+- [ ] Patch affected dependencies, remove tracked credential material safely, enforce CI/runtime gates; document required credential rotation and live operational checks without executing them.
+- [ ] Independently review patches, run focused and complete guarded tests, reconcile every finding as fixed/mitigated/pending verification/blocked on authority.
+- [ ] Update unified document with remediation status and report remaining launch blockers. No deployment, live DB, payment/email/provider mutations or commits without separate direction.
 
-Review: in progress. Internal research/skills supply questions and intended behavior, not authoritative evidence. High-risk audit lanes use Strong capability; mechanical follow-ups should use Standard/Fast when delegated.
+User delegated the minors decision: choose adults-only launch, preserve existing minor data, restrict access/sharing while keeping withdrawal/deletion available. Mailbox links must not be represented as verified guardian authority. Live storage edge controls, credential rotation, production runtime/provider/incident/restore evidence remain external release gates.
+
+Initial audit baseline: `dc30c46fbea5ef66aeb92da71cb97b63c18efe10`; final app source/proof recheck: `cafa0e2ed4fdd873f58c68c68612d11740465787`. Concurrent user edits/commits were preserved. This audit made no product-code changes.
+
+- [x] Map actual runtime, routes, data stores, integrations, deployment, and strategy assumptions.
+- [x] Independently review auth/tenant access, privacy/media, payments/infrastructure, and Spec Registry/workflow trust boundaries in disjoint read-only lanes.
+- [x] Reproduce suspected defects using isolated fixtures; run guarded tests and dependency checks without accessing production data or sending communications.
+- [x] Challenge findings, verify primary sources where needed, and distinguish evidence from unknowns.
+- [x] Deliver threat model, prioritized concrete findings, coverage/limitations, and explicit launch/no-launch criteria in `docs/audits/2026-09-08-independent-prelaunch-audit.md`.
+- [x] Consolidate every finding, supplemental observation, supporting lane analysis and verification result into one standalone unified document; verify coverage against the source reports.
+
+Remediation checkpoint: the unified document now contains a current F01–F23/O01–O06 status matrix while preserving the original pre-fix evidence. Launch remains **NO-GO**. Focused auth, Stripe, Spec/auto-close and webhook/outbox groups are green; media remains 30 passed/2 failed, and there is no clean complete post-fix run. Credential rotation, private-CDN/history cleanup, provider/PostgreSQL/deployment evidence, global cost bounds, mutable artifact binding, adult-only UX/regressions, client dependency work, O05 logo-fetch tracing and enforced CSP remain release gates.
+
+Review: complete as a code-based audit, not a production certification. Verdict **NO-GO**; 23 prioritized findings with explicit exploit prerequisites, evidence, limits and acceptance criteria. Five isolated proof scripts passed. Full guarded backend run: 283/284 suites, 3,787 passed / 1 failed / 10 skipped; failing OAuth-avatar test passed alone, so full-suite isolation/failure remains unresolved. Client: 89 files / 932 tests passed. Final advisory counts: root 32, client 18, current `pholio-site` 4; native Sharp/Next exposure independently checked against maintainer advisories and harmless AVIF reachability. No live DB, provider transaction, deployment or malicious image tests. Report includes gaps for live configuration, PostgreSQL/browser/load testing, legal/safety operations and accessibility. Internal industry material supplied questions only; Strong reviewers handled high-risk reasoning and `gpt-5.6-luna` handled mechanical inventory/client verification. No fixes or commits were made by this audit.
 
 # Submission Review redesign — "The Review Room", rebuilt from first principles
 

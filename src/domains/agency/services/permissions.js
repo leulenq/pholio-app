@@ -6,6 +6,9 @@ const {
   canGrantPermission,
   canAssignRole,
 } = require("../lib/permissions");
+const {
+  requireActiveAgencyMember,
+} = require("./legal-acceptance");
 
 async function loadMembershipGrants(membershipId, db = knex) {
   const hasTable = await db.schema.hasTable("agency_membership_permissions");
@@ -37,14 +40,19 @@ async function resolveEffectivePermissionsFromSession(session, db = knex) {
     return new Set();
   }
 
-  const membershipId = session.agencyMembershipId || null;
-  const presetRole = session.agencyMembershipRole || "SCOUT";
+  const actor = await requireActiveAgencyMember(session, db);
+  const presetRole = normalizePresetRole(actor.membershipRole);
 
-  if (!membershipId) {
-    return computeEffectivePermissions(normalizePresetRole(presetRole), []);
-  }
+  // Keep downstream role-only guards and session DTOs aligned with the same
+  // authoritative membership row used to calculate permissions. A demotion is
+  // therefore effective on the first request made with an old cookie.
+  session.agencyMembershipRole = presetRole;
 
-  return resolveEffectivePermissionsForMembership(membershipId, presetRole, db);
+  return resolveEffectivePermissionsForMembership(
+    actor.membershipId,
+    presetRole,
+    db,
+  );
 }
 
 async function loadPermissionsArrayForSession(session, db = knex) {

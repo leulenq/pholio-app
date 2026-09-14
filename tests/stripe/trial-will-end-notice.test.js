@@ -19,6 +19,7 @@ const {
   sendTrialWillEndNotice,
   groupKeyFor,
   formatTrialEndLabel,
+  replayPendingNotices,
 } = require("../../src/shared/services/billing-notices");
 const {
   buildTrialEndingEmailHtml,
@@ -70,6 +71,7 @@ describe("trial_will_end pre-charge notice", () => {
   }, 60000);
 
   beforeEach(async () => {
+    await knex('stripe_notice_deliveries').where({ user_id: TALENT_ID }).delete();
     await knex("notifications").where({ user_id: TALENT_ID }).delete();
   });
 
@@ -121,13 +123,13 @@ describe("trial_will_end pre-charge notice", () => {
   it("is idempotent under concurrent delivery (the unique index is the gate)", async () => {
     const sendEmail = jest.fn().mockResolvedValue({ messageId: "m1" });
 
-    const results = await Promise.all([
+    const results = await Promise.allSettled([
       sendTrialWillEndNotice(stripeSubscription(), { knex, sendEmail }),
       sendTrialWillEndNotice(stripeSubscription(), { knex, sendEmail }),
       sendTrialWillEndNotice(stripeSubscription(), { knex, sendEmail }),
     ]);
 
-    expect(results.filter((r) => r.sent)).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'fulfilled' && r.value.sent)).toHaveLength(1);
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
@@ -144,7 +146,7 @@ describe("trial_will_end pre-charge notice", () => {
     expect(sendEmail.mock.calls[1][0].trialEndLabel).toBe("September 8, 2026");
   });
 
-  it("rolls the marker back when the email fails, so a retry can resend", async () => {
+  it("retains the in-app notice and pending delivery when email fails, then retries", async () => {
     const failing = jest.fn().mockRejectedValue(new Error("SMTP down"));
 
     await expect(
@@ -153,7 +155,7 @@ describe("trial_will_end pre-charge notice", () => {
 
     expect(
       await knex("notifications").where({ user_id: TALENT_ID }).count({ n: "*" }).first(),
-    ).toEqual(expect.objectContaining({ n: 0 }));
+    ).toEqual(expect.objectContaining({ n: 1 }));
 
     const succeeding = jest.fn().mockResolvedValue({ messageId: "m1" });
     const retry = await sendTrialWillEndNotice(stripeSubscription(), {
@@ -161,6 +163,23 @@ describe("trial_will_end pre-charge notice", () => {
       sendEmail: succeeding,
     });
     expect(retry.sent).toBe(true);
+  });
+
+  it('does not acknowledge sent:false and recovers an abandoned send lease', async () => {
+    const refused = jest.fn().mockResolvedValue({ sent: false });
+    await expect(sendTrialWillEndNotice(stripeSubscription(), { knex, sendEmail: refused })).rejects.toThrow('not accepted');
+    await knex('stripe_notice_deliveries').update({ state: 'sending', claim_token: 'dead', lease_until: new Date(0).toISOString() });
+    const sendEmail = jest.fn().mockResolvedValue({ messageId: 'recovered' });
+    expect(await replayPendingNotices({ knex, sendEmail })).toEqual([expect.objectContaining({ recovered: true })]);
+    expect(sendEmail.mock.calls[0][0].messageId).toBe(refused.mock.calls[0][0].messageId);
+  });
+
+  it('cascades queued personal email data when its user is erased', async () => {
+    const erasedId = uuidv4();
+    await knex('users').insert({ id: erasedId, email: `${erasedId}@example.com`, role: 'TALENT' });
+    await knex('stripe_notice_deliveries').insert({ delivery_key: 'erasure', user_id: erasedId, payload: '{"to":"private@example.com"}' });
+    await knex('users').where({ id: erasedId }).delete();
+    expect(await knex('stripe_notice_deliveries').where({ delivery_key: 'erasure' })).toHaveLength(0);
   });
 
   it("stays silent when there is no trial end date to state", async () => {

@@ -1,131 +1,14 @@
-const path = require("path");
 const crypto = require("crypto");
-const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
-const config = require("../../config");
-const { s3 } = require("./uploader");
 const { deleteUser } = require("../../domains/auth/services/firebase-admin");
+const {
+  collectExternalCardArtifacts,
+  collectImageArtifacts,
+  deleteLocalFiles,
+  deleteR2Objects,
+} = require("./media-artifact-deletion");
 const {
   TABLES_REQUIRING_EXPLICIT_CLEANUP,
 } = require("./talent-data-inventory");
-
-const ORIGINAL_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
-
-function normalizeKey(value) {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  if (trimmed.startsWith("pholio-media/")) return trimmed;
-
-  const markerIndex = trimmed.indexOf("pholio-media/");
-  if (markerIndex >= 0) {
-    return trimmed.slice(markerIndex);
-  }
-
-  return null;
-}
-
-function keyFromUrl(value) {
-  if (typeof value !== "string" || !value.trim()) return null;
-
-  const trimmed = value.trim();
-  const direct = normalizeKey(trimmed);
-  if (direct) return direct;
-
-  if (trimmed.startsWith("/uploads/")) return null;
-
-  try {
-    const parsed = new URL(trimmed);
-    return normalizeKey(parsed.pathname);
-  } catch {
-    return null;
-  }
-}
-
-function deriveRelatedKeys(storageKey) {
-  const rootKey = normalizeKey(storageKey);
-  if (!rootKey) return [];
-
-  const keys = new Set([rootKey]);
-  if (rootKey.includes("/logos/")) {
-    return [...keys];
-  }
-
-  const marker = ["/processed/", "/originals/", "/thumbnails/"].find((item) =>
-    rootKey.includes(item),
-  );
-  if (!marker) {
-    return [...keys];
-  }
-
-  const prefix = rootKey.split(marker)[0];
-  const ext = path.extname(rootKey);
-  const baseName = path.basename(rootKey, ext || undefined).replace(/_400w$/, "");
-  if (!baseName) {
-    return [...keys];
-  }
-
-  keys.add(`${prefix}/processed/${baseName}.webp`);
-  keys.add(`${prefix}/thumbnails/${baseName}_400w.webp`);
-  for (const originalExt of ORIGINAL_EXTENSIONS) {
-    keys.add(`${prefix}/originals/${baseName}${originalExt}`);
-  }
-
-  return [...keys];
-}
-
-function collectImageKeys(imageRow) {
-  const seedCandidates = [
-    imageRow.storage_key,
-    imageRow.original_storage_key,
-    keyFromUrl(imageRow.path),
-    keyFromUrl(imageRow.public_url),
-    keyFromUrl(imageRow.original_path),
-    keyFromUrl(imageRow.original_public_url),
-  ].filter(Boolean);
-
-  const keys = new Set();
-  for (const candidate of seedCandidates) {
-    for (const key of deriveRelatedKeys(candidate)) {
-      keys.add(key);
-    }
-  }
-  return keys;
-}
-
-/**
- * Deletes every key from R2 and reports exactly which ones failed, so a
- * caller can durably record them for retry rather than silently losing
- * track of what still needs to be purged.
- */
-async function deleteR2Objects(keys) {
-  if (!config.r2.bucket || !s3 || keys.size === 0) {
-    return { attempted: 0, deleted: 0, failed: 0, failedKeys: [] };
-  }
-
-  const keyList = [...keys];
-  const operations = keyList.map((key) =>
-    s3.send(
-      new DeleteObjectCommand({
-        Bucket: config.r2.bucket,
-        Key: key,
-      }),
-    ),
-  );
-  const settled = await Promise.allSettled(operations);
-
-  const failedKeys = [];
-  settled.forEach((result, index) => {
-    if (result.status === "rejected") failedKeys.push(keyList[index]);
-  });
-
-  return {
-    attempted: settled.length,
-    deleted: settled.length - failedKeys.length,
-    failed: failedKeys.length,
-    failedKeys,
-  };
-}
 
 function parseSessJson(raw) {
   if (raw == null) return null;
@@ -172,9 +55,8 @@ async function cleanupTablesWithoutCascade(knex, { userId, profileId }) {
  * Durably records a provider-purge failure so it can be retried later, even
  * though the `users` row that caused it is about to be deleted.
  *
- * TODO(outbox): this is the minimal honest fix — a flat retry table with no
- * worker/lease/backoff. If provider-purge failure volume warrants it, a
- * later wave should promote this into a real job-runner outbox.
+ * The retry consumer below claims these rows with expiring leases and applies
+ * bounded exponential backoff.
  */
 async function recordDeletionFailure(
   knex,
@@ -238,18 +120,34 @@ async function deleteUserAccount(knex, userId) {
           "original_path",
           "original_public_url",
           "original_storage_key",
+          "absolute_path",
+          "original_absolute_path",
         )
     : [];
+  const externalCards =
+    profile && (await knex.schema.hasTable("external_comp_cards"))
+      ? await knex("external_comp_cards")
+          .where({ profile_id: profile.id })
+          .select("storage_key", "public_url")
+      : [];
 
   const allKeys = new Set();
+  const allLocalPaths = new Set();
   for (const image of images) {
-    const imageKeys = collectImageKeys(image);
-    for (const key of imageKeys) {
-      allKeys.add(key);
-    }
+    const artifacts = collectImageArtifacts(image);
+    for (const key of artifacts.r2Keys) allKeys.add(key);
+    for (const filePath of artifacts.localPaths) allLocalPaths.add(filePath);
+  }
+  for (const card of externalCards) {
+    const artifacts = collectExternalCardArtifacts(card);
+    for (const key of artifacts.r2Keys) allKeys.add(key);
+    for (const filePath of artifacts.localPaths) allLocalPaths.add(filePath);
   }
 
-  const r2Result = await deleteR2Objects(allKeys);
+  const [r2Result, localResult] = await Promise.all([
+    deleteR2Objects(allKeys),
+    deleteLocalFiles(allLocalPaths),
+  ]);
 
   let firebaseDeleted = false;
   let firebaseError = null;
@@ -269,8 +167,9 @@ async function deleteUserAccount(knex, userId) {
   // or left objects undeleted means erasure is NOT complete, no matter what
   // happens to the DB row below.
   const r2Failed = r2Result.failed > 0;
+  const localFailed = localResult.failed > 0;
   const firebaseFailed = !!user.firebase_uid && !firebaseDeleted;
-  const fullyErased = !r2Failed && !firebaseFailed;
+  const fullyErased = !r2Failed && !localFailed && !firebaseFailed;
 
   const pendingFailureIds = [];
   if (r2Failed) {
@@ -293,13 +192,44 @@ async function deleteUserAccount(knex, userId) {
     });
     if (id) pendingFailureIds.push(id);
   }
+  if (localFailed) {
+    const id = await recordDeletionFailure(knex, {
+      userId,
+      firebaseUid: user.firebase_uid || null,
+      provider: "local_media",
+      payload: { failedPaths: localResult.failedPaths },
+      error: `${localResult.failed}/${localResult.attempted} local artifact deletes failed`,
+    });
+    if (id) pendingFailureIds.push(id);
+  }
 
-  // DB deletion still proceeds: removing the account from Pholio's own
-  // systems is the app's own obligation and should not be held hostage by a
-  // downstream provider outage. What changes is that we no longer claim the
-  // erasure was complete when a provider purge failed — the caller is
-  // expected to surface `fullyErased`/`pendingFailureIds` truthfully rather
-  // than a bare "deleted".
+  const failedProviderGroups =
+    Number(r2Failed) + Number(firebaseFailed) + Number(localFailed);
+  const failuresDurablyQueued =
+    failedProviderGroups === 0 || pendingFailureIds.length === failedProviderGroups;
+
+  // Never discard the only inventory of objects that still need erasure. If
+  // the retry table is absent (or could not record every failed provider), the
+  // account row remains and the caller receives a retryable failure.
+  if (!failuresDurablyQueued) {
+    return {
+      deleted: false,
+      userFound: true,
+      inventoryRetained: true,
+      imagesScanned: images.length,
+      externalCardsScanned: externalCards.length,
+      r2KeysAttempted: r2Result.attempted,
+      deletedR2Objects: r2Result.deleted,
+      failedR2Objects: r2Result.failed,
+      localFilesAttempted: localResult.attempted,
+      failedLocalFiles: localResult.failed,
+      firebaseAttempted: !!user.firebase_uid,
+      firebaseDeleted,
+      fullyErased: false,
+      pendingFailureIds,
+    };
+  }
+
   await cleanupTablesWithoutCascade(knex, { userId, profileId: profile?.id || null });
   const deletedRows = await knex("users").where({ id: userId }).del();
 
@@ -307,9 +237,12 @@ async function deleteUserAccount(knex, userId) {
     deleted: deletedRows > 0,
     userFound: true,
     imagesScanned: images.length,
+    externalCardsScanned: externalCards.length,
     r2KeysAttempted: r2Result.attempted,
     deletedR2Objects: r2Result.deleted,
     failedR2Objects: r2Result.failed,
+    localFilesAttempted: localResult.attempted,
+    failedLocalFiles: localResult.failed,
     firebaseAttempted: !!user.firebase_uid,
     firebaseDeleted,
     fullyErased,
@@ -328,20 +261,92 @@ function parsePayload(value) {
   }
 }
 
+const DEFAULT_RETRY_LIMIT = 25;
+const MAX_RETRY_LIMIT = 100;
+const DEFAULT_LEASE_MS = 5 * 60 * 1000;
+const BASE_BACKOFF_MS = 60 * 1000;
+const MAX_BACKOFF_MS = 24 * 60 * 60 * 1000;
+
+function retryDelayMs(attempts) {
+  const exponent = Math.max(0, Math.min(10, Number(attempts || 1) - 1));
+  return Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * 2 ** exponent);
+}
+
+function isDueForRetry(row, nowMs) {
+  const nextAttempt = row.next_attempt_at
+    ? new Date(row.next_attempt_at).getTime()
+    : 0;
+  const leaseExpiry = row.lease_expires_at
+    ? new Date(row.lease_expires_at).getTime()
+    : 0;
+  return (
+    (!Number.isFinite(nextAttempt) || nextAttempt <= nowMs) &&
+    (!Number.isFinite(leaseExpiry) || leaseExpiry <= nowMs)
+  );
+}
+
 /**
- * Processes and retries pending failures in the `account_deletion_failures` table.
+ * Process one bounded retry batch. Conditional lease claims prevent two
+ * overlapping schedulers from acting on the same provider target, while an
+ * expiry allows recovery after a crashed worker.
  *
  * @param {import('knex').Knex} knex
- * @returns {Promise<{ processed: number, resolved: number, failed: number }>}
+ * @param {{limit?: number, leaseMs?: number, now?: Date}} [options]
  */
-async function processPendingDeletions(knex) {
+async function processPendingDeletions(knex, options = {}) {
   if (!(await knex.schema.hasTable("account_deletion_failures"))) {
     return { processed: 0, resolved: 0, failed: 0 };
   }
 
-  const pending = await knex("account_deletion_failures")
+  const requiredColumns = ["next_attempt_at", "lease_token", "lease_expires_at"];
+  if (typeof knex.schema.hasColumn === "function") {
+    for (const column of requiredColumns) {
+      if (!(await knex.schema.hasColumn("account_deletion_failures", column))) {
+        return {
+          processed: 0,
+          resolved: 0,
+          failed: 0,
+          unavailableReason: "retry_migration_required",
+        };
+      }
+    }
+  }
+
+  const parsedLimit = Number(options.limit ?? DEFAULT_RETRY_LIMIT);
+  const limit = Number.isFinite(parsedLimit)
+    ? Math.max(1, Math.min(MAX_RETRY_LIMIT, Math.floor(parsedLimit)))
+    : DEFAULT_RETRY_LIMIT;
+  const parsedLeaseMs = Number(options.leaseMs ?? DEFAULT_LEASE_MS);
+  const leaseMs = Number.isFinite(parsedLeaseMs)
+    ? Math.max(30_000, parsedLeaseMs)
+    : DEFAULT_LEASE_MS;
+  const now = options.now instanceof Date ? options.now : new Date();
+  const nowMs = now.getTime();
+
+  const candidates = await knex("account_deletion_failures")
     .where({ status: "pending" })
+    .orderBy("created_at", "asc")
+    .limit(Math.min(limit * 4, MAX_RETRY_LIMIT * 4))
     .select();
+  const pending = [];
+  for (const candidate of candidates) {
+    if (pending.length >= limit || !isDueForRetry(candidate, nowMs)) continue;
+    const leaseToken = crypto.randomUUID();
+    const claimed = await knex("account_deletion_failures")
+      .where({
+        id: candidate.id,
+        status: "pending",
+        lease_token: candidate.lease_token ?? null,
+        lease_expires_at: candidate.lease_expires_at ?? null,
+      })
+      .update({
+        lease_token: leaseToken,
+        lease_expires_at: new Date(nowMs + leaseMs),
+        last_attempt_at: now,
+        updated_at: knex.fn.now(),
+      });
+    if (claimed === 1) pending.push({ ...candidate, leaseToken });
+  }
 
   let processed = 0;
   let resolved = 0;
@@ -363,7 +368,10 @@ async function processPendingDeletions(knex) {
             wasResolved = true;
             newPayload = null;
           } else {
-            newPayload = JSON.stringify({ failedKeys: r2Result.failedKeys });
+            newPayload = JSON.stringify({
+              ...payload,
+              failedKeys: r2Result.failedKeys,
+            });
             lastError = `${r2Result.failed}/${r2Result.attempted} object deletes failed`;
           }
         } catch (err) {
@@ -394,28 +402,61 @@ async function processPendingDeletions(knex) {
       } else {
         wasResolved = true;
       }
+    } else if (failure.provider === "local_media") {
+      const payload = parsePayload(failure.payload);
+      const failedPaths = payload?.failedPaths || [];
+      if (failedPaths.length > 0) {
+        try {
+          const localResult = await deleteLocalFiles(new Set(failedPaths));
+          if (localResult.failed === 0) {
+            wasResolved = true;
+            newPayload = null;
+          } else {
+            newPayload = JSON.stringify({
+              ...payload,
+              failedPaths: localResult.failedPaths,
+            });
+            lastError = `${localResult.failed}/${localResult.attempted} local artifact deletes failed`;
+          }
+        } catch (err) {
+          lastError = err?.message || String(err);
+        }
+      } else {
+        wasResolved = true;
+        newPayload = null;
+      }
+    } else {
+      lastError = `Unsupported deletion provider: ${failure.provider || "missing"}`;
     }
 
     if (wasResolved) {
       resolved++;
       await knex("account_deletion_failures")
-        .where({ id: failure.id })
+        .where({ id: failure.id, lease_token: failure.leaseToken })
         .update({
           status: "resolved",
-          attempts: failure.attempts + 1,
+          attempts: Number(failure.attempts || 0) + 1,
           payload: null,
           last_error: null,
           resolved_at: knex.fn.now(),
+          next_attempt_at: null,
+          lease_token: null,
+          lease_expires_at: null,
           updated_at: knex.fn.now(),
         });
     } else {
       failed++;
       await knex("account_deletion_failures")
-        .where({ id: failure.id })
+        .where({ id: failure.id, lease_token: failure.leaseToken })
         .update({
-          attempts: failure.attempts + 1,
+          attempts: Number(failure.attempts || 0) + 1,
           payload: newPayload,
           last_error: lastError ? lastError.slice(0, 2000) : null,
+          next_attempt_at: new Date(
+            nowMs + retryDelayMs(Number(failure.attempts || 0) + 1),
+          ),
+          lease_token: null,
+          lease_expires_at: null,
           updated_at: knex.fn.now(),
         });
     }
@@ -425,6 +466,17 @@ async function processPendingDeletions(knex) {
 }
 
 function buildAccountDeletionResponse(result = {}) {
+  if (result.deleted !== true) {
+    return {
+      status: 503,
+      payload: {
+        deleted: false,
+        fullyErased: false,
+        erasureStatus: "retry_required",
+        redirect: null,
+      },
+    };
+  }
   const fullyErased = result.fullyErased === true;
   return {
     status: fullyErased ? 200 : 202,

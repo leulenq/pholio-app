@@ -146,7 +146,7 @@ async function buildSpecExport(db, { profileId, seriesId, imageIds = null }, opt
 
   const input = await buildMatcherInput(db, {
     profileId,
-    selectedImageIds: imageIds?.length ? imageIds : null,
+    selectedImageIds: imageIds,
   });
   if (input.selection.rejectedImageIds.length) {
     throw new SpecRegistryServiceError(

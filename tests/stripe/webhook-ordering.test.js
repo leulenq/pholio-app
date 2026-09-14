@@ -1,183 +1,117 @@
 "use strict";
-
-/**
- * Stripe delivers webhooks AT LEAST ONCE and IN NO GUARANTEED ORDER, and the
- * handler assumed the opposite of both.
- *
- * The duplicate case is mildly wasteful. The ordering case costs money in the
- * wrong direction: a `customer.subscription.updated` carrying status "active"
- * arriving after a `deleted` rewrote the row back to active and flipped
- * `profiles.is_pro` on again — a paid entitlement restored to someone who had
- * cancelled, with nothing afterwards to correct it.
- */
-
-const {
-  dropIsolatedDatabase,
-  migrate,
-  useIsolatedDatabase,
-} = require("../setup/isolated-db");
-
-const DB_FILE = useIsolatedDatabase("stripe-webhook-ordering");
-const knex = require("../../src/shared/db/knex");
-const { v4: uuidv4 } = require("uuid");
-const {
-  TABLE,
-  alreadySeen,
-  claimEvent,
-  isStale,
-  markApplied,
-  resetEventLedgerCache,
-  stripeObjectId,
-} = require("../../src/shared/lib/stripe-events");
-
-const USER_ID = uuidv4();
-const SUB_ID = "sub_test_123";
-
-const event = (overrides = {}) => ({
-  id: `evt_${Math.random().toString(16).slice(2, 10)}`,
-  type: "customer.subscription.updated",
-  created: 1_700_000_100,
-  data: { object: { object: "subscription", id: SUB_ID, status: "active" } },
-  ...overrides,
-});
-
+const { useIsolatedDatabase, migrate, dropIsolatedDatabase } = require('../setup/isolated-db');
+const file = useIsolatedDatabase('stripe-webhook-ordering');
+const db = require('../../src/shared/db/knex');
+const { randomUUID } = require('crypto');
+const { claimEvent, applyEvent, failEvent, replayPendingEvents } = require('../../src/shared/lib/stripe-events');
+const { upsertSubscriptionFromStripe, updateSubscription, getSubscriptionStatus } = require('../../src/shared/lib/subscriptions');
+const userId = randomUUID();
+const customer = 'cus_ordering';
+const sub = (status = 'active', id = 'sub_ordering') => ({ object: 'subscription', id, customer, status,
+  metadata: { userId }, items: { data: [{ price: { id: 'price_test' } }] } });
+const event = (created, status = 'active', id = randomUUID()) => ({ id, created,
+  type: status === 'canceled' ? 'customer.subscription.deleted' : 'customer.subscription.updated',
+  data: { object: sub(status) } });
+async function process(e) {
+  const claim = await claimEvent(db, e);
+  if (!claim.process) throw new Error(claim.reason);
+  return applyEvent(db, e, claim, trx => upsertSubscriptionFromStripe(e.data.object, { db: trx }));
+}
 beforeAll(async () => {
-  await migrate(knex);
-  await knex("users").insert({
-    id: USER_ID,
-    email: `stripe-${USER_ID.slice(0, 8)}@example.com`,
-    role: "TALENT",
-  });
+  await migrate(db);
+  await db('users').insert({ id: userId, email: `${userId}@example.com`, role: 'TALENT', stripe_customer_id: customer });
+  await db('profiles').insert({ id: randomUUID(), user_id: userId, slug: userId, first_name: 'Test', last_name: 'Talent',
+    city: 'New York', height_cm: 170, bio_raw: '', bio_curated: '' });
 }, 60000);
-
 beforeEach(async () => {
-  resetEventLedgerCache();
-  await knex(TABLE).del();
-  await knex("subscriptions").del();
-  await knex("subscriptions").insert({
-    id: uuidv4(),
-    user_id: USER_ID,
-    stripe_customer_id: `cus_${USER_ID.slice(0, 8)}`,
-    stripe_subscription_id: SUB_ID,
-    stripe_price_id: "price_test",
-    status: "active",
-  });
+  await db('stripe_webhook_events').delete();
+  await db('stripe_processing_locks').delete();
+  await db('subscriptions').delete();
+  await db('profiles').where({ user_id: userId }).update({ is_pro: false });
+});
+afterAll(async () => { await db.destroy(); dropIsolatedDatabase(file); });
+
+test('a claimed event remains busy until its effects commit, then is a duplicate', async () => {
+  const e = event(100);
+  const claim = await claimEvent(db, e);
+  expect((await claimEvent(db, e)).reason).toBe('busy');
+  expect((await db('stripe_webhook_events').first()).outcome).toBe('processing');
+  await applyEvent(db, e, claim, trx => upsertSubscriptionFromStripe(sub(), { db: trx }));
+  expect((await claimEvent(db, e)).reason).toBe('duplicate');
 });
 
-afterAll(async () => {
-  await knex.destroy();
-  dropIsolatedDatabase(DB_FILE);
+test('failed local effect rolls back subscription, entitlement and ordering, then retries', async () => {
+  const e = event(100);
+  const claim = await claimEvent(db, e);
+  const failure = new Error('after local write');
+  await expect(applyEvent(db, e, claim, async trx => {
+    await upsertSubscriptionFromStripe(sub(), { db: trx });
+    throw failure;
+  })).rejects.toThrow('after local write');
+  expect(await db('subscriptions')).toHaveLength(0);
+  expect(Boolean((await db('profiles').first()).is_pro)).toBe(false);
+  await failEvent(db, e, claim, failure);
+  await process(e);
+  expect((await db('subscriptions').first()).status).toBe('active');
 });
 
-describe("a cancelled subscription cannot be resurrected by a late event", () => {
-  test("an older 'active' arriving after a cancellation is refused", async () => {
-    const cancelled = event({
-      type: "customer.subscription.deleted",
-      created: 1_700_000_200,
-      data: { object: { object: "subscription", id: SUB_ID, status: "canceled" } },
-    });
-    expect((await claimEvent(knex, cancelled)).process).toBe(true);
-    await markApplied(knex, cancelled);
-
-    // Stripe re-delivers an earlier 'updated' that says active.
-    const stale = event({ created: 1_700_000_100 });
-    const claim = await claimEvent(knex, stale);
-
-    expect(claim.process).toBe(false);
-    expect(claim.reason).toBe("stale");
-  });
-
-  test("the skip is recorded, so nothing happening is explainable later", async () => {
-    const newer = event({ created: 1_700_000_500 });
-    await claimEvent(knex, newer);
-    await markApplied(knex, newer);
-
-    await claimEvent(knex, event({ created: 1_700_000_100 }));
-
-    const skipped = await knex(TABLE).where({ outcome: "skipped_stale" }).first();
-    expect(skipped).toBeDefined();
-    expect(skipped.note).toMatch(/undo newer state/i);
-  });
-
-  test("a genuinely newer event is applied", async () => {
-    const first = event({ created: 1_700_000_100 });
-    await claimEvent(knex, first);
-    await markApplied(knex, first);
-
-    const later = event({ created: 1_700_000_900 });
-    expect((await claimEvent(knex, later)).process).toBe(true);
-  });
-
-  test("same-second events are allowed through rather than dropped", async () => {
-    // Dropping them would lose real state changes to guard against a rarer
-    // problem, so equality is not staleness.
-    const first = event({ created: 1_700_000_100 });
-    await claimEvent(knex, first);
-    await markApplied(knex, first);
-
-    expect(await isStale(knex, event({ created: 1_700_000_100 }))).toBe(false);
-  });
+test.each([[100, 200], [200, 100], [200, 200]])('active/cancel completion order %i/%i cannot restore access', async (first, second) => {
+  if (first <= second) { await process(event(first)); await process(event(second, 'canceled')); }
+  else { await process(event(first, 'canceled')); await process(event(second)); }
+  // Equal-second delayed active snapshots cannot undo terminal cancellation.
+  await process(event(Math.max(first, second)));
+  expect((await db('subscriptions').first()).status).toBe('canceled');
+  expect(Boolean((await db('profiles').first()).is_pro)).toBe(false);
 });
 
-describe("at-least-once delivery", () => {
-  test("the same event id is applied once", async () => {
-    const e = event();
-    expect((await claimEvent(knex, e)).process).toBe(true);
-
-    const second = await claimEvent(knex, e);
-    expect(second.process).toBe(false);
-    expect(second.reason).toBe("duplicate");
-  });
-
-  test("alreadySeen reports it independently", async () => {
-    const e = event();
-    expect(await alreadySeen(knex, e.id)).toBe(false);
-    await claimEvent(knex, e);
-    expect(await alreadySeen(knex, e.id)).toBe(true);
-  });
-
-  test("a different event about the same subscription is not a duplicate", async () => {
-    await claimEvent(knex, event({ created: 1_700_000_100 }));
-    const other = await claimEvent(knex, event({ created: 1_700_000_200 }));
-    expect(other.process).toBe(true);
-  });
+test('overlapping customer events cannot both obtain a lease; the loser is durable and retryable', async () => {
+  const old = event(100), newer = event(200, 'canceled');
+  const claims = await Promise.all([claimEvent(db, old), claimEvent(db, newer)]);
+  expect(claims.filter(c => c.process)).toHaveLength(1);
+  expect(await db('stripe_webhook_events')).toHaveLength(2);
+  const winner = claims[0].process ? 0 : 1;
+  const events = [old, newer];
+  await applyEvent(db, events[winner], claims[winner], trx => upsertSubscriptionFromStripe(events[winner].data.object, { db: trx }));
+  await process(events[1 - winner]);
+  expect((await db('subscriptions').first()).status).toBe('canceled');
 });
 
-describe("the high-water mark never moves backwards", () => {
-  test("applying an older event does not lower it", async () => {
-    await markApplied(knex, event({ created: 1_700_000_900 }));
-    await markApplied(knex, event({ created: 1_700_000_100 }));
-
-    const row = await knex("subscriptions").where({ stripe_subscription_id: SUB_ID }).first();
-    expect(Number(row.last_stripe_event_at)).toBe(1_700_000_900);
-  });
+test('expired claims recover after process death and fence the old worker', async () => {
+  const e = event(100);
+  const oldClaim = await claimEvent(db, e, { now: new Date(Date.now() - 600000) });
+  const newClaim = await claimEvent(db, e);
+  await expect(applyEvent(db, e, oldClaim, async () => {})).rejects.toThrow('lease');
+  await applyEvent(db, e, newClaim, trx => upsertSubscriptionFromStripe(sub(), { db: trx }));
+  expect((await db('stripe_webhook_events').first()).attempts).toBe(2);
 });
 
-describe("which subscription an event is about", () => {
-  test.each([
-    [{ object: "subscription", id: "sub_a" }, "sub_a"],
-    [{ object: "invoice", subscription: "sub_b", id: "in_1" }, "sub_b"],
-    [{ object: "checkout.session", subscription: "sub_c", id: "cs_1" }, "sub_c"],
-  ])("%p resolves to %s", (object, expected) => {
-    expect(stripeObjectId({ data: { object } })).toBe(expected);
-  });
-
-  test("an event about nothing subscription-shaped is never stale", async () => {
-    expect(await isStale(knex, { created: 1, data: { object: {} } })).toBe(false);
-  });
+test('recovery consumer replays abandoned durable payloads', async () => {
+  await claimEvent(db, event(100), { now: new Date(Date.now() - 600000) });
+  expect(await replayPendingEvents(db, process)).toEqual([expect.objectContaining({ recovered: true })]);
 });
 
-describe("the ledger fails open, deliberately", () => {
-  test("an unreadable ledger processes the event rather than dropping it", async () => {
-    resetEventLedgerCache();
-    const broken = () => { throw new Error("no table"); };
-    broken.schema = { hasTable: async () => { throw new Error("nope"); } };
+test('durable event payload excludes unnecessary provider personal data', async () => {
+  const e = event(100);
+  Object.assign(e.data.object, { customer_email: 'private@example.com', verified_outputs: { dob: 'private' },
+    billing_details: { address: 'private address' } });
+  await claimEvent(db, e);
+  const stored = (await db('stripe_webhook_events').first()).payload;
+  expect(stored).not.toContain('private');
+  expect(JSON.parse(stored).data.object.metadata.userId).toBe(userId);
+});
 
-    // A payment system that silently stops applying events because a
-    // bookkeeping table is missing is worse than one that occasionally applies
-    // an event twice — the guarded action is an idempotent upsert.
-    const claim = await claimEvent(broken, event());
-    expect(claim.process).toBe(true);
-    resetEventLedgerCache();
-  });
+test('ledger failure rejects processing instead of bypassing integrity guards', async () => {
+  const broken = { transaction: async () => { throw new Error('database unavailable'); } };
+  await expect(claimEvent(broken, event(100))).rejects.toThrow('database unavailable');
+});
+
+test('distinct paid subscriptions survive ingestion and cancellation aggregates access', async () => {
+  await upsertSubscriptionFromStripe(sub('active', 'sub_first'));
+  await upsertSubscriptionFromStripe(sub('active', 'sub_second'));
+  expect(await db('subscriptions')).toHaveLength(2);
+  await updateSubscription('sub_second', { status: 'canceled' });
+  expect(Boolean((await db('profiles').first()).is_pro)).toBe(true);
+  expect((await getSubscriptionStatus(userId)).stripe_subscription_id).toBe('sub_first');
+  await updateSubscription('sub_first', { status: 'canceled' });
+  expect(Boolean((await db('profiles').first()).is_pro)).toBe(false);
 });

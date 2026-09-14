@@ -1,0 +1,3 @@
+[{"as":"agency","url":"/dashboard/agency/submissions?review=35015e5a-f324-49ca-bf7a-705cc920a8ff","out":"02-review-room-stage.png"},
+ {"as":"agency","url":"/dashboard/agency/submissions?review=35015e5a-f324-49ca-bf7a-705cc920a8ff","steps":[{"key":"x","wait":1000},{"click":"Board is full","exact":true,"selector":"button"},{"css":"[placeholder^='House note']"},{"type":["[placeholder^='House note']","Strong look, but the women's board is at capacity this season. Revisit in January."],"wait":800}],"out":"03-review-room-pass-armed.png"},
+ {"as":"agency","url":"/dashboard/agency/submissions?review=35015e5a-f324-49ca-bf7a-705cc920a8ff","steps":[{"key":"a","wait":1200}],"out":"04-review-room-offer-armed.png"}]

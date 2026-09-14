@@ -17,7 +17,7 @@ const stripe = config.stripe.secretKey
  * @param {string} name - User name (optional)
  * @returns {Promise<Object>} Stripe customer object
  */
-async function getOrCreateCustomer(userId, email, name = null) {
+async function getOrCreateCustomer(userId, email, name = null, options = {}) {
   if (!stripe) {
     throw new Error(
       "Stripe is not configured. Please set STRIPE_SECRET_KEY environment variable.",
@@ -32,7 +32,7 @@ async function getOrCreateCustomer(userId, email, name = null) {
       userId: userId,
       source: "pholio",
     },
-  });
+  }, ...(options.idempotencyKey ? [{ idempotencyKey: options.idempotencyKey }] : []));
 
   return customer;
 }
@@ -98,6 +98,7 @@ async function createCheckoutSession(
   }
 
   const session = await stripe.checkout.sessions.create({
+    ...(options.expiresAt ? { expires_at: options.expiresAt } : {}),
     customer: customerId,
     payment_method_types: ["card"],
     line_items: [{ price: priceId, quantity: 1 }],
@@ -118,7 +119,7 @@ async function createCheckoutSession(
           "You'll return to Pholio when checkout is complete. Cancel anytime in Settings.",
       },
     },
-  });
+  }, ...(options.idempotencyKey ? [{ idempotencyKey: options.idempotencyKey }] : []));
 
   return session;
 }

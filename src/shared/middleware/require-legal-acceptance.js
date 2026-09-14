@@ -20,6 +20,7 @@ function resolveTalentApiPath(req) {
 }
 
 function isExemptPath(req) {
+  if (require("./launch-age-policy").isSafetyExit(req)) return true;
   const path = resolveTalentApiPath(req);
   const method = (req.method || "GET").toUpperCase();
 

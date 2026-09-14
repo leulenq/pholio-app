@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const knex = require("../../../shared/db/knex");
 const logActivity = require("../../agency/routes/agency-log-activity");
 const {
@@ -12,6 +13,26 @@ const {
 } = require("../services/message-reply-tokens");
 
 const router = express.Router();
+
+const REPLY_MESSAGE_WINDOW_MS = 60 * 1000;
+const REPLY_MESSAGE_MAX = 15;
+
+function replyMessageRateLimitKey(req) {
+  const { talentUserId, applicationId } = req.replyContext;
+  return `reply:${talentUserId}:${applicationId}`;
+}
+
+// The emailed token can rotate, so keying on the URL bearer would reset the
+// quota. The live context provides stable actor + thread identity after
+// authorization and before the message write.
+const replyMessageLimiter = rateLimit({
+  windowMs: REPLY_MESSAGE_WINDOW_MS,
+  max: REPLY_MESSAGE_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: replyMessageRateLimitKey,
+  validate: { ip: false },
+});
 
 async function loadReplyContext(req, res, next) {
   try {
@@ -90,6 +111,7 @@ router.get("/api/reply/:token", loadReplyContext, async (req, res) => {
 router.post(
   "/api/reply/:token/messages",
   loadReplyContext,
+  replyMessageLimiter,
   async (req, res) => {
     try {
       const { message } = req.body || {};
@@ -242,3 +264,7 @@ router.post("/api/reply/:token/session", async (req, res) => {
 });
 
 module.exports = router;
+module.exports._test = {
+  REPLY_MESSAGE_MAX,
+  replyMessageRateLimitKey,
+};

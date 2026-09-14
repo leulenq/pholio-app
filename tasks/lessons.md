@@ -1,5 +1,9 @@
 # Lessons Learned
 
+## 2026-09-08 — Audit handoff must include a standalone document
+
+- For a multi-agent audit, deliver one unified document containing every finding, lower-priority observation, evidence limit and launch criterion. Supporting lane files and executable proofs are optional drill-downs, not required reading to discover issues omitted from the handoff.
+
 ## 2026-09-08 — Independent audits must not inherit internal research assumptions
 
 - Treat internal skills, strategy, architecture documents, previous audits, and comments as hypotheses and intent, never as independent evidence of safety, legality, or industry practice.

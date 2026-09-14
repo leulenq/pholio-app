@@ -23,6 +23,7 @@ export const SENSITIVE_MEASUREMENT_FIELDS = new Set([
 
 export function parseDateOfBirthParts(dob) {
   if (dob == null || dob === '') return null;
+  if (dob instanceof Date && !Number.isFinite(dob.getTime())) return null;
   const str = dob instanceof Date ? dob.toISOString() : String(dob);
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str.trim());
   if (!m) return null;
@@ -30,6 +31,14 @@ export function parseDateOfBirthParts(dob) {
   const month = Number(m[2]);
   const day = Number(m[3]);
   if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year ||
+    parsed.getUTCMonth() + 1 !== month ||
+    parsed.getUTCDate() !== day
+  ) {
     return null;
   }
   return { year, month, day };
@@ -61,8 +70,8 @@ export function hasWorkPermitOnFile(profile) {
 }
 
 export function minorSensitiveFieldsUnlocked(profile, referenceDate = new Date()) {
-  if (!isMinorProfile(profile, referenceDate)) return true;
-  return hasGuardianConsent(profile);
+  const age = computeAge(profile?.date_of_birth ?? profile?.dob, referenceDate);
+  return age != null && age >= MINOR_AGE_THRESHOLD;
 }
 
 export function hasRecordedDateOfBirth(profile) {
@@ -75,8 +84,8 @@ export function canCollectSensitiveProfileFields(profile, referenceDate = new Da
 }
 
 export function minorPublicExposureAllowed(profile, referenceDate = new Date()) {
-  if (!isMinorProfile(profile, referenceDate)) return true;
-  return hasGuardianConsent(profile);
+  const age = computeAge(profile?.date_of_birth ?? profile?.dob, referenceDate);
+  return age != null && age >= MINOR_AGE_THRESHOLD;
 }
 
 export function isSensitiveReadinessKey(key) {

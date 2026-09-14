@@ -881,6 +881,9 @@ app.get("/api/migrate/status", async (req, res) => {
 app.use(instagramAuthRoutes);
 app.use("/", authRoutes);
 
+// Launch policy applies to old talent sessions too, not only new signups.
+app.use(require("./shared/middleware/launch-age-policy").requireLaunchAgeEligibility(knex));
+
 // Magic-link message replies (token auth, no login required)
 app.use("/", require("./domains/messaging/routes/message-reply"));
 

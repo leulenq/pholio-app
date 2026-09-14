@@ -30,6 +30,7 @@ function requestWantsApiResponse(req) {
  * @param {Function} next - Express next function
  */
 async function requireOnboardingComplete(req, res, next) {
+  if (require("./launch-age-policy").isSafetyExit(req)) return next();
   try {
     // Only apply to talent users
     if (req.session && req.session.role === "TALENT" && req.session.userId) {

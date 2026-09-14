@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const multer = require("multer");
-const multerS3 = require("multer-s3");
 const {
   S3Client,
   PutObjectCommand,
@@ -51,17 +51,6 @@ async function readR2ObjectBuffer(key) {
   return Buffer.concat(chunks);
 }
 
-function contentTypeForExt(ext) {
-  const map = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".svg": "image/svg+xml",
-    ".webp": "image/webp",
-  };
-  return map[ext] || "application/octet-stream";
-}
-
 function resolveImageBuffer(file, isR2Key) {
   if (file.buffer && file.buffer.length) {
     return file.buffer;
@@ -79,27 +68,14 @@ const useR2 =
   (config.nodeEnv === "production" || process.env.USE_R2 === "true") &&
   config.r2.bucket;
 
-// Serverless: buffer in memory, then Sharp + PutObject (avoids multer-s3 + fetch/XML issues).
-const useMemoryForR2 = useR2 && config.isServerless;
-
-if (useMemoryForR2) {
+// Always buffer R2 uploads until Sharp has decoded and re-encoded them. The
+// previous long-running-process path streamed the raw camera file directly to
+// a publicly addressed `originals/` key before validation. That retained EXIF
+// (including possible GPS) and made the key derivable from the processed URL.
+// A bounded multer buffer (maxUploadBytes) lets every environment persist only
+// the metadata-free delivery encodes below.
+if (useR2) {
   storage = multer.memoryStorage();
-} else if (useR2) {
-  storage = multerS3({
-    s3: s3,
-    bucket: config.r2.bucket,
-    metadata: (req, file, cb) => {
-      cb(null, { fieldName: file.fieldname });
-    },
-    key: (req, file, cb) => {
-      // In production, we need profileId for the path.
-      // We expect req.profile to be attached by a middleware or we use userId as fallback
-      const profileId = req.profile?.id || req.body.profileId || "unknown";
-      const uuid = uuidv4();
-      const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-      cb(null, `${getR2Prefix(profileId)}/originals/${uuid}${ext}`);
-    },
-  });
 } else {
   // Local dev or production without R2 configured — use disk storage (/tmp in Lambda)
   storage = multer.diskStorage({
@@ -344,18 +320,10 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
           }),
         ),
       ];
-      if (file.buffer?.length) {
-        uploads.push(
-          s3.send(
-            new PutObjectCommand({
-              Bucket: config.r2.bucket,
-              Key: originalKey,
-              Body: file.buffer,
-              ContentType: file.mimetype || contentTypeForExt(ext),
-            }),
-          ),
-        );
-      }
+      // Deliberately do not retain the source upload. Both stored variants are
+      // Sharp-produced WebP files with metadata stripped. The editable
+      // "original" in images.original_* is the prior processed delivery
+      // artifact, not this raw camera file.
       await Promise.all(uploads);
     } else {
       // Local development: save files to disk
@@ -388,6 +356,7 @@ async function processImage(file, identifierOrOptions, passedOptions = {}) {
       // Processed bytes are exposed so callers (e.g. content moderation) can
       // analyze the exact image we persisted without re-fetching from storage.
       processedBuffer,
+      contentSha256: crypto.createHash("sha256").update(processedBuffer).digest("hex"),
     };
   } catch (err) {
     /*

@@ -1,0 +1,5 @@
+[["PATCH","/api/agency/applications/202779b2-af84-4cb3-baca-2de4496cdb14/status",{"status":"shortlisted"}],
+ ["PATCH","/api/agency/applications/fffafab3-e54a-4cb9-8c1c-1b1a3f56e8ac/status",{"status":"shortlisted"}],
+ ["PATCH","/api/agency/applications/baa00c18-ddda-4f31-ad0c-940e0415af6e/status",{"status":"shortlisted"}],
+ ["PATCH","/api/agency/applications/321c3cc1-f27e-4db6-a4d4-a122d29d5f7c/status",{"status":"kept_on_file"}],
+ ["POST","/api/agency/applications/ce62f2ec-e5dc-4f67-8e3f-96ca4259567b/request-materials",{"kind":"refresh"}]]

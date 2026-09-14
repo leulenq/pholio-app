@@ -51,7 +51,7 @@ Approved positioning lines (strategy doc §9.1, B5):
 beat, comp-card beat), `/talent` (hero + seven scene flow), `/about`,
 `/agencies` (public per-agency requirement register + detail pages), legal
 corpus (8 documents), footer, 404. Stubs: `/press`, `/studio-plus`.
-Missing but hard-linked by the app: `/agency/request-access`.
+`/agency/request-access` (the agency request-to-join form; the one write path to the app).
 
 **Product (`pholio-app`, app.pholio.studio):**
 

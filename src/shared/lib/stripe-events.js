@@ -1,187 +1,116 @@
 "use strict";
 
-/**
- * Should this Stripe webhook be applied?
- *
- * Stripe delivers AT LEAST ONCE and IN NO GUARANTEED ORDER, and the handler
- * previously assumed the opposite of both. Two guards, and they answer
- * different questions:
- *
- * IDEMPOTENCY — have we seen this exact event id before? A duplicate delivery
- * is Stripe doing its job, not an error, so it is skipped quietly.
- *
- * ORDERING — does this event describe a world that has already been superseded?
- * Every Stripe event carries `created`. If an event is older than the last one
- * applied to that subscription, applying it would be time travel. The case that
- * matters: a `customer.subscription.updated` with `status: "active"` arriving
- * after a `deleted` would rewrite the row back to active and flip
- * `profiles.is_pro` on again, with nothing afterwards to correct it. That is a
- * paid entitlement restored to someone who cancelled.
- *
- * `created` is the only ordering authority available. Arrival order is what
- * Stripe explicitly does not promise, and local clocks are not comparable with
- * a remote system's. Ties within the same second are possible and are allowed
- * through — the alternative, dropping same-second events, would lose real
- * state changes to protect against a rarer problem.
- *
- * FAIL OPEN, DELIBERATELY, and only here. If the ledger cannot be read, the
- * event is processed. A payment system that silently stops applying events
- * because a bookkeeping table is missing is worse than one that occasionally
- * applies an event twice — an upsert survives that, whereas a dropped
- * cancellation does not. This is the one place in this codebase where the
- * failure mode is deliberately open, and it is because the guarded action is
- * itself idempotent.
- */
-
-const TABLE = "stripe_webhook_events";
-
-let schemaPromise = null;
-
-/** Cached per process; the answer only changes when a migration runs. */
-async function hasEventLedger(db) {
-  if (!schemaPromise) schemaPromise = db.schema.hasTable(TABLE).catch(() => false);
-  return schemaPromise;
-}
-
-/** Test seam. */
-function resetEventLedgerCache() {
-  schemaPromise = null;
-}
-
-/** The subscription-ish id an event is about, when it has one. */
+const { randomUUID } = require('crypto');
+const TABLE = 'stripe_webhook_events';
+const LEASE_MS = 5 * 60 * 1000;
+const FINISHED = ['completed', 'skipped_stale'];
+const idOf = value => typeof value === 'string' ? value : value?.id;
 function stripeObjectId(event) {
   const object = event?.data?.object || {};
-  if (object.object === "subscription") return object.id || null;
-  return object.subscription || object.id || null;
+  return object.object === 'subscription' ? object.id :
+    idOf(object.subscription || object.parent?.subscription_details?.subscription) || object.id;
 }
-
-/**
- * Has this exact event already been recorded?
- *
- * @param {import('knex')} db
- * @param {string} eventId
- */
-async function alreadySeen(db, eventId) {
-  if (!eventId) return false;
-  if (!(await hasEventLedger(db))) return false;
-  const row = await db(TABLE).where({ event_id: eventId }).first("sequence");
-  return Boolean(row);
+function resourceFor(event) {
+  const object = event.data.object;
+  return `stripe:${idOf(object.customer) || stripeObjectId(event)}`;
 }
-
-/**
- * Is this event older than what has already been applied to its subscription?
- *
- * @param {import('knex')} db
- * @param {object} event
- * @returns {Promise<boolean>}
- */
-async function isStale(db, event) {
-  const created = Number(event?.created);
-  if (!Number.isFinite(created)) return false;
-
-  const objectId = stripeObjectId(event);
-  if (!objectId) return false;
-
-  let row;
-  try {
-    row = await db("subscriptions")
-      .where({ stripe_subscription_id: objectId })
-      .first("last_stripe_event_at");
-  } catch {
-    // Column not there yet (deploy before migrate). Ordering is unenforceable,
-    // so do not pretend otherwise.
-    return false;
+function recoveryPayload(event) {
+  // Persist only fields the consumer uses. Invoice addresses, payment method
+  // details and Identity verified_outputs must not become a second PII store.
+  const source = event.data.object;
+  const object = {
+    id: source.id, object: source.object, customer: idOf(source.customer),
+    subscription: idOf(source.subscription || source.parent?.subscription_details?.subscription),
+    mode: source.mode, status: source.status,
+    metadata: source.metadata?.userId ? { userId: source.metadata.userId } : {},
+  };
+  if (source.items?.data) object.items = { data: source.items.data.map(item => ({ price: { id: item.price?.id } })) };
+  for (const key of ['trial_start', 'trial_end', 'current_period_start', 'current_period_end', 'cancel_at_period_end', 'canceled_at']) {
+    if (source[key] !== undefined) object[key] = source[key];
   }
-
-  const seen = Number(row?.last_stripe_event_at);
-  if (!Number.isFinite(seen)) return false;
-  // Strictly older. Same-second events are allowed through: dropping them would
-  // lose real state changes to guard against a rarer problem.
-  return created < seen;
+  return JSON.stringify({ id: event.id, created: event.created, type: event.type, data: { object } });
 }
+function lostClaim() { return new Error('Stripe processing lease unavailable; retry delivery'); }
 
-/**
- * The one call a handler needs. Records the decision either way, so a skipped
- * event is still visible to whoever asks later why nothing happened.
- *
- * @param {import('knex')} db
- * @param {object} event
- * @returns {Promise<{process: boolean, reason: string|null}>}
- */
-async function claimEvent(db, event) {
-  const eventId = event?.id;
-  if (!eventId) return { process: true, reason: null };
-
-  try {
-    if (!(await hasEventLedger(db))) return { process: true, reason: null };
-
-    if (await alreadySeen(db, eventId)) {
-      return { process: false, reason: "duplicate" };
+async function claimEvent(db, event, { now = new Date() } = {}) {
+  if (!event?.id || !Number.isFinite(Number(event.created))) throw new Error('Invalid Stripe event');
+  const token = randomUUID();
+  const leaseUntil = new Date(now.getTime() + LEASE_MS).toISOString();
+  const nowValue = now.toISOString();
+  return db.transaction(async trx => {
+    await trx(TABLE).insert({ event_id: event.id, event_type: event.type,
+      event_created: event.created, stripe_object_id: stripeObjectId(event),
+      outcome: 'pending', payload: recoveryPayload(event) }).onConflict('event_id').ignore();
+    const claimed = await trx(TABLE).where({ event_id: event.id }).whereNotIn('outcome', FINISHED)
+      .where(q => q.whereNull('lease_until').orWhere('lease_until', '<=', nowValue))
+      .update({ claim_token: token, lease_until: leaseUntil, outcome: 'processing',
+        payload: recoveryPayload(event), attempts: trx.raw('attempts + 1'), note: null });
+    if (!claimed) {
+      const row = await trx(TABLE).where({ event_id: event.id }).first();
+      return { process: false, reason: FINISHED.includes(row.outcome) ? 'duplicate' : 'busy' };
     }
-
-    const stale = await isStale(db, event);
-
-    await db(TABLE).insert({
-      event_id: eventId,
-      event_type: event.type || "unknown",
-      event_created: Number(event.created) || 0,
-      stripe_object_id: stripeObjectId(event),
-      outcome: stale ? "skipped_stale" : "processed",
-      note: stale
-        ? "Older than the last event applied to this subscription; applying it would undo newer state."
-        : null,
-    });
-
-    return stale
-      ? { process: false, reason: "stale" }
-      : { process: true, reason: null };
-  } catch (error) {
-    // A unique-violation here means a concurrent delivery of the same event won
-    // the race — which is exactly what the constraint is for.
-    if (String(error?.message || "").match(/unique|duplicate/i)) {
-      return { process: false, reason: "duplicate" };
+    const resource = resourceFor(event);
+    await trx('stripe_processing_locks').insert({ resource }).onConflict('resource').ignore();
+    const locked = await trx('stripe_processing_locks').where({ resource })
+      .where(q => q.whereNull('lease_until').orWhere('lease_until', '<=', nowValue))
+      .update({ claim_token: token, lease_until: leaseUntil });
+    if (!locked) {
+      await trx(TABLE).where({ event_id: event.id, claim_token: token })
+        .update({ outcome: 'pending', claim_token: null, lease_until: null });
+      return { process: false, reason: 'busy' };
     }
-    // See the header: fail open, because the guarded action is idempotent and a
-    // dropped cancellation is worse than a repeated upsert.
-    console.warn("[StripeEvents] ledger unavailable, processing anyway:", error.message);
-    return { process: true, reason: null };
-  }
+    return { process: true, token, resource };
+  });
 }
 
-/**
- * Advance the high-water mark after an event has been applied.
- *
- * @param {import('knex')} db
- * @param {object} event
- */
-async function markApplied(db, event) {
-  const created = Number(event?.created);
-  const objectId = stripeObjectId(event);
-  if (!Number.isFinite(created) || !objectId) return;
-
-  try {
-    await db("subscriptions")
-      .where({ stripe_subscription_id: objectId })
-      // Never move the mark backwards: a same-second event applied after a
-      // newer one must not lower it.
-      .where((builder) =>
-        builder
-          .whereNull("last_stripe_event_at")
-          .orWhere("last_stripe_event_at", "<", created),
-      )
-      .update({ last_stripe_event_at: created });
-  } catch {
-    // Column absent (deploy before migrate). Nothing to advance.
-  }
+async function failEvent(db, event, claim, error) {
+  if (!claim?.token) return;
+  await db.transaction(async trx => {
+    await trx(TABLE).where({ event_id: event.id, claim_token: claim.token })
+      .update({ outcome: 'pending', lease_until: null, claim_token: null, note: String(error.message).slice(0, 1000) });
+    await trx('stripe_processing_locks').where({ resource: claim.resource, claim_token: claim.token })
+      .update({ lease_until: null, claim_token: null });
+  });
 }
 
-module.exports = {
-  TABLE,
-  alreadySeen,
-  claimEvent,
-  hasEventLedger,
-  isStale,
-  markApplied,
-  resetEventLedgerCache,
-  stripeObjectId,
-};
+// Local effects, high-water mark and completion commit together. First writes
+// fence expired workers and serialize SQLite as well as PostgreSQL.
+async function applyEvent(db, event, claim, effect) {
+  return db.transaction(async trx => {
+    const now = new Date().toISOString();
+    const owned = await trx(TABLE).where({ event_id: event.id, claim_token: claim.token, outcome: 'processing' })
+      .where('lease_until', '>', now).update({ note: null });
+    const locked = await trx('stripe_processing_locks').where({ resource: claim.resource, claim_token: claim.token })
+      .where('lease_until', '>', now).update({ claim_token: claim.token });
+    if (!owned || !locked) throw lostClaim();
+    // Invoice/notice timestamps describe different facts; never use those to
+    // suppress subscription lifecycle events.
+    const stateEvent = /customer\.subscription\.(created|updated|deleted)$/.test(event.type);
+    const row = stateEvent ? await trx('subscriptions').where({ stripe_subscription_id: stripeObjectId(event) }).first() : null;
+    const stale = row?.last_stripe_event_at != null && Number(event.created) < Number(row.last_stripe_event_at);
+    if (!stale) {
+      await effect(trx);
+      if (stateEvent) await trx('subscriptions').where({ stripe_subscription_id: stripeObjectId(event) })
+        .update({ last_stripe_event_at: event.created });
+    }
+    await trx(TABLE).where({ event_id: event.id, claim_token: claim.token })
+      .update({ outcome: stale ? 'skipped_stale' : 'completed', completed_at: now, lease_until: null });
+    await trx('stripe_processing_locks').where({ resource: claim.resource, claim_token: claim.token })
+      .update({ lease_until: null, claim_token: null });
+    return { stale };
+  });
+}
+
+async function replayPendingEvents(db, processEvent, { limit = 50, now = new Date() } = {}) {
+  const rows = await db(TABLE).whereNotIn('outcome', FINISHED).whereNotNull('payload')
+    .where(q => q.whereNull('lease_until').orWhere('lease_until', '<=', now.toISOString()))
+    .orderBy('sequence').limit(limit);
+  const results = [];
+  for (const row of rows) {
+    try { await processEvent(JSON.parse(row.payload)); results.push({ id: row.event_id, recovered: true }); }
+    catch (error) { results.push({ id: row.event_id, recovered: false, error: error.message }); }
+  }
+  return results;
+}
+
+module.exports = { TABLE, LEASE_MS, claimEvent, failEvent, applyEvent, stripeObjectId, replayPendingEvents };

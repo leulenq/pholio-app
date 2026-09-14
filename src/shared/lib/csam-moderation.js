@@ -41,11 +41,11 @@ async function screenImageForCsam(buffer, metadata = {}) {
 
   const flags = metadata.moderationFlags || {};
   const reason = metadata.moderationReason || "";
-  const skinRatio = Number(flags.skin_tone_ratio);
-  const extremeAspect = flags.extreme_aspect_ratio === true;
+  const skinRatio = Number(flags.skin_tone_ratio ?? flags.skinRatio);
+  const extremeAspect = flags.extreme_aspect_ratio === true || flags.extremeAspect === true;
 
   if (
-    reason === "high_skin_ratio" ||
+    String(reason || "").split(",").map((part) => part.trim()).includes("high_skin_ratio") ||
     (Number.isFinite(skinRatio) && skinRatio >= 0.75) ||
     extremeAspect
   ) {

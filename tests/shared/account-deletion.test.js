@@ -50,6 +50,7 @@ function createKnexMock(seed = {}, { tables } = {}) {
     sessions: [...(seed.sessions || [])],
     moderation_queue: [...(seed.moderation_queue || [])],
     account_deletion_failures: [...(seed.account_deletion_failures || [])],
+    external_comp_cards: [...(seed.external_comp_cards || [])],
   };
 
   const existingTables = new Set([
@@ -63,14 +64,26 @@ function createKnexMock(seed = {}, { tables } = {}) {
   ]);
 
   const rowMatches = (row, whereClause) =>
-    Object.entries(whereClause || {}).every(([key, value]) => row[key] === value);
+    Object.entries(whereClause || {}).every(([key, value]) =>
+      value == null ? row[key] == null : row[key] === value,
+    );
 
   const knex = (tableName) => {
     let whereClause = null;
+    let limitCount = null;
+    let order = null;
 
     const builder = {
       where(criteria) {
         whereClause = criteria || null;
+        return builder;
+      },
+      orderBy(column, direction = "asc") {
+        order = { column, direction };
+        return builder;
+      },
+      limit(value) {
+        limitCount = value;
         return builder;
       },
       first: async () => {
@@ -78,9 +91,18 @@ function createKnexMock(seed = {}, { tables } = {}) {
         return rows.find((row) => rowMatches(row, whereClause));
       },
       select: async (...columns) => {
-        const rows = (state[tableName] || []).filter((row) =>
+        let rows = (state[tableName] || []).filter((row) =>
           rowMatches(row, whereClause),
         );
+        if (order) {
+          rows = [...rows].sort((a, b) => {
+            const comparison = String(a[order.column] || "").localeCompare(
+              String(b[order.column] || ""),
+            );
+            return order.direction === "desc" ? -comparison : comparison;
+          });
+        }
+        if (limitCount != null) rows = rows.slice(0, limitCount);
         if (!columns.length) {
           return rows.map((row) => ({ ...row }));
         }
@@ -129,6 +151,7 @@ function createKnexMock(seed = {}, { tables } = {}) {
 
   knex.schema = {
     hasTable: async (tableName) => existingTables.has(tableName),
+    hasColumn: async () => true,
   };
   knex.fn = { now: () => "NOW" };
 
@@ -268,7 +291,7 @@ describe("deleteUserAccount", () => {
     ]);
   });
 
-  it("does not throw when account_deletion_failures has not been migrated yet", async () => {
+  it("retains DB inventory when a provider failure cannot be queued durably", async () => {
     const knex = createKnexMock(
       {
         users: [{ id: "user-5", firebase_uid: "firebase-5" }],
@@ -285,9 +308,40 @@ describe("deleteUserAccount", () => {
 
     const result = await deleteUserAccount(knex, "user-5");
 
-    expect(knex.__state.users).toEqual([]);
+    expect(knex.__state.users).toEqual([
+      { id: "user-5", firebase_uid: "firebase-5" },
+    ]);
+    expect(result.deleted).toBe(false);
+    expect(result.inventoryRetained).toBe(true);
     expect(result.fullyErased).toBe(false);
     expect(result.pendingFailureIds).toEqual([]);
+  });
+
+  it("includes existing external comp-card objects in account erasure", async () => {
+    const knex = createKnexMock({
+      users: [{ id: "user-6", firebase_uid: null }],
+      profiles: [{ id: "profile-6", user_id: "user-6" }],
+      external_comp_cards: [
+        {
+          profile_id: "profile-6",
+          storage_key: "pholio-media/prod/comp-cards/profile-6/card.pdf",
+          public_url: "https://media.example/pholio-media/prod/comp-cards/profile-6/card.pdf",
+        },
+      ],
+    });
+    const originalBucket = require("../../src/config").r2.bucket;
+    require("../../src/config").r2.bucket = "test-bucket";
+    s3.send.mockResolvedValue({});
+
+    try {
+      const result = await deleteUserAccount(knex, "user-6");
+      expect(result.externalCardsScanned).toBe(1);
+      expect(result.r2KeysAttempted).toBe(1);
+      expect(s3.send).toHaveBeenCalledTimes(1);
+      expect(knex.__state.users).toEqual([]);
+    } finally {
+      require("../../src/config").r2.bucket = originalBucket;
+    }
   });
 });
 

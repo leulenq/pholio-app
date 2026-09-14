@@ -63,6 +63,8 @@ describe("application drafts", () => {
   const consentAgencyId = uuidv4();
   const convergenceAgencyId = uuidv4();
   const minorAgencyId = uuidv4();
+  const agencyMembershipId = uuidv4();
+  const minorAgencyMembershipId = uuidv4();
   const editorialBoardId = uuidv4();
   const imageId = uuidv4();
   const fullLengthImageId = uuidv4();
@@ -169,6 +171,24 @@ describe("application drafts", () => {
         slug: `minor-consent-house-${minorAgencyId}`,
         status: "ACTIVE",
         open_boards: JSON.stringify(["editorial"]),
+      },
+    ]);
+    await knex("agency_memberships").insert([
+      {
+        id: agencyMembershipId,
+        agency_id: agencyId,
+        user_id: agencyId,
+        membership_role: "OWNER",
+        status: "ACTIVE",
+        joined_at: new Date().toISOString(),
+      },
+      {
+        id: minorAgencyMembershipId,
+        agency_id: minorAgencyId,
+        user_id: minorAgencyId,
+        membership_role: "OWNER",
+        status: "ACTIVE",
+        joined_at: new Date().toISOString(),
       },
     ]);
     await knex("spec_registry_agency_routes").insert([
@@ -339,6 +359,10 @@ describe("application drafts", () => {
   }
 
   async function withAgencySession(sessionAgencyId = agencyId) {
+    const membershipId =
+      sessionAgencyId === minorAgencyId
+        ? minorAgencyMembershipId
+        : agencyMembershipId;
     const sid = uuidv4();
     sessionIds.push(sid);
     await knex("sessions").insert({
@@ -346,7 +370,10 @@ describe("application drafts", () => {
       sess: {
         cookie: { path: "/" },
         userId: sessionAgencyId,
+        memberUserId: sessionAgencyId,
         role: "AGENCY",
+        agencyId: sessionAgencyId,
+        agencyMembershipId: membershipId,
         agencyMembershipRole: "OWNER",
         // requireAgencyOnboardingComplete reads this off the session and 403s
         // AGENCY_SETUP_REQUIRED without it, before any handler runs.
@@ -1910,7 +1937,7 @@ describe("application drafts", () => {
           .send(payload),
       );
       expect(blocked.status).toBe(403);
-      expect(blocked.body.error).toBe("minor_guardian_consent_required");
+      expect(blocked.body.error).toBe("ADULTS_ONLY_LAUNCH");
       expect(
         await knex("applications")
           .where({ profile_id: profileId, agency_id: minorAgencyId })
@@ -1926,7 +1953,7 @@ describe("application drafts", () => {
     }
   });
 
-  it("rejects a minor's direct submission until the guardian authorizes that agency", async () => {
+  it("rejects a minor's direct submission even when guardian authorization exists", async () => {
     await recordSubmissionProgramAcknowledgment(knex, userId);
     await knex("profiles").where({ id: profileId }).update({
       date_of_birth: "2012-01-01",
@@ -1963,15 +1990,8 @@ describe("application drafts", () => {
           .set("X-Pholio-Request", "same-origin")
           .send(payload),
       );
-      expect(blocked.status).toBe(400);
-      expect(blocked.body.error).toBe("submission_package_incomplete");
-      expect(blocked.body.errors).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            code: "guardian_agency_consent_required",
-          }),
-        ]),
-      );
+      expect(blocked.status).toBe(403);
+      expect(blocked.body.error).toBe("ADULTS_ONLY_LAUNCH");
       expect(
         await knex("applications")
           .where({ profile_id: profileId, agency_id: minorAgencyId })
@@ -2001,7 +2021,7 @@ describe("application drafts", () => {
         ).toISOString(),
       });
 
-      const submitted = await auth(
+      const stillBlocked = await auth(
         request(app)
           .post("/api/talent/applications")
           .set("Accept", "application/json")
@@ -2009,49 +2029,13 @@ describe("application drafts", () => {
           .set("X-Pholio-Request", "same-origin")
           .send(payload),
       );
-      expect(submitted.status).toBe(200);
-      expect(submitted.body.success).toBe(true);
+      expect(stillBlocked.status).toBe(403);
+      expect(stillBlocked.body.error).toBe("ADULTS_ONLY_LAUNCH");
       expect(
-        await knex("application_submission_consent_events")
-          .where({ application_id: submitted.body.id })
-          .first("guardian_consent_request_id"),
-      ).toMatchObject({
-        guardian_consent_request_id: consentRequestId,
-      });
-      const minorPackage = await knex("talent_submission_packages")
-        .where({ application_id: submitted.body.id })
-        .first();
-      const minorPayload =
-        typeof minorPackage.payload === "string"
-          ? JSON.parse(minorPackage.payload)
-          : minorPackage.payload;
-      expect(minorPayload.contact).toBeNull();
-      expect(minorPayload.minorDataMinimized).toBe(true);
-      expect(minorPayload.profile.is_minor).toBe(true);
-      expect(minorPayload.profile.age_band).toBe("under_18");
-      expect(minorPayload.profile).not.toHaveProperty("date_of_birth");
-      expect(minorPayload.profile).not.toHaveProperty("guardian_email");
-      expect(
-        await knex("messages")
-          .where({ application_id: submitted.body.id })
-          .count({ count: "*" })
+        await knex("applications")
+          .where({ profile_id: profileId, agency_id: minorAgencyId })
           .first(),
-      ).toMatchObject({ count: 0 });
-
-      const minorAgencyAuth = await withAgencySession(minorAgencyId);
-      const minorDetail = await minorAgencyAuth(
-        request(app)
-          .get(`/api/agency/applications/${submitted.body.id}/details`)
-          .set("Accept", "application/json"),
-      );
-      expect(minorDetail.status).toBe(200);
-      expect(minorDetail.body.submissionPackage.contact).toBeNull();
-      expect(minorDetail.body.profile.user_email).toBeNull();
-      expect(minorDetail.body.profile).not.toHaveProperty("date_of_birth");
-      expect(minorDetail.body.profile).not.toHaveProperty("guardian_email");
-      expect(minorDetail.body.profile).not.toHaveProperty(
-        "emergency_contact_phone",
-      );
+      ).toBeUndefined();
     } finally {
       await knex("profiles").where({ id: profileId }).update({
         date_of_birth: "1998-01-01",
