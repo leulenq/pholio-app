@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["ZRZM6BR3Y5.com.pxilabs.pholio"],
+        "components": [
+          { "/": "/dashboard/talent" },
+          { "/": "/dashboard/talent/*" },
+          { "/": "/reset-password" }
+        ]
+      }
+    ]
+  }
+}

@@ -108,6 +108,12 @@
 # This prevents a total-site 404 when the function is temporarily unavailable.
 ##
 
+[[headers]]
+  for = "/.well-known/apple-app-site-association"
+  [headers.values]
+    Content-Type = "application/json"
+    Cache-Control = "public, max-age=3600"
+
 [[redirects]]
   from = "/favicon.ico"
   to = "/dashboard-app/favicon.ico"
