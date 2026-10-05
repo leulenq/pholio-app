@@ -20,6 +20,7 @@ const ApplicationsPage = lazy(() => import('./domains/talent/pages/ApplicationsP
 const IntelPage = lazy(() => import('./domains/talent/pages/IntelPage'));
 const MessagesPage = lazy(() => import('./domains/talent/pages/MessagesPage'));
 const ApplyPage = lazy(() => import('./domains/talent/pages/ApplyPage'));
+const CompCardStudio = lazy(() => import('./compcard/studio/CompCardStudio'));
 const OpenCallsPage = lazy(() => import('./domains/talent/pages/OpenCallsPage'));
 
 const SettingsPage = lazy(() => import('./domains/talent/pages/SettingsPage'));
@@ -146,6 +147,7 @@ function App() {
 
           {/* Standalone full-screen submission studio (no dashboard chrome) */}
           <Route path="/dashboard/talent/applications/apply" element={<ApplyPage />} />
+          <Route path="/dashboard/talent/comp-card" element={<CompCardStudio />} />
           <Route path="/dashboard/talent/open-calls" element={<OpenCallsPage />} />
 
           {/* Talent Dashboard Routes */}

@@ -104,13 +104,7 @@ export const talentApi = {
 
   // Analytics
   getAnalytics: (days) => apiClient.get(`/analytics${days ? `?days=${days}` : ''}`),
-  getIntel: (days, tz) => {
-    const params = new URLSearchParams();
-    if (days) params.set('days', days);
-    if (tz) params.set('tz', tz);
-    return apiClient.get(`/intel${params.size ? `?${params.toString()}` : ''}`);
-  },
-  getIntelDay: (date) => apiClient.get(`/intel/day/${encodeURIComponent(date)}`),
+  getIntel: () => apiClient.get('/intel'),
 
   /* Per-recipient share links. The server has carried this whole surface for a
      while — mint, list with open counts, revoke — with nothing on the client

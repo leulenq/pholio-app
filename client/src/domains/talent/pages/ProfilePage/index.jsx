@@ -539,6 +539,7 @@ export default function ProfilePage() {
       details: 'identity',
       identity: 'identity',
       heritage: 'heritage',
+      discipline: 'discipline',
       physical: 'appearance',
       appearance: 'appearance',
       credits: 'credits',

@@ -1023,3 +1023,14 @@ Rules:
 - A consequential decision surface should not be a drag-and-drop board: stage
   moves that notify talent need arming, a reason, and undo. Reuse the Review
   Room verdict idiom instead of inventing a second one.
+## 2026-09-29 — Studio+ strategy must begin with the model's lived work
+
+- The first Studio+ recommendation stayed too close to existing publishing and comp-card categories. The owner asked for a much bolder, talent-first answer grounded in working models' own accounts.
+- For product strategy, collect first-person accounts across signed, independent, and aspiring talent before proposing features. Record the concrete loss of time, money, control, or rights; distinguish an observed need from inferred willingness to pay and from a speculative product bet.
+- Test ambitious technology against the actual workflow from inquiry through shoot, payment, and image use. Preserve a complete free path to agency participation and basic rights/safety; paid value must come from talent-owned work and time-saving services, with legal review where fee-based guidance or procurement may be implicated.
+- Correction: solving administrative pain is insufficient as the central Studio+ thesis. Research must also test aspirational creative and commercial leverage for talent, plus a distinct compounding advantage for Pholio (such as collaborator distribution or permissioned work networks). State the flywheel for each bet, and distinguish generic AI capabilities from a defensible product.
+- Correction: the active Pholio user journey is an aspiring or unsigned model preparing agency materials, applying, waiting, and reapplying. Future Studio+ strategy must start by tracing that live product path and first-person applicant behavior before proposing ideas. Do not move the center of gravity to working-model shoots, campaigns, or long-term career operations. Give concrete, repeated-use applicant tools while keeping the full application path and agency treatment tier-blind.
+
+## Intel (2026-10-04): "first principles" means the user's job, not the data on hand
+- First attempt derived Intel from what Pholio already logs (search replay, agency opens, response clocks). The owner rejected it as building on existing data.
+- Rule: for any "from first principles" design, write down the user's goal and decisions first (consult the `industry` skill), then decide what data that needs. Existing tables are inputs to check afterwards, never the starting point.

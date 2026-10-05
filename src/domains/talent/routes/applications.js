@@ -39,6 +39,7 @@ const {
 } = require("../services/guardian-consent");
 const logActivity = require("../../agency/routes/agency-log-activity");
 const { v4: uuidv4 } = require("uuid");
+const { closingDates } = require("../../../shared/lib/application-auto-close");
 const {
   enqueueSubmission,
 } = require("../../agency/services/submission-webhook-outbox");
@@ -181,6 +182,21 @@ function hasApplicationEventColumns(db) {
       });
   }
   return applicationEventColumnsPromise;
+}
+
+let reviewWindowColumnPromise = null;
+// Same deploy-before-migrate guard: without the column the agency default
+// (30 days) applies, which is exactly what the auto-close job does for a null.
+function hasReviewWindowColumn(db) {
+  if (!reviewWindowColumnPromise) {
+    reviewWindowColumnPromise = db.schema
+      .hasColumn("agencies", "application_review_window_days")
+      .catch(() => {
+        reviewWindowColumnPromise = null;
+        return false;
+      });
+  }
+  return reviewWindowColumnPromise;
 }
 
 const OPEN_CALL_LINK_COLUMNS = [
@@ -609,6 +625,7 @@ router.get(
     }
 
     const eventColumnsReady = await hasApplicationEventColumns(knex);
+    const reviewWindowReady = await hasReviewWindowColumn(knex);
 
     // Fetch applications with organization-backed agency info
     const applications = await knex("applications")
@@ -642,12 +659,14 @@ router.get(
         "agencies.website as agency_website",
         "agencies.logo_path as agency_logo",
         "agencies.open_boards as agency_open_boards",
+        ...(reviewWindowReady ? ["agencies.application_review_window_days"] : []),
         noteQuery.as("note"),
         ...(eventColumnsReady
           ? [
               "applications.call_purpose",
               "applications.open_call_link_id",
               "applications.status_changed_at",
+              "call_link.review_window_days as call_review_window_days",
               "call_link.event_name",
               "call_link.event_starts_on",
               "call_link.event_ends_on",
@@ -679,11 +698,22 @@ router.get(
         event_ends_on: eventEndsOn,
         event_location: eventLocation,
         offer_response_window_hours: offerResponseWindowHours,
+        application_review_window_days: applicationReviewWindowDays,
+        call_review_window_days: callReviewWindowDays,
         ...rest
       } = application;
       const isEvent = rest.call_purpose === CALL_PURPOSES.EVENT_CASTING;
+      // When silence becomes a close, read from the job that does the closing.
+      const { reviewClosesAt, offerClosesAt } = closingDates({
+        ...rest,
+        application_review_window_days: applicationReviewWindowDays,
+        call_review_window_days: callReviewWindowDays,
+        offer_response_window_hours: offerResponseWindowHours,
+      });
       return {
         ...rest,
+        review_closes_at: reviewClosesAt ? reviewClosesAt.toISOString() : null,
+        offer_closes_at: offerClosesAt ? offerClosesAt.toISOString() : null,
         source: openCallExempt ? "open_call" : "discovery",
         // Only event rows carry an event block, so a representation row is
         // shaped exactly as it always was.

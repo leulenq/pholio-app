@@ -1,0 +1,118 @@
+{
+  "version": "1.0.0",
+  "reviewedOn": "2026-10-04",
+  "basis": "Typical ranges from common New York agency practice (.claude/skills/industry/reference/standards.md \u00a72, \u00a74). Context for where a talent is usually filed, never a gate: agencies publish their own requirements, and those are evaluated separately.",
+  "boards": [
+    {
+      "slug": "editorial",
+      "label": "Fashion and editorial",
+      "lane": "editorial",
+      "rule": "height",
+      "height": {
+        "female": [
+          175,
+          183
+        ],
+        "male": [
+          183,
+          191
+        ]
+      },
+      "note": "The narrowest physical standards in the industry."
+    },
+    {
+      "slug": "runway",
+      "label": "Runway",
+      "lane": "runway",
+      "rule": "height",
+      "height": {
+        "female": [
+          175,
+          183
+        ],
+        "male": [
+          183,
+          191
+        ]
+      },
+      "note": "Cast to sample sizes, so height is a hard requirement each season."
+    },
+    {
+      "slug": "petite",
+      "label": "Petite",
+      "lane": "petite",
+      "rule": "height",
+      "height": {
+        "female": [
+          155,
+          170
+        ]
+      },
+      "note": "Its own market, mostly commercial."
+    },
+    {
+      "slug": "curve",
+      "label": "Curve",
+      "lane": "curve",
+      "rule": "open",
+      "note": "Sizes above sample size, with its own standards. Where curve starts varies by agency, so Pholio does not place you on size."
+    },
+    {
+      "slug": "classic",
+      "label": "Classic",
+      "lane": null,
+      "rule": "age_from",
+      "ageFrom": 30,
+      "note": "Talent in their 30s to 70s and up. Major commercial demand."
+    },
+    {
+      "slug": "commercial",
+      "label": "Commercial",
+      "lane": "commercial",
+      "rule": "open",
+      "note": "Ads, catalogue and campaigns. A wide range of heights, ages and sizes."
+    },
+    {
+      "slug": "lifestyle",
+      "label": "Lifestyle",
+      "lane": "lifestyle",
+      "rule": "open",
+      "note": "Relatable over extreme. A wide range of looks."
+    },
+    {
+      "slug": "ecomm",
+      "label": "E-comm",
+      "lane": "ecomm",
+      "rule": "open",
+      "note": "Booked on fit to the brand's sample clothing."
+    },
+    {
+      "slug": "beauty",
+      "label": "Beauty",
+      "lane": "beauty",
+      "rule": "open",
+      "note": "Face, skin and hair led."
+    },
+    {
+      "slug": "fitness",
+      "label": "Fitness and athletic",
+      "lane": "fitness",
+      "rule": "open",
+      "note": "Athletic build matters more than height."
+    },
+    {
+      "slug": "fit",
+      "label": "Fit",
+      "lane": "fit",
+      "rule": "open",
+      "note": "Booked on exact measurements to a brand's sample size."
+    },
+    {
+      "slug": "parts",
+      "label": "Parts",
+      "lane": "parts",
+      "rule": "open",
+      "note": "Hands, feet, legs, hair or lips."
+    }
+  ]
+}

@@ -1,139 +1,148 @@
-import React, { useState } from 'react';
-import { Lock } from 'lucide-react';
-import PholioButton, {
-  PholioToggleButton,
-  PholioToggleGroup,
-} from '../../../../shared/components/ui/PholioButton';
+import React, { useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useIntel } from '../../hooks/useIntel';
-import DecisionStack from './blocks/DecisionStack';
-import SubmissionsBlock from './blocks/SubmissionsBlock';
-import MaterialsBlock from './blocks/MaterialsBlock';
-import AttentionBlock from './blocks/AttentionBlock';
-import BookBlock from './blocks/BookBlock';
-import MomentumBlock from './blocks/MomentumBlock';
-import ShareLinksBlock from './blocks/ShareLinksBlock';
-import './IntelPage.css';
-
-const RANGES = [
-  { days: 7, label: '7d', proOnly: false },
-  { days: 30, label: '30d', proOnly: true },
-  { days: 90, label: '90d', proOnly: true },
-];
-
-function PeriodControl({ days, onChange, tier }) {
-  const free = tier === 'free';
-  return (
-    <PholioToggleGroup role="group" aria-label="Reporting period">
-      {RANGES.map((r) => (
-        <PholioToggleButton
-          key={r.days}
-          active={days === r.days}
-          disabled={free && r.proOnly}
-          onClick={() => onChange(r.days)}
-        >
-          {r.label}
-          {free && r.proOnly ? <Lock size={9} className="iv-range-lock" aria-hidden /> : null}
-        </PholioToggleButton>
-      ))}
-    </PholioToggleGroup>
-  );
-}
-
-function IntelLoading() {
-  return (
-    <div className="iv-loading" role="status" aria-label="Loading intel">
-      <div className="iv-loading-band" />
-    </div>
-  );
-}
-
-function IntelError({ onRetry }) {
-  return (
-    <div className="iv-error">
-      <p>Intel couldn&rsquo;t load.</p>
-      <PholioButton variant="secondary" onClick={onRetry}>
-        Try again
-      </PholioButton>
-    </div>
-  );
-}
+import YouColumn from './YouColumn';
+import Timeline from './Timeline';
+import ThisWeek from './ThisWeek';
+import AgencyIndex from './AgencyIndex';
+import SentLinks from './SentLinks';
+import { countsLine, filingHeadline, formatDay } from './placementModel';
+import { SPRING } from './motion';
+import './Desk.css';
 
 /**
- * Intel — the talent-facing intelligence hub.
+ * Intel: Placement, as a planning desk (tasks/intel-placement.md).
  *
- * The page is a short sequence of questions, in the order a working model asks
- * them: what needs attention, what happened after submitting, whether the
- * package is current, how the profile was used, and which frames were opened.
- * Each block states its finding in one line and puts the chart underneath as
- * the evidence for it. Blocks are deliberately not equally weighted — the
- * decision stack leads, and the rest support it.
- *
- * Minors get materials readiness and submission states only; every audience
- * instrument is absent rather than emptied (spec §4).
+ * Two questions, two columns. Left, standing still: who you are as an agency
+ * would file you (height on a measuring wall, boards, book, digitals). Right,
+ * moving: what to do and when (this week, one timeline of everything dated,
+ * and the agencies by standing). The answer itself is the headline: the
+ * boards you would be filed for, set as large as the page allows.
  */
-export default function IntelPage() {
-  const [days, setDays] = useState(30);
-  const { intel, meta, isLoading, isError, refetch } = useIntel(days);
-  const data = intel;
-  // The server clamps free tier to 7 days; keep the toggle honest.
-  const effectiveDays = meta?.days ?? days;
-  const tier = meta?.tier ?? 'studio';
-  const minor = Boolean(meta?.minor);
 
-  const clock = data?.submissions?.readClock;
-  const standing = {
-    open: clock?.open?.length ?? 0,
-    late: (clock?.states?.late ?? 0) + (clock?.states?.cold ?? 0),
+function boardsWords(filing) {
+  const bySlug = new Map((filing?.boards || []).map((b) => [b.slug, b]));
+  return (filing?.filed || [])
+    .map((slug) => bySlug.get(slug)?.label)
+    .filter(Boolean)
+    .map((label) => label.replace(/ and editorial$/, ''));
+}
+
+function Hero({ filing, agencies, now }) {
+  const reduce = useReducedMotion();
+  const words = boardsWords(filing);
+  const head = filingHeadline(filing);
+  const counts = countsLine(agencies);
+  return (
+    <header className="dk-hero">
+      <div className="dk-hero-main">
+        {words.length ? (
+          <h1 className="dk-hero-words" aria-label={head.text}>
+            {words.map((w, i) => (
+              <motion.span
+                key={w}
+                initial={reduce ? false : { opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ...SPRING, delay: i * 0.09 }}
+              >
+                {w}.
+              </motion.span>
+            ))}
+          </h1>
+        ) : (
+          <h1 className="dk-hero-sentence">{head.text}</h1>
+        )}
+        <p className="dk-hero-sub">
+          {words.length ? 'Where agencies would usually file you. ' : ''}
+          {head.sub}{' '}
+          {head.link && <Link to={head.link.to} className="dk-link">{head.link.label}</Link>}
+        </p>
+      </div>
+      <div className="dk-hero-side">
+        <p className="dk-date">{formatDay(now, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        {counts && <p className="dk-counts">{counts}</p>}
+      </div>
+    </header>
+  );
+}
+
+function Failed({ onRetry }) {
+  return (
+    <div className="dk-page">
+      <div className="dk-state" role="alert">
+        <p>Intel could not load.</p>
+        <button type="button" className="dk-button" onClick={() => onRetry()}>Try again</button>
+      </div>
+    </div>
+  );
+}
+
+export default function IntelPage() {
+  const { placement, isLoading, isError, refetch } = useIntel();
+  const indexRef = useRef(null);
+  const now = useMemo(() => new Date(), []);
+
+  if (isLoading) {
+    return (
+      <div className="dk-page">
+        <div className="dk-state" role="status" aria-label="Loading Intel">
+          <span className="dk-loading" />
+        </div>
+      </div>
+    );
+  }
+
+  // A payload without the placement sections is an API from before this page
+  // (a server not yet restarted, or mid-deploy). Fail into the retry state
+  // rather than crashing the dashboard.
+  const unreadable =
+    !placement ||
+    (placement.meta?.restricted !== 'minor' &&
+      (!placement.filing || !Array.isArray(placement.agencies) || !placement.calendar));
+  if (isError || unreadable) return <Failed onRetry={refetch} />;
+
+  if (placement.meta.restricted === 'minor') {
+    return (
+      <div className="dk-page">
+        <header className="dk-hero">
+          <div className="dk-hero-main">
+            <h1 className="dk-hero-sentence">Placement on Pholio is for talent 18 and over.</h1>
+            <p className="dk-hero-sub">
+              Under 18, representation goes through your guardian and a licensed agent. Your book and comp card stay
+              yours to build here.
+            </p>
+          </div>
+        </header>
+      </div>
+    );
+  }
+
+  const { filing, digitals, shots, agencies, meta } = placement;
+  const toIndex = () => {
+    indexRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    indexRef.current?.focus({ preventScroll: true });
   };
 
   return (
-    <div className="iv-page">
-      <header className="iv-masthead">
-        <span className="iv-masthead-mark">Pholio</span>
-        <div className="iv-masthead-bar">
-          <h1 className="iv-title">Intel</h1>
-          {!minor && data && (
-            <PeriodControl days={effectiveDays} onChange={setDays} tier={tier} />
-          )}
+    <div className="dk-page">
+      <Hero filing={filing} agencies={agencies} now={now} />
+      <div className="dk-desk">
+        <YouColumn filing={filing} shots={shots} digitals={digitals} registryAgencies={meta.registryAgencies} />
+        <div className="dk-moves">
+          <ThisWeek placement={placement} now={now} />
+          <section className="dk-plan" aria-labelledby="dk-plan-h">
+            <h2 id="dk-plan-h" className="dk-h">The next six months</h2>
+            <Timeline placement={placement} now={now} onNow={toIndex} />
+          </section>
+          <AgencyIndex ref={indexRef} agencies={agencies} />
+          <SentLinks />
+          <p className="dk-fine">
+            Published requirements are each agency&rsquo;s own, as Pholio last checked them. Try-again dates are
+            Pholio&rsquo;s guide from common agency practice; an agency&rsquo;s own resubmission policy comes first.
+          </p>
         </div>
-      </header>
-
-      {isLoading && <IntelLoading />}
-      {isError && <IntelError onRetry={refetch} />}
-
-      {data && (
-        <>
-          <DecisionStack
-            decisions={data.decisions}
-            sendability={data.materials?.sendability}
-            standing={standing}
-          />
-
-          {minor && (
-            <p className="iv-minor-note">
-              Intel for under-18 profiles covers materials readiness and submission states.
-              Audience detail stays off.
-            </p>
-          )}
-
-          <SubmissionsBlock submissions={data.submissions} days={effectiveDays} />
-
-          <MaterialsBlock materials={data.materials} />
-
-          {!minor && (
-            <AttentionBlock attention={data.attention} meta={meta} tier={tier} />
-          )}
-
-          {!minor && <BookBlock book={data.book} tier={tier} />}
-
-          {!minor && <MomentumBlock momentum={data.momentum} tier={tier} />}
-
-          {/* Minor-gated with the other outward-facing blocks: a shareable
-              public link to a minor's book is not a feature to surface here. */}
-          {!minor && <ShareLinksBlock />}
-
-        </>
-      )}
+      </div>
     </div>
   );
 }

@@ -43,6 +43,7 @@ const instagramAuthRoutes = require("./domains/auth/routes/instagram-auth");
 const onboardingRoutes = require("./domains/onboarding/routes/casting");
 const dashboardTalentRoutes = require("./domains/talent/routes/index");
 const pdfRoutes = require("./domains/pdf/routes/pdf");
+const compCardRoutes = require("./domains/compcard/routes");
 const agencyDomainRoutes = require("./domains/agency/routes/index");
 const proRoutes = require("./routes/pro");
 const stripeRoutes = require("./routes/stripe");
@@ -350,7 +351,9 @@ app.use(
       directives: {
         // Inline <script type="module"> Firebase bootstrap in views/layout.ejs
         // has no nonce yet, so 'unsafe-inline' is required for now.
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://www.gstatic.com"],
+        // 'wasm-unsafe-eval': the comp card studio runs MediaPipe (WebAssembly)
+        // to find faces and bodies before cropping.
+        scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", "https://www.gstatic.com"],
         imgSrc: [
           "'self'",
           "data:",
@@ -933,6 +936,15 @@ app.use(
   dashboardTalentRoutes,
 );
 // Agency dashboard routes handled by agencyDomainRoutes above
+
+// Comp card studio. A talent's saved studio card is THE comp card: the
+// long-standing /pdf/:slug link (agencies, submissions) serves it when one
+// exists and falls through to the legacy generator otherwise.
+app.use("/", compCardRoutes);
+app.get("/pdf/:slug", (req, res, next) => {
+  if (req.query.engine || req.query.theme || req.query.preset) return next();
+  Promise.resolve(compCardRoutes.servePublic(req, res, next)).catch(next);
+});
 
 // PDF generation routes (public viewing routes don't need unlock check)
 // Locking is handled per-route for customization endpoints that already have requireRole('TALENT')

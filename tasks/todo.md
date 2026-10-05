@@ -1,3 +1,34 @@
+# Talent Overview renovation — 2026-10-04
+
+Owner brief: rebuild `/dashboard/talent` from first principles. Keep the hero and The Book
+verbatim; everything else (Readiness, Reach, Comp Card card, Website analytics, Open Calls card,
+stats prompt) is open. No KPI cards, widgets, analytics boxes, promo cards, activity feeds,
+bordered-rectangle grids.
+
+Thesis: an unsigned model opens Pholio between submissions. The page answers, in order:
+what is waiting on me, what agencies receive when I submit, where my book is right now and how
+long the silence lasts, what is on this week, where it can go next. Typography, rules and space
+carry hierarchy; one bespoke instrument (the review-window line) carries time.
+
+## Plan
+- [x] Server: `GET /api/talent/applications` returns `review_closes_at` (awaiting-agency rows,
+  same window resolution as the auto-close job) and `offer_closes_at` (event slot offers).
+- [x] Pure model `OverviewPage/overviewModel.js` (moves, circulation, week, package, next agencies) + Vitest.
+- [x] Sections: Your move · The Book (unchanged) + The Package · In circulation (wait line) · This week · Where next.
+- [x] Remove Readiness / Reach / Comp Card / Website / OpenCallsCard / StatsCurrencyPrompt from the page.
+- [x] Copy screened against pholio-app-language (no em-dashes, no urgency, no outcome claims).
+- [x] Verify on scratch SQLite stack (desktop + mobile, empty + busy states), lint, tests, build.
+
+## Review
+- Hero and The Book markup kept verbatim; Book stays col-8, The Package takes the old Readiness slot.
+- Retired: Readiness panel, Reach, Digital Comp Card card, Website analytics (still on Intel),
+  `OpenCallsCard` (folded into This week), `StatsCurrencyPrompt` (folded into Your move + Package).
+- Verified on scratch SQLite (:3100/:5175) at 1440 and 390, busy, first-use and "where next" states.
+  Model 12/12, closing-dates 5/5, eslint clean, build OK.
+- Pre-existing failures, unchanged by this work (same counts on a stashed baseline):
+  `ProfilePage.test.jsx` bookout case; `open-call-claims`, `event-intake`, `event-confirmations` (16).
+- Not covered: the event slot-offer move was verified by unit test only (seed has no event calls).
+
 # Photo rights gate — friction removal — 2026-09-08
 
 Audit: `docs/audits/2026-09-08-photo-rights-friction-audit.md`. Two unrelated systems share
@@ -564,3 +595,13 @@ Spec: `docs/superpowers/specs/2026-09-01-talent-card-metadata.md`
 - [x] Restraint revision (owner: "too much"): cards now name · one facts line · standing (wall) · notation only when true; spec §7; feedback memory recorded
 - [x] Universal application (owner): Overview strip, Scout cards + detail, talent drawer header + vitals, event pick-list and lineup rows now print through CardMeta; invented archetype/'available'/'—' fallbacks removed; pool/lineup/recent-applicants payloads carry heightCm/age/city; MetaLine wrap keeps the dot with its value
 - [x] Submissions coherence (owner): StatusCell replaced by the CardMeta standing line on every tab and the ledger; click-select + shared `components/verdict/VerdictBar` with an inbox verb set (File to board strip, bulk Shortlist, no bulk offer); standing/legal-actions lifted to `lib/standing.js`, selection hook to `hooks/useTalentSelection.js`; list rows carry `statusChangedAt`; verified in browser (file to Women → toast + Undo, Shortlisted tab, ledger)
+
+# Intel rebuilt as Placement (2026-10-04)
+
+Spec: `tasks/intel-placement.md`. An earlier "The Read" direction (attention and search-replay analytics) was rejected by the owner and fully removed.
+
+- [x] Backend placement service (filing on board ranges, registry preflight per agency, decline-reason try-again dates, five-week calendar); `GET /api/talent/intel`, free on every tier; old Intel compose/attention/pipeline services and `/intel/day` removed; share-token routes kept
+- [x] Frontend: measuring wall, shots ledger (in book / likely / missing), agency groups with published words quoted, tracked links, calendar
+- [x] Verified on scratch SQLite + synced trust registry: desktop and mobile; fixed `preflightRegistry` empty-selection default (`imageIds: null`), canonical shot labels, past-due digitals copy, mobile shot rows
+- Pre-existing failures (identical on clean HEAD): 31 jest tests across 11 talent/shared suites; vitest ProfilePage "adds a bookout from a date field"
+

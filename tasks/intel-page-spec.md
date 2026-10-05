@@ -1,3 +1,5 @@
+> **Superseded (2026-10-04):** Intel is now Placement (`tasks/intel-placement.md`). Section 4's privacy rules still apply.
+
 # Intel — Factual Analytics Spec (v3, 2026-08-09)
 
 This revision supersedes any v2 language below that infers intent, audience

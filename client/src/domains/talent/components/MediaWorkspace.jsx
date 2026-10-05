@@ -33,7 +33,7 @@ import PholioButton, {
 } from '../../../shared/components/ui/PholioButton';
 import PholioCustomSelect from '../../../shared/components/ui/forms/PholioCustomSelect';
 import { checkGatingStatus } from '../../../shared/utils/profileGating';
-import CompCard from './CompCard';
+import CompCardEntry from '../../../compcard/entry/CompCardEntry';
 import CompCardGate from './CompCardGate';
 import './MediaWorkspace.css';
 import './ClassificationReviewStrip.css';
@@ -903,15 +903,14 @@ export default function MediaWorkspace() {
     queryClient.invalidateQueries({ queryKey: ['auth-user'] });
   };
 
+  // FrameEditor owns closing and error display; these only run the request.
   const handleReplace = async (blob) => {
     if (!editor) return;
-    try { await replaceImage(editor.image.id, blob); setEditor(null); }
-    catch (err) { console.error(err); pholioToast.error('Failed to save edited photo. Please try again.'); }
+    await replaceImage(editor.image.id, blob);
   };
 
   const handleRestore = async (id) => {
-    try { await restoreImage(id); setEditor(null); }
-    catch (err) { pholioToast.error(err?.message || 'Failed to restore original'); }
+    await restoreImage(id);
   };
 
   const confirmDelete = async () => {
@@ -1248,7 +1247,7 @@ export default function MediaWorkspace() {
               totalRequired={compCardGating.totalRequired}
             />
           ) : (
-            <CompCard images={frames} profile={profile} />
+            <CompCardEntry />
           )}
         </section>
       </div>

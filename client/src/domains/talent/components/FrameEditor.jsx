@@ -1,98 +1,57 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Cropper from 'react-easy-crop';
-import {
-  Calendar, Camera, Crop, EyeOff, FileSignature, Image as ImageIcon,
-  RotateCcw, RotateCw, Save, ScanLine, Shield, Tags, X, ZoomIn,
-} from 'lucide-react';
+import { Crop, Film, RotateCcw, X } from 'lucide-react';
 import { pholioToast } from '../../../shared/lib/pholio-toast';
 import { talentApi } from '../api/talent';
 import { classificationFormDefaults } from '../../../shared/utils/imageClassification';
-import {
-  shotPickerOptions,
-  imageTypePickerOptions,
-  stylePickerOptions,
-  expressionPickerOptions,
-} from '../../../shared/constants/frameTaxonomy';
 import { getCroppedImgBlob } from '../../../shared/utils/canvasUtils';
-import PholioButton, {
-  PholioIconButton,
-  PholioToggleButton,
-  PholioToggleGroup,
-} from '../../../shared/components/ui/PholioButton';
+import FrameSheet from './FrameSheet';
+import {
+  dateInputToPayload,
+  EMPTY_RELEASE,
+  EMPTY_RIGHTS,
+  isoToDateInput,
+  readMetadata,
+  releaseFromRow,
+  rightsFromRow,
+} from './frameEditorModel';
 import './FrameEditor.css';
 
+/* ── Crop geometry ──────────────────────────────────────────────────────── */
+
 const ASPECTS = [
-  { val: 2 / 3, label: 'Portrait', meta: '2:3' },
-  { val: 4 / 5, label: 'Editorial', meta: '4:5' },
-  { val: 1, label: 'Square', meta: '1:1' },
-  { val: 16 / 9, label: 'Wide', meta: '16:9' },
+  { id: 'original', label: 'Original', ratio: null },
+  { id: '2:3', label: '2:3', ratio: 2 / 3 },
+  { id: '4:5', label: '4:5', ratio: 4 / 5 },
+  { id: '1:1', label: '1:1', ratio: 1 },
+  { id: '16:9', label: '16:9', ratio: 16 / 9 },
 ];
 
-// Status — operational state (affects comp card eligibility)
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' },
-  { value: 'archived', label: 'Archived' },
-];
+const MAX_ZOOM = 4;
+const INITIAL_CROP = { crop: { x: 0, y: 0 }, zoom: 1, quarter: 0, straighten: 0, aspectId: 'original' };
 
-const RIGHTS_STATUS_OPTIONS = [
-  { value: '', label: 'Unset' },
-  { value: 'pending', label: 'Pending review' },
-  { value: 'cleared', label: 'Cleared for distribution' },
-  { value: 'licensed', label: 'Licensed' },
-  { value: 'owned', label: 'Owned' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'restricted', label: 'Restricted' },
-  { value: 'blocked', label: 'Blocked' },
-  { value: 'denied', label: 'Denied' },
-];
-
-const LICENSE_TYPE_OPTIONS = [
-  { value: '', label: 'Unset' },
-  { value: 'owned', label: 'Owned by talent' },
-  { value: 'licensed', label: 'Licensed use' },
-  { value: 'model_release', label: 'Model release on file' },
-  { value: 'agency_permission', label: 'Agency permission' },
-  { value: 'editorial_release', label: 'Editorial release' },
-];
-
-const RELEASE_SIGNER_ROLE_OPTIONS = [
-  { value: '', label: 'Select signer role' },
-  { value: 'self', label: 'Talent (self)' },
-  { value: 'guardian', label: 'Parent or legal guardian' },
-  { value: 'authorized_representative', label: 'Authorized representative' },
-];
-
-function isoToDateInput(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function dateInputToPayload(value) {
-  if (!value || !String(value).trim()) return null;
-  const d = new Date(`${value}T12:00:00.000Z`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
-}
-
-/** License expiry read — drives the "expires in N days / expired" indicator. */
-function expiryState(expiresAtIso, now = new Date()) {
-  if (!expiresAtIso) return null;
-  const d = new Date(expiresAtIso);
-  if (Number.isNaN(d.getTime())) return null;
-  const days = Math.ceil((d.getTime() - now.getTime()) / 86400000);
-  if (days < 0) return { label: `Rights expired ${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} ago`, expired: true };
-  if (days === 0) return { label: 'Rights expire today', expired: false };
-  return { label: `Rights expire in ${days} day${days === 1 ? '' : 's'}`, expired: false };
-}
-
-function readMetadata(metadata) {
-  if (!metadata) return {};
-  if (typeof metadata === 'object') return metadata;
-  try { return JSON.parse(metadata); } catch { return {}; }
+/**
+ * Smallest zoom at which the crop rectangle sits entirely inside the
+ * straightened photo, so a tilt never bakes black corners into the file.
+ * react-easy-crop fits the crop to the rotated bounding box at zoom 1.
+ */
+function coverZoom(size, quarter, straighten, ratio) {
+  if (!size || !straighten) return 1;
+  const swap = quarter % 2 === 1;
+  const iw = swap ? size.height : size.width;
+  const ih = swap ? size.width : size.height;
+  const rad = (Math.abs(straighten) * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  const bw = iw * c + ih * s;
+  const bh = iw * s + ih * c;
+  const a = ratio || iw / ih;
+  const cw = bw / bh > a ? bh * a : bw;
+  const ch = bw / bh > a ? bh : bw / a;
+  return Math.max(1, (cw * c + ch * s) / iw, (cw * s + ch * c) / ih);
 }
 
 function getImageUrl(value) {
@@ -101,273 +60,276 @@ function getImageUrl(value) {
   return value.startsWith('/') ? value : `/uploads/${value}`;
 }
 
-function toText(value) {
-  if (value == null) return '';
-  return String(value);
+/* ── Straighten ruler: a tick scale with a gold needle ──────────────────── */
+
+function StraightenRuler({ value, onChange }) {
+  const shown = Math.round(value * 2) / 2;
+  return (
+    <div className="fe-ruler">
+      <span className="fe-ruler__value" aria-hidden="true">
+        {shown > 0 ? '+' : shown < 0 ? '−' : ''}{Math.abs(shown)}°
+      </span>
+      <div className="fe-ruler__track">
+        <div className="fe-ruler__ticks" aria-hidden="true" />
+        <input
+          type="range"
+          className="fe-ruler__input"
+          min={-45}
+          max={45}
+          step={0.5}
+          value={value}
+          aria-label="Straighten"
+          aria-valuetext={`${shown} degrees`}
+          onChange={(e) => onChange(Number(e.target.value))}
+          onDoubleClick={() => onChange(0)}
+        />
+      </div>
+    </div>
+  );
 }
 
-export default function FrameEditor({ image, initialMode = 'details', mediaSets = [], onClose, onUpdate, onReplace, onRestore }) {
+/* ── Editor ─────────────────────────────────────────────────────────────── */
+
+export default function FrameEditor({
+  image,
+  initialMode = 'details',
+  mediaSets = [],
+  onClose,
+  onUpdate,
+  onReplace,
+  onRestore,
+}) {
   const queryClient = useQueryClient();
-  const [mode, setMode] = useState(initialMode);
+  const reduceMotion = useReducedMotion();
+  const isVideo = String(image.asset_kind || '').toLowerCase() === 'video';
+  const imageSrc = isVideo ? '' : getImageUrl(image.public_url || image.path);
+  const initialMeta = useMemo(() => readMetadata(image.metadata), [image.metadata]);
 
-  // Crop state
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [rotation, setRotation] = useState(0);
-  const [zoom, setZoom] = useState(1);
-  const [aspect, setAspect] = useState(2 / 3);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isRestoring, setIsRestoring] = useState(false);
+  /* Crop — staged locally; nothing touches the file until Save. */
+  const [tool, setTool] = useState(initialMode === 'crop' && !isVideo ? 'crop' : 'view');
+  const [geom, setGeom] = useState(INITIAL_CROP);
+  const [mediaSize, setMediaSize] = useState(null);
+  const [areaPixels, setAreaPixels] = useState(null);
+  const [pending, setPending] = useState(null); // { blob, url, geom }
+  const [rendering, setRendering] = useState(false);
+  const geomOnEnter = useRef(INITIAL_CROP);
 
-  // Details state
-  const [saving, setSaving] = useState(false);
-  const [rights, setRights] = useState({
-    license_type: '',
-    rights_status: '',
-    copyright_owner: '',
-    photographer_name: '',
-    usage_scope: '',
-    territory: '',
-    start_at: '',
-    expires_at: '',
-    exclusive: false,
-  });
-  const [rightsLoaded, setRightsLoaded] = useState(false);
-  const [rightsLoading, setRightsLoading] = useState(true);
-  const [rightsError, setRightsError] = useState('');
-  const [releaseOnFile, setReleaseOnFile] = useState(false);
-  // Model-release artifact (P1 #6) — a real release record attached to the frame.
-  const [release, setRelease] = useState({
-    release_url: '',
-    signer_name: '',
-    signer_role: '',
-    signed_at: '',
-  });
-  const [releaseLoaded, setReleaseLoaded] = useState(false);
-  const [releaseDirty, setReleaseDirty] = useState(false);
-  const initialMeta = readMetadata(image.metadata);
-  const initialCredits = initialMeta.credits || {};
-  const classDefaults = classificationFormDefaults(image);
-  const [form, setForm] = useState({
-    metadata: {
-      credits: {
-        photographer: initialCredits.photographer || '',
-        mua: initialCredits.mua || '',
-        hair_stylist: initialCredits.hair_stylist || '',
-        stylist: initialCredits.stylist || '',
-        publication: initialCredits.publication || '',
-        issue: initialCredits.issue || '',
-        credit: initialCredits.credit || '',
-      },
+  /* Details */
+  const buildForm = useCallback(() => {
+    const credits = initialMeta.credits || {};
+    const cls = classificationFormDefaults(image);
+    return {
+      image_type: cls.image_type,
+      shot_type: cls.shot_type,
+      style_type: cls.style_type,
+      expression: cls.expression,
+      status: image.status != null ? image.status : 'active',
+      exclude_from_public: !!image.exclude_from_public,
+      exclude_from_agency: !!image.exclude_from_agency,
+      captured_at: isoToDateInput(image.captured_at),
+      retouched_at: isoToDateInput(image.retouched_at),
+      set_id: image.set_id ?? '',
       description: initialMeta.description || initialMeta.caption || '',
-      // The audience columns are the enforced source of truth. Legacy
-      // metadata.visibility is display-only and can disagree with them.
-      visibility: image.exclude_from_public ? 'private' : 'public',
-    },
-    image_type: classDefaults.image_type,
-    shot_type: classDefaults.shot_type,
-    style_type: classDefaults.style_type,
-    expression: classDefaults.expression,
-    status: image.status != null ? image.status : 'active',
-    exclude_from_public: !!image.exclude_from_public,
-    exclude_from_agency: !!image.exclude_from_agency,
-    captured_at: isoToDateInput(image.captured_at),
-    retouched_at: isoToDateInput(image.retouched_at),
-    set_id: image.set_id ?? '',
-  });
+      credits: {
+        photographer: credits.photographer || '',
+        mua: credits.mua || '',
+        hair_stylist: credits.hair_stylist || '',
+        stylist: credits.stylist || '',
+        publication: credits.publication || '',
+        issue: credits.issue || '',
+        credit: credits.credit || '',
+      },
+    };
+  }, [image, initialMeta]);
 
-  const imageSrc = getImageUrl(image.public_url || image.path);
+  const [form, setForm] = useState(buildForm);
+  const [baseForm, setBaseForm] = useState(form);
+  const [rights, setRights] = useState(EMPTY_RIGHTS);
+  const [baseRights, setBaseRights] = useState(EMPTY_RIGHTS);
+  const [release, setRelease] = useState(EMPTY_RELEASE);
+  const [baseRelease, setBaseRelease] = useState(EMPTY_RELEASE);
+  const [rightsState, setRightsState] = useState('loading'); // loading | ready | error
+  const [releaseReady, setReleaseReady] = useState(false);
+  const [releaseOnFile, setReleaseOnFile] = useState(false);
+  const [rightsOpen, setRightsOpen] = useState(false);
+  const [problem, setProblem] = useState('');
 
-  // Adjust during render: reset rights loading state when the image changes.
-  const [prevImageId, setPrevImageId] = React.useState(image.id);
-  if (image.id !== prevImageId) {
-    setPrevImageId(image.id);
-    setRightsLoading(true);
-    setRightsLoaded(false);
-    setRightsError('');
-  }
+  const [saving, setSaving] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [confirm, setConfirm] = useState(null); // 'discard' | 'restore'
 
-  React.useEffect(() => {
+  useEffect(() => {
     let active = true;
     talentApi.getImageRights(image.id)
       .then((res) => {
         if (!active) return;
-        const row = res?.rights || {};
-        setRights({
-          license_type: toText(row.license_type),
-          rights_status: toText(row.rights_status),
-          copyright_owner: toText(row.copyright_owner),
-          photographer_name: toText(row.photographer_name),
-          usage_scope: toText(row.usage_scope),
-          territory: toText(row.territory),
-          start_at: isoToDateInput(row.start_at),
-          expires_at: isoToDateInput(row.expires_at),
-          exclusive: !!row.exclusive,
-        });
+        const next = rightsFromRow(res?.rights);
+        setRights(next);
+        setBaseRights(next);
         if (res?.release_on_file) setReleaseOnFile(true);
-        setRightsLoaded(true);
+        // One photographer field: fall back to the rights record when the credit is blank.
+        if (next.photographer_name) {
+          const fill = (p) => (p.credits.photographer ? p : { ...p, credits: { ...p.credits, photographer: next.photographer_name } });
+          setForm(fill);
+          setBaseForm(fill);
+        }
+        setRightsState('ready');
       })
-      .catch(() => {
-        if (!active) return;
-        setRightsError('Rights metadata is unavailable right now.');
-      })
-      .finally(() => {
-        if (!active) return;
-        setRightsLoading(false);
-      });
+      .catch(() => { if (active) setRightsState('error'); });
 
     talentApi.getModelRelease(image.id)
       .then((res) => {
         if (!active) return;
-        const row = res?.release || {};
-        setRelease({
-          release_url: toText(row.release_url || row.release_ref),
-          signer_name: toText(row.signer_name),
-          signer_role: toText(row.signer_role),
-          signed_at: isoToDateInput(row.signed_at),
-        });
-        if (row.on_file) setReleaseOnFile(true);
-        setReleaseLoaded(true);
+        const next = releaseFromRow(res?.release);
+        setRelease(next);
+        setBaseRelease(next);
+        if (res?.release?.on_file) setReleaseOnFile(true);
+        setReleaseReady(true);
       })
-      .catch(() => { /* release is best-effort; rights UI still works */ });
+      .catch(() => { /* release is best-effort; the rest of the sheet still works */ });
 
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [image.id]);
 
-  const onCropComplete = useCallback((_, pixels) => { setCroppedAreaPixels(pixels); }, []);
+  useEffect(() => () => { if (pending?.url) URL.revokeObjectURL(pending.url); }, [pending]);
 
-  const resetCrop = () => { setCrop({ x: 0, y: 0 }); setRotation(0); setZoom(1); };
-  const rotateBy = (amt) => setRotation((r) => (r + amt + 360) % 360);
+  const detailsDirty = JSON.stringify(form) !== JSON.stringify(baseForm);
+  const rightsDirty = rightsState === 'ready' && (
+    JSON.stringify(rights) !== JSON.stringify(baseRights)
+    || form.credits.photographer !== baseForm.credits.photographer
+  );
+  const releaseDirty = releaseReady && JSON.stringify(release) !== JSON.stringify(baseRelease);
+  const dirty = detailsDirty || rightsDirty || releaseDirty || !!pending;
+  const busy = saving || restoring || rendering;
 
-  const handleApplyCrop = async () => {
-    if (!croppedAreaPixels) return;
-    setIsProcessing(true);
+  /* ── Crop tool ── */
+
+  const aspect = ASPECTS.find((a) => a.id === geom.aspectId) || ASPECTS[0];
+  const ratio = aspect.ratio
+    || (mediaSize ? (geom.quarter % 2 ? mediaSize.height / mediaSize.width : mediaSize.width / mediaSize.height) : 2 / 3);
+  const minZoom = coverZoom(mediaSize, geom.quarter, geom.straighten, ratio);
+  const rotation = geom.quarter * 90 + geom.straighten;
+  const geomChanged = JSON.stringify({ ...geom, crop: null }) !== JSON.stringify({ ...INITIAL_CROP, crop: null })
+    || Math.abs(geom.crop.x) > 0.5 || Math.abs(geom.crop.y) > 0.5;
+
+  const patchGeom = (patch) => setGeom((g) => {
+    const next = { ...g, ...patch };
+    const nextRatio = (ASPECTS.find((a) => a.id === next.aspectId) || ASPECTS[0]).ratio
+      || (mediaSize ? (next.quarter % 2 ? mediaSize.height / mediaSize.width : mediaSize.width / mediaSize.height) : ratio);
+    const floor = coverZoom(mediaSize, next.quarter, next.straighten, nextRatio);
+    return next.zoom < floor ? { ...next, zoom: floor } : next;
+  });
+
+  const openCrop = () => {
+    geomOnEnter.current = geom;
+    setTool('crop');
+  };
+
+  const cancelCrop = () => {
+    setGeom(geomOnEnter.current);
+    setTool('view');
+  };
+
+  /** Renders the crop. Returns the staged crop, null when the frame is untouched, false on failure. */
+  const finishCrop = async () => {
+    if (!geomChanged) {
+      setPending(null);
+      setTool('view');
+      return null;
+    }
+    if (!areaPixels) return false;
+    setRendering(true);
     try {
-      const blob = await getCroppedImgBlob(imageSrc, croppedAreaPixels, rotation);
-      await Promise.resolve(onReplace(blob));
+      const blob = await getCroppedImgBlob(imageSrc, areaPixels, rotation);
+      const staged = { blob, url: URL.createObjectURL(blob) };
+      setPending(staged);
+      setTool('view');
+      return staged;
     } catch {
-      pholioToast.error('Could not crop image. Please try again.');
-      setIsProcessing(false);
+      pholioToast.error('This photo could not be cropped. Try again, or restore the original first.');
+      return false;
+    } finally {
+      setRendering(false);
     }
   };
 
-  const handleRestore = async () => {
-    setIsRestoring(true);
-    try { await Promise.resolve(onRestore(image.id)); }
-    catch { pholioToast.error('Failed to restore original. Please try again.'); setIsRestoring(false); }
+  const undoCrop = () => {
+    setPending(null);
+    setGeom(INITIAL_CROP);
   };
 
-  const setMeta = (patch) => setForm((p) => ({ ...p, metadata: { ...p.metadata, ...patch } }));
-  /* `metadata.visibility` is stored but never filters a query — `exclude_from_public`
-     is what the public portfolio actually reads. Derive it from that flag so the two
-     can't disagree. */
-  const setAudience = (patch) => setForm((p) => {
-    const next = { ...p, ...patch };
-    return {
-      ...next,
-      metadata: {
-        ...next.metadata,
-        visibility: next.exclude_from_public ? 'private' : 'public',
-      },
-    };
-  });
-  const setCredit = (field, value) => setForm((p) => ({
-    ...p, metadata: { ...p.metadata, credits: { ...p.metadata.credits, [field]: value } },
-  }));
-  const setReleaseField = (field, value) => {
-    setReleaseDirty(true);
-    setRelease((p) => ({ ...p, [field]: value }));
+  /* ── Save ── */
+
+  const validate = () => {
+    if (rightsState === 'ready' && rights.rights_status === 'cleared') {
+      const hasCredit = rights.copyright_owner.trim() || form.credits.photographer.trim();
+      if (!rights.license_type || !hasCredit) {
+        return 'Cleared needs a license type and a copyright owner or photographer.';
+      }
+    }
+    const releaseStarted = Object.values(release).some(Boolean);
+    if ((rights.license_type === 'model_release' || releaseStarted)
+      && (!release.release_url || !release.signer_name || !release.signer_role || !release.signed_at)) {
+      return 'Add the release reference, signer, signer role and signed date, or clear them.';
+    }
+    return '';
   };
 
-  const handleSave = async () => {
+  const save = async () => {
+    if (busy) return;
+    let staged = pending;
+    if (tool === 'crop') {
+      staged = await finishCrop();
+      if (staged === false) return;
+    }
+    const issue = validate();
+    setProblem(issue);
+    if (issue) { setRightsOpen(true); return; }
+    if (!(detailsDirty || rightsDirty || releaseDirty || staged)) { onClose(); return; }
+
     setSaving(true);
     try {
-      const normalizedRightsStatus = rights.rights_status.trim().toLowerCase();
-      const hasLicenseType = rights.license_type.trim().length > 0;
-      const hasCredit = rights.copyright_owner.trim().length > 0
-        || rights.photographer_name.trim().length > 0;
-      if (normalizedRightsStatus === 'cleared' && (!hasLicenseType || !hasCredit)) {
-        pholioToast.error(
-          "Set a license type and either copyright owner or photographer before marking rights as cleared.",
-        );
-        return;
-      }
-      const releaseStarted = Boolean(
-        release.release_url || release.signer_name || release.signer_role || release.signed_at,
-      );
-      if (
-        (rights.license_type === 'model_release' || releaseStarted)
-        && (!release.release_url
-          || !release.signer_name
-          || !release.signer_role
-          || !release.signed_at)
-      ) {
-        pholioToast.error('Complete the release reference, signer, signer role, and signed date.');
-        return;
-      }
+      const isDigital = String(form.image_type || '').toLowerCase() === 'digital';
 
-      const isDigitalUse = String(form.image_type || '').toLowerCase() === 'digital';
-      const payload = {
-        image_type: form.image_type || null,
-        shot_type: form.shot_type || null,
-        style_type: form.style_type || null,
-        status: form.status || 'active',
-        exclude_from_public: form.exclude_from_public,
-        exclude_from_agency: form.exclude_from_agency,
-        captured_at: dateInputToPayload(form.captured_at),
-        // Digitals must stay raw — never persist a retouch date on a digital.
-        retouched_at: isDigitalUse ? null : dateInputToPayload(form.retouched_at),
-        set_id: form.set_id || null,
-        metadata: {
-          ...form.metadata,
-          // Preserve legacy caption key for read compat
-          caption: form.metadata.description || '',
-          // Preserve existing AI signal data; mark classification as user-confirmed
-          ai: {
-            ...(initialMeta.ai || {}),
-            signals: (() => {
-              const next = { ...(initialMeta.ai?.signals || {}) };
-              if (form.expression) next.expression = form.expression;
-              else delete next.expression;
-              return next;
-            })(),
-            classification: {
-              ...(initialMeta.ai?.classification || {}),
-              source: 'user',
-              confirmed: true,
+      // A crop doesn't change what the photo is. Confirming the read with it
+      // stops the replace from clearing the classification and dropping the
+      // photo out of its slot (e.g. the Digitals headshot).
+      if (detailsDirty || staged) {
+        const signals = { ...(initialMeta.ai?.signals || {}) };
+        if (form.expression) signals.expression = form.expression;
+        else delete signals.expression;
+        // Classification columns go only when changed: an untouched legacy
+        // value must not fail validation. The metadata lock below is what
+        // keeps the read through a replace.
+        const changedRead = Object.fromEntries(
+          ['image_type', 'shot_type', 'style_type']
+            .filter((k) => form[k] !== baseForm[k])
+            .map((k) => [k, form[k] || null]),
+        );
+        const payload = {
+          ...changedRead,
+          status: form.status || 'active',
+          exclude_from_public: form.exclude_from_public,
+          exclude_from_agency: form.exclude_from_agency,
+          captured_at: dateInputToPayload(form.captured_at),
+          // Digitals stay raw: never persist a retouch date on a digital.
+          retouched_at: isDigital ? null : dateInputToPayload(form.retouched_at),
+          set_id: form.set_id || null,
+          metadata: {
+            credits: form.credits,
+            description: form.description,
+            caption: form.description, // legacy read key
+            // The audience columns are enforced; this mirror is display-only.
+            visibility: form.exclude_from_public ? 'private' : 'public',
+            ai: {
+              ...(initialMeta.ai || {}),
+              signals,
+              classification: { ...(initialMeta.ai?.classification || {}), source: 'user', confirmed: true },
             },
           },
-        },
-      };
-      const res = await talentApi.updateMedia(image.id, payload);
-      if (res.success) {
-        if (rightsLoaded) {
-          await talentApi.updateImageRights(image.id, {
-            license_type: rights.license_type || null,
-            rights_status: rights.rights_status || null,
-            copyright_owner: rights.copyright_owner || null,
-            photographer_name: rights.photographer_name || null,
-            usage_scope: rights.usage_scope || null,
-            territory: rights.territory || null,
-            start_at: dateInputToPayload(rights.start_at),
-            expires_at: dateInputToPayload(rights.expires_at),
-            exclusive: !!rights.exclusive,
-          });
-          await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
-        }
-        if (releaseLoaded && releaseDirty) {
-          const releaseRes = await talentApi.updateModelRelease(image.id, {
-            release_url: release.release_url || null,
-            signer_name: release.signer_name || null,
-            signer_role: release.signer_role || null,
-            signed_at: dateInputToPayload(release.signed_at),
-          });
-          if (releaseRes?.release?.on_file != null) setReleaseOnFile(!!releaseRes.release.on_file);
-          setReleaseDirty(false);
-        }
-        const next = res.image;
+        };
+        const res = await talentApi.updateMedia(image.id, payload);
+        const next = res?.image;
         onUpdate(image.id, next ? {
           metadata: next.metadata,
           image_type: next.image_type,
@@ -379,688 +341,304 @@ export default function FrameEditor({ image, initialMode = 'details', mediaSets 
           captured_at: next.captured_at,
           retouched_at: next.retouched_at,
           set_id: next.set_id,
-        } : { ...payload });
-        onClose();
+        } : payload);
+        setBaseForm(form);
       }
-    } catch {
-      pholioToast.error('Failed to save changes. Please try again.');
+
+      if (rightsDirty) {
+        await talentApi.updateImageRights(image.id, {
+          license_type: rights.license_type || null,
+          rights_status: rights.rights_status || null,
+          copyright_owner: rights.copyright_owner || null,
+          photographer_name: form.credits.photographer || null,
+          usage_scope: rights.usage_scope || null,
+          territory: rights.territory || null,
+          start_at: dateInputToPayload(rights.start_at),
+          expires_at: dateInputToPayload(rights.expires_at),
+          exclusive: !!rights.exclusive,
+        });
+        setBaseRights({ ...rights, photographer_name: form.credits.photographer });
+        await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+      }
+
+      if (releaseDirty) {
+        const res = await talentApi.updateModelRelease(image.id, {
+          release_url: release.release_url || null,
+          signer_name: release.signer_name || null,
+          signer_role: release.signer_role || null,
+          signed_at: dateInputToPayload(release.signed_at),
+        });
+        if (res?.release?.on_file != null) setReleaseOnFile(!!res.release.on_file);
+        setBaseRelease(release);
+      }
+
+      // File last: replace keeps a user-confirmed classification, so the read
+      // saved above survives the new pixels.
+      if (staged) await onReplace(staged.blob);
+
+      onClose();
+    } catch (err) {
+      pholioToast.error(err?.message || 'Changes were not saved. Try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const isDigitalUse = String(form.image_type || '').toLowerCase() === 'digital';
-  const isTearsheet = String(form.image_type || '').toLowerCase() === 'tearsheet';
-  const expiry = expiryState(dateInputToPayload(rights.expires_at));
-  const currentAspect = ASPECTS.find((a) => Math.abs(a.val - aspect) < 0.01);
-  const isPrivate = (
-    form.metadata.visibility === 'private'
-    || form.exclude_from_public
-    || form.exclude_from_agency
-    || form.status === 'archived'
-  );
-  const frameLabel = image.id ? `#${String(image.id).slice(-6).toUpperCase()}` : 'Frame';
+  const restore = async () => {
+    setRestoring(true);
+    try {
+      await onRestore(image.id);
+      onClose();
+    } catch (err) {
+      pholioToast.error(err?.message || 'The original was not restored. Try again.');
+      setRestoring(false);
+      setConfirm(null);
+    }
+  };
+
+  const requestClose = () => {
+    if (busy) return;
+    if (dirty) setConfirm('discard');
+    else onClose();
+  };
+
+  /* Keyboard: Esc steps back one layer; Cmd/Ctrl+S or Cmd/Ctrl+Enter saves. */
+  const keyRef = useRef(null);
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      if (confirm) setConfirm(null);
+      else if (tool === 'crop') cancelCrop();
+      else requestClose();
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'Enter')) {
+      e.preventDefault();
+      save();
+    }
+  };
+  useEffect(() => { keyRef.current = onKeyDown; });
+  useEffect(() => {
+    const onKey = (e) => keyRef.current?.(e);
+    window.addEventListener('keydown', onKey);
+    const { overflow } = document.body.style;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+    };
+  }, []);
+
+  /* ── Render ── */
+
+  const spring = reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 260, damping: 30 };
+  const shown = pending?.url || imageSrc;
+  const alt = form.description || 'Portfolio frame';
 
   return createPortal(
-    <div className="fe-overlay" onClick={onClose}>
-      <section className="fe-shell" aria-label="Edit frame" onClick={(e) => e.stopPropagation()}>
+    <motion.div
+      className="fe"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit photo"
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* Stage */}
+      <div className={`fe-stage${tool === 'crop' ? ' is-cropping' : ''}`}>
+        <button type="button" className="fe-close" onClick={tool === 'crop' ? cancelCrop : requestClose} aria-label={tool === 'crop' ? 'Cancel crop' : 'Close'}>
+          <X size={20} aria-hidden="true" />
+        </button>
 
-        {/* ── Head ── */}
-        <header className="fe-head">
-          <div className="fe-head__left">
-            <PholioToggleGroup className="fe-tabs" tone="dark" role="tablist">
-              <PholioToggleButton
-                type="button" role="tab"
-                tone="dark"
-                active={mode === 'crop'}
-                className={`fe-tab ${mode === 'crop' ? 'is-active' : ''}`}
-                aria-selected={mode === 'crop'}
-                onClick={() => setMode('crop')}
-              >
-                <Crop size={13} aria-hidden="true" />
-                Crop & adjust
-              </PholioToggleButton>
-              <PholioToggleButton
-                type="button" role="tab"
-                tone="dark"
-                active={mode === 'details'}
-                className={`fe-tab ${mode === 'details' ? 'is-active' : ''}`}
-                aria-selected={mode === 'details'}
-                onClick={() => setMode('details')}
-              >
-                <Tags size={13} aria-hidden="true" />
-                Details
-              </PholioToggleButton>
-            </PholioToggleGroup>
-          </div>
-          <div className="fe-head__right">
-            <span className="fe-head__id">{frameLabel}</span>
-            <PholioIconButton
-              label="Close editor"
-              tone="dark"
-              className="fe-icon-btn"
-              onClick={onClose}
-            >
-              <X size={18} aria-hidden="true" />
-            </PholioIconButton>
-          </div>
-        </header>
-
-        {/* ── Body ── */}
-        <div className="fe-body">
-
-          {/* Left: image stage */}
-          <div className="fe-stage">
-            {mode === 'crop' ? (
-              <>
-                <div className="fe-stage__crop">
-                  <Cropper
-                    image={imageSrc}
-                    crop={crop}
-                    rotation={rotation}
-                    zoom={zoom}
-                    aspect={aspect}
-                    onCropChange={setCrop}
-                    onRotationChange={setRotation}
-                    onCropComplete={onCropComplete}
-                    onZoomChange={setZoom}
-                    objectFit="contain"
-                  />
-                </div>
-                <div className="fe-stage__status" aria-live="polite">
-                  {currentAspect?.label ?? 'Custom'} · {zoom.toFixed(1)}× · {rotation}°
-                </div>
-              </>
-            ) : (
-              <div className="fe-stage__preview">
-                <img
-                  src={imageSrc}
-                  alt={initialMeta.description || initialMeta.caption || 'Portfolio frame'}
-                />
-                {isPrivate && (
-                  <span className="fe-stage__badge">
-                    <EyeOff size={11} aria-hidden="true" />
-                    Private
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Right: controls panel */}
-          <div className="fe-panel" role="tabpanel">
-            <div className="fe-panel__body">
-
-              {mode === 'crop' ? (
-                <>
-                  {/* Aspect ratio */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <Crop size={14} aria-hidden="true" />
-                      <h3>Aspect ratio</h3>
-                    </div>
-                    <PholioToggleGroup
-                      className="fe-aspect-grid"
-                      tone="dark"
-                      role="radiogroup"
-                      aria-label="Aspect ratio"
-                    >
-                      {ASPECTS.map((opt) => (
-                        <PholioToggleButton
-                          key={opt.label} type="button"
-                          tone="dark"
-                          active={Math.abs(aspect - opt.val) < 0.01}
-                          role="radio"
-                          aria-checked={Math.abs(aspect - opt.val) < 0.01}
-                          className={`fe-aspect-btn ${Math.abs(aspect - opt.val) < 0.01 ? 'is-active' : ''}`}
-                          onClick={() => setAspect(opt.val)}
-                        >
-                          <span className="fe-aspect-icon" style={{ aspectRatio: String(opt.val) }} aria-hidden="true" />
-                          <span className="fe-aspect-label">{opt.label}</span>
-                          <span className="fe-aspect-meta">{opt.meta}</span>
-                        </PholioToggleButton>
-                      ))}
-                    </PholioToggleGroup>
-                  </div>
-
-                  {/* Zoom */}
-                  <div className="fe-section">
-                    <div className="fe-slider-head">
-                      <label htmlFor="fe-zoom">
-                        <ZoomIn size={14} aria-hidden="true" />
-                        Zoom
-                      </label>
-                      <span className="fe-slider-val">{zoom.toFixed(1)}×</span>
-                    </div>
-                    <input
-                      id="fe-zoom" type="range"
-                      value={zoom} min={1} max={3} step={0.05}
-                      aria-label="Zoom level"
-                      onChange={(e) => setZoom(Number(e.target.value))}
-                      className="fe-range"
-                    />
-                  </div>
-
-                  {/* Rotation */}
-                  <div className="fe-section">
-                    <div className="fe-slider-head">
-                      <label htmlFor="fe-rotation">
-                        <RotateCw size={14} aria-hidden="true" />
-                        Rotation
-                      </label>
-                      <span className="fe-slider-val">{rotation}°</span>
-                    </div>
-                    <input
-                      id="fe-rotation" type="range"
-                      value={rotation} min={0} max={360} step={1}
-                      aria-label="Rotation angle"
-                      onChange={(e) => setRotation(Number(e.target.value))}
-                      className="fe-range"
-                    />
-                    <div className="fe-nudge-row">
-                      <PholioButton
-                        type="button"
-                        variant="tertiary" tone="dark"
-                        onClick={() => rotateBy(-90)}
-                      >
-                        <RotateCcw size={13} aria-hidden="true" /><span>−90°</span>
-                      </PholioButton>
-                      <PholioButton
-                        type="button"
-                        variant="tertiary" tone="dark"
-                        onClick={() => rotateBy(90)}
-                      >
-                        <RotateCw size={13} aria-hidden="true" /><span>+90°</span>
-                      </PholioButton>
-                    </div>
-                  </div>
-
-                  <PholioButton type="button" variant="secondary" tone="dark" className="fe-reset-btn" onClick={resetCrop}>
-                    <ScanLine size={14} aria-hidden="true" />
-                    Reset composition
-                  </PholioButton>
-                </>
-              ) : (
-                <>
-                  {/* Publishing */}
-                  <div className="fe-section fe-section--publishing">
-                    <div className="fe-section__head">
-                      <Shield size={14} aria-hidden="true" />
-                      <h3>Publishing</h3>
-                    </div>
-                    <p className="fe-section__note">Choose where this frame can appear.</p>
-                    <div className="fe-audience">
-                      <div className="fe-audience__row">
-                        <span className="fe-audience__text">
-                          <span className="fe-audience__name">Public book</span>
-                          <span className="fe-audience__note">Visible at your shareable portfolio link</span>
-                        </span>
-                        <PholioToggleGroup
-                          className="fe-unit-toggle"
-                          tone="dark"
-                          role="group"
-                          aria-label="Public book visibility"
-                        >
-                          <PholioToggleButton
-                            type="button"
-                            tone="dark"
-                            active={form.exclude_from_public}
-                            aria-pressed={form.exclude_from_public}
-                            className={`fe-unit-toggle__btn ${form.exclude_from_public ? 'is-active' : ''}`}
-                            onClick={() => setAudience({ exclude_from_public: true })}
-                          >
-                            Hidden
-                          </PholioToggleButton>
-                          <PholioToggleButton
-                            type="button"
-                            tone="dark"
-                            active={!form.exclude_from_public}
-                            aria-pressed={!form.exclude_from_public}
-                            className={`fe-unit-toggle__btn ${!form.exclude_from_public ? 'is-active' : ''}`}
-                            onClick={() => setAudience({ exclude_from_public: false })}
-                          >
-                            Shown
-                          </PholioToggleButton>
-                        </PholioToggleGroup>
-                      </div>
-
-                      <div className="fe-audience__row">
-                        <span className="fe-audience__text">
-                          <span className="fe-audience__name">Agency submissions</span>
-                          <span className="fe-audience__note">Available when you build a submission</span>
-                        </span>
-                        <PholioToggleGroup
-                          className="fe-unit-toggle"
-                          tone="dark"
-                          role="group"
-                          aria-label="Agency submissions availability"
-                        >
-                          <PholioToggleButton
-                            type="button"
-                            tone="dark"
-                            active={form.exclude_from_agency}
-                            aria-pressed={form.exclude_from_agency}
-                            className={`fe-unit-toggle__btn ${form.exclude_from_agency ? 'is-active' : ''}`}
-                            onClick={() => setAudience({ exclude_from_agency: true })}
-                          >
-                            Hidden
-                          </PholioToggleButton>
-                          <PholioToggleButton
-                            type="button"
-                            tone="dark"
-                            active={!form.exclude_from_agency}
-                            aria-pressed={!form.exclude_from_agency}
-                            className={`fe-unit-toggle__btn ${!form.exclude_from_agency ? 'is-active' : ''}`}
-                            onClick={() => setAudience({ exclude_from_agency: false })}
-                          >
-                            Shown
-                          </PholioToggleButton>
-                        </PholioToggleGroup>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rights */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <Shield size={14} aria-hidden="true" />
-                      <h3>Rights</h3>
-                    </div>
-                    {rightsError ? (
-                      <p className="fe-rights-error">{rightsError}</p>
-                    ) : (
-                      <p className="fe-rights-note">
-                        Optional metadata: useful if an agency later needs a photographer credit,
-                        or to track a paid usage license.
-                      </p>
-                    )}
-                    <div className="fe-grid">
-                      <label>
-                        <span className="fe-label">License type</span>
-                        <select
-                          className="fe-input"
-                          value={rights.license_type}
-                          disabled={rightsLoading}
-                          onChange={(e) =>
-                            setRights((p) => ({ ...p, license_type: e.target.value }))}
-                        >
-                          {LICENSE_TYPE_OPTIONS.map((option) => (
-                            <option key={`license-${option.value || 'empty'}`} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label">Rights status</span>
-                        <select
-                          className="fe-input"
-                          value={rights.rights_status}
-                          disabled={rightsLoading}
-                          onChange={(e) =>
-                            setRights((p) => ({ ...p, rights_status: e.target.value }))}
-                        >
-                          {RIGHTS_STATUS_OPTIONS.map((option) => (
-                            <option key={`status-${option.value || 'empty'}`} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label">Copyright owner</span>
-                        <input
-                          type="text"
-                          className="fe-input"
-                          placeholder="Name or entity"
-                          value={rights.copyright_owner}
-                          disabled={rightsLoading}
-                          onChange={(e) =>
-                            setRights((p) => ({ ...p, copyright_owner: e.target.value }))}
-                        />
-                      </label>
-                      <label>
-                        <span className="fe-label">Photographer</span>
-                        <input
-                          type="text"
-                          className="fe-input"
-                          placeholder="Photographer name"
-                          value={rights.photographer_name}
-                          disabled={rightsLoading}
-                          onChange={(e) =>
-                            setRights((p) => ({ ...p, photographer_name: e.target.value }))}
-                        />
-                      </label>
-                      <label>
-                        <span className="fe-label">Usage scope</span>
-                        <input
-                          type="text"
-                          className="fe-input"
-                          placeholder="e.g. editorial, advertising, web"
-                          value={rights.usage_scope}
-                          disabled={rightsLoading}
-                          onChange={(e) =>
-                            setRights((p) => ({ ...p, usage_scope: e.target.value }))}
-                        />
-                      </label>
-                      <label>
-                        <span className="fe-label">Territory</span>
-                        <input
-                          type="text"
-                          className="fe-input"
-                          placeholder="e.g. worldwide, US, EU"
-                          value={rights.territory}
-                          disabled={rightsLoading}
-                          onChange={(e) =>
-                            setRights((p) => ({ ...p, territory: e.target.value }))}
-                        />
-                      </label>
-                      <label>
-                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />License start</span>
-                        <input
-                          type="date"
-                          className="fe-input"
-                          value={rights.start_at}
-                          disabled={rightsLoading}
-                          onChange={(e) => setRights((p) => ({ ...p, start_at: e.target.value }))}
-                        />
-                      </label>
-                      <label>
-                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />License expiry</span>
-                        <input
-                          type="date"
-                          className="fe-input"
-                          value={rights.expires_at}
-                          disabled={rightsLoading}
-                          onChange={(e) => setRights((p) => ({ ...p, expires_at: e.target.value }))}
-                        />
-                      </label>
-                      <label className="fe-grid__wide fe-check">
-                        <input
-                          type="checkbox"
-                          className="fe-check__box"
-                          checked={rights.exclusive}
-                          disabled={rightsLoading}
-                          onChange={(e) => setRights((p) => ({ ...p, exclusive: e.target.checked }))}
-                        />
-                        <span className="fe-check__text">
-                          <span className="fe-check__name">Exclusive license</span>
-                          <span className="fe-check__note">Limits reuse outside this agreement</span>
-                        </span>
-                      </label>
-                    </div>
-                    {expiry ? (
-                      <p className={`fe-rights-expiry${expiry.expired ? ' fe-rights-expiry--expired' : ''}`}>
-                        {expiry.label}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {/* Model release */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <FileSignature size={14} aria-hidden="true" />
-                      <h3>Model release</h3>
-                    </div>
-                    <p className={`fe-section__note${releaseOnFile ? ' fe-section__note--ok' : ''}`}>
-                      {releaseOnFile ? 'On file for this frame.' : 'Not on file yet — add the reference and signer details.'}
-                    </p>
-                    <div className="fe-grid">
-                      <label className="fe-grid__wide">
-                        <span className="fe-label">Release reference / URL</span>
-                        <input
-                          type="text"
-                          className="fe-input"
-                          placeholder="Link or document reference"
-                          value={release.release_url}
-                          disabled={rightsLoading}
-                          onChange={(e) => setReleaseField('release_url', e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        <span className="fe-label">Signer</span>
-                        <input
-                          type="text"
-                          className="fe-input"
-                          placeholder="Signer name"
-                          value={release.signer_name}
-                          disabled={rightsLoading}
-                          onChange={(e) => setReleaseField('signer_name', e.target.value)}
-                        />
-                      </label>
-                      <label>
-                        <span className="fe-label">Signer role</span>
-                        <select
-                          className="fe-input"
-                          value={release.signer_role}
-                          disabled={rightsLoading}
-                          onChange={(e) => setReleaseField('signer_role', e.target.value)}
-                        >
-                          {RELEASE_SIGNER_ROLE_OPTIONS.map((option) => (
-                            <option key={`release-role-${option.value || 'empty'}`} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />Signed</span>
-                        <input
-                          type="date"
-                          className="fe-input"
-                          value={release.signed_at}
-                          disabled={rightsLoading}
-                          onChange={(e) => setReleaseField('signed_at', e.target.value)}
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Frame read */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <ImageIcon size={14} aria-hidden="true" />
-                      <h3>Frame read</h3>
-                    </div>
-                    <div className="fe-grid">
-                      <label>
-                        <span className="fe-label">Framing</span>
-                        <select className="fe-input" value={form.shot_type}
-                          onChange={(e) => setForm((p) => ({ ...p, shot_type: e.target.value }))}>
-                          {/* Show legacy profile_left/profile_right only if current image has that value */}
-                          {shotPickerOptions(form.shot_type).map((o) => (
-                            <option key={`st-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label">Register</span>
-                        <select className="fe-input" value={form.style_type}
-                          onChange={(e) => setForm((p) => ({ ...p, style_type: e.target.value }))}>
-                          {stylePickerOptions().map((o) => (
-                            <option key={`sty-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label">Use</span>
-                        <select className="fe-input" value={form.image_type}
-                          onChange={(e) => setForm((p) => ({ ...p, image_type: e.target.value }))}>
-                          {imageTypePickerOptions(form.image_type).map((o) => (
-                            <option key={`it-${o.value || 'ns'}`} value={o.value} title={o.hint || undefined}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label">Expression</span>
-                        <select className="fe-input" value={form.expression}
-                          onChange={(e) => setForm((p) => ({ ...p, expression: e.target.value }))}>
-                          {expressionPickerOptions().map((o) => (
-                            <option key={`ex-${o.value || 'ns'}`} value={o.value}>{o.label}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label">Library state</span>
-                        <select className="fe-input" value={form.status}
-                          onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}>
-                          {/* Show legacy retired/test values only if current image has them */}
-                          {[
-                            ...STATUS_OPTIONS,
-                            ...(form.status === 'retired' ? [{ value: 'retired', label: 'Archived (legacy)' }] : []),
-                            ...(form.status === 'test' ? [{ value: 'test', label: 'Test (legacy)' }] : []),
-                          ].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Shoot info */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <Camera size={14} aria-hidden="true" />
-                      <h3>Shoot info</h3>
-                    </div>
-                    <div className="fe-grid">
-                      <label className="fe-grid__wide">
-                        <span className="fe-label">Image set</span>
-                        <select className="fe-input" value={form.set_id}
-                          onChange={(e) => setForm((p) => ({ ...p, set_id: e.target.value }))}>
-                          <option value="">No set</option>
-                          {mediaSets.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name || s.kind}{s.name ? ` (${s.kind})` : ''}{s.is_current ? ' – current' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        <span className="fe-label"><Calendar size={12} aria-hidden="true" />Captured</span>
-                        <input type="date" className="fe-input" value={form.captured_at}
-                          onChange={(e) => setForm((p) => ({ ...p, captured_at: e.target.value }))} />
-                      </label>
-                      {isDigitalUse ? (
-                        <p className="fe-grid__wide fe-note-warn">
-                          Digitals must stay raw — retouching is disabled on this frame. Replacing it with a
-                          retouched version turns it into book work, not a digital.
-                        </p>
-                      ) : (
-                        <label>
-                          <span className="fe-label"><Calendar size={12} aria-hidden="true" />Retouched</span>
-                          <input type="date" className="fe-input" value={form.retouched_at}
-                            onChange={(e) => setForm((p) => ({ ...p, retouched_at: e.target.value }))} />
-                        </label>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Credits */}
-                  <div className="fe-section">
-                    <div className="fe-section__head">
-                      <Camera size={14} aria-hidden="true" />
-                      <h3>Credits</h3>
-                    </div>
-                    <div className="fe-grid">
-                      {isTearsheet ? (
-                        <>
-                          <label>
-                            <span className="fe-label">Publication</span>
-                            <input type="text" className="fe-input" placeholder="Vogue, Elle…"
-                              value={form.metadata.credits.publication}
-                              onChange={(e) => setCredit('publication', e.target.value)} />
-                          </label>
-                          <label>
-                            <span className="fe-label">Issue</span>
-                            <input type="text" className="fe-input" placeholder="March 2026"
-                              value={form.metadata.credits.issue}
-                              onChange={(e) => setCredit('issue', e.target.value)} />
-                          </label>
-                          <label className="fe-grid__wide">
-                            <span className="fe-label">Credit line</span>
-                            <input type="text" className="fe-input" placeholder="Story / editorial credit"
-                              value={form.metadata.credits.credit}
-                              onChange={(e) => setCredit('credit', e.target.value)} />
-                          </label>
-                        </>
-                      ) : null}
-                      <label className="fe-grid__wide">
-                        <span className="fe-label">Photographer</span>
-                        <input type="text" className="fe-input" placeholder="@photographer"
-                          value={form.metadata.credits.photographer}
-                          onChange={(e) => setCredit('photographer', e.target.value)} />
-                      </label>
-                      <label>
-                        <span className="fe-label">Makeup artist</span>
-                        <input type="text" className="fe-input" placeholder="@mua"
-                          value={form.metadata.credits.mua}
-                          onChange={(e) => setCredit('mua', e.target.value)} />
-                      </label>
-                      <label>
-                        <span className="fe-label">Hair stylist</span>
-                        <input type="text" className="fe-input" placeholder="@hair"
-                          value={form.metadata.credits.hair_stylist}
-                          onChange={(e) => setCredit('hair_stylist', e.target.value)} />
-                      </label>
-                      <label className="fe-grid__wide">
-                        <span className="fe-label">Stylist</span>
-                        <input type="text" className="fe-input" placeholder="@stylist"
-                          value={form.metadata.credits.stylist}
-                          onChange={(e) => setCredit('stylist', e.target.value)} />
-                      </label>
-                      <label className="fe-grid__wide">
-                        <span className="fe-label">Description</span>
-                        <textarea rows={3} className="fe-input fe-textarea"
-                          placeholder="Add context, publication, or shoot notes"
-                          value={form.metadata.description}
-                          onChange={(e) => setMeta({ description: e.target.value })} />
-                      </label>
-                    </div>
-                  </div>
-                </>
-              )}
-
+        <div className="fe-canvas">
+          {isVideo ? (
+            <div className="fe-motion">
+              <Film size={36} aria-hidden="true" />
+              <span>{image.label || 'Motion asset'}</span>
+              {image.video_url ? (
+                <a href={image.video_url} target="_blank" rel="noreferrer noopener">Open video</a>
+              ) : null}
             </div>
-          </div>
+          ) : tool === 'crop' ? (
+            <Cropper
+              image={imageSrc}
+              crop={geom.crop}
+              zoom={geom.zoom}
+              rotation={rotation}
+              aspect={ratio}
+              minZoom={minZoom}
+              maxZoom={MAX_ZOOM}
+              objectFit="contain"
+              onMediaLoaded={(m) => setMediaSize({ width: m.naturalWidth, height: m.naturalHeight })}
+              onCropChange={(crop) => setGeom((g) => ({ ...g, crop }))}
+              onZoomChange={(zoom) => setGeom((g) => ({ ...g, zoom }))}
+              onCropComplete={(_, px) => setAreaPixels(px)}
+              classes={{ containerClassName: 'fe-cropper', cropAreaClassName: 'fe-cropper__area' }}
+            />
+          ) : (
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.img
+                key={shown}
+                src={shown}
+                alt={alt}
+                className="fe-photo"
+                draggable={false}
+                initial={reduceMotion ? false : { opacity: 0, scale: 0.985 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={spring}
+              />
+            </AnimatePresence>
+          )}
         </div>
 
-        {/* ── Footer ── */}
-        <footer className="fe-foot">
-          <PholioButton type="button" variant="tertiary" tone="dark" onClick={onClose}>Cancel</PholioButton>
-          {image.has_original && onRestore && (
-            <PholioButton
-              type="button" variant="tertiary" tone="dark" className="fe-restore"
-              onClick={handleRestore}
-              disabled={isRestoring || isProcessing || saving}
-              title="Remove all edits and restore the original uploaded file"
-            >
-              {isRestoring
-                ? <><span className="fe-spin" aria-hidden="true" />Restoring…</>
-                : 'Restore original'}
-            </PholioButton>
-          )}
-          {mode === 'crop' ? (
-            <PholioButton type="button" variant="primary" onClick={handleApplyCrop} disabled={isProcessing || isRestoring}>
-              {isProcessing
-                ? <><span className="fe-spin" aria-hidden="true" />Processing…</>
-                : <><Crop size={15} aria-hidden="true" />Apply crop</>}
-            </PholioButton>
-          ) : (
-            <PholioButton type="button" variant="primary" onClick={handleSave} disabled={saving || isRestoring}>
-              {saving
-                ? <><span className="fe-spin" aria-hidden="true" />Saving…</>
-                : <><Save size={15} aria-hidden="true" />Save frame</>}
-            </PholioButton>
-          )}
-        </footer>
+        {!isVideo && (
+          <AnimatePresence mode="wait" initial={false}>
+            {tool === 'crop' ? (
+              <motion.div
+                key="crop"
+                className="fe-tools fe-tools--crop"
+                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}
+                transition={spring}
+              >
+                <StraightenRuler value={geom.straighten} onChange={(straighten) => patchGeom({ straighten })} />
+                <div className="fe-tools__row">
+                  <div className="fe-ratios" role="radiogroup" aria-label="Aspect ratio">
+                    {ASPECTS.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={geom.aspectId === a.id}
+                        className={`fe-ratio${geom.aspectId === a.id ? ' is-on' : ''}`}
+                        onClick={() => patchGeom({ aspectId: a.id, crop: { x: 0, y: 0 } })}
+                      >
+                        {a.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="fe-tools__actions">
+                    <button
+                      type="button"
+                      className="fe-iconbtn"
+                      onClick={() => patchGeom({ quarter: (geom.quarter + 3) % 4, crop: { x: 0, y: 0 } })}
+                      aria-label="Rotate left 90 degrees"
+                      title="Rotate left"
+                    >
+                      <RotateCcw size={17} aria-hidden="true" />
+                    </button>
+                    <button type="button" className="fe-textbtn" onClick={() => setGeom(INITIAL_CROP)} disabled={!geomChanged}>
+                      Reset
+                    </button>
+                    <button type="button" className="fe-textbtn fe-textbtn--strong" onClick={finishCrop} disabled={rendering}>
+                      {rendering ? 'Cropping…' : 'Done'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="view"
+                className="fe-tools"
+                initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}
+                transition={spring}
+              >
+                <div className="fe-tools__row fe-tools__row--center">
+                  <button type="button" className="fe-pillbtn" onClick={openCrop} disabled={busy}>
+                    <Crop size={15} aria-hidden="true" />
+                    {pending ? 'Adjust crop' : 'Crop and straighten'}
+                  </button>
+                  {pending ? (
+                    <button type="button" className="fe-textbtn" onClick={undoCrop} disabled={busy}>Undo crop</button>
+                  ) : image.has_original && onRestore ? (
+                    <button type="button" className="fe-textbtn" onClick={() => setConfirm('restore')} disabled={busy}>
+                      Restore original
+                    </button>
+                  ) : null}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+      </div>
 
-      </section>
-    </div>,
-    document.body
+      {/* Sheet */}
+      <aside className="fe-side" aria-label="Photo details">
+        <FrameSheet
+          form={form}
+          setForm={setForm}
+          readSource={initialMeta.ai?.classification?.source}
+          mediaSets={mediaSets}
+          rights={rights}
+          setRights={setRights}
+          rightsState={rightsState}
+          release={release}
+          setRelease={setRelease}
+          releaseOnFile={releaseOnFile}
+          rightsOpen={rightsOpen}
+          setRightsOpen={setRightsOpen}
+          problem={problem}
+          clearProblem={() => setProblem('')}
+        />
+
+        <footer className="fe-foot">
+          <AnimatePresence mode="wait" initial={false}>
+            {confirm ? (
+              <motion.div
+                key={confirm}
+                className="fe-foot__row fe-foot__row--confirm"
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16 }}
+                role="alertdialog"
+                aria-label={confirm === 'discard' ? 'Discard changes' : 'Restore original'}
+              >
+                <p className="fe-foot__msg">
+                  {confirm === 'discard'
+                    ? 'Close without saving these changes?'
+                    : 'Replace this photo with your original upload? Every crop made since is removed.'}
+                </p>
+                <div className="fe-foot__btns">
+                  <button type="button" className="fe-btn fe-btn--quiet" onClick={() => setConfirm(null)} disabled={restoring}>
+                    {confirm === 'discard' ? 'Keep editing' : 'Cancel'}
+                  </button>
+                  {confirm === 'discard' ? (
+                    <button type="button" className="fe-btn fe-btn--danger" onClick={onClose}>Discard changes</button>
+                  ) : (
+                    <button type="button" className="fe-btn fe-btn--danger" onClick={restore} disabled={restoring}>
+                      {restoring ? 'Restoring…' : 'Restore original'}
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="main"
+                className="fe-foot__row"
+                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.16 }}
+              >
+                <p className="fe-foot__msg" aria-live="polite">
+                  {tool === 'crop' ? 'Drag to move. Pinch or scroll to zoom.' : pending ? 'Crop not saved yet.' : ''}
+                </p>
+                <div className="fe-foot__btns">
+                  <button type="button" className="fe-btn fe-btn--quiet" onClick={requestClose} disabled={busy}>Cancel</button>
+                  <button type="button" className="fe-btn fe-btn--primary" onClick={save} disabled={busy}>
+                    {saving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </footer>
+      </aside>
+    </motion.div>,
+    document.body,
   );
 }

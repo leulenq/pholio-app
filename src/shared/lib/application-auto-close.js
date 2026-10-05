@@ -109,6 +109,41 @@ function isOfferExpired(row, now) {
   return now.getTime() - anchor.getTime() >= hours * MS_PER_HOUR;
 }
 
+/**
+ * When the job will close a row, as dates the talent can read ahead of time.
+ *
+ * Same resolution as `isExpired` / `isOfferExpired`, so the date the Overview
+ * prints is the date the nightly run acts on. A disabled window (`0`) or a row
+ * no pass would touch yields null: no date is promised that nothing enforces.
+ * The job runs nightly, so the actual close lands on the first run after this.
+ */
+function closingDates(row) {
+  const status = String(row?.status || "").toLowerCase();
+  const anchor = windowAnchor(row || {});
+  const result = { reviewClosesAt: null, offerClosesAt: null };
+  if (!anchor) return result;
+
+  if (AWAITING_AGENCY_APPLICATION_STATUSES.includes(status)) {
+    const days = resolveWindowDays(
+      row.call_review_window_days ?? row.application_review_window_days,
+    );
+    if (days > 0) {
+      result.reviewClosesAt = new Date(anchor.getTime() + days * MS_PER_DAY);
+    }
+  }
+
+  if (
+    OFFERED_APPLICATION_STATUSES.includes(status) &&
+    row.call_purpose === CALL_PURPOSES.EVENT_CASTING
+  ) {
+    const hours = resolveOfferWindowHours(row.offer_response_window_hours);
+    if (hours > 0) {
+      result.offerClosesAt = new Date(anchor.getTime() + hours * MS_PER_HOUR);
+    }
+  }
+  return result;
+}
+
 /*
  * Deploy-before-migrate guard. Pass B reads `applications.open_call_link_id`;
  * until the column exists there are no event applications to close and the job
@@ -335,6 +370,7 @@ async function runApplicationAutoClose(
 
 module.exports = {
   AUTO_CLOSE_BATCH_SIZE,
+  closingDates,
   DEFAULT_REVIEW_WINDOW_DAYS,
   runApplicationAutoClose,
   resolveOfferWindowHours,
