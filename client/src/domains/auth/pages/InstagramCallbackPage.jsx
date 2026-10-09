@@ -57,6 +57,11 @@ async function completeLogin(idToken, nextPath, identity = {}) {
   });
 
   const data = await response.json().catch(() => ({}));
+  // Talent launch gate (src/shared/lib/talent-launch.js): held until launch.
+  if (data?.error === 'TALENT_LAUNCH_PENDING' && data.redirect) {
+    window.location.replace(data.redirect);
+    return;
+  }
   if (data?.error === 'NEEDS_ONBOARDING') {
     const method = identity.method === 'instagram' ? 'instagram' : 'google';
     stashOnboardingAuthHandoff({

@@ -6,6 +6,7 @@ import {
   Store,
   LineChart,
   Lock,
+  IdCard,
 } from 'lucide-react';
 import { TALENT_NAV_ITEMS } from '../../constants/talentNav';
 import './MobileTabBar.css';
@@ -18,6 +19,7 @@ import './MobileTabBar.css';
 const TAB_ICONS = {
   Overview: LayoutGrid,
   'The Book': BookOpen,
+  'Comp Card': IdCard,
   Profile: User,
   Market: Store,
   Intel: LineChart,
@@ -48,7 +50,7 @@ export default function MobileTabBar({ isBlocked = false }) {
                       aria-hidden
                     />
                   </span>
-                  <span className="tl-tabbar-label">{item.label}</span>
+                  <span className="tl-tabbar-label">{item.shortLabel ?? item.label}</span>
                 </span>
               </li>
             );
@@ -72,7 +74,7 @@ export default function MobileTabBar({ isBlocked = false }) {
                         aria-hidden
                       />
                     </span>
-                    <span className="tl-tabbar-label">{item.label}</span>
+                    <span className="tl-tabbar-label">{item.shortLabel ?? item.label}</span>
                   </>
                 )}
               </NavLink>

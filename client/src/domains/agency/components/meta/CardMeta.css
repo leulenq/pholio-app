@@ -27,6 +27,12 @@
   align-items: baseline;
 }
 
+/* The figures sit inside MetaLine's item wrappers. Align their inline
+   boxes with the city text instead of Figure's default middle alignment. */
+.cm-figures .mf--inline {
+  vertical-align: baseline;
+}
+
 /* Height, age and city read as ONE line at the same ink tier — restraint
    revision, 2026-09-01: the figure/context split this system started with
    read as more than a booker needs on first look. */

@@ -90,7 +90,7 @@ export default function PrintApp() {
               <div style={{ position: 'absolute', left: `${SLUG}mm`, top: `${SLUG}mm` }}>
                 <CardPage page={page} format={f} showBleed />
               </div>
-              <div style={{ position: 'absolute', left: `${SLUG + f.bleed}mm`, bottom: `${3}mm`, font: '5.5pt/1 "Instrument Sans Variable", Arial, sans-serif', color: '#000', letterSpacing: '0.04em' }}>
+              <div style={{ position: 'absolute', left: `${SLUG + f.bleed}mm`, bottom: `${3}mm`, font: '5.5pt/1 "Inter Variable", Arial, sans-serif', color: '#000', letterSpacing: '0.04em' }}>
                 {`${job.title || 'Comp card'}  ·  ${page.name === 'front' ? 'Front' : 'Back'}  ·  Trim ${f.w} × ${f.h} mm  ·  Bleed ${f.bleed} mm`}
               </div>
             </>

@@ -23,9 +23,9 @@ const PROFILE_FIELDS = [
 let tablesPromise = null;
 function studioTables() {
   if (!tablesPromise) {
-    tablesPromise = Promise.all([knex.schema.hasTable("comp_cards"), knex.schema.hasTable("image_perceptions")])
-      .then(([cards, perceptions]) => {
-        const ready = cards && perceptions;
+    tablesPromise = Promise.all([knex.schema.hasTable("comp_cards"), knex.schema.hasTable("image_perceptions"), knex.schema.hasTable("image_cutouts")])
+      .then(([cards, perceptions, cutouts]) => {
+        const ready = cards && perceptions && cutouts;
         // Re-check later if missing, so running the migration needs no restart.
         if (!ready) setTimeout(() => { tablesPromise = null; }, 30000);
         return ready;
@@ -100,6 +100,9 @@ async function loadCardData(slug) {
   if (picked.date_of_birth instanceof Date) picked.date_of_birth = picked.date_of_birth.toISOString().slice(0, 10);
 
   const card = storage ? await knex("comp_cards").where({ profile_id: profile.id }).first() : null;
+  const cutoutRows = storage && ids.length ? await knex("image_cutouts").whereIn("image_id", ids).select("image_id", "version", "width", "height") : [];
+  const cutouts = {};
+  for (const row of cutoutRows) cutouts[row.image_id] = { version: row.version, width: row.width, height: row.height, url: `/api/talent/compcard/cutouts/${row.image_id}?v=${row.version}` };
 
   return {
     profileId: profile.id,
@@ -119,12 +122,14 @@ async function loadCardData(slug) {
           width: img.delivery_width_px || meta.width || null,
           height: img.delivery_height_px || meta.height || null,
           shot_type: img.shot_type || null,
+          image_type: img.image_type || null,
           is_primary: Boolean(img.is_primary),
           created_at: img.created_at,
         };
       }),
     },
     perceptions,
+    cutouts,
     storage,
     card: card
       ? {
@@ -139,4 +144,13 @@ async function loadCardData(slug) {
   };
 }
 
-module.exports = { loadCardData, absoluteUrl, studioTables };
+/** Cutout PNGs as data URLs, for printing (the print browser has no session). */
+async function cutoutDataUrls(imageIds) {
+  if (!imageIds.length || !(await studioTables())) return {};
+  const rows = await knex("image_cutouts").whereIn("image_id", imageIds).select("image_id", "png");
+  const out = {};
+  for (const r of rows) out[r.image_id] = `data:image/png;base64,${Buffer.from(r.png).toString("base64")}`;
+  return out;
+}
+
+module.exports = { loadCardData, absoluteUrl, studioTables, cutoutDataUrls };

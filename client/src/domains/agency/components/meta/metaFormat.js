@@ -214,7 +214,7 @@ export function measurementFigure(measurements) {
  * printed verbatim as the value of a figure labelled Age. Only one of the two
  * values does any work on an agency surface: "Under 18" changes what the
  * agency may do with the record, which is why the dossier reading line prints
- * it (dossier/dossierModel.js). The adult band states the launch posture back
+ * it (the talent profile). The adult band states the launch posture back
  * at the reader and earns no figure, so it gets none.
  *
  * @param {string|null|undefined} band

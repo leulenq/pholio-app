@@ -173,9 +173,13 @@ async function requireActiveAgencyMember(session, db = knex) {
       "membership.agency_id": actor.agencyId,
       "membership.user_id": actor.memberUserId,
       "membership.status": "ACTIVE",
-      "agency.status": "ACTIVE",
       "member.role": "AGENCY",
     })
+    // An approved agency is provisioned PENDING_SETUP and becomes ACTIVE when
+    // its owner finishes arrival. Its members must reach the setup routes in
+    // between; the onboarding gate still holds everything else closed, and
+    // talent-facing reads filter on ACTIVE independently.
+    .whereIn("agency.status", ["ACTIVE", "PENDING_SETUP"])
     .select("membership.id", "membership.membership_role")
     .first();
 

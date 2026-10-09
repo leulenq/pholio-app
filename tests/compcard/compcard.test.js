@@ -58,7 +58,7 @@ async function withSession(f, req) {
 
 function scene(imageId, extra = {}) {
   return {
-    direction: "lineup",
+    direction: "show",
     format: { id: "us" },
     pages: [
       {
@@ -66,7 +66,7 @@ function scene(imageId, extra = {}) {
         paper: "#FFFFFF",
         elements: [
           { type: "photo", slot: "front", imageId, src: "https://evil.example/x.png", x: 6, y: 6, w: 127, h: 180, crop: { x: 0, y: 0, w: 1, h: 0.9 } },
-          { type: "text", lines: ["Card Tester"], font: { family: "sans", weight: 600, size: 17 }, color: "#0F0F0F", x: 6, y: 195, w: 60 },
+          { type: "text", lines: ["Card Tester"], font: { family: "archivo", weight: 600, size: 17 }, color: "#0F0F0F", x: 6, y: 195, w: 60 },
         ],
       },
       { name: "back", paper: "#FFFFFF", elements: [{ type: "rule", x: 6, y: 200, w: 120, h: 0.2, fill: "#000000" }] },
@@ -83,6 +83,7 @@ afterAll(async () => {
   if (SESSION_IDS.length) await knex("sessions").whereIn("sid", SESSION_IDS).del();
   for (const f of FIXTURES) {
     await knex("comp_cards").where({ profile_id: f.profileId }).del().catch(() => {});
+    await knex("image_cutouts").whereIn("image_id", [f.visible.id, f.hidden.id, f.pending.id]).del().catch(() => {});
     await knex("images").where({ profile_id: f.profileId }).del().catch(() => {});
     await knex("profiles").where({ id: f.profileId }).del().catch(() => {});
     await knex("users").where({ id: f.userId }).del().catch(() => {});
@@ -111,6 +112,37 @@ describe("sanitizeScene", () => {
     expect(() => sanitizeScene(bad3, images)).toThrow(SceneError);
     expect(() => sanitizeScene(scene("a", { direction: "canva" }), images)).toThrow(SceneError);
   });
+  test("allows the new effects, rejects hostile CSS in them", () => {
+    const ok = scene("a");
+    ok.pages[0].elements.push({ type: "rect", x: 0, y: 0, w: 10, h: 10, gradient: "radial-gradient(ellipse at center, rgba(0,0,0,0.2) 0%, transparent 70%)" });
+    ok.pages[0].elements[0].fade = { b: 30 };
+    ok.pages[0].elements[0].shadow = "drop-shadow(0 1mm 2.5mm rgba(0,0,0,0.18))";
+    const out = sanitizeScene(ok, images);
+    expect(out.pages[0].elements[0].fade).toEqual({ b: 30 });
+    expect(out.pages[0].elements.at(-1).gradient).toMatch(/^radial-gradient/);
+    const bad = scene("a");
+    bad.pages[0].elements.push({ type: "rect", x: 0, y: 0, w: 10, h: 10, gradient: "url(https://evil.example/x.png)" });
+    expect(() => sanitizeScene(bad, images)).toThrow(SceneError);
+    const bad2 = scene("a");
+    bad2.pages[0].elements[0].shadow = "drop-shadow(0 1mm 1mm red) url(x)";
+    expect(sanitizeScene(bad2, images).pages[0].elements[0].shadow).toBeUndefined();
+  });
+
+  test("accepts rgba ink, rejects anything else in a colour", () => {
+    const ok = scene("a");
+    ok.pages[0].elements[1].color = "rgba(26,25,23,0.5)";
+    expect(sanitizeScene(ok, images).pages[0].elements[1].color).toBe("rgba(26,25,23,0.5)");
+    const bad = scene("a");
+    bad.pages[0].elements[1].color = "rgba(0,0,0,1) url(x)";
+    expect(() => sanitizeScene(bad, images)).toThrow(SceneError);
+  });
+
+  test("allows the wide tracking of spaced capitals", () => {
+    const s = scene("a");
+    s.pages[0].elements[1].font.tracking = 0.62;
+    expect(sanitizeScene(s, images).pages[0].elements[1].font.tracking).toBe(0.62);
+  });
+
   test("caps text length", () => {
     const s = scene("a");
     s.pages[0].elements[1].lines = ["x".repeat(5000)];
@@ -144,7 +176,7 @@ describe("comp card studio API", () => {
 
   test("saves a valid card, refuses a hidden photo", async () => {
     const f = await makeTalent();
-    const saved = await withSession(f, request(app).put("/api/talent/compcard").send({ settings: { direction: "lineup" }, scene: scene(f.visible.id) }));
+    const saved = await withSession(f, request(app).put("/api/talent/compcard").send({ settings: { direction: "show" }, scene: scene(f.visible.id) }));
     expect(saved.status).toBe(200);
     const row = await knex("comp_cards").where({ profile_id: f.profileId }).first();
     const stored = typeof row.scene === "string" ? JSON.parse(row.scene) : row.scene;
@@ -164,6 +196,23 @@ describe("comp card studio API", () => {
     await request(app).get(`/pdf/${f.slug}`);
     const printed = renderCardPdf.mock.calls.at(-1)[0];
     expect(printed.pages[0].elements.some((e) => e.type === "photo")).toBe(false);
+  });
+
+  test("cutouts: stored for own photos only, PNG only, fetched back", async () => {
+    const a = await makeTalent();
+    const b = await makeTalent();
+    const png = "data:image/png;base64," + Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]).toString("base64");
+    const ok = await withSession(a, request(app).put(`/api/talent/compcard/cutouts/${a.visible.id}`).send({ version: 2, width: 10, height: 10, png }));
+    expect(ok.status).toBe(200);
+    const foreign = await withSession(a, request(app).put(`/api/talent/compcard/cutouts/${b.visible.id}`).send({ version: 2, width: 10, height: 10, png }));
+    expect(foreign.status).toBe(404);
+    const notPng = await withSession(a, request(app).put(`/api/talent/compcard/cutouts/${a.visible.id}`).send({ version: 2, width: 10, height: 10, png: "data:image/png;base64,AAAA" }));
+    expect(notPng.status).toBe(400);
+    const got = await withSession(a, request(app).get(`/api/talent/compcard/cutouts/${a.visible.id}`));
+    expect(got.status).toBe(200);
+    expect(got.headers["content-type"]).toMatch(/png/);
+    const theirs = await withSession(b, request(app).get(`/api/talent/compcard/cutouts/${a.visible.id}`));
+    expect(theirs.status).toBe(404);
   });
 
   test("a minor's card is not public without guardian consent", async () => {

@@ -78,6 +78,16 @@ const ROUTE_PERMISSION_RULES = [
   },
   {
     method: "GET",
+    pattern: /^\/api\/agency\/setup\/arrival$/,
+    permission: "org.view",
+  },
+  {
+    method: "POST",
+    pattern: /^\/api\/agency\/setup\/arrival$/,
+    permission: "org.complete_onboarding",
+  },
+  {
+    method: "GET",
     pattern: /^\/api\/agency\/activity$/,
     permission: "org.view_activity",
   },

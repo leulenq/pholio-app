@@ -71,6 +71,8 @@ export function checkCard(result, { measure, subjects }) {
     for (const ph of photos) {
       const s = ph.imageId ? subjects.get(ph.imageId) : null;
       if (!s || !ph.crop) continue;
+      // A letterboxed photo is a layout failure: the frame should have held a photo that fits.
+      if (ph.contained) out.push({ rule: 'letterbox', page: page.name, detail: ph.slot });
       if (ph.contained || ph.decorative) continue; // shown whole, or a layer mirroring a checked photo
       if (s.known) {
         const r = requiredRegion(s, ph.role);
@@ -100,10 +102,14 @@ export function checkCard(result, { measure, subjects }) {
   }
   const front = scene.pages.find((p) => p.name === 'front');
   const back = scene.pages.find((p) => p.name === 'back');
-  const allText = (p) => p.elements.filter((e) => e.type === 'text').flatMap((e) => e.lines).join(' ').toLowerCase();
+  const norm = (t) => String(t).toLowerCase().replace(/\u2032/g, "'").replace(/\u2033/g, '"');
+  const allText = (p) => norm(p.elements.filter((e) => e.type === 'text').flatMap((e) => e.lines).join(' '));
   const nameWords = (result.nameShown || '').toLowerCase().split(/\s+/).filter(Boolean);
-  if (front && nameWords.some((w) => !allText(front).includes(w))) out.push({ rule: 'content', page: 'front', detail: 'name missing' });
-  if (back && result.stats.items.length && !result.stats.items.every((it) => allText(back).includes(String(it.value).toLowerCase()))) {
+  // Front: at least the first name (agencies often print only that).
+  // Back: the full name.
+  if (front && nameWords.length && !allText(front).includes(nameWords[0])) out.push({ rule: 'content', page: 'front', detail: 'name missing' });
+  if (back && nameWords.some((w) => !allText(back).includes(w))) out.push({ rule: 'content', page: 'back', detail: 'full name missing' });
+  if (back && result.stats.items.length && !result.stats.items.every((it) => allText(back).includes(norm(it.value)))) {
     out.push({ rule: 'content', page: 'back', detail: 'a stat is missing' });
   }
   const c = result.contact;

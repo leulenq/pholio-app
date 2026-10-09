@@ -191,7 +191,10 @@ function requireAgencyLegalAcceptance() {
       .replace(/^\/api\/agency/, "") || "/";
     const legalExempt =
       (req.method === "GET" && normalizedPath === "/legal-status") ||
-      (req.method === "POST" && normalizedPath === "/legal-acceptance");
+      (req.method === "POST" && normalizedPath === "/legal-acceptance") ||
+      // Arrival introduces the agency to its own approved record before the
+      // workspace policies are accepted; it reads nothing about talent.
+      (req.method === "GET" && normalizedPath === "/setup/arrival");
     if (legalExempt) {
       return next();
     }

@@ -1,6 +1,8 @@
 import cover from './cover';
-import editorial from './editorial';
-import seamless from './seamless';
-import poster from './poster';
+import show from './show';
+import letters from './letters';
+import digitals from './digitals';
+import spine from './spine';
+import foil from './foil';
 
-export const DIRECTIONS = [cover, editorial, seamless, poster];
+export const DIRECTIONS = [cover, show, letters, digitals, spine, foil];

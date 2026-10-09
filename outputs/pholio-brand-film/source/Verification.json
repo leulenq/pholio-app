@@ -1,0 +1,21 @@
+{
+  "video": {
+    "width": 1080,
+    "height": 1920,
+    "fps": "30/1",
+    "duration": "64.666667"
+  },
+  "audio": {
+    "duration": "64.663042",
+    "sample_rate": "48000",
+    "channels": 2,
+    "correlation_to_approved_master_at_zero_offset": 0.9999953822190066,
+    "rms_encoding_error": 0.00040165995596908033
+  },
+  "decode_errors": "",
+  "brand_transition_seconds": [
+    26.08,
+    51.37
+  ],
+  "final_video_frame_seconds": 64.633333
+}

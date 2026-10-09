@@ -4,6 +4,7 @@ import { FIXTURES } from './fixtures';
 import { BATTERY } from './battery';
 
 export const CORPUS = [
+  { key: 'ola', brief: 'The reference talent · 50-photo library (pholio-site cards sheet)', data: BATTERY.ola },
   { key: 'mia', brief: 'Prod profile · six strong editorial frames (demo set)', data: FIXTURES.mia },
   { key: 'natan', brief: 'Prod profile · selfies, a group dinner, a duplicate', data: FIXTURES.natan },
   { key: 'leul', brief: 'Prod profile · two photos, one watermarked', data: FIXTURES.leul },

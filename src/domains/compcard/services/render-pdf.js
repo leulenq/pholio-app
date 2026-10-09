@@ -50,7 +50,11 @@ function absolutise(scene, absoluteUrl) {
     ...scene,
     pages: scene.pages.map((p) => ({
       ...p,
-      elements: p.elements.map((el) => (el.type === "photo" && el.src ? { ...el, src: absoluteUrl(el.src) } : el)),
+      elements: p.elements.map((el) => {
+        if (el.type === "photo" && el.src) return { ...el, src: absoluteUrl(el.src) };
+        if (el.type === "text" && el.fill && el.fill.kind === "image") return { ...el, fill: { ...el.fill, src: absoluteUrl(el.fill.src) } };
+        return el;
+      }),
     })),
   };
 }

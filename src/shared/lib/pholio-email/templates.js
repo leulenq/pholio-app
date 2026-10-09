@@ -11,4 +11,5 @@ module.exports = {
   ...require("./templates-submissions"),
   ...require("./templates-guardian"),
   ...require("./templates-agency"),
+  ...require("./templates-launch"),
 };

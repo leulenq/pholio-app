@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Development harness: cutouts cached in IndexedDB across reloads.
 import { matteImage } from '../perception/matte';
 

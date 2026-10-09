@@ -324,7 +324,9 @@ export default function FrameEditor({
             ai: {
               ...(initialMeta.ai || {}),
               signals,
-              classification: { ...(initialMeta.ai?.classification || {}), source: 'user', confirmed: true },
+              // band 'confirmed' takes the frame out of Frame reads; without it a
+              // look- or section-only edit left the read queued as a suggestion.
+              classification: { ...(initialMeta.ai?.classification || {}), source: 'user', confirmed: true, band: 'confirmed' },
             },
           },
         };

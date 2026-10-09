@@ -184,19 +184,56 @@
 }
 .tp-name-link:hover .tp-name-arrow { opacity: 1; transform: translate(2px, -2px); }
 
-/* ---------- VITALS BAND ---------- */
-.tp-band {
+/* ---------- SPEC RULER ---------- */
+/* Continues the hero's ink. Equal columns split by hairlines; each column
+   carries key / figure / imperial so the band reads as one measured line. */
+.tp-spec-ruler {
   flex-shrink: 0;
-  display: flex;
-  justify-content: space-between;
-  padding: 15px 24px;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--tp-cols, 4), minmax(0, 1fr));
+  padding: 0 24px 18px;
   background: var(--td-ink-deep, #141210);
   color: #efe9df;
   font-variant-numeric: tabular-nums;
 }
-/* Each value is a Figure: the meta system sets the key, the number and the
-   unit. The band owns only the spacing that keeps them evenly read. */
-.tp-band-v { align-items: center; }
+.tp-spec-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 0 0 14px;
+  border-top: 1px solid rgba(244, 238, 226, 0.12);
+  border-left: 1px solid rgba(244, 238, 226, 0.12);
+}
+.tp-spec-col:first-child { padding-left: 0; border-left: none; }
+.tp-spec-key {
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(244, 238, 226, 0.46);
+}
+.tp-spec-val {
+  margin: 0;
+  font-family: var(--ag-font-display, 'Playfair Display', serif);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.05;
+  color: #F7F1E6;
+}
+.tp-spec-col:first-child .tp-spec-val { color: var(--ag-gold, #C9A55A); }
+.tp-spec-unit {
+  margin-left: 3px;
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10px;
+  color: rgba(244, 238, 226, 0.45);
+}
+.tp-spec-sub {
+  margin: 0;
+  font-family: var(--ag-font-mono, monospace);
+  font-size: 10px;
+  color: rgba(244, 238, 226, 0.38);
+}
 
 /* The facts under the name, on the hero's photographic ground — legible
    against whatever the frame happens to be. */
@@ -220,59 +257,54 @@
 }
 .tp-body::-webkit-scrollbar { display: none; }
 
-.tp-topline {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  min-height: 22px;
-  margin-bottom: 16px;
+/* ---------- DECISION BLOCK ---------- */
+/* Pipeline track and action row as one unit: both span the full drawer
+   width, so the next move sits directly under where the application is. */
+.tp-decide {
+  margin: -20px -24px 0;
+  padding: 22px 24px 22px;
+  border-bottom: 1px solid var(--ag-border, rgba(26, 24, 21, 0.09));
+  background: linear-gradient(to bottom, rgba(201, 165, 90, 0.05), transparent 70%);
 }
-.tp-match { flex: none; }
-/* When the stepper is present it owns the center; the score pins to the edge. */
-.tp-topline--pipe .tp-match {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-}
+.tp-decide--bare { padding-top: 20px; background: none; }
 
-/* pipeline stepper */
-.tp-pipe {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+.tp-track {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
-.tp-pipe-st {
+.tp-track-st { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.tp-track-bar {
+  position: relative;
+  height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--ag-border-strong, rgba(26, 24, 21, 0.12));
+}
+.tp-track-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: var(--ag-gold, #C9A55A);
+}
+.tp-track-st.is-current .tp-track-fill { background: var(--ag-text-0, #1A1815); }
+.tp-track-st.is-danger .tp-track-fill { background: var(--ag-danger, #C0392B); }
+.tp-track-lbl {
   font-family: var(--ag-font-mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.09em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: var(--ag-text-4, #C8C2BA);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ag-text-4, #B5AEA4);
 }
-.tp-pipe-st.is-done { color: var(--ag-gold-hover, #B8956A); }
-.tp-pipe-st.is-current { color: var(--ag-text-0, #1A1815); font-weight: 600; }
-.tp-pipe-st.is-current.is-danger { color: var(--ag-danger, #C0392B); }
-.tp-pipe-ln {
-  height: 1px;
-  width: 18px;
-  flex-shrink: 0;
-  background: var(--ag-border-strong, rgba(26, 24, 21, 0.14));
-}
-.tp-pipe-ln.is-done { background: var(--ag-gold, #C9A55A); }
-
-/* ---------- ACTION STRIP ---------- */
-.tp-action-strip {
-  margin: 0;
-  padding: 0 0 18px;
-  border-bottom: 1px solid var(--ag-border, rgba(26, 24, 21, 0.09));
-}
-/* In a narrow drawer the permission-gated action set can be long — let it
-   wrap gracefully instead of clipping (the row is nowrap by default). */
-.tp-action-strip .tact-row { flex-wrap: wrap; }
+.tp-track-st.is-done .tp-track-lbl { color: var(--ag-gold-hover, #A6845C); }
+.tp-track-st.is-current .tp-track-lbl { color: var(--ag-text-0, #1A1815); font-weight: 600; }
+.tp-track-st.is-current.is-danger .tp-track-lbl { color: var(--ag-danger, #C0392B); }
 
 .tp-zone { margin-top: 24px; }
 
@@ -285,3 +317,5 @@
 @media (prefers-reduced-motion: reduce) {
   .tp-hero-img { transition: none !important; }
 }
+/* A completed track still marks where the application landed. */
+.tp-track-st.is-done[aria-current='step'] .tp-track-lbl { font-weight: 600; }

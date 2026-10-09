@@ -19,14 +19,13 @@ import { parseApiFailure } from '../../../shared/lib/api-error-message';
 import {
   getClassificationState,
   formatTypeLabel,
-  imageNeedsReview,
 } from '../../../shared/utils/imageClassification';
 import { analyzePackageIntelligence } from '../../../shared/utils/packageIntelligence';
 import FrameReadCaption from '../../../shared/components/frame/FrameReadCaption';
 import { talentApi } from '../api/talent';
 import FrameEditor from './FrameEditor';
 import DigitalsContactSheet from './DigitalsContactSheet';
-import { ClassificationReviewRows } from './ClassificationReviewStrip';
+import FrameReads from './frame-reads/FrameReads';
 import ConfirmationDialog from '../../../shared/components/ui/ConfirmationDialog';
 import PholioButton, {
   PholioIconButton,
@@ -36,7 +35,6 @@ import { checkGatingStatus } from '../../../shared/utils/profileGating';
 import CompCardEntry from '../../../compcard/entry/CompCardEntry';
 import CompCardGate from './CompCardGate';
 import './MediaWorkspace.css';
-import './ClassificationReviewStrip.css';
 
 const ARRIVE = {
   initial: { opacity: 0, y: 12 },
@@ -740,10 +738,6 @@ export default function MediaWorkspace() {
     [frames, profile],
   );
 
-  // Frames whose read is still undecided. Drives whether the reads block exists
-  // at all — a settled book shows nothing rather than an empty container.
-  const reviewFrames = React.useMemo(() => frames.filter(imageNeedsReview), [frames]);
-
   const compCardGating = React.useMemo(
     () => checkGatingStatus(profile, images),
     [profile, images],
@@ -1198,21 +1192,12 @@ export default function MediaWorkspace() {
             frames are. What is left here is the only part that was work rather
             than commentary: frames whose read still needs a decision.
           */}
-          {reviewFrames.length > 0 ? (
-            <div className="mw-reads">
-              <h2 className="mw-h2 mw-reads__title">Frame reads</h2>
-              <p className="mw-sub mw-reads__blurb">
-                Pholio has placed {reviewFrames.length === 1 ? 'a frame' : 'these frames'} and
-                wants your word on {reviewFrames.length === 1 ? 'it' : 'them'} before an agency
-                reads {reviewFrames.length === 1 ? 'it' : 'them'} that way.
-              </p>
-              <ClassificationReviewRows
-                images={frames}
-                onConfirm={handleClassificationConfirm}
-                onEdit={(img) => setEditor({ image: img, mode: 'details' })}
-              />
-            </div>
-          ) : null}
+          <FrameReads
+            images={frames}
+            timedOutIds={classificationTimedOutIds}
+            digitalsSetId={currentDigitalsSet?.id || null}
+            onSaved={handleClassificationConfirm}
+          />
 
           {isLoading ? (
             <div className="mw-grid">
@@ -1238,7 +1223,7 @@ export default function MediaWorkspace() {
 
         <div className="mw-divider" aria-hidden="true" />
 
-        <section aria-label="Comp card" className="mw-comp-card">
+        <div className="mw-comp-card">
           {compCardGating.isBlocked ? (
             <CompCardGate
               missingTasks={compCardGating.missingTasks}
@@ -1249,7 +1234,7 @@ export default function MediaWorkspace() {
           ) : (
             <CompCardEntry />
           )}
-        </section>
+        </div>
       </div>
     </div>
   );

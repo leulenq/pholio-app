@@ -4,6 +4,11 @@ const router = express.Router();
 const knex = require("../../shared/db/knex");
 const config = require("../../config");
 const {
+  launchNotifyUrl,
+  previewKeyMatches,
+  talentLaunchStatus,
+} = require("../../shared/lib/talent-launch");
+const {
   getAllThemes,
   getFreeThemes,
   getProThemes,
@@ -266,6 +271,81 @@ router.post("/agency-access-requests", async (req, res) => {
       success: false,
       error: "Failed to submit agency access request",
     });
+  }
+});
+
+// ── Talent launch ───────────────────────────────────────────────────────────
+// See shared/lib/talent-launch.js. pholio-site reads the status to decide what
+// its notify page says; the SPA reads it to keep talent routes closed.
+
+// GET /api/public/talent-launch
+router.get("/talent-launch", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const status = talentLaunchStatus();
+  return res.json({
+    success: true,
+    data: {
+      ...status,
+      // Whether THIS browser may use talent surfaces now. Agency sessions are
+      // never held: the SPA's "/" lands on a talent path before routing them.
+      access:
+        status.open ||
+        req.session?.talentLaunchAccess === true ||
+        req.session?.role === "AGENCY",
+    },
+  });
+});
+
+// GET /api/public/talent-launch/preview?key=… — lets this browser through
+// before launch (team testing). A wrong key gets the same redirect as everyone.
+router.get("/talent-launch/preview", (req, res, next) => {
+  if (!previewKeyMatches(req.query.key)) {
+    return res.redirect(303, launchNotifyUrl());
+  }
+  req.session.talentLaunchAccess = true;
+  return req.session.save((err) => (err ? next(err) : res.redirect(303, "/onboarding")));
+});
+
+// POST /api/public/launch-notifications
+// The pholio-site /opening form. Stores the address only; no email is sent
+// now. scripts/send-launch-notifications.js sends one on launch day and
+// deletes the row. Idempotent: 201 and 202 are both success and look the same
+// to the caller, so the endpoint never discloses whether an address is listed.
+const LAUNCH_NOTIFY_SOURCES = new Set(["talent", "studio"]);
+router.post("/launch-notifications", async (req, res) => {
+  const email = normalizeEmail(req.body?.email);
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({
+      success: false,
+      error: "VALIDATION_ERROR",
+      errors: { email: "Enter an email address." },
+    });
+  }
+  const source = LAUNCH_NOTIFY_SOURCES.has(req.body?.source) ? req.body.source : null;
+
+  try {
+    const existing = await knex("launch_notifications").where({ email }).first("id");
+    if (existing) {
+      return res.status(202).json({ success: true });
+    }
+    const { v4: uuidv4 } = require("uuid");
+    try {
+      await knex("launch_notifications").insert({
+        id: uuidv4(),
+        email,
+        source,
+        created_at: knex.fn.now(),
+      });
+    } catch (error) {
+      // Two submissions racing past the lookup: the unique index decides.
+      const again = await knex("launch_notifications").where({ email }).first("id");
+      if (again) return res.status(202).json({ success: true });
+      throw error;
+    }
+    return res.status(201).json({ success: true });
+  } catch (error) {
+    console.error("[Public API] Error in /launch-notifications:", error.message);
+    return res.status(500).json({ success: false, error: "Failed to save" });
   }
 });
 

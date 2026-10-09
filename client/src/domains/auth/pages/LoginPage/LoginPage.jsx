@@ -28,6 +28,7 @@ import {
 import { goToDestination } from '../../lib/spa-navigation';
 import styles from './LoginPage.module.css';
 import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
+import { resetTalentLaunchStatus } from '../../../../shared/lib/talent-launch/status';
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -318,6 +319,14 @@ export default function LoginPage() {
 
       const data = await response.json();
 
+      // Talent launch gate: talent accounts are held until launch and sent to
+      // pholio-site's notify page (src/shared/lib/talent-launch.js).
+      if (data?.error === 'TALENT_LAUNCH_PENDING' && data.redirect) {
+        cancelEntryTransition();
+        window.location.replace(data.redirect);
+        return;
+      }
+
       // First-time Google/Instagram identities have no Pholio user yet — hand
       // the Firebase session into casting so they don't click OAuth again.
       if (data?.error === 'NEEDS_ONBOARDING') {
@@ -359,6 +368,7 @@ export default function LoginPage() {
         throw new Error(errorMessage);
       }
 
+      resetTalentLaunchStatus();
       const target = data.redirect || from;
       // Refine, never restart: the transition is already running with the name
       // and photo the provider took from the signed-in Firebase user. Only the

@@ -36,12 +36,44 @@ export function text(ctx, lines, font, x, y, opts = {}) {
     leading: arr.length > 1 ? leading : undefined,
     z: opts.z,
   };
+  // The browser renders tracking after the last glyph too; shift centred and
+  // right-aligned lines so the INK is where it was measured.
+  const trail = ((font.tracking || 0) * font.size * 25.4) / 72;
   if (opts.align === 'center') {
-    el.x = left - 1;
+    el.x = left - 1 + trail / 2;
   } else if (opts.align === 'right') {
-    el.x = left - 2;
+    el.x = left - 2 + trail;
   }
+  if (opts.fill) el.fill = opts.fill;
+  if (opts.spin) el.spin = opts.spin;
   return { el, width, height, cap, bottom: y + height, right: left + width, left };
+}
+
+/**
+ * A line of runs in different fonts/colours, set one after another:
+ * runs = [{ t, font, color, gap }] (gap = mm after the run). All runs share
+ * the cap line at y. align: 'left' | 'center' | 'right' about x.
+ */
+export function runs(ctx, list, x, y, opts = {}) {
+  const items = list.filter((r) => r.t != null && r.t !== '');
+  const meas = items.map((r) => {
+    const f = r.font.caps === 'upper' ? { ...r.font, caps: null } : r.font;
+    const t = r.font.caps === 'upper' ? String(r.t).toUpperCase() : String(r.t);
+    const m = ctx.measure(t, f);
+    const trail = ((r.font.tracking || 0) * r.font.size * 25.4) / 72;
+    return { ...m, trail };
+  });
+  const total = items.reduce((s, r, i) => s + meas[i].width + (i < items.length - 1 ? (r.gap ?? 0) + meas[i].trail : 0), 0);
+  let cx = opts.align === 'center' ? x - total / 2 : opts.align === 'right' ? x - total : x;
+  const capMax = Math.max(0, ...meas.map((m) => m.cap));
+  const els = [];
+  items.forEach((r, i) => {
+    // Align on the baseline: smaller caps sit lower.
+    const t = text(ctx, r.t, r.font, cx, y + (capMax - meas[i].cap), { color: r.color, z: opts.z, fill: r.fill });
+    els.push(t.el);
+    cx += meas[i].width + meas[i].trail + (r.gap ?? 0);
+  });
+  return { els, width: total, cap: capMax, bottom: y + capMax };
 }
 
 /** Relative luminance of an sRGB colour (0..1). */

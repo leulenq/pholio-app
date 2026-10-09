@@ -4,6 +4,7 @@ import {
   updateAgencySettings,
 } from '../../../domains/agency/api/agency';
 import { saveSetupProfile } from '../../../domains/agency/api/setup';
+import { commitArrival } from '../../../domains/agency/arrival/api';
 import { sendReplyMessage } from '../../../domains/messaging/api/reply';
 import { talentApi } from '../../../domains/talent/api/talent';
 import { syncFirebaseSession } from '../pholio-auth/session-api';
@@ -42,6 +43,7 @@ describe('protected API clients', () => {
     ['agency', () => updateAgencySettings({ notifications: true })],
     ['agency messages', () => markAllMessagesAsRead()],
     ['agency setup', () => saveSetupProfile({ name: 'Marilyn Agency' })],
+    ['agency arrival', () => commitArrival({ name: 'Marilyn Agency' })],
     ['magic-link reply', () => sendReplyMessage('token', 'Following up.')],
     ['Firebase session sync', () => syncFirebaseSession('firebase-id-token')],
   ])('%s writes send the same-origin request header', async (_label, mutate) => {

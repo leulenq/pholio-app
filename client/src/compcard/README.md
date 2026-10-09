@@ -27,10 +27,16 @@ photos ──► perception ──► subject ──► curation ──► direc
 
 ## Directions
 
-- **Masthead**: a magazine cover. Bodoni Moda, set as the masthead and fitted to the measure. Cover mode, with the name printed on the photo, is used only when the solver can keep the head clear of the type and the pixels under the type give enough contrast.
-- **Bureau**: the agency house card. Inter Tight, exact margins, the stats on one justified line, and a real stats table on the back.
-- **Plate**: a monograph. It never crops. Plates keep their native proportions, the back is a justified spread, and captions are set in Cormorant small caps with old-style figures.
-- **Spine**: a poster. Extra-condensed Archivo runs up a band coloured from the photograph. The back sets the measurements as display figures.
+The quality bar is the hand-made Ola Szkolda sheet in `pholio-site/public/cards/designs.js`. The six directions are generalised versions of it, drawn in `u` (a hundredth of the card width) with the foot measured from the bottom edge, so the same drawing serves both 5.5×8.5 and A5. Shared proportions, stats, booking lines and the wordmark are in `directions/kit.js`.
+
+- **Cover**: the surname as a Bodoni masthead, the first name in italic. The head rises in front of the letters, but only on clean backdrops, using a cutout confined to the masthead band. Otherwise the crown sits just below the masthead, or the masthead moves to paper beneath the photograph. The back is black stock with a full length beside three frames.
+- **Show**: white stock, one beauty image, the name in Archivo capitals spaced at .62em. The back has two tall frames over one wide one.
+- **Letters**: the photograph stops at a cut and carries on inside the name (Archivo at 62% width, weight 900, filled with the picture).
+- **Digitals**: a natural-light frame mounted like a print on grey stock, with mono type. The back has the digitals set on black, each frame named for its view.
+- **Spine**: the commercial card. The name runs up the spine in Noto Serif Display, with a smile chosen first.
+- **Foil**: black stock with the name in gold foil.
+
+Each direction chooses its own front (`pickHero` with a taste and a fit test) and its own back set (`backFor` with a taste), so one talent gets six different cards. Frames are placed by face target (`solveCrop` `target`), inside the crop guarantee. A photo that can't fill a frame is never letterboxed: the column re-flows, or another photo is chosen.
 
 ## Server
 

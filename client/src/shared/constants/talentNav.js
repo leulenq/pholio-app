@@ -12,6 +12,7 @@ export const TALENT_NAV_SECTIONS = [
   {
     items: [
       { label: 'The Book', to: '/dashboard/talent/media', pageKicker: 'The Book' },
+      { label: 'Comp Card', shortLabel: 'Card', to: '/dashboard/talent/comp-card', pageKicker: 'Comp Card' },
       { label: 'Profile', to: '/dashboard/talent/profile', pageKicker: 'Profile' },
       { label: 'Intel', to: '/dashboard/talent/intel', pageKicker: 'Intel' },
     ],

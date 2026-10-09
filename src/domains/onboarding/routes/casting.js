@@ -664,12 +664,16 @@ router.post(["/onboarding/entry", "/casting/entry"], async (req, res, next) => {
     // BEFORE binding the authenticated identity to it, then persist. Any id an
     // unauthenticated client may have held is discarded before it carries auth.
     const preRegenerateSessionId = req.sessionID;
+    // Pre-launch preview access (shared/lib/talent-launch.js) belongs to the
+    // browser, not the old session id, so it is carried across.
+    const talentLaunchAccess = req.session.talentLaunchAccess === true;
     await new Promise((resolve, reject) => {
       req.session.regenerate((err) => {
         if (err) reject(err);
         else resolve();
       });
     });
+    if (talentLaunchAccess) req.session.talentLaunchAccess = true;
 
     req.session.userId = user.id;
     req.session.role = "TALENT";

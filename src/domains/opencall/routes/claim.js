@@ -82,9 +82,12 @@ const CLAIMED_REDIRECT = "/onboarding";
  * principal into a talent session.
  */
 async function openTalentSession(req, userId) {
+  // Pre-launch preview access belongs to the browser; carry it across.
+  const talentLaunchAccess = req.session.talentLaunchAccess === true;
   await new Promise((resolve, reject) => {
     req.session.regenerate((err) => (err ? reject(err) : resolve()));
   });
+  if (talentLaunchAccess) req.session.talentLaunchAccess = true;
 
   req.session.userId = userId;
   req.session.role = "TALENT";

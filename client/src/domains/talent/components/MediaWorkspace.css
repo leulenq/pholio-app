@@ -132,18 +132,6 @@
 /* ── Library ── */
 .mw-library { margin-top: 56px; }
 
-/* ── Frame reads ──
-   Frames whose read is still undecided. This was the expandable body of a
-   "Digitals read" accordion; it is a section like any other now, and it only
-   exists when there is actually a decision to make. */
-.mw-reads {
-  margin-bottom: 56px;
-  padding-bottom: 40px;
-  border-bottom: 1px solid var(--mw-hair);
-}
-.mw-reads__title { font-size: clamp(24px, 2.8vw, 34px); }
-.mw-reads__blurb { margin: 14px 0 24px; max-width: 58ch; }
-
 .mw-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

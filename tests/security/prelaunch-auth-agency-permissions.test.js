@@ -13,6 +13,7 @@ function authorizationDb({ membershipRole = "VIEWER", active = true } = {}) {
       const builder = {
         join: jest.fn(() => builder),
         where: jest.fn(() => builder),
+        whereIn: jest.fn(() => builder),
         select: jest.fn(() => builder),
         first: jest.fn(async () =>
           active

@@ -44,6 +44,12 @@ const {
 } = require("../services/email-verification");
 const { sendPasswordChangedEmail } = require("../../../shared/lib/email");
 const {
+  isPlatformStaff,
+  isTalentLaunchOpen,
+  launchNotifyUrl,
+  launchPendingBody,
+} = require("../../../shared/lib/talent-launch");
+const {
   acceptTeamInvitation,
   loadTeamInvitation,
 } = require("../../agency/services/team-invitations");
@@ -515,6 +521,22 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
       emailVerified,
     });
 
+    // Talent launch gate (shared/lib/talent-launch.js). Refuse before any write
+    // and before a session exists: talent, and identities with no account yet,
+    // are held out until launch unless this browser opened the preview link or
+    // the account is platform staff. Agency logins and agency invites pass.
+    let talentLaunchAccess = false;
+    if (!isTalentLaunchOpen() && !pendingTeamInvitation && (!user || user.role === "TALENT")) {
+      talentLaunchAccess =
+        req.session?.talentLaunchAccess === true ||
+        (user ? await isPlatformStaff(knex, user.id) : false);
+      if (!talentLaunchAccess) {
+        return isJsonRequest
+          ? res.status(403).json(launchPendingBody())
+          : res.redirect(303, launchNotifyUrl());
+      }
+    }
+
     // If user exists but doesn't have firebase_uid, update it and update profile with Google data
     if (user && !user.firebase_uid) {
       const boundIdentity = await knex("users")
@@ -862,6 +884,9 @@ router.post(["/login", "/api/login"], async (req, res, next) => {
     });
     if (preAuthOnboardingData) {
       req.session.onboardingData = preAuthOnboardingData;
+    }
+    if (talentLaunchAccess) {
+      req.session.talentLaunchAccess = true;
     }
     if (user.role === "AGENCY") {
       const agencyContext = await resolveAgencyContextForMemberUser(user.id);

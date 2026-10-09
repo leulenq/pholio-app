@@ -44,6 +44,8 @@ function bestAssignment(slots, items, frameIn) {
       let v = scoreFit(it.subject, sl.w / sl.h, role, frameIn(sl), sl.safe).score;
       if (v === -Infinity) return v;
       if (sl.prefer) v += sl.prefer(it);
+      // Curation order is a preference: earlier picks win ties.
+      v -= items.indexOf(it) * 0.25;
       // The dominant frame is where the full length belongs.
       if (sl.lead && it.subject.feetInFrame) v += 1.2;
       if (!sl.lead && it.subject.feetInFrame && slots.some((o) => o.lead)) v -= 0.4;
@@ -110,7 +112,7 @@ export function composeCard(data, perceptions, rawSettings = {}, extras = {}) {
     let usedRole = role;
     if (item) {
       for (const r of chain[role] || [role]) {
-        const c = solveCrop(item.subject, aspect, { role: r, frameHeightIn, adjust, safe: extra.safe });
+        const c = solveCrop(item.subject, aspect, { role: r, frameHeightIn, adjust, safe: extra.safe, target: extra.target });
         if (c.feasible) {
           crop = c;
           usedRole = r;
@@ -133,6 +135,7 @@ export function composeCard(data, perceptions, rawSettings = {}, extras = {}) {
       fill: extra.fill,
       bleed: extra.bleed,
       z: extra.z,
+      spin: extra.spin,
       ppi: crop?.ppi ?? null,
     };
   };
@@ -153,13 +156,28 @@ export function composeCard(data, perceptions, rawSettings = {}, extras = {}) {
         taken.add(item.id);
       } else free.push(sl);
     }
-    const avail = items.filter((it) => it && !taken.has(it.id));
+    const avail = items.filter((it) => it && !taken.has(it.id)).slice(0, 8);
     if (free.length && avail.length) {
       const k = Math.min(free.length, avail.length);
       const { pick, score } = bestAssignment(free.slice(0, k), avail, (sl) => sl.h / MM_PER_IN);
-      if (pick) pick.forEach((j, i) => out.set(free[i].id, avail[j]));
-      else free.slice(0, k).forEach((sl, i) => out.set(sl.id, avail[i]));
-      out.score = pick ? score : -Infinity;
+      if (pick) {
+        pick.forEach((j, i) => out.set(free[i].id, avail[j]));
+        out.score = score;
+      } else {
+        // No complete assignment: fill slot by slot with photos that fit the
+        // frame without cutting the subject — from the whole library if the
+        // offered set runs out. A slot nothing fits is left out.
+        const used = new Set([...taken]);
+        const library = [...avail, ...pool.filter((p) => !avail.includes(p) && !p.flags.includes('other-people') && !p.flags.includes('no-person'))];
+        for (const sl of free) {
+          const it = library.find((c) => !used.has(c.id) && scoreFit(c.subject, sl.w / sl.h, sl.role === 'auto' ? roleOf(c) : sl.role, sl.h / MM_PER_IN).score !== -Infinity);
+          if (it) {
+            out.set(sl.id, it);
+            used.add(it.id);
+          }
+        }
+        out.score = -Infinity;
+      }
     } else out.score = free.length ? -Infinity : 0;
     return out;
   };
@@ -204,6 +222,20 @@ export function composeCard(data, perceptions, rawSettings = {}, extras = {}) {
     fitSize,
     wrap,
     hero: resolveItem(heroPin) || picks.hero,
+    /**
+     * The front photograph a direction wants: the talent's pinned front if
+     * any, else the best of the library by the direction's own taste
+     * (score(item) added to the general hero quality).
+     */
+    pickHero: (score, fits) => {
+      const pinned = resolveItem(heroPin);
+      if (pinned) return pinned;
+      const cands = pool.filter((p) => p.subject.known && p.subject.face && !p.subject.face.fromPose && !p.flags.includes('other-people') && !p.flags.includes('no-person') && (!fits || fits(p)));
+      if (!cands.length) return picks.hero;
+      return [...cands].sort((a, b) => b.quality + score(b) - (a.quality + score(a)))[0];
+    },
+    /** Back photographs for a set of slots, excluding the front. */
+    backFor: (front, n, taste) => curate(pool, { heroId: front?.id, taste }).back.filter((p) => p !== front).slice(0, n),
     // Print-grade cutouts (decontaminated RGBA, aligned 1:1 with the photo)
     // when they have been computed; directions fall back without them.
     cutout: (item) => (item && extras.cutouts ? extras.cutouts[item.id] || null : null),
@@ -219,7 +251,7 @@ export function composeCard(data, perceptions, rawSettings = {}, extras = {}) {
       }
     }
   }
-  return { scene: { ...scene, format, direction: direction.id }, picks, notes, stats, units, track, contact, nameShown: name.full, pool };
+  return { scene: { ...scene, format, direction: direction.id }, casting: scene.casting || null, picks, notes, stats, units, track, contact, nameShown: name.full, pool };
 }
 
 /** Whole image letterboxed inside the frame (only when no safe crop exists). */

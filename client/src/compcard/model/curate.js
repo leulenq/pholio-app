@@ -127,14 +127,15 @@ export function curate(pool, pins = {}) {
   if (pins.backIds?.length) {
     back = pins.backIds.map((id) => byId.get(id)).filter(Boolean);
   } else {
-    if (fullLengths[0]) back.push(fullLengths[0]);
+    const fl = pins.taste ? [...fullLengths].sort((a, b) => b.quality + pins.taste(b) - (a.quality + pins.taste(a))) : fullLengths;
+    if (fl[0]) back.push(fl[0]);
     else if (heroIsOnlyFull) back.push(hero);
     const candidates = rest.filter((p) => !back.includes(p));
     while (candidates.length) {
       let best = null;
       let bestV = -Infinity;
       for (const c of candidates) {
-        const v = c.quality + diversity(c, [hero, ...back].filter(Boolean)) + (c.subject.framing === 'close-up' || c.subject.framing === 'head-and-shoulders' ? 0.15 : 0);
+        const v = c.quality + diversity(c, [hero, ...back].filter(Boolean)) + (c.subject.framing === 'close-up' || c.subject.framing === 'head-and-shoulders' ? 0.15 : 0) + (pins.taste ? pins.taste(c) : 0);
         if (v > bestV) {
           bestV = v;
           best = c;

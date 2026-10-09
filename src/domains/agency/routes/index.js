@@ -3,6 +3,7 @@ const router = express.Router();
 
 router.use(require("./legal"));
 router.use(require("./setup"));
+router.use(require("./arrival"));
 router.use(require("./roster"));
 router.use(require("./inbox"));
 router.use(require("./talent-dossier"));

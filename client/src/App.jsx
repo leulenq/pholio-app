@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
 import PholioAuthBridge from './shared/lib/pholio-auth/PholioAuthBridge';
+import TalentLaunchGate from './shared/lib/talent-launch/TalentLaunchGate';
 import DashboardLayoutShell from './shared/layouts/DashboardLayoutShell';
 import AuthLayout from './shared/layouts/AuthLayout';
 import AgencyLayout from './shared/layouts/AgencyLayout';
@@ -43,11 +44,13 @@ const AgencySigningBoard = lazy(() => import('./domains/agency/pages/SigningBoar
 const AgencyMessages = lazy(() => import('./domains/agency/pages/MessagesPage'));
 const AgencyActivity = lazy(() => import('./domains/agency/pages/ActivityPage'));
 const AgencyTeam = lazy(() => import('./domains/agency/pages/TeamPage'));
-const AgencySetup = lazy(() => import('./domains/agency/pages/SetupPage'));
-const AgencyTalentView = lazy(() => import('./domains/agency/pages/TalentFullView'));
+const AgencyArrival = lazy(() => import('./domains/agency/arrival/ArrivalPage'));
+const AgencyArrivalPreview = lazy(() => import('./domains/agency/arrival/ArrivalPreview'));
+const AgencyTalentView = lazy(() => import('./domains/agency/profile/TalentProfile'));
 const ReplyPage = lazy(() => import('./domains/messaging/pages/ReplyPage'));
 const PickListPage = lazy(() => import('./domains/events/pages/PickListPage'));
 const AuthEntrySplashPreview = lazy(() => import('./domains/auth/pages/AuthEntrySplashPreview'));
+const FrameReadsPreview = lazy(() => import('./domains/talent/components/frame-reads/FrameReadsPreview'));
 const ModerationQueuePage = lazy(() => import('./domains/moderation/pages/ModerationQueuePage'));
 const MockConsentPage = lazy(() => import('./domains/talent/pages/ProfilePage/MockConsentPage'));
 const InternalAgencyRequests = lazy(() => import('./domains/internal/pages/AgencyRequestsPage'));
@@ -94,6 +97,7 @@ function App() {
       <PholioAuthBridge />
       <CookieConsentBanner />
       <Suspense fallback={<RouteFallback />}>
+        <TalentLaunchGate>
         <Routes>
           {/* Root redirects */}
           <Route path="/" element={<Navigate to="/dashboard/talent" replace />} />
@@ -113,6 +117,12 @@ function App() {
           </Route>
           {import.meta.env.DEV ? (
             <Route path="/dev/preview/auth-entry" element={<AuthEntrySplashPreview />} />
+          ) : null}
+          {import.meta.env.DEV ? (
+            <Route path="/dev/preview/frame-reads" element={<FrameReadsPreview />} />
+          ) : null}
+          {import.meta.env.DEV ? (
+            <Route path="/dev/preview/agency-arrival" element={<AgencyArrivalPreview />} />
           ) : null}
           <Route path="/auth/instagram/callback" element={<InstagramCallbackPage />} />
           {import.meta.env.DEV ? (
@@ -147,7 +157,6 @@ function App() {
 
           {/* Standalone full-screen submission studio (no dashboard chrome) */}
           <Route path="/dashboard/talent/applications/apply" element={<ApplyPage />} />
-          <Route path="/dashboard/talent/comp-card" element={<CompCardStudio />} />
           <Route path="/dashboard/talent/open-calls" element={<OpenCallsPage />} />
 
           {/* Talent Dashboard Routes */}
@@ -155,6 +164,7 @@ function App() {
             <Route path="/dashboard/talent" element={<OverviewPage />} />
             <Route path="/dashboard/talent/profile" element={<ProfilePage />} />
             <Route path="/dashboard/talent/media" element={<MediaPage />} />
+            <Route path="/dashboard/talent/comp-card" element={<CompCardStudio />} />
             <Route path="/dashboard/talent/analytics" element={<Navigate to="/dashboard/talent/intel" replace />} />
             <Route path="/dashboard/talent/intel" element={<IntelPage />} />
             <Route path="/dashboard/talent/applications" element={<ApplicationsPage />} />
@@ -177,7 +187,9 @@ function App() {
           <Route path="/agency" element={<Navigate to="/dashboard/agency" replace />} />
           <Route element={<AgencySessionGate />}>
             <Route path="/dashboard/agency/onboarding" element={<Navigate to="/dashboard/agency/setup" replace />} />
-            <Route path="/dashboard/agency/setup" element={<AgencySetup />} />
+            <Route path="/dashboard/agency/setup" element={<AgencyArrival />} />
+            {/* Full screen, outside the rail: one person deserves the whole display. */}
+            <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />
             <Route element={<AgencyLayout />}>
               <Route path="/dashboard/agency" element={<AgencyOverview />} />
               <Route path="/dashboard/agency/overview" element={<Navigate to="/dashboard/agency" replace />} />
@@ -194,12 +206,12 @@ function App() {
               <Route path="/dashboard/agency/roster" element={<Navigate to="/dashboard/agency/submissions" replace />} />
               <Route path="/dashboard/agency/settings" element={<AgencySettings />} />
               <Route path="/dashboard/agency/team" element={<AgencyTeam />} />
-              <Route path="/dashboard/agency/talent/:applicationId" element={<AgencyTalentView />} />
               <Route path="/dashboard/agency/messages" element={<AgencyMessages />} />
               <Route path="/dashboard/agency/activity" element={<AgencyActivity />} />
             </Route>
           </Route>
         </Routes>
+        </TalentLaunchGate>
       </Suspense>
     </ErrorBoundary>
   );

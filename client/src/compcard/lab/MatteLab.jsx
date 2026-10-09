@@ -1,4 +1,3 @@
-/* eslint-disable */
 // Development harness (compcard.html?lab=matte): matting quality check.
 import { useEffect, useState } from 'react';
 import { matteImage } from '../perception/matte';

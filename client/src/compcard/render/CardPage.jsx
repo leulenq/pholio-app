@@ -50,6 +50,39 @@ function bleedCrop(crop, el, bleed) {
   return { x, y, w: Math.min(1, w), h: Math.min(1, h) };
 }
 
+/**
+ * Rotation about a page point: spin = { deg, ox, oy } (mm, page space).
+ * `dx/dy` is how far the element's box starts before el.x/el.y (bleed).
+ */
+function spinStyle(el, dx = 0, dy = 0) {
+  if (!el.spin) return null;
+  return {
+    transform: `rotate(${el.spin.deg}deg)`,
+    transformOrigin: `${mm(el.spin.ox - el.x + dx)} ${mm(el.spin.oy - el.y + dy)}`,
+  };
+}
+
+/** Type filled with a picture or a foil gradient (fill.x/y/w/h = the picture's page rect). */
+function fillStyle(el) {
+  const f = el.fill;
+  if (!f) return null;
+  if (f.kind === 'image') {
+    return {
+      backgroundImage: `url("${f.src}")`,
+      backgroundSize: `${mm(f.w)} ${mm(f.h)}`,
+      backgroundPosition: `${mm(f.x - el.x)} ${mm(f.y - el.y)}`,
+      backgroundRepeat: 'no-repeat',
+      WebkitBackgroundClip: 'text',
+      backgroundClip: 'text',
+      color: 'transparent',
+    };
+  }
+  if (f.kind === 'gradient') {
+    return { backgroundImage: f.css, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' };
+  }
+  return null;
+}
+
 /** CSS mask that fades a photo's edges: fade = { t, r, b, l } in mm. */
 function fadeMask(fade, w, h) {
   if (!fade) return null;
@@ -89,6 +122,7 @@ function Photo({ el, bleed, onSelect, selected, interactive }) {
         zIndex: el.z ?? 'auto',
         opacity: el.opacity,
         ...(el.fade ? fadeMask(el.fade, el.w, el.h) : {}),
+        ...spinStyle(el, el.x - parseFloat(box.left), el.y - parseFloat(box.top)),
       }}
     >
       {src && crop && (
@@ -131,14 +165,14 @@ function Text({ el }) {
     const transform = el.rotate === -90 ? `translateY(${mm(el.h)}) rotate(-90deg)` : `translateX(${mm(el.w)}) rotate(90deg)`;
     return (
       <div style={{ position: 'absolute', left: mm(el.x), top: mm(el.y), width: mm(el.w), height: mm(el.h), zIndex: el.z ?? 'auto' }}>
-        <div style={{ ...common, position: 'absolute', left: 0, top: 0, width: mm(el.h), transformOrigin: '0 0', transform }}>
+        <div style={{ ...common, ...fillStyle(el), position: 'absolute', left: 0, top: 0, width: mm(el.h), transformOrigin: '0 0', transform }}>
           {lines.join('\n')}
         </div>
       </div>
     );
   }
   return (
-    <div style={{ ...common, position: 'absolute', left: mm(el.x), top: mm(el.y), width: el.w != null ? mm(el.w) : undefined, zIndex: el.z ?? 'auto' }}>
+    <div style={{ ...common, ...fillStyle(el), position: 'absolute', left: mm(el.x), top: mm(el.y), width: el.w != null ? mm(el.w) : undefined, zIndex: el.z ?? 'auto', ...spinStyle(el) }}>
       {lines.join('\n')}
     </div>
   );
@@ -159,7 +193,8 @@ export default function CardPage({ page, format, showBleed = false, onSelectSlot
           if (el.type === 'photo') return <Photo key={i} el={el} bleed={bleed} onSelect={onSelectSlot} selected={selectedSlot && el.slot === selectedSlot} interactive={interactive} />;
           if (el.type === 'text') return <Text key={i} el={el} />;
           if (el.type === 'rect' || el.type === 'rule') {
-            return <div key={i} style={{ position: 'absolute', ...bleedBox(el, bleed), background: el.gradient || el.fill, zIndex: el.z ?? 'auto', opacity: el.opacity, mixBlendMode: el.blend }} />;
+            const box = bleedBox(el, bleed);
+            return <div key={i} style={{ position: 'absolute', ...box, background: el.gradient || el.fill, zIndex: el.z ?? 'auto', opacity: el.opacity, boxShadow: el.boxShadow, ...spinStyle(el, el.x - parseFloat(box.left), el.y - parseFloat(box.top)) }} />;
           }
           if (el.type === 'svg') {
             return <div key={i} style={{ position: 'absolute', left: mm(el.x), top: mm(el.y), width: mm(el.w), height: mm(el.h), zIndex: el.z || 2 }} dangerouslySetInnerHTML={{ __html: el.svg }} />;

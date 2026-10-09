@@ -8,8 +8,8 @@ import { DiscoverZone } from './zones/DiscoverZone';
 import { ApplicantsZone } from './zones/ApplicantsZone';
 import { OverviewZone } from './zones/OverviewZone';
 import { getTalentSiteLink } from './zones/profileHydration';
-import { CardMeta, Figure } from './meta';
-import { measurementFigure } from './meta/metaFormat';
+import { CardMeta } from './meta';
+import { heightFigure } from './meta/metaFormat';
 import {
   isOfferedApplicationStatus,
   isRepresentedApplicationStatus,
@@ -23,55 +23,67 @@ const getInitials = (name) => {
     : (parts[0]?.[0] || '');
 };
 
+const SPRING = { type: 'spring', stiffness: 55, damping: 16 };
+
 /**
- * Ink vitals band — the measured values this record actually holds.
- *
- * A measurement that was never taken is omitted rather than set as an
- * em-dash: the placeholder said only that the column existed, and four of
- * them read as a person with no measurements at all. With nothing recorded
- * the band does not render.
+ * The figures the spec ruler prints, in comp-card order: height leads (the
+ * hard gate in every division), then bust/chest · waist · hips as their own
+ * columns. A measurement that was never taken is omitted, not dashed.
  */
-function VitalsBand({ measurements }) {
+function specFigures(measurements, fallbackHeightCm) {
   const m = measurements || {};
-  const band = measurementFigure(m);
-  const figures = [];
-
-  const height = Number(m.height_cm);
-  if (Number.isFinite(height) && height > 0) {
-    figures.push({ key: 'height', label: 'Height', value: String(Math.round(height)) });
+  const out = [];
+  const height = heightFigure(m.height_cm ?? fallbackHeightCm);
+  if (height) out.push({ key: 'height', label: 'Height', value: height.value, sub: height.sub });
+  const parts = [
+    [m.bust_cm != null ? 'Bust' : 'Chest', m.bust_cm ?? m.chest_cm],
+    ['Waist', m.waist_cm],
+    ['Hips', m.hips_cm],
+  ];
+  for (const [label, raw] of parts) {
+    const n = Number(raw);
+    if (raw == null || !Number.isFinite(n) || n <= 0) continue;
+    out.push({ key: label, label, value: String(Math.round(n)), sub: `${Math.round(n / 2.54)}″` });
   }
-  if (band && !band.value.includes('\u2014')) {
-    figures.push({ key: 'band', label: band.key, value: band.value });
-  } else {
-    const parts = [
-      ['bust', m.bust_cm != null ? 'Bust' : 'Chest', m.bust_cm ?? m.chest_cm],
-      ['waist', 'Waist', m.waist_cm],
-      ['hips', 'Hips', m.hips_cm],
-    ];
-    for (const [key, label, raw] of parts) {
-      const n = Number(raw);
-      if (!Number.isFinite(n) || n <= 0) continue;
-      figures.push({ key, label, value: String(Math.round(n)) });
-    }
-  }
+  // Height alone is not a spec line — it stays in the facts line under the
+  // name instead of opening a band for a single number.
+  return out.length > 1 ? out : [];
+}
 
+/**
+ * Spec ruler — the ink band under the hero. Every figure gets an equal
+ * column on one hairline grid, so the values read as a single measured line
+ * that spans the drawer instead of clustering at its two edges.
+ */
+function SpecRuler({ figures }) {
   if (figures.length === 0) return null;
-
   return (
-    <div className="tp-band">
-      {figures.map((f) => (
-        <Figure key={f.key} className="tp-band-v" label={f.label} value={f.value} unit="cm" onDark />
+    <dl className="tp-spec-ruler" style={{ '--tp-cols': figures.length }}>
+      {figures.map((f, i) => (
+        <motion.div
+          key={f.key}
+          className="tp-spec-col"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...SPRING, delay: 0.08 + i * 0.05 }}
+        >
+          <dt className="tp-spec-key">{f.label}</dt>
+          <dd className="tp-spec-val">
+            {f.value}<span className="tp-spec-unit">cm</span>
+          </dd>
+          {f.sub && <dd className="tp-spec-sub">{f.sub}</dd>}
+        </motion.div>
       ))}
-    </div>
+    </dl>
   );
 }
 
 /**
- * Pipeline stepper — Submitted → In review → Offered → Represented, derived from the
- * application status. Replaces the old "submission status" card; conveys
- * where the talent sits without a status badge.
+ * Pipeline track — Submitted → In review → Offered → Agreement as four equal
+ * segments across the drawer. The rule fills to where the application sits;
+ * the decision row directly beneath acts on the current segment.
  */
-function PipelineStatus({ status }) {
+function PipelineTrack({ status }) {
   const s = String(status || '').toLowerCase();
   const declined = s === 'declined';
   const offered = isOfferedApplicationStatus(s);
@@ -84,24 +96,37 @@ function PipelineStatus({ status }) {
     { label: represented ? 'Represented' : 'Agreement' },
   ];
   return (
-    <div className="tp-pipe" role="group" aria-label={`Status: ${stages[current].label}`}>
+    <ol className="tp-track" aria-label={`Status: ${stages[current].label}`}>
       {stages.map((st, i) => {
-        const state = i < current ? 'done' : i === current ? 'current' : 'todo';
+        const state = i < current || (represented && i === current) ? 'done' : i === current ? 'current' : 'todo';
         return (
-          <React.Fragment key={st.label}>
-            {i > 0 && <span className={`tp-pipe-ln${i <= current ? ' is-done' : ''}`} />}
-            <span className={`tp-pipe-st is-${state}${st.danger ? ' is-danger' : ''}`}>{st.label}</span>
-          </React.Fragment>
+          <li
+            key={st.label}
+            className={`tp-track-st is-${state}${st.danger ? ' is-danger' : ''}`}
+            aria-current={i === current ? 'step' : undefined}
+          >
+            <span className="tp-track-bar">
+              {state !== 'todo' && (
+                <motion.span
+                  className="tp-track-fill"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ ...SPRING, delay: 0.12 + i * 0.09 }}
+                />
+              )}
+            </span>
+            <span className="tp-track-lbl">{st.label}</span>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }
 
 /**
  * Canonical Talent Panel — the "Cinematic Column".
- * A right-hand sidebar drawer: cinematic hero, ink vitals band, pipeline
- * status, action bar, the book (+ comp card), and a tabbed working record
+ * A right-hand sidebar drawer: cinematic hero, ink spec ruler, decision
+ * block (pipeline track + action row), the book (+ comp card), and a tabbed working record
  * (Conversation · Notes · Follow-up).
  *
  * Callers must wrap conditional renders in <AnimatePresence> for exit animations.
@@ -140,6 +165,7 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
   const identityClaimed = profileHydrated?.identityClaimed ?? talent.identityClaimed;
   const identityDisputed = profileHydrated?.identityDisputed ?? talent.identityDisputed;
   const heightCm = profileHydrated?.measurements?.height_cm ?? talent.heightCm ?? null;
+  const spec = specFigures(profileHydrated?.measurements, heightCm);
   const age = talent.age ?? null;
   const isMinor = talent.isMinor ?? (typeof age === 'number' ? age < 18 : false);
   const notations = [];
@@ -270,30 +296,27 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
             ) : (
               <h2 className="tp-name">{talent.name}</h2>
             )}
-            {/* The same facts line every other surface prints under a face,
-                and only the notations a booker has to act on. Email plumbing
-                is not one of them. */}
+            {/* Who and where under the name; the measured figures — height
+                included — live once, in the spec ruler below. Only the
+                notations a booker has to act on ride along. */}
             <CardMeta
               className="tp-spec meta--onDark"
-              figures={{ heightCm, age }}
+              figures={{ heightCm: spec.length ? null : heightCm, age }}
               context={{ city: talent.location || talent.city }}
               notations={notations}
             />
           </div>
         </div>
 
-        {/* ---------- Vitals band ---------- */}
-        <VitalsBand measurements={profileHydrated?.measurements} />
+        {/* ---------- Spec ruler ---------- */}
+        <SpecRuler figures={spec} />
 
         {/* ---------- Scrollable body ---------- */}
         <div className="tp-body">
-          {isPipeline && (
-            <div className="tp-topline tp-topline--pipe">
-              <PipelineStatus status={status} />
-            </div>
-          )}
-
-          <div className="tp-action-strip">
+          {/* Decision block — where the application sits, and the one move
+              that advances it, read as a single unit. */}
+          <section className={`tp-decide${isPipeline ? '' : ' tp-decide--bare'}`}>
+            {isPipeline && <PipelineTrack status={status} />}
             <TalentActionBar
               applicationId={talent.applicationId}
               profileId={talent.profileId}
@@ -302,7 +325,7 @@ export const TalentPanel = ({ talent, context = 'overview', onClose }) => {
               context={context}
               layout="panel"
             />
-          </div>
+          </section>
 
           <div className="tp-zone">{renderZone()}</div>
 

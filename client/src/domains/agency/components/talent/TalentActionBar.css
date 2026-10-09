@@ -39,9 +39,40 @@
 .tact-btn--danger { color: #c0563f; }
 .tact-btn--danger:hover { border-color: #c0563f; }
 
-/* compact (panel) row — primary decision grows, rest stay tight */
-.tact-row--compact { flex-wrap: wrap; gap: 8px; }
-.tact-btn--grow { flex: 1 1 auto; }
+/* compact (panel) row — one full-width decision line. The lead action takes
+   the remaining width; utilities sit flush right as one joined pair. Every
+   control shares a single 44px height so nothing floats off-baseline. */
+.tact-row--compact { flex-wrap: nowrap; gap: 8px; align-items: stretch; }
+.tact-row--compact .tact-grow,
+.tact-row--compact .tact-btn--grow { flex: 1 1 0; min-width: 0; }
+.tact-row--compact .pholio-btn,
+.tact-row--compact .tact-btn { height: 44px; min-height: 44px; }
+.tact-row--compact .tact-btn--danger { padding: 0 16px; }
+.tact-row--compact .tact-btn--grow:not(.tact-btn--primary) {
+  background: transparent;
+  border-color: var(--ag-border-strong, rgba(26, 24, 21, 0.14));
+  color: var(--ag-text-0, #1A1815);
+}
+.tact-row--compact .tact-btn--grow:not(.tact-btn--primary):hover:not(:disabled) {
+  border-color: var(--ag-gold, #C9A55A);
+  background: rgba(201, 165, 90, 0.06);
+}
+.tact-utils {
+  display: flex;
+  flex: none;
+  border: 1px solid #e0d8c7;
+  border-radius: 4px;
+}
+.tact-utils .tact-btn--icon {
+  width: 44px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+.tact-utils .tact-board + .tact-board .tact-btn--icon { border-left: 1px solid #e0d8c7; }
+.tact-utils .tact-btn--icon:hover { background: rgba(201, 165, 90, 0.08); color: var(--ag-text-0, #1A1815); }
+.tact-utils:has(.tact-btn:focus-visible) { border-color: var(--ag-gold, #C9A55A); }
+.tact-menu-rule { height: 1px; margin: 5px 4px; background: var(--ag-border, rgba(26, 24, 21, 0.09)); }
 
 /* dropdown menu (board picker + "More" overflow) */
 .tact-board { position: relative; }

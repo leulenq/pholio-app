@@ -605,3 +605,17 @@ Spec: `tasks/intel-placement.md`. An earlier "The Read" direction (attention and
 - [x] Verified on scratch SQLite + synced trust registry: desktop and mobile; fixed `preflightRegistry` empty-selection default (`imageIds: null`), canonical shot labels, past-due digitals copy, mobile shot rows
 - Pre-existing failures (identical on clean HEAD): 31 jest tests across 11 talent/shared suites; vitest ProfilePage "adds a bookout from a date field"
 
+
+# Talent-card metadata baseline (2026-10-06)
+
+- [x] Align the inline height/age figures with the city baseline in CardMeta, preserving the agency Figure/Notation typography.
+- [x] Verify the rendered baseline and run the existing metadata tests.
+
+Review: scoped `vertical-align: baseline` to CardMeta inline figures. Chromium reproduction confirmed the original 0.71875px baseline offset and equal baselines after the fix at 375px and 1280px. Existing metadata and ApplicantsPage suites: 45 tests passed. Diff whitespace check passed.
+
+# Talent Profile geographic typography (2026-10-06)
+
+- [x] Use proportional Inter, normal casing/tracking, and a readable line height for locations in the agency Talent Profile, preserving the geographic strings.
+- [x] Check the affected styles and existing profile tests.
+
+Review: geographic names keep their text and use agency body typography; market text is 13px with normal tracking/casing, identity line has explicit body font and 1.4 leading, shared Place resets inherited caps/italic/tracking and uses baseline alignment. Metadata/ReviewRoom suites: 37 passed; computed styles checked with jsdom. Chromium launch was blocked in the restricted environment, so live visual verification was unavailable.

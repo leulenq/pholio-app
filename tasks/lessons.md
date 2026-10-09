@@ -1034,3 +1034,45 @@ Rules:
 ## Intel (2026-10-04): "first principles" means the user's job, not the data on hand
 - First attempt derived Intel from what Pholio already logs (search replay, agency opens, response clocks). The owner rejected it as building on existing data.
 - Rule: for any "from first principles" design, write down the user's goal and decisions first (consult the `industry` skill), then decide what data that needs. Existing tables are inputs to check afterwards, never the starting point.
+
+## 2026-10-05 — Frame reads rebuild
+- "Take creative liberty" on a utility queue is still bounded by footprint. A full-height light table + sentence + ledger + figure was rejected as too much visual space; the accepted direction was a contact sheet (photo, three words, Confirm/Skip, Confirm all) at ~330px.
+- Size a decision surface to the decision: most reads are right, so the default action (confirm, or confirm all) must be one click and the page must not be taken over to ask it.
+
+## 2026-10-06 — Location formatting in a typography discussion
+- When location formatting follows a typography fix, inspect the visual treatment first. Clarify the distinction between geographic text normalization and styling before changing stored or displayed names; the owner meant styling throughout the Talent Profile.
+
+## 2026-10-08 — Ground soundtrack recommendations in audio
+
+- When asked for music similar to a reference, establish its rhythm, instrumentation, and arrangement from actual audio analysis before suggesting tracks. Credits, visual style, and broad genre tags do not establish musical similarity.
+- If direct listening is unavailable, use a verified audio-analysis capability and distinguish measured features, model interpretations, and composer-confirmed facts.
+
+## 2026-10-08 — Narration separation needs music continuity checks
+
+- Removing narration with a vocal separator can remove overlapping synths and create audible holes. Verify level continuity around speech and compare another model before treating a first separated stem as a finished music track. Do not mistake a lower speech-classification score for preserved musical quality.
+
+## 2026-10-08 — Preserve narration when fixing mix interruptions
+
+- The owner reported narration cutting out after phrase-by-phrase timing edits. When correcting this, use the full original decoded narration as one continuous clip; apply only a constant level adjustment and shape the music around it. Verify the narration contribution against the original sample by sample. Do not rely on speech recognition alone to validate edit quality.
+
+## 2026-10-08 — Follow an exact audio mixing correction
+
+- When the owner specifies an exact music version, narration file, and start offset, use those sources directly with constant level adjustments only. Do not carry forward earlier music restructuring, filtering, stereo changes, automation, or narration processing.
+
+## 2026-10-08 — Align the specified narration phrase to the drop
+
+- For a requested phrase-to-music alignment, measure the phrase onset in the current recording and the music drop, then adjust the whole narration clip’s start offset. Preserve the intact narration and exact music source; do not reuse timestamps from a previous take.
+
+## 2026-10-08 — Preserve approved timing when composing the closing cue
+
+- Keep the complete narration and the approved first reveal alignment. Move only the late musical lead-in with continuous pitch-preserving time shaping when the owner asks to move a closing drop without cuts. Match the actual audible brand onset, not just the transcript timestamp.
+- When a composed mix is requested, build section-level volume, tone and width changes around the arrangement; do not substitute constant heavy ducking. Keep library accents restrained and purposeful, and verify the intact voice numerically.
+
+## 2026-10-08 — Distinguish vocal character from spatial effects
+
+- When the owner points to robotic or masked words in a reference, investigate changes to vocal timbre, pitch and spectral structure. Delays and stereo doubling alone do not reproduce that direction.
+- Compare the original reference mix with any separated voice stem: separation artifacts can sound synthetic. Use gender-neutral effect descriptions and natural male/female baselines in audio classification. Treat effect classifications as hypotheses, not proof of a particular plugin or processing chain. Never claim direct listening when unavailable.
+
+## 2026-10-08 — Respect the selected audio version at handoff
+
+- The owner preferred the previous vocal-design mix over stronger narrative masks. Treat explicit version selection as authoritative: hand off that exact source, identify it clearly, and preserve approved timing. Do not promote a later experimental version because its processing is more elaborate.

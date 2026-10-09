@@ -2,6 +2,7 @@
 const LIGHT_HEADER_PREFIXES = [
   '/dashboard/talent/profile',
   '/dashboard/talent/media',
+  '/dashboard/talent/comp-card',
   '/dashboard/talent/applications',
   '/dashboard/talent/messages',
   '/dashboard/talent/intel',

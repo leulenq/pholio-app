@@ -17,7 +17,7 @@ const { requireRole } = require("../../auth/middleware/require-auth");
 const { asyncHandler } = require("../../../shared/middleware/error-handler");
 const apiResponse = require("../../../shared/lib/api-response");
 const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
-const { loadCardData, absoluteUrl, studioTables } = require("../services/card-data");
+const { loadCardData, absoluteUrl, studioTables, cutoutDataUrls } = require("../services/card-data");
 
 /** 503 when the comp card migration hasn't run on this database. */
 async function requireStorage(res) {
@@ -49,7 +49,7 @@ router.get(
     if (!slug) return apiResponse.notFound(res, "Profile not found");
     const loaded = await loadCardData(slug);
     if (!loaded) return apiResponse.notFound(res, "Profile not found");
-    return apiResponse.success(res, { data: loaded.data, perceptions: loaded.perceptions, card: loaded.card, storage: loaded.storage });
+    return apiResponse.success(res, { data: loaded.data, perceptions: loaded.perceptions, cutouts: loaded.cutouts, card: loaded.card, storage: loaded.storage });
   }),
 );
 
@@ -93,6 +93,46 @@ router.get(
     res.setHeader("Content-Type", type);
     res.setHeader("Cache-Control", "private, max-age=3600");
     return res.send(buf);
+  }),
+);
+
+/** The talent's own cutouts: store (from the studio) and fetch. */
+const CUTOUT_MAX_BYTES = 12 * 1024 * 1024;
+router.put(
+  "/api/talent/compcard/cutouts/:imageId",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    if (!(await requireStorage(res))) return undefined;
+    const profile = await knex("profiles").where({ user_id: req.session.userId }).first("id");
+    if (!profile) return apiResponse.notFound(res, "Profile not found");
+    const image = await knex("images").where({ id: req.params.imageId, profile_id: profile.id }).first("id");
+    if (!image) return apiResponse.notFound(res, "Photo not found");
+    const { version, width, height, png } = req.body || {};
+    const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(png || ""));
+    if (!Number.isInteger(version) || !Number.isInteger(width) || !Number.isInteger(height) || !m) return apiResponse.error(res, "Invalid cutout", 400);
+    const buf = Buffer.from(m[1], "base64");
+    if (buf.length > CUTOUT_MAX_BYTES) return apiResponse.error(res, "Cutout too large", 413);
+    if (!buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return apiResponse.error(res, "Not a PNG", 400);
+    await knex("image_cutouts").insert({ image_id: image.id, version, width, height, png: buf, created_at: new Date() }).onConflict("image_id").merge(["version", "width", "height", "png", "created_at"]);
+    return apiResponse.success(res, { stored: true, url: `/api/talent/compcard/cutouts/${image.id}?v=${version}` });
+  }),
+);
+
+router.get(
+  "/api/talent/compcard/cutouts/:imageId",
+  requireRole("TALENT"),
+  asyncHandler(async (req, res) => {
+    if (!(await requireStorage(res))) return undefined;
+    const profile = await knex("profiles").where({ user_id: req.session.userId }).first("id");
+    if (!profile) return apiResponse.notFound(res, "Profile not found");
+    const row = await knex("image_cutouts")
+      .join("images", "images.id", "image_cutouts.image_id")
+      .where({ "image_cutouts.image_id": req.params.imageId, "images.profile_id": profile.id })
+      .first("image_cutouts.png");
+    if (!row) return apiResponse.notFound(res, "No cutout");
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    return res.send(Buffer.from(row.png));
   }),
 );
 
@@ -158,7 +198,10 @@ function currentScene(loaded) {
     ...stored,
     pages: stored.pages.map((p) => ({
       ...p,
-      elements: p.elements.filter((el) => el.type !== "photo" || !el.imageId || imagesById.has(el.imageId)),
+      elements: p.elements
+        .filter((el) => el.type !== "photo" || !el.imageId || imagesById.has(el.imageId))
+        // Type cut from a photograph that is no longer shown prints solid.
+        .map((el) => (el.type === "text" && el.fill?.kind === "image" && !imagesById.has(el.fill.imageId) ? { ...el, fill: undefined } : el)),
     })),
   };
   return sanitizeScene(filtered, imagesById);
@@ -166,6 +209,15 @@ function currentScene(loaded) {
 
 async function sendPdf(res, loaded, variant, disposition) {
   const scene = currentScene(loaded);
+  // Cutout layers print from stored mattes, injected as data (the print
+  // browser has no session to fetch them with).
+  const ids = [...new Set(scene.pages.flatMap((p) => p.elements.filter((e) => e.type === "photo" && e.cutout && e.imageId).map((e) => e.imageId)))];
+  const data = await cutoutDataUrls(ids);
+  for (const p of scene.pages) {
+    p.elements = p.elements
+      .map((e) => (e.type === "photo" && e.cutout ? (data[e.imageId] ? { ...e, cutout: data[e.imageId] } : null) : e))
+      .filter(Boolean);
+  }
   const p = loaded.data.profile;
   const pdf = await renderCardPdf(scene, {
     variant,

@@ -106,7 +106,7 @@ function ValueControl({ field, value, onChange, disabled }) {
   if (options.length > 0) {
     return (
       <select
-        className="st-input sb-control"
+        className="st-input rq-control"
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
@@ -125,7 +125,7 @@ function ValueControl({ field, value, onChange, disabled }) {
   if (field?.valueType === 'boolean') {
     return (
       <select
-        className="st-input sb-control"
+        className="st-input rq-control"
         value={value === true ? 'true' : value === false ? 'false' : ''}
         onChange={(event) =>
           onChange(event.target.value === '' ? null : event.target.value === 'true')
@@ -142,7 +142,7 @@ function ValueControl({ field, value, onChange, disabled }) {
 
   return (
     <input
-      className="st-input sb-control"
+      className="st-input rq-control"
       type={field?.valueType === 'number' ? 'number' : 'text'}
       value={value ?? ''}
       onChange={(event) =>
@@ -166,10 +166,10 @@ function RuleRow({ group, row, index, fields, scopeFields, onChange, onRemove, d
   const patch = (changes) => onChange(index, { ...row, ...changes });
 
   return (
-    <li className="sb-row">
-      <div className="sb-row-main">
+    <li className="rq-row">
+      <div className="rq-row-main">
         <input
-          className="st-input sb-label"
+          className="st-input rq-label"
           type="text"
           value={row.label || ''}
           maxLength={160}
@@ -181,9 +181,9 @@ function RuleRow({ group, row, index, fields, scopeFields, onChange, onRemove, d
           aria-label="Your wording"
         />
 
-        <div className="sb-row-controls">
+        <div className="rq-row-controls">
           <select
-            className="st-input sb-control"
+            className="st-input rq-control"
             value={row.field || ''}
             onChange={(event) => patch({ field: event.target.value, value: '' })}
             disabled={disabled}
@@ -199,7 +199,7 @@ function RuleRow({ group, row, index, fields, scopeFields, onChange, onRemove, d
 
           {group !== 'shots' && (
             <select
-              className="st-input sb-control sb-control--narrow"
+              className="st-input rq-control rq-control--narrow"
               value={row.operator || 'equals'}
               onChange={(event) => patch({ operator: event.target.value })}
               disabled={disabled}
@@ -221,10 +221,10 @@ function RuleRow({ group, row, index, fields, scopeFields, onChange, onRemove, d
           />
 
           {group === 'shots' ? (
-            <label className="sb-inline-field">
+            <label className="rq-inline-field">
               <span>How many</span>
               <input
-                className="st-input sb-control sb-control--tiny"
+                className="st-input rq-control rq-control--tiny"
                 type="number"
                 min={1}
                 value={row.minimum ?? 1}
@@ -237,7 +237,7 @@ function RuleRow({ group, row, index, fields, scopeFields, onChange, onRemove, d
             </label>
           ) : (
             <select
-              className="st-input sb-control sb-control--narrow"
+              className="st-input rq-control rq-control--narrow"
               value={row.modality || 'required'}
               onChange={(event) => patch({ modality: event.target.value })}
               disabled={disabled}
@@ -253,10 +253,10 @@ function RuleRow({ group, row, index, fields, scopeFields, onChange, onRemove, d
         </div>
 
         {group === 'eligibility' && (
-          <div className="sb-row-scope">
-            <span className="sb-scope-lead">Applies to</span>
+          <div className="rq-row-scope">
+            <span className="rq-scope-lead">Applies to</span>
             <select
-              className="st-input sb-control sb-control--narrow"
+              className="st-input rq-control rq-control--narrow"
               value={row.appliesWhen?.field || ''}
               onChange={(event) =>
                 patch({
@@ -292,7 +292,7 @@ function RuleRow({ group, row, index, fields, scopeFields, onChange, onRemove, d
       {!disabled && (
         <button
           type="button"
-          className="sb-remove"
+          className="rq-remove"
           onClick={() => onRemove(index)}
           aria-label="Remove this rule"
         >
@@ -466,9 +466,9 @@ export default function SpecBuilderPanel({ canManage = true }) {
             </div>
 
             {rows.length === 0 ? (
-              <p className="sb-empty">Nothing set. Applicants will see no requirement here.</p>
+              <p className="rq-empty">Nothing set. Applicants will see no requirement here.</p>
             ) : (
-              <ul className="sb-list">
+              <ul className="rq-list">
                 {rows.map((row, index) => (
                   <RuleRow
                     key={row.id || `${group.key}-${index}`}
@@ -496,7 +496,7 @@ export default function SpecBuilderPanel({ canManage = true }) {
             )}
 
             {groupIssues.length > 0 && (
-              <ul className="sb-issues">
+              <ul className="rq-issues">
                 {groupIssues.map((issue, index) => (
                   <li key={`${issue.code}-${index}`}>{issue.message}</li>
                 ))}
@@ -515,7 +515,7 @@ export default function SpecBuilderPanel({ canManage = true }) {
             )}
 
             {group.key === 'eligibility' && vocabulary?.refused?.length > 0 && (
-              <div className="sb-refused">
+              <div className="rq-refused">
                 <button
                   type="button"
                   className="st-textlink"
@@ -524,7 +524,7 @@ export default function SpecBuilderPanel({ canManage = true }) {
                   {showRefused ? 'Hide' : 'Why can’t I require hair colour or nationality?'}
                 </button>
                 {showRefused && (
-                  <ul className="sb-refused-list">
+                  <ul className="rq-refused-list">
                     {vocabulary.refused.map((entry) => (
                       <li key={entry.id}>{entry.reason}</li>
                     ))}
@@ -581,8 +581,8 @@ export default function SpecBuilderPanel({ canManage = true }) {
         )}
 
         {issues.length > 0 && (
-          <div className="sb-issues sb-issues--summary">
-            <span className="sb-issues-head">
+          <div className="rq-issues rq-issues--summary">
+            <span className="rq-issues-head">
               <X size={14} /> Fix these before publishing
             </span>
             <ul>

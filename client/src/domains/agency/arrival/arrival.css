@@ -1,0 +1,1222 @@
+/*
+ * Agency arrival — the first run after approval.
+ *
+ * A dark stage lit by one light in the agency's own colour. Type does the
+ * work: Inter for Pholio and for every instruction, Noto Serif Display for
+ * the agency and for the questions asked of it. The cream underneath the
+ * stage is the agency workspace's canvas; the doors open onto it.
+ */
+
+.arv {
+  --arv-ink: #0b0a09;
+  --arv-paper: #f2ece3;
+  --arv-mute: rgba(242, 236, 227, 0.58);
+  --arv-faint: rgba(242, 236, 227, 0.2);
+  --arv-hair: rgba(242, 236, 227, 0.13);
+  --arv-serif: 'Noto Serif Display', 'Playfair Display', Georgia, serif;
+  --arv-sans: 'Inter', system-ui, sans-serif;
+  --arv-gutter: clamp(20px, 9vw, 168px);
+  --arv-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #faf8f5;
+  color: var(--arv-paper);
+  font-family: var(--arv-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.arv[aria-busy='true'],
+.arv--fault {
+  background: var(--arv-ink);
+}
+
+.arv ::selection {
+  background: var(--arv-accent);
+  color: var(--arv-ink);
+}
+
+.arv-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────── */
+
+.arv-doors {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  pointer-events: none;
+}
+
+.arv-door {
+  background: var(--arv-ink);
+}
+
+.arv-light {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(90vw, 1100px);
+  aspect-ratio: 1;
+  margin: calc(min(90vw, 1100px) / -2) 0 0 calc(min(90vw, 1100px) / -2);
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--arv-accent) 34%, transparent),
+    color-mix(in srgb, var(--arv-accent) 10%, transparent) 55%,
+    transparent
+  );
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.arv-light--cool {
+  background: radial-gradient(closest-side, rgba(170, 186, 204, 0.16), transparent);
+  transform: translate(28vw, 12vh);
+}
+
+.arv-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--arv-accent);
+  transform-origin: top;
+  opacity: 0.85;
+}
+
+/* ── Lockup ────────────────────────────────────────────────────────────── */
+
+.arv-lockup {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 2.4vw, 40px);
+  white-space: nowrap;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.arv-lockup-side {
+  display: block;
+  overflow: hidden;
+  padding: 0.12em 0;
+}
+
+.arv-word {
+  display: inline-flex;
+  align-items: center;
+}
+
+.arv-word--pholio {
+  /* The platform wordmark exactly as the dashboards set it: serif, tracked,
+     Pholio gold whatever the agency's own colour. */
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-weight: 400;
+  font-size: clamp(20px, 2.3vw, 36px);
+  line-height: 1;
+  letter-spacing: 0.18em;
+  margin-right: -0.18em;
+  text-transform: uppercase;
+  color: #c9a55a;
+}
+
+.arv-word--agency {
+  gap: 0.32em;
+  font-family: var(--arv-serif);
+  font-weight: 300;
+  font-size: calc(clamp(44px, 8.2vw, 138px) * var(--arv-name-scale, 1));
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+  color: var(--arv-paper);
+}
+
+.arv-mark {
+  height: 0.82em;
+  width: auto;
+  max-width: 2.4em;
+  object-fit: contain;
+}
+
+.arv-rule-box {
+  position: relative;
+  display: block;
+  width: 1px;
+  height: clamp(54px, 9vw, 150px);
+}
+
+.arv-rule {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent, color-mix(in srgb, #c9a55a 70%, var(--arv-paper)) 18%, color-mix(in srgb, #c9a55a 70%, var(--arv-paper)) 82%, transparent);
+  transform-origin: center;
+}
+
+.arv-rule-flare {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 180px;
+  height: 140%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--arv-accent) 45%, transparent), transparent);
+  filter: blur(14px);
+}
+
+/* ── Opening credits ───────────────────────────────────────────────────── */
+
+.arv-credits {
+  position: absolute;
+  bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--arv-mute);
+}
+
+.arv-credits--left {
+  left: 30px;
+}
+
+.arv-credits--right {
+  right: 30px;
+  text-align: right;
+}
+
+.arv-credits-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.arv-begin {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(26px, 5vh, 52px);
+  transform: translateX(-50%);
+}
+
+/* ── The verdict ───────────────────────────────────────────────────────── */
+
+.arv-verdict {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Just under the lockup, which is centred on 42% of the stage. */
+  top: calc(42% + clamp(54px, 9vw, 150px) / 2 + clamp(20px, 4vh, 44px));
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  pointer-events: none;
+}
+
+.arv-verdict-word {
+  position: relative;
+  margin: 0;
+  font-family: 'Noto Serif Display', Georgia, serif;
+  font-weight: 300;
+  font-size: clamp(34px, min(4.4vw, 8vh), 72px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.arv-verdict-letters {
+  display: inline-flex;
+}
+
+.arv-verdict-mask {
+  display: inline-block;
+  overflow: hidden;
+  /* Room for the italic's overhang and descender inside the clip. */
+  padding: 0.04em 0.06em 0.16em;
+  margin: 0 -0.06em;
+}
+
+.arv-verdict-letter {
+  display: inline-block;
+  font-style: italic;
+  color: #c9a55a;
+  transform-origin: 0 100%;
+}
+
+.arv-verdict-stop {
+  display: inline-block;
+  color: var(--arv-paper);
+}
+
+.arv-verdict-sheen {
+  position: absolute;
+  left: 0;
+  top: 0.04em;
+  font-style: italic;
+  color: transparent;
+  background: linear-gradient(100deg, transparent 38%, rgba(255, 246, 222, 0.95) 50%, transparent 62%) no-repeat;
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  mix-blend-mode: screen;
+}
+
+.arv-verdict-dates {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: clamp(4px, 1.4vh, 16px) 0 0;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--arv-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.arv-verdict-dates i {
+  width: 28px;
+  height: 1px;
+  background: var(--arv-faint);
+}
+
+/* The request as the agency drew it up: the form's term over value, once
+   more, in a single line across the foot of the stage. */
+.arv-record {
+  position: absolute;
+  left: clamp(20px, 6vw, 96px);
+  right: clamp(20px, 6vw, 96px);
+  bottom: clamp(96px, 15vh, 150px);
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
+  justify-content: center;
+  gap: 0 clamp(16px, 2.4vw, 36px);
+  margin: 0;
+}
+
+.arv-record-row {
+  position: relative;
+  min-width: 0;
+  padding-top: 14px;
+}
+
+.arv-record-rule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--arv-hair);
+  transform-origin: left;
+}
+
+.arv-record dt {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--arv-mute);
+}
+
+.arv-record dd {
+  margin: 8px 0 0;
+  overflow: hidden;
+  font: 300 clamp(15px, 1.25vw, 19px) / 1.3 'Noto Serif Display', Georgia, serif;
+  color: var(--arv-paper);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Scenes ────────────────────────────────────────────────────────────── */
+
+.arv-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  padding: 104px var(--arv-gutter) 128px;
+  overflow-y: auto;
+}
+
+.arv-head {
+  max-width: 980px;
+  margin-bottom: clamp(28px, 5vh, 56px);
+}
+
+.arv-q {
+  margin: 0;
+  font-family: var(--arv-serif);
+  font-weight: 300;
+  font-size: clamp(32px, min(5.6vw, 8.6vh), 86px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  color: var(--arv-paper);
+  text-wrap: balance;
+}
+
+.arv-note {
+  max-width: 54ch;
+  margin: 22px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--arv-mute);
+}
+
+.arv-readback {
+  max-width: 60ch;
+  margin: clamp(26px, 5vh, 48px) 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--arv-mute);
+}
+
+.arv-readback em {
+  font-style: normal;
+  color: var(--arv-paper);
+}
+
+.arv-fine {
+  margin: 28px 0 0;
+  font-size: 13px;
+  color: var(--arv-mute);
+}
+
+.arv-error {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #f0a58f;
+}
+
+.arv-error--inline {
+  margin-top: 18px;
+}
+
+/* Inputs share one form: type sitting on a single hairline. */
+.arv input[type='text'],
+.arv input[type='email'],
+.arv input:not([type]) {
+  border: 0;
+  border-bottom: 1px solid var(--arv-hair);
+  border-radius: 0;
+  background: transparent;
+  color: var(--arv-paper);
+  outline: none;
+  transition: border-color 0.3s var(--arv-ease);
+}
+
+.arv input:focus,
+.arv input:focus-visible {
+  border-bottom-color: var(--arv-accent);
+  outline: none;
+  box-shadow: none;
+}
+
+.arv input::placeholder {
+  color: var(--arv-faint);
+}
+
+/* Name */
+.arv-namefield {
+  display: grid;
+  gap: 20px;
+  max-width: 1000px;
+}
+
+.arv-input-name {
+  width: 100%;
+  padding: 0 0 10px;
+  font: 300 calc(clamp(40px, 6.4vw, 104px) * var(--arv-field-scale, 1)) / 1.08 var(--arv-serif);
+  letter-spacing: -0.02em;
+  caret-color: var(--arv-accent);
+}
+
+.arv-input-city {
+  width: min(100%, 520px);
+  padding: 10px 0;
+  font: 400 clamp(18px, 1.6vw, 22px) / 1.3 var(--arv-sans);
+}
+
+/* Mark */
+.arv-markzone {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(200px, 22vw, 300px);
+  aspect-ratio: 1;
+  border: 1px solid var(--arv-hair);
+  border-radius: 4px;
+  background: rgba(242, 236, 227, 0.02);
+  color: var(--arv-paper);
+  cursor: pointer;
+  transition: border-color 0.3s var(--arv-ease), background 0.3s var(--arv-ease), transform 0.3s var(--arv-ease);
+}
+
+.arv-markzone:hover,
+.arv-markzone:focus-visible,
+.arv-markzone.is-over {
+  border-color: var(--arv-accent);
+  background: rgba(242, 236, 227, 0.04);
+  outline: none;
+}
+
+.arv-markzone.is-over {
+  transform: scale(1.03);
+}
+
+.arv-markzone img {
+  max-width: 62%;
+  max-height: 62%;
+  object-fit: contain;
+}
+
+.arv-markzone-initial {
+  font: 300 clamp(96px, 11vw, 160px) / 1 var(--arv-serif);
+  color: var(--arv-faint);
+}
+
+.arv-markzone-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -34px;
+  font-size: 13px;
+  color: var(--arv-mute);
+}
+
+/* Boards */
+.arv-boards {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px clamp(22px, 3vw, 48px);
+  max-width: 1180px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.arv-board {
+  position: relative;
+  padding: 4px 0 10px;
+  border: 0;
+  background: none;
+  font: 300 clamp(32px, 4.3vw, 66px) / 1.12 var(--arv-serif);
+  letter-spacing: -0.015em;
+  color: var(--arv-faint);
+  cursor: pointer;
+  transition: color 0.3s var(--arv-ease);
+}
+
+.arv-board:hover,
+.arv-board:focus-visible {
+  color: var(--arv-mute);
+  outline: none;
+}
+
+.arv-board.is-on {
+  color: var(--arv-paper);
+}
+
+.arv-board-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 1px;
+  background: var(--arv-accent);
+  transform-origin: left;
+}
+
+.arv-board-add input {
+  width: 7.5em;
+  padding: 4px 0 6px;
+  font: italic 300 clamp(24px, 2.6vw, 38px) / 1.2 var(--arv-serif);
+}
+
+/* Minors */
+.arv-binary {
+  display: flex;
+  gap: clamp(40px, 8vw, 140px);
+}
+
+.arv-binary-option {
+  position: relative;
+  padding: 0 0 12px;
+  border: 0;
+  background: none;
+  font: 300 clamp(64px, min(10vw, 17vh), 168px) / 1 var(--arv-serif);
+  letter-spacing: -0.03em;
+  color: var(--arv-mute);
+  cursor: pointer;
+  transition: color 0.3s var(--arv-ease), font-size 0.45s var(--arv-ease);
+}
+
+/* Once the agency says yes, the terms are what matters on screen. */
+.arv-binary.is-compact .arv-binary-option {
+  font-size: clamp(44px, min(5.5vw, 9vh), 88px);
+}
+
+.arv-binary-option.is-on,
+.arv-binary-option:hover {
+  color: var(--arv-paper);
+}
+
+.arv-binary-option.is-off {
+  color: var(--arv-faint);
+}
+
+.arv-binary-option:focus-visible {
+  outline: 1px solid var(--arv-accent);
+  outline-offset: 8px;
+}
+
+.arv-binary-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--arv-accent);
+}
+
+.arv-custody {
+  max-width: 640px;
+}
+
+.arv-custody ul {
+  margin: clamp(20px, 3.5vh, 36px) 0 22px;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--arv-hair);
+}
+
+.arv-custody li {
+  padding: clamp(9px, 1.6vh, 14px) 0;
+  border-bottom: 1px solid var(--arv-hair);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--arv-paper);
+}
+
+/* Checkbox */
+.arv-check {
+  position: relative;
+  text-transform: none;
+  letter-spacing: normal;
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 16px;
+  align-items: start;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--arv-paper);
+  cursor: pointer;
+}
+
+.arv-check input {
+  position: absolute;
+  opacity: 0;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+.arv-check-box {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border: 1px solid var(--arv-mute);
+  border-radius: 3px;
+  transition: background 0.2s var(--arv-ease), border-color 0.2s var(--arv-ease);
+}
+
+.arv-check input:checked + .arv-check-box {
+  background: var(--arv-accent);
+  border-color: var(--arv-accent);
+}
+
+.arv-check input:checked + .arv-check-box::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid var(--arv-ink);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+
+.arv-check input:focus-visible + .arv-check-box {
+  outline: 1px solid var(--arv-accent);
+  outline-offset: 3px;
+}
+
+/* Reply window */
+.arv-window {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: clamp(28px, 6vw, 96px);
+}
+
+.arv-window-figure {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: text;
+}
+
+.arv .arv-window-number {
+  display: inline-block;
+  min-width: 1ch;
+  padding: 0 0 6px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  background: none;
+  font: 300 clamp(96px, min(15vw, 24vh), 240px) / 0.9 var(--arv-serif);
+  letter-spacing: -0.04em;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--arv-paper);
+  caret-color: var(--arv-accent);
+  cursor: text;
+  outline: none;
+  transition: border-color 0.3s var(--arv-ease), color 0.3s var(--arv-ease);
+}
+
+/* Reads as a figure until touched, then as the field it is. */
+.arv .arv-window-figure:hover .arv-window-number {
+  border-bottom-color: var(--arv-hair);
+}
+
+.arv .arv-window-number:focus {
+  border-bottom-color: var(--arv-accent);
+}
+
+.arv .arv-window-number.is-invalid {
+  color: var(--arv-mute);
+  border-bottom-color: #f0a58f;
+}
+
+.arv-error--readback {
+  margin-top: clamp(26px, 5vh, 48px);
+  font-size: 16px;
+}
+
+.arv-window-unit {
+  font: italic 300 clamp(22px, 2.2vw, 34px) / 1 var(--arv-serif);
+  color: var(--arv-mute);
+}
+
+.arv-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(64px, 1fr));
+  flex: 1 1 420px;
+  max-width: 620px;
+  padding-bottom: 14px;
+}
+
+.arv-track-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 9px;
+  height: 1px;
+  background: var(--arv-hair);
+}
+
+.arv-track-stop {
+  display: grid;
+  justify-items: start;
+  gap: 18px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 13px/1 var(--arv-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--arv-mute);
+  cursor: pointer;
+  transition: color 0.2s var(--arv-ease);
+}
+
+.arv-track-stop:hover,
+.arv-track-stop.is-on {
+  color: var(--arv-paper);
+}
+
+.arv-track-stop:focus-visible {
+  outline: none;
+  color: var(--arv-accent);
+}
+
+.arv-track-tick {
+  position: relative;
+  width: 1px;
+  height: 19px;
+  background: var(--arv-faint);
+}
+
+.arv-track-knob {
+  position: absolute;
+  top: 2px;
+  margin-left: -7px;
+  z-index: 1;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--arv-accent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--arv-accent) 60%, transparent);
+}
+
+/* Team */
+.arv-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 18px 28px;
+  max-width: 900px;
+}
+
+.arv-invite input {
+  flex: 1 1 320px;
+  padding: 8px 0 12px;
+  font: 300 clamp(26px, 2.8vw, 40px) / 1.2 var(--arv-serif);
+}
+
+.arv-roles {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 12px;
+}
+
+.arv-role,
+.arv-invite-add,
+.arv-invitee-remove,
+.arv-back {
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: var(--arv-mute);
+  font: 500 13px/1 var(--arv-sans);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.2s var(--arv-ease), border-color 0.2s var(--arv-ease), background 0.2s var(--arv-ease);
+}
+
+.arv-role:hover,
+.arv-invitee-remove:hover,
+.arv-back:hover {
+  color: var(--arv-paper);
+}
+
+.arv-role.is-on {
+  border-color: var(--arv-hair);
+  color: var(--arv-paper);
+}
+
+.arv-invite-add {
+  margin-bottom: 12px;
+  border-color: var(--arv-hair);
+  color: var(--arv-paper);
+}
+
+.arv-invite-add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.arv :is(button):focus-visible {
+  outline: 1px solid var(--arv-accent);
+  outline-offset: 3px;
+}
+
+.arv-invitees {
+  max-width: 900px;
+  margin: 30px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.arv-invitees li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--arv-hair);
+}
+
+.arv-invitees li:last-child {
+  border-bottom: 1px solid var(--arv-hair);
+}
+
+.arv-invitee-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 16px;
+}
+
+.arv-invitee-role {
+  font-size: 13px;
+  color: var(--arv-mute);
+}
+
+/* Policies */
+.arv-policies {
+  display: grid;
+  gap: 0;
+  max-width: 760px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--arv-hair);
+}
+
+.arv-policies li {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--arv-hair);
+}
+
+.arv-policy-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin-bottom: 6px;
+}
+
+.arv-policy-title a {
+  color: var(--arv-paper);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--arv-faint);
+  text-underline-offset: 4px;
+}
+
+.arv-policy-title a:hover {
+  text-decoration-color: var(--arv-accent);
+}
+
+.arv-policy-version {
+  font-size: 12px;
+  color: var(--arv-mute);
+}
+
+.arv-policy-copy {
+  display: block;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+  color: var(--arv-mute);
+}
+
+/* Threshold */
+.arv-threshold {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  align-items: center;
+  gap: clamp(32px, 6vw, 110px);
+}
+
+.arv-threshold .arv-head {
+  margin: 0;
+}
+
+.arv-plate {
+  padding: clamp(26px, 3vw, 40px);
+  border: 1px solid var(--arv-hair);
+  border-radius: 6px;
+  background: linear-gradient(160deg, rgba(242, 236, 227, 0.06), rgba(242, 236, 227, 0.015));
+  box-shadow: 0 40px 120px -40px color-mix(in srgb, var(--arv-accent) 40%, transparent);
+}
+
+.arv-plate-id {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--arv-hair);
+}
+
+.arv-plate-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 60px;
+  height: 60px;
+  border: 1px solid var(--arv-hair);
+  border-radius: 4px;
+  font: 300 32px/1 var(--arv-serif);
+  color: var(--arv-paper);
+}
+
+.arv-plate-mark img {
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+}
+
+.arv-plate-name {
+  display: block;
+  font: 300 clamp(26px, 2.4vw, 36px) / 1.1 var(--arv-serif);
+  overflow-wrap: anywhere;
+}
+
+.arv-plate-city {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--arv-mute);
+}
+
+.arv-plate-facts {
+  margin: 0;
+}
+
+.arv-plate-facts > div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--arv-hair);
+}
+
+.arv-plate-facts dt {
+  font-size: 12px;
+  color: var(--arv-mute);
+}
+
+.arv-plate-facts dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.arv-plate-site {
+  margin: 18px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--arv-mute);
+}
+
+/* ── Controls ──────────────────────────────────────────────────────────── */
+
+.arv-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 clamp(20px, 4vw, 56px) clamp(22px, 4vh, 40px) var(--arv-gutter);
+  pointer-events: none;
+}
+
+.arv-controls > * {
+  pointer-events: auto;
+}
+
+.arv-back {
+  margin-left: -12px;
+}
+
+.arv-controls-primary {
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+  max-width: 460px;
+  text-align: right;
+}
+
+/* The way forward: the word alone. */
+.arv-advance {
+  position: relative;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  font: 400 15px/1 var(--arv-sans);
+  letter-spacing: 0.02em;
+  color: rgba(242, 236, 227, 0.82);
+  cursor: pointer;
+  transition: color 0.4s var(--arv-ease);
+}
+
+.arv-advance::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arv-advance:hover:not(:disabled),
+.arv-advance:focus-visible {
+  color: var(--arv-paper);
+}
+
+.arv-advance:hover:not(:disabled)::after,
+.arv-advance:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.arv .arv-advance:focus-visible {
+  outline: none;
+}
+
+.arv-advance:disabled {
+  color: rgba(242, 236, 227, 0.28);
+  cursor: default;
+}
+
+.arv-advance--final {
+  color: #d9bd80;
+}
+
+.arv-advance--final:hover:not(:disabled),
+.arv-advance--final:focus-visible {
+  color: #ecd6a4;
+}
+
+.arv-advance.is-busy {
+  animation: arv-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes arv-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* ── Fault ─────────────────────────────────────────────────────────────── */
+
+.arv-fault {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 18px;
+  padding: 0 var(--arv-gutter);
+}
+
+.arv-fault h1 {
+  margin: 0;
+  font: 300 clamp(32px, 4vw, 56px) / 1.1 var(--arv-serif);
+}
+
+.arv-fault p {
+  margin: 0 0 12px;
+  max-width: 52ch;
+  color: var(--arv-mute);
+}
+
+/* ── Narrow screens ────────────────────────────────────────────────────── */
+
+@media (max-width: 760px) {
+  .arv-lockup {
+    gap: 14px;
+  }
+
+  .arv-word--pholio {
+    font-size: 15px;
+  }
+
+  .arv-word--agency {
+    font-size: calc(min(10.5vw, 72px) * var(--arv-name-scale, 1));
+  }
+
+  .arv-rule-box {
+    height: 44px;
+  }
+
+  .arv-scene {
+    justify-content: flex-start;
+    padding-top: 96px;
+  }
+
+  .arv-threshold {
+    grid-template-columns: 1fr;
+  }
+
+  .arv-plate-facts > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .arv-credits {
+    bottom: 22px;
+    font-size: 11px;
+  }
+
+  .arv-credits--right {
+    right: 20px;
+  }
+
+  .arv-verdict-word {
+    font-size: clamp(30px, 9vw, 44px);
+  }
+
+  .arv-verdict-dates {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .arv-verdict-dates i {
+    display: none;
+  }
+
+  .arv-record {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    bottom: 96px;
+  }
+
+  .arv-verdict {
+    top: calc(42% + 22px + 28px);
+  }
+
+  .arv-credits--right {
+    display: none;
+  }
+
+  .arv-track {
+    grid-template-columns: repeat(5, 1fr);
+    flex-basis: 100%;
+  }
+
+  .arv-binary {
+    gap: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arv * {
+    transition-duration: 0.01ms !important;
+  }
+}

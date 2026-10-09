@@ -71,6 +71,16 @@ export default function AgencySessionGate() {
     return <Navigate to={`/dashboard/agency/setup?returnTo=${encodeURIComponent(next)}`} replace />;
   }
 
+  // Arrival owns the whole first run, workspace policies included, so the
+  // agency meets Pholio before it meets a policy sheet.
+  if (!data.agencyOnboardingCompletedAt && isSetupRoute) {
+    return (
+      <AgencyPermissionsProvider session={data}>
+        <Outlet />
+      </AgencyPermissionsProvider>
+    );
+  }
+
   return (
     <AgencyPermissionsProvider session={data}>
       <AgencyLegalAcceptanceGate statusQuery={legalStatusQuery}>

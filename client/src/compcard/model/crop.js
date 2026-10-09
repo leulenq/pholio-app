@@ -137,8 +137,9 @@ export function solveCrop(s, aspect, opts = {}) {
   const chRes = opts.frameHeightIn ? Math.min(ch0, opts.frameHeightIn * PPI_TARGET) : 0;
   const t = TARGET[role] || TARGET.whole;
   let ch;
-  if (t.face && s.face) ch = (s.face.size * H) / t.face;
+  if (t.face && s.face && !opts.target) ch = (s.face.size * H) / t.face;
   else ch = ch0;
+  if (opts.target?.zoom) ch = ch / opts.target.zoom;
   if (opts.adjust?.zoom) ch = ch / opts.adjust.zoom;
   ch = clamp(ch, Math.max(chMin, chRes), ch0);
   const cw = ch * aspect;
@@ -166,6 +167,14 @@ export function solveCrop(s, aspect, opts = {}) {
   } else {
     cx = ((R.x0 + R.x1) / 2);
     top = R.y0 - 0.4 * (ch - Rh);
+  }
+  // Art-directed framing: land the face centre at (tx, ty) of the frame,
+  // the way a designer places a portrait. The clamps below still enforce
+  // the protected region and the image bounds.
+  if (opts.target && face && !(opts.adjust && opts.adjust.x != null)) {
+    const fcy = (face.box.y + face.box.h / 2) * H;
+    cx = face.cx * W + (0.5 - (opts.target.tx ?? 0.5)) * cw;
+    top = fcy - (opts.target.ty ?? 0.36) * ch;
   }
   if (opts.adjust && opts.adjust.x != null) cx = opts.adjust.x * W;
   if (opts.adjust && opts.adjust.y != null) top = opts.adjust.y * H - ch / 2;

@@ -393,6 +393,9 @@ app.post(
   stripeWebhookHandler,
 );
 
+// Comp card cutouts (studio-computed RGBA PNGs) exceed the default 100kb;
+// scoped to that one endpoint so the global limit stays tight.
+app.use("/api/talent/compcard/cutouts", express.json({ limit: "18mb" }));
 app.use(express.json());
 
 // Configure session store with serverless-friendly settings
@@ -724,6 +727,7 @@ app.use(
 );
 app.use("/api/public/opencall/call", onboardingLimiter);
 app.use("/api/public/agency-access-requests", authLimiter);
+app.use("/api/public/launch-notifications", authLimiter);
 app.use("/upload", uploadLimiter);
 app.use("/api/talent/media", uploadLimiter);
 app.use("/api/talent/comp-card-import", uploadLimiter);
@@ -879,6 +883,11 @@ app.get("/api/migrate/status", async (req, res) => {
     });
   }
 });
+
+// Talent launch gate: holds talent signup and talent surfaces closed until
+// launch (shared/lib/talent-launch.js). Before the auth routes so /signup is
+// covered; agency sessions pass untouched.
+app.use(require("./shared/middleware/talent-launch-gate").requireTalentLaunchOpen());
 
 // Authentication routes (early for session establishment)
 app.use(instagramAuthRoutes);

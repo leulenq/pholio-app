@@ -139,79 +139,100 @@ export function TalentActionBar({ applicationId, profileId, slug, status, contex
     { key: 'keepOnFile', Icon: Bookmark, label: isKeptOnFile ? 'On File' : 'Keep on File', disabled: isPending || isKeptOnFile, onClick: () => keepOnFile.mutate(), title: 'Keep on file for future consideration (a soft pass, not a decline)' },
   ] : [];
 
-  // ---- Compact (panel) layout: primary decisions + a "More" overflow ----
+  // ---- Compact (panel) layout ----
+  // One decision row that always spans the drawer: the next step for this
+  // application takes the remaining width, utilities sit flush right at the
+  // same height. A settled application (represented / declined) has no next
+  // step to press, so the useful action — the comp card — takes the slot
+  // instead of a disabled button restating what the stepper already says.
   if (compact) {
+    const settled = isRepresented || isDeclined;
+    const canCompCard = slug && can('talent.download_comp_card');
+
+    let lead = null;
+    if (context === 'discover') {
+      lead = inviteBtn && (
+        <button className="tact-btn tact-btn--primary tact-btn--grow" disabled={invite.isPending} onClick={() => invite.mutate()}>
+          <UserPlus size={15} /> {invite.isPending ? 'Inviting…' : 'Invite to apply'}
+        </button>
+      );
+    } else if (isPipeline && applicationId && !settled) {
+      lead = isAccepted ? (
+        <AgencyButton
+          variant="primary"
+          className="tact-grow"
+          loading={isPending}
+          onClick={() => confirmRepresentation.mutate()}
+          icon={<Check size={15} />}
+        >
+          Mark represented
+        </AgencyButton>
+      ) : (
+        <>
+          {can('applications.accept') && (
+            <AgencyButton variant="primary" className="tact-grow" loading={isPending} onClick={() => accept.mutate()} icon={<Check size={15} />}>
+              Offer representation
+            </AgencyButton>
+          )}
+          {can('applications.decline') && (
+            <DeclineButton loading={isPending} onClick={() => decline.mutate()} />
+          )}
+        </>
+      );
+    }
+
+    // With no decision to make, the comp card is the row's lead action.
+    const compCardLead = !lead && canCompCard;
+    if (compCardLead) {
+      lead = (
+        <button className="tact-btn tact-btn--grow" disabled={downloading} onClick={handleCompCard}>
+          <Download size={15} /> {downloading ? 'Preparing…' : 'Download comp card'}
+        </button>
+      );
+    }
+
+    const moreItems = settled ? [] : secondary;
+    const showMore = moreItems.length > 0 || (canCompCard && !compCardLead);
+
     return (
       <div className="tact-row tact-row--compact">
-        {inviteBtn}
+        {lead || <span className="tact-grow" aria-hidden="true" />}
 
-        {isPipeline && applicationId && (
-          isRepresented ? (
-            can('applications.accept') && (
-              <AgencyButton variant="primary" disabled icon={<Check size={15} />}>
-                Represented
-              </AgencyButton>
-            )
-          ) : isAccepted ? (
-            <AgencyButton
-              variant="primary"
-              loading={isPending}
-              onClick={() => confirmRepresentation.mutate()}
-              icon={<Check size={15} />}
-            >
-              Mark represented
-            </AgencyButton>
-          ) : isDeclined ? (
-            <AgencyButton variant="secondary" disabled icon={<X size={15} />}>
-              Declined
-            </AgencyButton>
-          ) : (
-            <>
-              {can('applications.accept') && (
-                <AgencyButton variant="primary" loading={isPending} onClick={() => accept.mutate()} icon={<Check size={15} />}>
-                  Offer representation
-                </AgencyButton>
-              )}
-              {can('applications.decline') && (
-                <DeclineButton loading={isPending} onClick={() => decline.mutate()} />
-              )}
-            </>
-          )
-        )}
-
-        {secondary.length > 0 && (
-          <div className="tact-board" ref={moreRef}>
-            <button className="tact-btn tact-btn--icon" title="More actions" aria-label="More actions" onClick={() => setMoreOpen((o) => !o)}>
-              <MoreHorizontal size={16} />
-            </button>
-            {moreOpen && (
-              <div className="tact-menu tact-menu--right">
-                <div className="tact-menu-head">More actions</div>
-                {secondary.map(({ key, Icon, label, disabled, onClick, title }) => (
-                  <button
-                    key={key}
-                    className="tact-menu-item tact-menu-item--icon"
-                    disabled={disabled}
-                    title={title}
-                    onClick={() => { onClick(); setMoreOpen(false); }}
-                  >
-                    <Icon size={14} strokeWidth={1.8} /> {label}
-                  </button>
-                ))}
-                {slug && can('talent.download_comp_card') && (
-                  <button className="tact-menu-item tact-menu-item--icon" disabled={downloading} onClick={() => { handleCompCard(); setMoreOpen(false); }}>
-                    <Download size={14} strokeWidth={1.8} /> {downloading ? 'Preparing…' : 'Download comp card'}
-                  </button>
+        {(showMore || boardPicker) && (
+          <div className="tact-utils">
+            {boardPicker}
+            {showMore && (
+              <div className="tact-board" ref={moreRef}>
+                <button className="tact-btn tact-btn--icon" title="More actions" aria-label="More actions" aria-expanded={moreOpen} onClick={() => setMoreOpen((o) => !o)}>
+                  <MoreHorizontal size={16} />
+                </button>
+                {moreOpen && (
+                  <div className="tact-menu tact-menu--right">
+                    {moreItems.map(({ key, Icon, label, disabled, onClick, title }) => (
+                      <button
+                        key={key}
+                        className="tact-menu-item tact-menu-item--icon"
+                        disabled={disabled}
+                        title={title}
+                        onClick={() => { onClick(); setMoreOpen(false); }}
+                      >
+                        <Icon size={14} strokeWidth={1.8} /> {label}
+                      </button>
+                    ))}
+                    {canCompCard && !compCardLead && (
+                      <>
+                        {moreItems.length > 0 && <div className="tact-menu-rule" role="separator" />}
+                        <button className="tact-menu-item tact-menu-item--icon" disabled={downloading} onClick={() => { handleCompCard(); setMoreOpen(false); }}>
+                          <Download size={14} strokeWidth={1.8} /> {downloading ? 'Preparing…' : 'Download comp card'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             )}
           </div>
         )}
-
-        {/* Discover has no pipeline actions — surface the comp-card download inline there. */}
-        {!isPipeline && compCardBtn}
-
-        {boardPicker}
       </div>
     );
   }

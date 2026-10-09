@@ -25,6 +25,8 @@ const {
   buildGuardianConsentEmailHtml,
   buildTrialEndingEmailHtml,
   buildEventSlotEmailHtml,
+  buildLaunchOpenEmailHtml,
+  launchOpenEmailText,
 } = require("./pholio-email");
 
 /**
@@ -508,6 +510,19 @@ async function sendMaterialsRequestedEmail({ to, agencyName, items }) {
  * not a product update — suppressing it would be the exact dark pattern ROSCA
  * exists to prevent — so it is sent like the security emails above.
  */
+/**
+ * Launch-day notice to an address from the pholio-site notify list.
+ * Sent only by scripts/send-launch-notifications.js.
+ */
+async function sendLaunchOpenEmail({ to }) {
+  return sendEmail({
+    to,
+    subject: "Pholio is open",
+    html: buildLaunchOpenEmailHtml(),
+    text: launchOpenEmailText(),
+  });
+}
+
 async function sendTrialEndingEmail({
   to,
   firstName,
@@ -573,6 +588,7 @@ async function sendEventSlotDeclinedEmail({
 }
 
 module.exports = {
+  sendLaunchOpenEmail,
   sendEmail,
   sendApplicationStatusEmail,
   sendEventSlotConfirmedEmail,
