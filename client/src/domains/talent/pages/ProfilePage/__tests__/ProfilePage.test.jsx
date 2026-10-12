@@ -203,6 +203,13 @@ describe('ProfilePage Component', () => {
   test('adds a bookout from a date field without submitting the profile form', async () => {
     talentApi.getProfile.mockResolvedValue({ profile: mockProfile });
     talentApi.createBookout.mockResolvedValue({});
+    // Keep the fixture valid as time passes; this test exercises submission.
+    const startsDate = new Date();
+    startsDate.setDate(startsDate.getDate() + 7);
+    const endsDate = new Date(startsDate);
+    endsDate.setDate(endsDate.getDate() + 2);
+    const startsOn = startsDate.toISOString().slice(0, 10);
+    const endsOn = endsDate.toISOString().slice(0, 10);
 
     render(
       <QueryClientProvider client={queryClient}>
@@ -218,16 +225,16 @@ describe('ProfilePage Component', () => {
 
     const startsInput = screen.getByLabelText('Starts');
     const endsInput = screen.getByLabelText('Ends');
-    fireEvent.change(startsInput, { target: { value: '2026-09-10' } });
-    fireEvent.change(endsInput, { target: { value: '2026-09-12' } });
+    fireEvent.change(startsInput, { target: { value: startsOn } });
+    fireEvent.change(endsInput, { target: { value: endsOn } });
     endsInput.focus();
     const user = userEvent.setup();
     await user.keyboard('{Enter}');
 
     await waitFor(() => {
       expect(talentApi.createBookout).toHaveBeenCalledWith({
-        starts_on: '2026-09-10',
-        ends_on: '2026-09-12',
+        starts_on: startsOn,
+        ends_on: endsOn,
         note: null,
       });
     });
