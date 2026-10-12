@@ -50,10 +50,12 @@
     "setup:env": "node scripts/setup-env.js",
     "setup:stripe-billing": "node scripts/setup-stripe-billing.js --write",
     "build:migrate": "npm run migrate && npm run build",
-    "netlify:cache-bust": "echo 3"
+    "netlify:cache-bust": "echo 3",
+    "test:netlify-runtime": "node --test tests/runtime/netlify-runtime.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1008.0",
+    "@netlify/aws-lambda-compat": "2.0.0",
     "@sparticuz/chromium": "^149.0.0",
     "@techstark/opencv-js": "^4.11.0-release.1",
     "ajv": "^8.20.0",

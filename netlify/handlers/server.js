@@ -7,4 +7,6 @@ require("express-ejs-layouts");
 const serverless = require("serverless-http");
 const app = require("../../src/app");
 
-exports.handler = serverless(app);
+// The modern adapter decodes base64 responses, preserving PDF/image bytes
+// as well as ordinary text without a lossy UTF-8 conversion.
+exports.handler = serverless(app, { binary: true });
