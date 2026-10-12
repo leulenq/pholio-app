@@ -23,7 +23,7 @@
 
 [functions."server"]
   timeout = 26
-  memory = 3008
+  # Use the platform default (1024 MB); custom memory requires a credit-based Pro plan.
   # Keep Lambda below AWS package limits. The full publish directory is still
   # deployed as static files; the function only needs runtime templates and
   # small static assets it reads directly.
