@@ -98,6 +98,7 @@
     if (window.location.protocol === "https:") parts.push("secure");
 
     document.cookie = parts.join("; ");
+    window.dispatchEvent(new CustomEvent("pholio:consent-changed"));
   }
 
   function render() {

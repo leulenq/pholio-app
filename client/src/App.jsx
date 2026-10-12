@@ -7,6 +7,7 @@ import AuthLayout from './shared/layouts/AuthLayout';
 import AgencyLayout from './shared/layouts/AgencyLayout';
 import AgencySessionGate from './domains/agency/components/AgencySessionGate';
 import CookieConsentBanner from './shared/components/CookieConsentBanner';
+import GoogleAnalytics from './shared/components/GoogleAnalytics';
 import PageLoadingScreen from './shared/components/shared/PageLoadingScreen';
 
 const LoginPage = lazy(() => import('./domains/auth/pages/LoginPage/LoginPage'));
@@ -92,6 +93,7 @@ function App() {
     <ErrorBoundary boundary="app-root">
       <PholioAuthBridge />
       <CookieConsentBanner />
+      <GoogleAnalytics />
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           {/* Root redirects */}
