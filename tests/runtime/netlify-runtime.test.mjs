@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const adaptHandler = require('../../netlify/handlers/runtime-adapter.js');
+const { default: adaptHandler } = await import('../../netlify/handlers/runtime-adapter.mjs');
 const express = require('express');
 const serverless = require('serverless-http');
 const context = { requestId: 'runtime-test' };
