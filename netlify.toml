@@ -13,6 +13,12 @@
   NODE_VERSION = "22"
   NPM_FLAGS = "--include=optional"
 
+[context.production.environment]
+  # Browser analytics is compiled by Vite; keep these out of Lambda runtime variables.
+  VITE_GA_MEASUREMENT_ID = "G-2BBQXGH7EP"
+  VITE_GA_ENABLED = "false"
+  VITE_GA_DEBUG = "false"
+
 [functions]
   # Use conventional Netlify functions directory so the server handler
   # is definitely deployed at `/.netlify/functions/server`.
