@@ -10,7 +10,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
         import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-analytics.js";
 
         const firebaseConfig = <%- JSON.stringify(firebaseConfig || {}) %>;
 
@@ -19,14 +18,6 @@
                 const app = initializeApp(firebaseConfig);
                 window.firebaseApp = app;
                 window.firebaseAuth = getAuth(app);
-                
-                if (firebaseConfig.measurementId) {
-                    try {
-                        window.firebaseAnalytics = getAnalytics(app);
-                    } catch (e) {
-                         console.warn('Firebase Analytics failed to initialize:', e);
-                    }
-                }
                 
                 console.log('Firebase initialized successfully in layout');
             } catch (error) {
@@ -62,5 +53,8 @@
          persistent visitor identifier, and that tracking is gated on this
          choice server-side, so this surface has to be able to ask. -->
     <script src="/scripts/cookie-consent.js" defer></script>
+    <% if (typeof googleAnalyticsId !== 'undefined' && googleAnalyticsId) { %>
+    <script id="pholio-google-analytics" type="module" src="/scripts/google-analytics-ejs.mjs" data-measurement-id="<%= googleAnalyticsId %>"></script>
+    <% } %>
 </body>
 </html>

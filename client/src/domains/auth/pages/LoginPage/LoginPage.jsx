@@ -28,6 +28,7 @@ import {
 import { goToDestination } from '../../lib/spa-navigation';
 import styles from './LoginPage.module.css';
 import { sameOriginMutationHeaders } from '../../../../shared/lib/same-origin-request';
+import { trackAnalyticsEvent } from '../../../../shared/lib/google-analytics';
 import { resetTalentLaunchStatus } from '../../../../shared/lib/talent-launch/status';
 
 const EASE = [0.16, 1, 0.3, 1];
@@ -368,6 +369,7 @@ export default function LoginPage() {
         throw new Error(errorMessage);
       }
 
+      trackAnalyticsEvent('login', identity.method);
       resetTalentLaunchStatus();
       const target = data.redirect || from;
       // Refine, never restart: the transition is already running with the name

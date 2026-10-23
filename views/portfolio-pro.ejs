@@ -20,5 +20,8 @@
          persistent visitor identifier, and that tracking is gated on this
          choice server-side, so this surface has to be able to ask. -->
     <script src="/scripts/cookie-consent.js" defer></script>
+    <% if (typeof googleAnalyticsId !== 'undefined' && googleAnalyticsId) { %>
+    <script id="pholio-google-analytics" type="module" src="/scripts/google-analytics-ejs.mjs" data-measurement-id="<%= googleAnalyticsId %>"></script>
+    <% } %>
 </body>
 </html>

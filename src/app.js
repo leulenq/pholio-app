@@ -353,8 +353,10 @@ app.use(
         // has no nonce yet, so 'unsafe-inline' is required for now.
         // 'wasm-unsafe-eval': the comp card studio runs MediaPipe (WebAssembly)
         // to find faces and bodies before cropping.
-        scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", "https://www.gstatic.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", "https://www.gstatic.com", "https://www.googletagmanager.com"],
         imgSrc: [
+          "https://www.google-analytics.com",
+          "https://region1.google-analytics.com",
           "'self'",
           "data:",
           "blob:",
@@ -366,6 +368,9 @@ app.use(
           "https://*.r2.cloudflarestorage.com",
         ],
         connectSrc: [
+          "https://www.google-analytics.com",
+          "https://region1.google-analytics.com",
+          "https://analytics.google.com",
           "'self'",
           "https://*.googleapis.com", // Firebase Auth/Firestore REST + Google Fonts CSS
           "https://*.firebaseio.com",
@@ -380,6 +385,9 @@ app.use(
     crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
   }),
 );
+// Set before sessions, auth, routes and static files so private errors/redirects
+// receive the same search policy. This does not change access control.
+app.use(require("./shared/middleware/search-indexing").searchIndexing);
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 

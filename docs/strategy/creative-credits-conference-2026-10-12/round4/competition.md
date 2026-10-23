@@ -1,0 +1,35 @@
+# Round 4 — Competition: Mosaic defeats the generic thesis, not every possible business
+
+**[BET] Vote: REJECT a rebuild around universal verified creative credits. Authorize comparison research only.** The strongest rival for that thesis is Mosaic; the strongest rival for the proposed casting desk is the organizer’s existing Forms, spreadsheets and portfolio links. Neither is defeated by changing Pholio’s headline.
+
+## What Mosaic actually establishes
+
+[FACT] The March launch describes free public creative-work records, Creator IDs, collaborators and a professional credential backed by the CGA. It reports more than 12,000 **CGA registered creators being onboarded**, not 12,000 active Mosaic users. Its leadership and existing institutional ecosystem predate the product: [launch release](https://creatorsguildofamerica.org/en/news/creators-guild-of-america-mosaic-launch). [ASSUMPTION] Institutional legitimacy and access give it a distribution advantage over two unknown founders; they do not establish sustained use or profitable demand.
+
+[FACT] Current [help documentation](https://creatorsguildofamerica.org/mosaic-help) specifies: free profiles and authenticated credits; company-domain approver emails, rejecting personal addresses; optional collaborators, capped at five; unanswered requests removed after seven days; historical contributions can be confirmed by a current contact, with issuance date reflecting authentication rather than original work. A freelancer with their own business domain may self-approve. Cancelling membership leaves credits intact. The guide inconsistently describes invitations by email versus username/Creator ID. [ASSUMPTION] These are documented mechanics, not independently tested operational reliability. Domain possession establishes a source, not eyewitness authority, completed work or good conduct.
+
+[FACT] The [$99 annual application](https://creatorsguildofamerica.org/en/apply) pays for reviewed CGA membership and verification, with refunded rejected applications; it is not a $99 toll to authenticate credits. Membership bundles additional benefits. **[ASSUMPTION] “We will make credits free” therefore offers no price advantage.** Nor can Pholio copy this price and infer willingness to buy credits: the guild sells a broader institutional bundle.
+
+[FACT] An actual, unauthenticated [public Mosaic profile](https://mosaic.creatorsguildofamerica.org/joshlilj) displays 33 credits, four certifications, zero collaborations and company-domain authentication labels, including an own-business domain. [ASSUMPTION] This proves more than a landing-page promise, but does not independently establish each contribution or distinguish media coverage from commissioned employment. We must examine specific roles and evidence before treating a prestigious domain as a prestigious job.
+
+[FACT] Current [terms](https://mosaic.creatorsguildofamerica.org/terms), updated October 2, discuss future brand Purple Seals; the [partners page](https://creatorsguildofamerica.org/partners) already advertises brand authentication and names partners. [ASSUMPTION] Marketing language and future-tense terms should not be merged into a claim that every brand feature is shipped. Sponsorships, education and events establish guild activities, not documented bulk show issuance, designer shortlist coordination or an organizer roster API. **No documentation found is not proof no feature exists.**
+
+[FACT] CGA’s [official first-month post](https://www.linkedin.com/posts/creators-guild-of-america_creators-guild-of-america-mosaic-for-digital-activity-7455783467398615040-gNgc) reports nearly 1,000 created Mosaic profiles starting to add credits. [ASSUMPTION] This can coexist with 12,000 CGA registrations: different populations and dates. Neither measures monthly active users, repeat credit creation, confirmations, hirer visits, revenue or hires. Treat both as organization-reported acquisition figures, not independently audited traction.
+
+## The named attacks
+
+**Founder:** [ASSUMPTION] You correctly retract the universal record, but calling intake an independent wedge is premature. Kavyar’s [jobs documentation](https://help.kavyar.com/article/2mywaf3zfk-how-to-post-a-job) already describes applicant management. FWB access is a relationship, not exclusivity or a category moat. Prove a particular costly coordination failure before renaming existing modules a business.
+
+**Creative:** [ASSUMPTION] Your earlier “safe photographer” reader is dangerously attractive. Actual productions can coexist with abuse, and positive confirmations can be solicited selectively. A team history could help someone identify a reference; that is different from establishing safety. Also, collaborator-owned portfolios are not novel: [Kavyar’s team-credit guide](https://help.kavyar.com/article/jzdbs3f6zg-how-to-add-team-credits-to-a-photo) says updates affect collaborator profiles. I withdraw my own earlier too-narrow Kavyar framing.
+
+**VC:** [ASSUMPTION] Your revised paid casting desk is more defensible than charging applicants, but reuse could mean a spreadsheet saved between seasons. A founder-owned portfolio graph is unnecessary if organizers prefer their own applicant database. Demand a comparison against the existing stack and an independent renewal, not adoption generated by friendship.
+
+## Why the other competitors still matter
+
+[FACT] [Visie](https://visie.io/faq) combines reviewed portfolios, team tagging, search and company profiles while explicitly leaving contracts/payments outside its product. [ASSUMPTION] “Fashion creatives without payments” therefore is occupied too. Mosaic competes most directly on authenticated career history; Visie on creative discovery; Kavyar on the publication and application workflow; Models.com on established fashion credits and reader authority; Contra on project proof and professional discovery. [FACT] Contra’s [homepage-feature guide](https://help.contra.com/en/articles/10628390-how-we-feature-work-on-contra-s-homepage) expressly includes verified projects. [ASSUMPTION] Their different mechanisms leave research questions, not a clean white space.
+
+## Why not use Mosaic for FWB?
+
+**[BET] We should try it before rebuilding it.** With authorization and consenting adults, document a small sample of completed FWB work using an actual knowledgeable organizer contact. Compare individual effort, domain eligibility, full-team coverage, corrections, consent and reader usefulness against existing portfolio links. Do not invent an API, presume bulk tooling or imply a partnership.
+
+[BET] A demonstrated failure for one workflow justifies testing that workflow’s remedy. It does not justify a universal creative identity network. If Mosaic suffices for credits and Forms suffices for intake, stop this pivot. If repeat organizers buy meaningful coordination improvements, build that narrow business and link out to existing records. The remaining defensible truth is a testable operational hypothesis, not the room’s third consensus.

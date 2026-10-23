@@ -1076,3 +1076,7 @@ Rules:
 ## 2026-10-08 — Respect the selected audio version at handoff
 
 - The owner preferred the previous vocal-design mix over stronger narrative masks. Treat explicit version selection as authoritative: hand off that exact source, identify it clearly, and preserve approved timing. Do not promote a later experimental version because its processing is more elaborate.
+
+## 2026-10-12 — Strategy questions: search the problem space before the asset base
+
+- When the owner asks what Pholio should become "from first principles", do not start from the existing product, codebase, or industry. First pick out important problems from unrelated domains using explicit criteria (stakes, a forcing deadline, someone who already pays, structural gap in incumbents, founder access). Only then judge whether existing assets transfer. Treat reuse of current code or domain as a tie-breaker, never the selection criterion.

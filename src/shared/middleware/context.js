@@ -193,6 +193,11 @@ async function attachLocals(req, res, next) {
     delete req.session.messages;
   }
 
+  // A validated public identifier only; production must opt in explicitly.
+  const gaId = process.env.GA_MEASUREMENT_ID || "";
+  res.locals.googleAnalyticsId = process.env.NODE_ENV === "production" &&
+    process.env.GA_ENABLED === "true" && /^G-[A-Z0-9]+$/.test(gaId) ? gaId : "";
+
   // Add Firebase config to res.locals for client-side use
   // Include all fields from official Firebase config object
   res.locals.firebaseConfig = {

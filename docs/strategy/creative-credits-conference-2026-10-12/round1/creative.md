@@ -1,0 +1,34 @@
+# Round 1: Creative (freelance NYC stylist with model and photographer friends)
+
+## 1. Verdict
+The thesis builds a museum of my past work for hirers who have never asked for one, and it pays for that museum with my attention. I already have Instagram, a group chat and three people who refer me, so I will not open a second record unless it does a job I currently do by hand on every shoot.
+
+## 2. My three strongest arguments
+
+**A. My next job comes from a person, not a record, so a record gives me nothing on day one.** [FACT] 75–82% of fashion and film jobs come through contacts ([Bectu](https://bectu.org.uk/news/three-quarters-of-creative-industries-jobs-go-to-friends-and-connections-reveals-bectus-bectu-survey)), and casting directors "frequently contact talent agents to ask for referrals" ([WA AG](https://atg.wa.gov/modeling-agencies-teens)). R4 found no source of any fashion or photo hirer asking "is this credit verified?" [FACT, R4 §Against 2]. The vetting unit is the images and the reel ([Creative Commission](https://creative-commission.com/briefs/brief-9959)). When someone refers me, the referrer is the verification. A verified credit line answers a question nobody in my world is asking. Every product built on "curate your record" died or pivoted: Polywork returned its capital, Read.cv was acqui-hired, Clowdy is gone, and The Dots became white-label software [FACT, R1 §7, §10, Patterns 1 and 10].
+
+**B. Credit breaks down at the shoot, before any posting, and the admin there is real.** [FACT] Kavyar will not accept an indie-magazine submission unless the whole team is credited "at the time of submission" with Instagram handles, and publishers may charge non-refundable fees ([Kavyar](https://help.kavyar.com/article/p03wnxoixc)). To pull samples I need a pull letter that names the parties, the shoot and the dates. Showrooms favour requests with "prestigious credits", and Flanelle Magazine now sells pull letters at a fixed fee ($16.99 on its page) and restricts them to members of its directory ([Flanelle](https://flanellemag.com/?p=16294); [StartupFashion](https://startupfashion.com/?p=18198)). Credits Due's main lesson is to capture credits at creation ([MBW](https://musicbusinessworldwide.com/bmg-backs-credits-due-campaign-launched-by-abbas-bjorn-ulvaeus)) [FACT]. [ASSUMPTION, from my own work] After every shoot somebody DMs five people for their handles, the caption still misses the assistant and the manicurist, and the brand repost credits only the photographer, or nobody. The pain is getting the team list right once and making it travel. Building a record afterwards is not where it hurts.
+
+**C. The indie tier already makes me pay to look legitimate, and Pholio must not become one more toll.** [FACT] Kavyar has submission fees, Flanelle sells pull letters, and regional "fashion weeks" run on exposure-only labour. Models net about $85 across shows, and hair and makeup artists call unpaid work "very standard" ([BuzzFeed](https://www.buzzfeed.com/hannahmarder/are-fashion-week-models-paid)). [BET] The moment any "verified" signal sits behind Pro, or the moment search seats rank paying creatives higher, my friends will call Pholio a scam. Word of mouth is the only channel that reaches us, so that reputation would kill it. [FACT] An ISSUED credit from a pay-to-play week can read as a negative signal (R4 §Against 5), which means my record could hurt me if the issuers are weak.
+
+## 3. The claim I think is most wrong
+**"Credits are drafted from work creatives already post (e.g. Instagram tags), so the record stays current without the creative maintaining it."**
+
+It sounds like it costs me nothing, but it fails three ways:
+1. **It copies the bias that hurts me.** Instagram is where the stylist's credit gets lost. Brand reposts strip credits ([PetaPixel/Marie Claire](https://petapixel.com/2017/04/21/copyright-censorship-instagram-marie-claire-stole-photo/)), enhanced tags favour whoever posted, and collab posts cap co-authors at about 5 [FACT, R4 §4]. A record drafted from tags leaves out exactly the people the thesis claims to serve: assistants, hair, nails, dressers.
+2. **The work that matters most is never posted on time.** [FACT] Campaigns sit under NDA or embargo, and some clients forbid even naming them ([Freelancermap](https://www.freelancermap.com/blog/can-i-share-nda-protected-work-on-my-portfolio-tips-and-advice/)). Scraping my feed can only rebuild my least valuable credits.
+3. **A passive record is one I never open.** "Stays current without you" also means "gives you no reason to come back." It is the Polywork "nice to have" failure mode [FACT, R1 §10]. [ASSUMPTION] Being auto-scraped into a public graph also feels like being harvested, which is the reaction this group of people has to every platform.
+
+## 4. Proposed revision (attack this)
+**Pholio is the team sheet for a creative job. The portfolio is what it leaves behind.**
+
+- **The trigger is setting up the job.** Whoever leads a shoot, a look or a show (a photographer, a stylist, an FWB coordinator) opens a team sheet with roles, handles and date. It takes under 2 minutes, and invited people confirm with one tap and no account.
+- **It gives me three outputs straight away, all free:** (a) a credit block ready to paste, with captions and tags for everyone including people beyond Instagram's collab cap; (b) a shoot confirmation and pull-letter draft naming the team, which the lead can send to a showroom (Pholio vouches for the team list and carries no liability, money or contract); (c) a permanent public credit page, so any repost can say "full credits: pholio.studio/c/…" and anyone, including a brand's social intern, can fix a missing credit with that link.
+- **Embargo vault:** confirmed team credits on NDA work stay private and go public on a release date I set. Instagram can't do this, and it covers the credits that are worth the most.
+- **Tiers stay, renamed by origin.** "Issued by FWB" is a roster-backed record. "Confirmed by the team" means the lead's sheet plus at least one tap. Credits I added myself stay off public search, following IMDb's self-verified walling [FACT, R1 Patterns 7].
+- **FWB launch:** every show runs as team sheets that FWB issues. Each participant gets their credit page and paste block within 24 hours of the show.
+- **Kill test:** among FWB photographers and stylists, if under 20% start a team sheet for a *non-FWB* shoot within 45 days, the thesis is dead and nobody should argue about search seats. [BET on the threshold]
+- **Never:** paid verification, paid ranking, or importing my feed into a public graph without my opt-in.
+
+## 5. My question for the room
+**Name the specific moment in a working creative's ordinary week when they open Pholio without being reminded or prompted by a hirer. If your answer depends on a hirer asking for a Pholio link, name one fashion or photo hirer on record who has ever asked for a verified credit.**

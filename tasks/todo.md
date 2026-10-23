@@ -619,3 +619,36 @@ Review: scoped `vertical-align: baseline` to CardMeta inline figures. Chromium r
 - [x] Check the affected styles and existing profile tests.
 
 Review: geographic names keep their text and use agency body typography; market text is 13px with normal tracking/casing, identity line has explicit body font and 1.4 leading, shared Place resets inherited caps/italic/tracking and uses baseline alignment. Metadata/ReviewRoom suites: 37 passed; computed styles checked with jsdom. Chromium launch was blocked in the restricted environment, so live visual verification was unavailable.
+
+# Google Analytics setup (2026-10-11)
+
+- [x] Integrate shared consent-gated GA runtime into SPA and public portfolios.
+- [x] Remove unconsented Firebase Analytics initialization and sanitize route/title data.
+- [x] Record login only after successful backend session establishment.
+- [x] Verify consent/load/withdrawal/privacy tests and production build.
+
+Review: 18 focused Vitest tests passed, including one-load withdrawal/regrant and adapter enablement. SPA production build passed. Analytics is configured with the existing stream in ignored local environments but remains disabled pending disclosure/version review. Signup and payment events remain unimplemented because no unambiguous verified success signal is established. No legal content or acceptance constants changed.
+
+Browser verification limit: isolated Vite preview started without backend. This agent has no enabled browser connector; native preview remained blank behind app startup/gating without backend. EJS shells were rendered and validated directly. No production collection was activated.
+
+# App search-indexing boundaries (2026-10-11)
+
+- [x] Mark the shared product SPA noindex/nofollow.
+- [x] Add route-specific Netlify headers and early Express indexing middleware.
+- [x] Preserve public EJS portfolio eligibility and existing access controls.
+- [x] Verify route/header contracts and production build.
+
+Review: 45 focused Jest checks passed, covering actual middleware HTTP headers, public portfolio exclusions, every explicit Netlify SPA rewrite and robots meta. Netlify TOML parses; JS syntax and diff whitespace checks pass. SPA production build passed and its emitted HTML retains noindex/nofollow. No production deployment, Search Console change, auth/data edit or commit was made in this app lane.
+
+
+## Creative credits conference continuation — 2026-10-12
+
+- [x] Recover saved research and all Round 3 positions.
+- [x] Recheck decisive market and verification claims against primary sources.
+- [x] Convene nine opposing delegates for direct rebuttal and revised positions.
+- [x] Force a second adversarial round on the revised proposal and unresolved payer/reader questions.
+- [x] Deliver a sourced decision memo, dissent, credit-acquisition workflow, and falsifiable launch tests.
+
+Plan: preserve the prior conference; use three concurrent delegate seats across nine roles; give each exclusive round files; moderate cross-role attacks and a second revision round. No application code changes.
+
+Review: Recovered all prior rounds; nine delegates completed Round 4 attacks and Round 5 Mosaic counterfactual rebuttals. Rechecked primary competitor/pricing/verification sources, corrected unsupported market figures, and received a read-only competitive audit of the unified memo. Verified 18 new delegate files, archived prior material, and delivered the sourced memo. Seven stop the broad thesis; two favor a conditional existing-tool trial. No application code or external actions changed.
