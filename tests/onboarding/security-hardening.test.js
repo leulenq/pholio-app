@@ -332,8 +332,9 @@ describe("M5 — minors cannot upload full_body at collection", () => {
     expect(canCollectSensitiveProfileFields({})).toBe(false);
     expect(canCollectSensitiveProfileFields({ date_of_birth: null })).toBe(false);
     expect(canCollectSensitiveProfileFields(adult)).toBe(true);
-    // Guardian consent is what unlocks it — recorded, not assumed.
-    expect(canCollectSensitiveProfileFields(minorWithGuardian)).toBe(true);
+    // Guardian consent does not unlock body measurements. Full-length collection
+    // stays denied for every minor — consent's jobs are publication and disclosure.
+    expect(canCollectSensitiveProfileFields(minorWithGuardian)).toBe(false);
   });
 });
 

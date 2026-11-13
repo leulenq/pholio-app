@@ -16,6 +16,7 @@
  */
 
 const { deliver, MAX_CONSECUTIVE_FAILURES } = require("./export-webhook");
+const { isMinorProfile } = require("../../../shared/lib/talent-age");
 
 const TABLE = "agency_export_webhooks";
 
@@ -77,6 +78,11 @@ async function recordOutcome(db, webhook, outcome) {
  */
 function buildPayload({ application, profile, identity, agencyId }) {
   const contact = profile || identity || {};
+  const minor = isMinorProfile(contact);
+  const guardianEmail =
+    typeof contact.guardian_email === "string" && contact.guardian_email.trim()
+      ? contact.guardian_email.trim()
+      : null;
   return {
     event: "submission.received",
     sentAt: new Date().toISOString(),
@@ -96,8 +102,9 @@ function buildPayload({ application, profile, identity, agencyId }) {
         [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
         contact.displayName ||
         null,
-      email: contact.email || null,
-      phone: contact.phone || null,
+      email: minor ? null : contact.email || null,
+      phone: minor ? null : contact.phone || null,
+      guardianEmail: minor ? guardianEmail : null,
       city: contact.city || null,
       heightCm: contact.height_cm ?? null,
     },

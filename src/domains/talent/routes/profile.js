@@ -67,6 +67,7 @@ const {
   isMinorProfile,
   minorPublicExposureAllowed,
   hasRecordedDateOfBirth,
+  isBelowMinimumAccountAge,
 } = require("../../../shared/lib/talent-age");
 const { getConsentStatus } = require("../services/guardian-consent");
 const { loadFieldVisibility } = require("../../../shared/lib/field-visibility");
@@ -849,6 +850,13 @@ router.put(
       if (!isNaN(d.getTime())) {
         updateData.date_of_birth = d.toISOString().split("T")[0];
       }
+      if (isBelowMinimumAccountAge(updateData.date_of_birth)) {
+        return res.status(422).json({
+          success: false,
+          message: "Pholio accounts are for people aged 13 and over.",
+          code: "DOB_TOO_YOUNG",
+        });
+      }
     }
     const previousDob = normalizeDobString(profile.date_of_birth);
     const nextDob = Object.hasOwn(updateData, "date_of_birth")
@@ -946,11 +954,13 @@ router.put(
       sensitiveAttempted.length > 0 &&
       !canCollectSensitiveProfileFields(mergedForPolicy)
     ) {
+      const minorBlocked = isMinorProfile(mergedForPolicy);
       return res.status(403).json({
         success: false,
-        message:
-          "Date of birth and guardian consent are required before measurements or weight can be saved.",
-        code: "MINOR_CONSENT_REQUIRED",
+        message: minorBlocked
+          ? "Under 18, Pholio records height only. Agencies take further measurements in person, with a guardian present."
+          : "Date of birth is required before measurements or weight can be saved.",
+        code: minorBlocked ? "MINOR_HEIGHT_ONLY" : "MINOR_CONSENT_REQUIRED",
       });
     }
 

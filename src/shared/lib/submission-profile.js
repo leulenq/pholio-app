@@ -97,16 +97,28 @@ function buildSubmissionProfileSnapshot(profile, options = {}) {
     snapshot[field] = source[field] ?? null;
   }
 
+  const BODY_SNAPSHOT_FIELDS = [
+    "bust_cm",
+    "chest_cm",
+    "waist_cm",
+    "hips_cm",
+    "inseam_cm",
+  ];
+
   const age = computeAge(source.date_of_birth ?? source.dob);
-  snapshot.age = age;
+  snapshot.age = minor ? null : age;
   snapshot.age_band = minor ? "under_18" : age == null ? null : "18_or_older";
   snapshot.languages = normalizeStringList(source.languages);
   snapshot.bio_curated =
     String(source.bio_curated || source.bio_raw || "").trim() || null;
   snapshot.bio_raw = null;
   snapshot.is_minor = minor;
+  if (minor) {
+    for (const field of BODY_SNAPSHOT_FIELDS) snapshot[field] = null;
+  }
   // Canonical, track-driven stats so submission agrees with profile / agency /
-  // portfolio / PDF (audit P1-6). Raw *_cm columns above stay for back-compat.
+  // portfolio / PDF (audit P1-6). Raw *_cm columns above stay for back-compat
+  // on adults; minors never freeze a body set (audit P0-2).
   snapshot.stats = buildCanonicalStats(source);
 
   // Social links now live in `social_accounts` (migration

@@ -312,3 +312,18 @@ the data, representation and comp-card shape, pre-auth register), 13 product-mod
 a P1/P2 catalogue with a coined-term inventory and consistency map. Recommended order is in
 section 10 of the report. Two owner decisions are called out: whether the agency workspace keeps
 a Kanban at all, and whether the Wallet pass survives as a digital comp card.
+
+# Close Stage 1 P0s — minors first (2026-09-03)
+
+Slice 1 of section 10: P0-1 to P0-5.
+
+- [x] P0-1: body measurements never collected under 18 (`isMinorProfile` only; consent does not unlock)
+- [x] P0-2: one kids track on `buildCanonicalStats`; snapshot, CSV, public page, embedded JSON, dossier stats route through it; no public "Under 18" age row
+- [x] P0-3: export query uses the minor submission filter; webhook nulls email/phone and sends `guardianEmail`
+- [x] P0-4: kids cards print guardian contact only (or no block); Wallet pass refused under 18
+- [x] P0-5 (partial): COPPA floor (13) on every profile DOB write; guardian copy no longer authorizes measurements or AI; request expiry already 7 days
+- [ ] P0-5 remaining: split guardian consent into separate affirmative acts; delete the account/data if the guardian never answers
+
+## Review
+
+Not yet. Next slice in the audit's order is "stop asserting what Pholio cannot know" (P0-6, P0-8, P0-10, P0-11, P0-12, P0-13).

@@ -9,7 +9,6 @@ import {
   hasGuardianConsent,
   hasWorkPermitOnFile,
   isMinorProfile,
-  minorSensitiveFieldsUnlocked,
 } from './talentAge';
 
 export const REQUIRED_POINTS = 60;
@@ -140,8 +139,7 @@ export const calculateProfileStrength = (data) => {
   const hasDOB = isPresent(data.date_of_birth) || isPresent(data.dob);
   const hasGender = isPresent(data.gender);
   const minor = isMinorProfile(data);
-  const unlocked = minorSensitiveFieldsUnlocked(data);
-  const sensitiveRequired = !minor || unlocked;
+  const sensitiveRequired = !minor;
 
   if (hasName) requiredScore += 8;
   else pushMissing({ key: 'name', label: 'Legal Name', why: 'Agencies file submissions under your legal name for contracts and casting.', impact: 'Critical', link: '/dashboard/talent/profile?tab=identity', points: 8, tier: 'Required' });
@@ -171,7 +169,7 @@ export const calculateProfileStrength = (data) => {
 
   if (minor) {
     if (hasGuardianConsent(data)) requiredScore += 8;
-    else pushMissing({ key: 'guardian_consent', label: 'Guardian Consent', why: 'A parent or guardian must consent before we collect measurements or full-length imagery.', impact: 'Critical', link: '/dashboard/talent/profile?tab=identity', points: 8, tier: 'Required' });
+    else pushMissing({ key: 'guardian_consent', label: 'Guardian Consent', why: 'A parent or guardian must consent before the profile can be published or sent to an agency.', impact: 'Critical', link: '/dashboard/talent/profile?tab=identity', points: 8, tier: 'Required' });
 
     if (hasWorkPermitOnFile(data)) requiredScore += 4;
     else pushMissing({ key: 'work_permit', label: 'Work Permit on File', why: 'Minors need a current work permit on record before booking in most markets.', impact: 'Critical', link: '/dashboard/talent/profile?tab=identity', points: 4, tier: 'Required' });

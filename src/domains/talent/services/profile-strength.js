@@ -15,7 +15,6 @@ const {
   hasGuardianConsent,
   hasWorkPermitOnFile,
   isMinorProfile,
-  minorSensitiveFieldsUnlocked,
 } = require("../../../shared/lib/talent-age");
 
 const REQUIRED_POINTS = 60;
@@ -121,8 +120,7 @@ const calculateProfileStrength = (data) => {
   const hasDOB = isPresent(data.date_of_birth) || isPresent(data.dob);
   const hasGender = isPresent(data.gender);
   const minor = isMinorProfile(data);
-  const unlocked = minorSensitiveFieldsUnlocked(data);
-  const sensitiveRequired = !minor || unlocked;
+  const sensitiveRequired = !minor;
 
   if (hasName) requiredScore += 8;
   else
@@ -213,7 +211,7 @@ const calculateProfileStrength = (data) => {
       pushMissing({
         key: "guardian_consent",
         label: "Guardian Consent",
-        why: "A parent or guardian must consent before we collect measurements or full-length imagery.",
+        why: "A parent or guardian must consent before the profile can be published or sent to an agency.",
         impact: "Critical",
         link: "/dashboard/talent/profile?tab=identity",
         points: 8,

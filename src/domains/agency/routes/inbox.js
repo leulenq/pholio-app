@@ -3262,6 +3262,10 @@ router.get(
           }
         });
 
+      query = applyMinorSubmissionFilter(query, {
+        allowMinor: Boolean(req.allowMinorSubmissions),
+      });
+
       if (eventScoped) {
         // `status_changed_at` is when the applicant answered; there is no
         // separate confirmed_at column and adding one would duplicate it.
@@ -3447,26 +3451,25 @@ router.get(
           ? null
           : exportIdentities.get(app.application_id) || null;
 
-        // Format measurements from individual fields
-        const measurements = [];
-        if (app.bust) measurements.push(`Bust: ${app.bust}`);
-        if (app.waist) measurements.push(`Waist: ${app.waist}`);
-        if (app.hips) measurements.push(`Hips: ${app.hips}`);
-        const measurementsStr =
-          measurements.length > 0
-            ? measurements.join(", ")
-            : identity?.measurements?.text || "";
-
-        // Applicant email to the agency they applied to is legitimate — but a
-        // minor's contact is nulled (guardian-mediated), matching the DTO layer.
-        // An identity-backed row has no DOB and so is never a known minor; the
-        // 18+ attestation is what the event spec collects (design §3.1).
         const minor = isMinorProfile(app);
         const derivedAge = computeAge(app.date_of_birth);
         const materials = materialsByApplication.get(app.application_id);
         const emailVerified = identity
           ? identity.isEmailVerified
           : Boolean(app.owner_email_verified);
+
+        const measurements = [];
+        if (!minor) {
+          if (app.bust) measurements.push(`Bust: ${app.bust}`);
+          if (app.waist) measurements.push(`Waist: ${app.waist}`);
+          if (app.hips) measurements.push(`Hips: ${app.hips}`);
+        }
+        const measurementsStr =
+          measurements.length > 0
+            ? measurements.join(", ")
+            : minor
+              ? ""
+              : identity?.measurements?.text || "";
 
         const exportedApplication = {
           name:
@@ -3478,7 +3481,7 @@ router.get(
           city: app.city || identity?.city || "",
           height_cm: app.height_cm || identity?.heightCm || "",
           measurements: measurementsStr,
-          age: derivedAge != null ? derivedAge : "",
+          age: minor || derivedAge == null ? "" : derivedAge,
           bio: app.bio_curated || "",
           email_verified: emailVerified ? "Yes" : "No",
           materials:

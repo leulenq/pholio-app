@@ -4,6 +4,7 @@
  */
 
 export const MINOR_AGE_THRESHOLD = 18;
+export const MINIMUM_ACCOUNT_AGE = 13;
 
 export const SENSITIVE_MEASUREMENT_FIELDS = new Set([
   'bust',
@@ -62,7 +63,12 @@ export function hasWorkPermitOnFile(profile) {
 
 export function minorSensitiveFieldsUnlocked(profile, referenceDate = new Date()) {
   if (!isMinorProfile(profile, referenceDate)) return true;
-  return hasGuardianConsent(profile);
+  return false;
+}
+
+export function isBelowMinimumAccountAge(dob, referenceDate = new Date()) {
+  const age = computeAge(dob, referenceDate);
+  return age != null && age < MINIMUM_ACCOUNT_AGE;
 }
 
 export function hasRecordedDateOfBirth(profile) {

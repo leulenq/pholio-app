@@ -4,6 +4,7 @@
  */
 
 const MINOR_AGE_THRESHOLD = 18;
+const MINIMUM_ACCOUNT_AGE = 13;
 
 const SENSITIVE_MEASUREMENT_FIELDS = new Set([
   "bust",
@@ -88,13 +89,30 @@ function hasWorkPermitOnFile(profile) {
 }
 
 /**
+ * Body measurements (bust/waist/hips/weight) and full-length collection.
+ * Under 18 these are structurally absent — guardian consent does not unlock them.
+ * Consent's jobs are publication, per-agency disclosure, and contact routing.
+ *
  * @param {object|null|undefined} profile
  * @param {Date} [referenceDate]
  * @returns {boolean}
  */
 function minorSensitiveFieldsUnlocked(profile, referenceDate = new Date()) {
   if (!isMinorProfile(profile, referenceDate)) return true;
-  return hasGuardianConsent(profile);
+  return false;
+}
+
+/**
+ * COPPA floor: a recorded age under 13 cannot hold an account.
+ * Missing/unparseable DOB is not "below" — other fail-closed gates handle that.
+ *
+ * @param {Date|string|null|undefined} dob
+ * @param {Date} [referenceDate]
+ * @returns {boolean}
+ */
+function isBelowMinimumAccountAge(dob, referenceDate = new Date()) {
+  const age = computeAge(dob, referenceDate);
+  return age != null && age < MINIMUM_ACCOUNT_AGE;
 }
 
 /**
@@ -106,18 +124,17 @@ function hasRecordedDateOfBirth(profile) {
 }
 
 /**
- * Sensitive stats require DOB on file and minor consent when under 18.
+ * Sensitive stats require a verifiable adult DOB.
  *
  * Fail-closed on age: without a present, valid DOB we cannot prove the talent is
- * an adult, so sensitive measurement collection is denied. Returning false for a
- * missing/unparseable DOB is intentional and must not be relaxed.
+ * an adult, so sensitive measurement collection is denied. Minors never collect
+ * body measurements, with or without guardian consent (BFMA: height only).
  *
  * @param {object|null|undefined} profile
  * @param {Date} [referenceDate]
  * @returns {boolean}
  */
 function canCollectSensitiveProfileFields(profile, referenceDate = new Date()) {
-  // No verifiable age on file => deny (fail closed).
   if (!hasRecordedDateOfBirth(profile)) return false;
   return minorSensitiveFieldsUnlocked(profile, referenceDate);
 }
@@ -167,6 +184,7 @@ function minorPublicExposureAllowed(profile, referenceDate = new Date()) {
 
 module.exports = {
   MINOR_AGE_THRESHOLD,
+  MINIMUM_ACCOUNT_AGE,
   SENSITIVE_MEASUREMENT_FIELDS,
   SENSITIVE_IMAGE_SHOT_TYPES,
   parseDateOfBirthParts,
@@ -176,6 +194,7 @@ module.exports = {
   hasWorkPermitOnFile,
   minorSensitiveFieldsUnlocked,
   hasRecordedDateOfBirth,
+  isBelowMinimumAccountAge,
   canCollectSensitiveProfileFields,
   listSensitiveProfileUpdateFields,
   isSensitiveImageShotType,

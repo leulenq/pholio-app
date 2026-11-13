@@ -230,8 +230,8 @@ iOS 26 thumbnail.
 - **Menswear / womenswear / kids:** the comp-card stats block decides the
   set and the order (chest/waist/inseam; bust/waist/hips; age/clothing
   size/shoes). No body measurements for minors, ever.
-- **Minors:** without `guardian_consent_at` the pass is refused with
-  `WALLET_GUARDIAN_CONSENT_REQUIRED` (parity with the comp-card export).
+- **Minors:** a Wallet pass is not issued under 18 (`WALLET_MINOR_NOT_ISSUED`).
+  Guardian consent does not unlock it.
 - **Photo missing or unreadable:** `WALLET_PHOTO_REQUIRED` /
   `WALLET_PHOTO_UNAVAILABLE`; name missing: `WALLET_NAME_REQUIRED`.
 - **Units:** dual, metric-first, the comp card's strings exactly. The

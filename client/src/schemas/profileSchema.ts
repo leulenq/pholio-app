@@ -49,12 +49,26 @@ export const profileSchema = z.object({
   city_secondary: z.string().nullable().optional(),
   gender: z.string().nullable().optional(),
   pronouns: z.string().nullable().optional(),
-  date_of_birth: z.union([z.string(), z.null(), z.undefined()]).refine(val => {
-    if (!val) return true;
-    const date = new Date(val);
-    const now = new Date();
-    return date <= now;
-  }, "Date of birth cannot be in the future"),
+  date_of_birth: z.union([z.string(), z.null(), z.undefined()])
+    .refine(val => {
+      if (!val) return true;
+      const date = new Date(val);
+      const now = new Date();
+      return date <= now;
+    }, "Date of birth cannot be in the future")
+    .refine(val => {
+      if (!val) return true;
+      const str = String(val);
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(str.trim());
+      if (!m) return true;
+      const now = new Date();
+      let age = now.getUTCFullYear() - Number(m[1]);
+      const beforeBirthday =
+        now.getUTCMonth() + 1 < Number(m[2]) ||
+        (now.getUTCMonth() + 1 === Number(m[2]) && now.getUTCDate() < Number(m[3]));
+      if (beforeBirthday) age -= 1;
+      return age >= 13;
+    }, "Pholio accounts are for people aged 13 and over"),
   ethnicity: z.union([z.string(), z.array(z.string())]).nullable().optional(),
   nationality: z.string().nullable().optional(),
   place_of_birth: z.string().nullable().optional(),

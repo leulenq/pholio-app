@@ -86,7 +86,7 @@ describe("audit battery — real-world scenarios", () => {
 
   test("kids card: age shown, no B/W/H, guardian contact framing", () => {
     const { statsBlock, plan } = compose({
-      profile: { slug: "remy", first_name: "Remy", last_name: "Cole", gender: "Female", age: 9, city: "Chicago", phone: "+1 312", height_cm: 134, dress_size: "8", shoe_size: "3", hair_color: "brown", eye_color: "hazel" },
+      profile: { slug: "remy", first_name: "Remy", last_name: "Cole", gender: "Female", age: 9, city: "Chicago", phone: "+1 312", guardian_email: "parent@example.com", height_cm: 134, dress_size: "8", shoe_size: "3", hair_color: "brown", eye_color: "hazel" },
     });
     const labels = statsBlock.lines.map((l) => l.label);
     expect(labels).toContain("AGE");

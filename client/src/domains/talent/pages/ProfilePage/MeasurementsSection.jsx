@@ -5,7 +5,7 @@ import PholioMeasuringTape from '../../../../shared/components/ui/forms/PholioMe
 import PholioCustomSelect from '../../../../shared/components/ui/forms/PholioCustomSelect';
 import { Section } from '../../components/profile-index';
 import { getShoeConversions } from '../../../../shared/utils/measurementConversions';
-import PholioButton, {
+import {
   PholioToggleButton,
   PholioToggleGroup,
 } from '../../../../shared/components/ui/PholioButton';
@@ -32,11 +32,8 @@ export function MeasurementsSection({
   measurementsLocked = false,
 }) {
   const shoeRegion = watch('shoe_region') || 'US';
-  // Weight renders for every lane. This used to be hidden for fashion lanes off
-  // the talent's `booking_primary_lane`, which left fashion talent unable to
-  // record a stat agencies still ask for; the lane lookup that drove it went
-  // with the condition.
-  const showWeight = true;
+  const kidsTrack = measurementsLocked;
+  const showWeight = !kidsTrack;
 
   // Which measurement set renders. Resolved through the shared helper so the
   // stored lowercase value matches, and so a profile that has never picked a
@@ -55,33 +52,16 @@ export function MeasurementsSection({
   const coreUnsetValue = circumferenceToDisplay(100, unitSystem);
   const waistUnsetValue = circumferenceToDisplay(85, unitSystem);
 
-  if (measurementsLocked) {
-    return (
-      <Section
-        id="appearance"
-        title="Stats & Measurements"
-        titleEmphasis="Measurements"
-        description="Precise stats used in casting search (height, weight, sizing). Keep them current — accuracy prevents mismatches and wasted callbacks."
-        showDivider={false}
-      >
-        <div className={styles.measurementsLocked}>
-          <p className={styles.measurementsLockedCopy}>
-            Measurements and weight stay locked until a parent or guardian consents in Personal Details.
-          </p>
-          <PholioButton as="a" href="#identity" variant="meta" className={styles.measurementsLockedLink}>
-            Record guardian consent
-          </PholioButton>
-        </div>
-      </Section>
-    );
-  }
-
   return (
     <Section
       id="appearance"
       title="Physical Attributes"
       titleEmphasis="Attributes"
-      description="Precise stats used in casting search (height, weight, sizing). Keep them current — accuracy prevents mismatches and wasted callbacks."
+      description={
+        kidsTrack
+          ? "Under 18, Pholio records height only. Agencies take further measurements in person, with a guardian present."
+          : "Precise stats used in casting search (height, weight, sizing). Keep them current — accuracy prevents mismatches and wasted callbacks."
+      }
       showDivider={false}
       headerAction={
         <PholioToggleGroup className={styles.unitToggle} role="group" aria-label="Measurement units">
@@ -218,6 +198,7 @@ export function MeasurementsSection({
         </div>
       </div>
 
+      {!kidsTrack && (
       <div className={`${styles.measurementRow} ${styles.formRow}`} style={{ gap: '16px' }}>
         <div className={styles.measurementField}>
           <label className={styles.measurementLabel}>{core.label}</label>
@@ -276,14 +257,15 @@ export function MeasurementsSection({
           />
         </div>
       </div>
+      )}
 
       {/* Sizing systems per track. `ungendered` collects BOTH — matching
           buildCanonicalStats, which renders whichever the talent filled in
-          rather than forcing one system on them. */}
+          rather than forcing one system on them. Kids keep clothing size. */}
       <div className={`${sizing.dress && sizing.suit ? styles.formGrid3 : styles.formGrid2} ${styles.formRow}`}>
         {sizing.dress && (
           <PholioCustomSelect
-            label="Dress Size"
+            label={kidsTrack ? "Clothing Size" : "Dress Size"}
             id="dress_size"
             options={['0', '2', '4', '6', '8', '10', '12', '14', '16', 'XS', 'S', 'M', 'L', 'XL'].map((s) => ({
               value: s,
@@ -292,11 +274,11 @@ export function MeasurementsSection({
             value={watch('dress_size') || ''}
             onChange={(val) => setValue('dress_size', val, { shouldDirty: true })}
             error={errors.dress_size}
-            placeholder="Select dress size"
+            placeholder={kidsTrack ? "Select clothing size" : "Select dress size"}
           />
         )}
 
-        {sizing.suit && (
+        {sizing.suit && !kidsTrack && (
           <PholioInput
             label="Suit Size"
             placeholder="e.g. 40, M, 50"
@@ -305,6 +287,7 @@ export function MeasurementsSection({
           />
         )}
 
+        {!kidsTrack && (
         <PholioInput
           label="Inseam"
           type="number"
@@ -323,6 +306,7 @@ export function MeasurementsSection({
           }}
           error={errors.inseam_cm}
         />
+        )}
       </div>
 
       <div className={`${styles.formGrid2} ${styles.formRow}`}>

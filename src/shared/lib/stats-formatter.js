@@ -29,12 +29,14 @@
  * The PDF comp-card line renderer (src/domains/pdf/composition/stats-formatter.js)
  * imports its track resolution + core-circumference + unit primitives FROM this
  * module, so the comp-card and every other surface agree on the same canonical
- * decisions. That is the consolidation point — there is no competing copy of the
- * chest/bust/track/unit logic.
+ * decisions. Kids (< 18) take a height/clothing/shoe/hair/eyes track keyed on
+ * `isMinorProfile` — never bust/waist/hips, even when those columns are populated.
  */
 
 const CM_PER_INCH = 2.54;
 const LBS_PER_KG = 2.20462;
+
+const { isMinorProfile } = require("./talent-age");
 
 /** Measurements older than this are flagged stale (mirrors profile.js:963-979). */
 const MEASUREMENT_STALE_DAYS = 90;
@@ -259,12 +261,17 @@ function cleanString(value) {
  * circumference once tracks are user-confirmed post-split.
  *
  * @param {object} profile
+ * @param {object} [options]
+ * @param {Date} [options.referenceDate]
  * @returns {boolean}
  */
-function hasCoreMeasurements(profile) {
+function hasCoreMeasurements(profile, options = {}) {
   const p = profile || {};
-  const track = resolveStatsTrack(p);
+  const ref =
+    options.referenceDate instanceof Date ? options.referenceDate : new Date();
   const hasHeight = toPositiveNumber(p.height_cm) != null;
+  if (isMinorProfile(p, ref)) return hasHeight;
+  const track = resolveStatsTrack(p);
   const hasWaist = toPositiveNumber(p.waist_cm) != null;
   const hasHips = toPositiveNumber(p.hips_cm) != null;
   const chestCm = toPositiveNumber(p.chest_cm);
@@ -283,6 +290,7 @@ function hasCoreMeasurements(profile) {
  * @param {object} [options]
  * @param {Date} [options.referenceDate] — "now" override for recency (test hook)
  * @returns {{
+ *   kids: boolean,
  *   track: 'womenswear'|'menswear'|'ungendered',
  *   height: object|null,
  *   weight: object|null,
@@ -331,6 +339,7 @@ function buildCanonicalStats(profile, options = {}) {
   const eye_color = cleanString(p.eye_color);
 
   const recency = measurementRecency(p, ref);
+  const kids = isMinorProfile(p, ref);
 
   // Ordered, render-ready lines per track. Always height + shoe.
   const fields = [];
@@ -338,6 +347,35 @@ function buildCanonicalStats(profile, options = {}) {
     if (value == null || value === "") return;
     fields.push({ key, label, value });
   };
+
+  if (kids) {
+    push("height", "Height", height && height.dual);
+    push("clothing", "Clothing", dress_size);
+    push("shoe", "Shoe", shoe_size ? shoe_size : null);
+    push("hair", "Hair", hair_color);
+    push("eyes", "Eyes", eye_color);
+    return {
+      track,
+      kids: true,
+      height,
+      weight: null,
+      core: null,
+      bust: null,
+      chest: null,
+      waist: null,
+      hips: null,
+      inseam: null,
+      dress_size,
+      suit_size: null,
+      shoe_size,
+      hair_color,
+      eye_color,
+      measurements_updated_at: recency.measurements_updated_at,
+      updated_days_ago: recency.updated_days_ago,
+      is_stale: recency.is_stale,
+      fields,
+    };
+  }
 
   push("height", "Height", height && height.dual);
   if (track === "womenswear") {
@@ -365,6 +403,7 @@ function buildCanonicalStats(profile, options = {}) {
 
   return {
     track,
+    kids: false,
     height,
     weight,
     core,

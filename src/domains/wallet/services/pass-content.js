@@ -18,8 +18,7 @@
  * Reuse (never a second truth):
  *   - comp-card stats block: order, units, kids rules, omissions
  *   - short portfolio URL: the same `/p/:slug` the comp card QR/NFC encodes
- *   - minor policy: a minor's pass needs recorded guardian consent, exactly
- *     like the comp card export
+ *   - minor policy: a Wallet pass is not issued under 18.
  *
  * Apple constraints applied (HIG "Wallet", rev. 2026-06-08; WWDC26 209):
  *   - generic: ≤3 header, 1 primary, ≤4 secondary+auxiliary combined with a
@@ -33,7 +32,7 @@
  */
 
 const { buildStatsBlock } = require("../../pdf/composition/stats-formatter");
-const { isMinorProfile, hasGuardianConsent } = require("../../../shared/lib/talent-age");
+const { isMinorProfile } = require("../../../shared/lib/talent-age");
 
 class WalletPassError extends Error {
   constructor(message, code, status = 422) {
@@ -228,8 +227,11 @@ function buildPassContent({ profile, user, representations, passTypeIdentifier, 
   if (!p.id || !clean(p.slug)) throw new WalletPassError("Complete your profile before creating a Pholio ID.", "WALLET_PROFILE_INCOMPLETE");
   if (!portfolioUrl) throw new WalletPassError("Complete your profile before creating a Pholio ID.", "WALLET_PROFILE_INCOMPLETE");
   const minor = isMinorProfile(p, issuedAt);
-  if (minor && !hasGuardianConsent(p)) {
-    throw new WalletPassError("Record guardian consent before creating a Pholio ID.", "WALLET_GUARDIAN_CONSENT_REQUIRED");
+  if (minor) {
+    throw new WalletPassError(
+      "A Wallet pass is not issued for anyone under 18.",
+      "WALLET_MINOR_NOT_ISSUED",
+    );
   }
 
   const palette = resolveTheme(theme);

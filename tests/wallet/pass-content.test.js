@@ -160,23 +160,17 @@ describe("Pholio ID content model", () => {
     ]);
   });
 
-  test("a minor's pass needs guardian consent and never carries body measurements", () => {
+  test("a minor's pass is not issued", () => {
     const teen = { ...ava, first_name: "Lily", last_name: "Park", date_of_birth: "2012-03-15" };
     expect(() => build({ profile: teen })).toThrow(WalletPassError);
-    expect(() => build({ profile: teen })).toThrow(/guardian consent/);
     try {
       build({ profile: teen });
     } catch (error) {
-      expect(error.code).toBe("WALLET_GUARDIAN_CONSENT_REQUIRED");
+      expect(error.code).toBe("WALLET_MINOR_NOT_ISSUED");
     }
-
-    const { pass, view } = build({ profile: { ...teen, guardian_consent_at: "2026-05-01T00:00:00Z", dress_size: "12" } });
-    expect(view.category).toBe("kids");
-    expect(view.minor).toBe(true);
-    const text = JSON.stringify(pass);
-    expect(text).not.toMatch(/BUST|WAIST|HIPS/);
-    expect(pass.generic.auxiliaryFields.map((f) => f.label)).toEqual(["AGE", "CLOTHING SIZE", "SHOES"]);
-    expect(pass.generic.backFields.find((f) => f.key === "measurements-updated")).toBeUndefined();
+    expect(() =>
+      build({ profile: { ...teen, guardian_consent_at: "2026-05-01T00:00:00Z" } }),
+    ).toThrow(/not issued for anyone under 18/);
   });
 
   test("refuses a pass without a name or a profile slug", () => {

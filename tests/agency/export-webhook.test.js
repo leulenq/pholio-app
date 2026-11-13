@@ -226,3 +226,51 @@ describe("delivery", () => {
     expect(result.error.length).toBeLessThanOrEqual(2048);
   });
 });
+
+const { buildPayload } = require("../../src/domains/agency/services/export-webhook-dispatch");
+
+describe("export webhook payload — minors (audit P0-3)", () => {
+  const application = { id: "a1", status: "pending", created_at: "2026-09-01T00:00:00.000Z" };
+
+  test("a minor's email and phone are never delivered; guardian channel is sent instead", () => {
+    const payload = buildPayload({
+      agencyId: "ag1",
+      application,
+      profile: {
+        first_name: "Lily",
+        last_name: "Park",
+        email: "lily@example.com",
+        phone: "+1 312 555 0100",
+        city: "Chicago",
+        height_cm: 160,
+        date_of_birth: "2012-03-15",
+        guardian_email: "parent@example.com",
+        guardian_name: "Jordan Park",
+      },
+    });
+    expect(payload.applicant.email).toBeNull();
+    expect(payload.applicant.phone).toBeNull();
+    expect(payload.applicant.guardianEmail).toBe("parent@example.com");
+    expect(payload.applicant.name).toBe("Lily Park");
+    expect(payload.applicant.heightCm).toBe(160);
+  });
+
+  test("an adult still ships their own contact", () => {
+    const payload = buildPayload({
+      agencyId: "ag1",
+      application,
+      profile: {
+        first_name: "Ava",
+        last_name: "Moreau",
+        email: "ava@example.com",
+        phone: "+33 1",
+        city: "Paris",
+        height_cm: 178,
+        date_of_birth: "1998-01-01",
+      },
+    });
+    expect(payload.applicant.email).toBe("ava@example.com");
+    expect(payload.applicant.phone).toBe("+33 1");
+    expect(payload.applicant.guardianEmail).toBeNull();
+  });
+});

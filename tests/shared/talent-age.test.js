@@ -6,6 +6,8 @@ const {
   minorPublicExposureAllowed,
   canCollectSensitiveProfileFields,
   parseDateOfBirthParts,
+  MINIMUM_ACCOUNT_AGE,
+  isBelowMinimumAccountAge,
 } = require('../../src/shared/lib/talent-age');
 
 const REF = new Date('2026-06-24T12:00:00.000Z');
@@ -25,10 +27,11 @@ describe('talent-age policy', () => {
     expect(computeAge('2012-03-15', REF)).toBe(14);
   });
 
-  test('minor profile requires consent to unlock sensitive fields', () => {
+  test('minor profile never unlocks body measurements, even with guardian consent', () => {
     const minor = { date_of_birth: '2012-03-15' };
     expect(isMinorProfile(minor, REF)).toBe(true);
     expect(minorSensitiveFieldsUnlocked(minor, REF)).toBe(false);
+    expect(canCollectSensitiveProfileFields(minor, REF)).toBe(false);
     expect(minorPublicExposureAllowed(minor, REF)).toBe(false);
 
     const consented = {
@@ -36,7 +39,9 @@ describe('talent-age policy', () => {
       guardian_consent_at: '2026-01-01T00:00:00.000Z',
     };
     expect(hasGuardianConsent(consented)).toBe(true);
-    expect(minorSensitiveFieldsUnlocked(consented, REF)).toBe(true);
+    // Consent authorizes publication and agency disclosure, not collecting bust/waist/hips.
+    expect(minorSensitiveFieldsUnlocked(consented, REF)).toBe(false);
+    expect(canCollectSensitiveProfileFields(consented, REF)).toBe(false);
     expect(minorPublicExposureAllowed(consented, REF)).toBe(true);
   });
 
@@ -64,5 +69,13 @@ describe('talent-age policy', () => {
     const adult = { date_of_birth: '1998-01-01' };
     expect(minorPublicExposureAllowed(adult, REF)).toBe(true);
     expect(canCollectSensitiveProfileFields(adult, REF)).toBe(true);
+  });
+
+  test('COPPA floor: under 13 is below the minimum account age', () => {
+    expect(MINIMUM_ACCOUNT_AGE).toBe(13);
+    expect(isBelowMinimumAccountAge('2014-06-25', REF)).toBe(true);
+    expect(isBelowMinimumAccountAge('2013-06-24', REF)).toBe(false);
+    expect(isBelowMinimumAccountAge('1998-01-01', REF)).toBe(false);
+    expect(isBelowMinimumAccountAge(null, REF)).toBe(false);
   });
 });

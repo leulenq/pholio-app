@@ -162,10 +162,29 @@ function buildBookingBlock(profile, representation, options = {}) {
       mode: "represented",
       label: "Representation",
       primary: agency,
-      line: buildContactLine(profile),
+      line: options.kids ? "" : buildContactLine(profile),
     };
   }
   // Direct: lead with the strongest booking channel; the rest support it.
+  // Kids cards never carry the child's own phone or socials — guardian channel
+  // only, or no contact block (audit P0-4).
+  if (options.kids) {
+    const guardianEmail =
+      typeof profile?.guardian_email === "string" ? profile.guardian_email.trim() : "";
+    const guardianName =
+      typeof profile?.guardian_name === "string" ? profile.guardian_name.trim() : "";
+    const guardianPhone =
+      typeof profile?.guardian_phone === "string" ? profile.guardian_phone.trim() : "";
+    const channels = [guardianPhone, guardianEmail, guardianName].filter(Boolean);
+    const primary = channels.length ? channels[0] : null;
+    const rest = channels.slice(1).join("  ·  ");
+    return {
+      mode: "direct",
+      label: primary ? "Guardian Contact" : null,
+      primary,
+      line: rest,
+    };
+  }
   const city = typeof profile?.city === "string" ? profile.city.trim() : "";
   const handleRaw =
     typeof profile?.instagram_handle === "string" ? profile.instagram_handle.trim() : "";

@@ -53,7 +53,7 @@ function statFieldsFor(gender) {
 }
 
 // heightOnly: minors (and age-unknown profiles) confirm height only during
-// onboarding — body measurements stay locked until guardian consent.
+// onboarding — body measurements are never collected under 18.
 
 // Optional NON-SENSITIVE appearance steps — offered to ALL talent (including
 // minors and non-binary/undisclosed), every one skippable. Values must match
@@ -784,8 +784,8 @@ function CastingMeasurements({ onComplete, gender: genderProp, heightOnly = fals
 
               {heightOnly && (
                 <p className="csm-rev-note">
-                  Body measurements stay locked until a parent or guardian consents.
-                  You can add them later from your profile.
+                  Under 18, Pholio records height only. Agencies take further
+                  measurements in person, with a guardian present.
                 </p>
               )}
             </div>

@@ -106,6 +106,32 @@ describe("buildBookingBlock", () => {
     expect(empty.primary).toBeNull();
     expect(empty.line).toBe("");
   });
+
+  test("a kids card never prints the child's phone or Instagram", () => {
+    const child = {
+      city: "Chicago",
+      instagram_handle: "lilypark",
+      phone: "+1 312 555 0100",
+      guardian_email: "parent@example.com",
+      guardian_name: "Jordan Park",
+    };
+    const booking = buildBookingBlock(child, null, { kids: true });
+    expect(booking.label).toBe("Guardian Contact");
+    expect(booking.primary).toBe("parent@example.com");
+    expect(booking.line).not.toMatch(/312/);
+    expect(booking.line).not.toMatch(/lilypark/);
+    expect(JSON.stringify(booking)).not.toMatch(/\+1 312/);
+  });
+
+  test("a kids card with no guardian channel prints no contact block", () => {
+    const booking = buildBookingBlock(
+      { city: "Chicago", phone: "+1 312", instagram_handle: "lily" },
+      null,
+      { kids: true },
+    );
+    expect(booking.label).toBeNull();
+    expect(booking.primary).toBeNull();
+  });
 });
 
 describe("dynamic wordmark placement", () => {

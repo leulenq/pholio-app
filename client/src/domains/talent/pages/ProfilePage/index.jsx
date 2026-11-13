@@ -46,8 +46,7 @@ import { useReferenceLanguages } from '../../../../shared/hooks/useReferenceLang
 import { flushProfileFormForSave } from './flushProfileFormForSave';
 import {
   isMinorProfile,
-  minorSensitiveFieldsUnlocked,
-  SENSITIVE_MEASUREMENT_FIELDS,
+  hasGuardianConsent,
 } from '../../../../shared/utils/talentAge';
 import styles from './ProfilePage.module.css';
 
@@ -565,15 +564,14 @@ export default function ProfilePage() {
   const values = watch();
   const trainingSummaryValue = values.training_summary || '';
   const isMinor = isMinorProfile({ date_of_birth: values.date_of_birth });
-  const minorLocked =
+  const publicationLocked =
     isMinor &&
-    !minorSensitiveFieldsUnlocked({
-      date_of_birth: values.date_of_birth,
+    !hasGuardianConsent({
       guardian_consent_at: values.guardian_consent_recorded
         ? profile?.guardian_consent_at || 'draft'
         : null,
     });
-  const measurementsLocked = minorLocked;
+  const measurementsLocked = isMinor;
   const readinessProfile = useMemo(
     () => ({
       date_of_birth: values.date_of_birth,
@@ -1053,7 +1051,7 @@ export default function ProfilePage() {
               setUnitSystem={setUnitSystem}
               measurementsLocked={measurementsLocked}
             />
-            <AvailabilitySection measurementsLocked={measurementsLocked} />
+            <AvailabilitySection measurementsLocked={false} />
               </div>
             </article>
 
@@ -1512,7 +1510,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Minor guardian/permit block — shown only if minor without consent */}
-          {isMinor && !minorLocked && (
+          {isMinor && !publicationLocked && (
             <div className={styles.formRow} style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--ag-text-2, #ddd)' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.875rem', fontWeight: '500' }}>

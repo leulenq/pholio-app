@@ -79,17 +79,6 @@ const FIXTURES = [
     representations: [],
   },
   {
-    id: "teen-consented",
-    title: "Minor with guardian consent (kids track: no body measurements)",
-    profile: {
-      id: "44444444-4444-4444-8444-444444444444", slug: "lily-park", first_name: "Lily", last_name: "Park",
-      gender: "Female", date_of_birth: "2012-03-15", guardian_consent_at: "2026-05-01T00:00:00Z", height_cm: 158,
-      bust_cm: 76, waist_cm: 61, hips_cm: 84, dress_size: "12", shoe_size: "6", hair_color: "blonde", eye_color: "blue",
-    },
-    images: [photo("model_golden_hour.jpg", { shot_type: "headshot" }), photo("model_full_body.jpg", { id: "img-full", is_primary: false, sort: 1, shot_type: "full_length" })],
-    representations: [{ status: "active", agency_name: "Bright Young Talent Management Group", relationship_type: "mother", market: "Los Angeles" }],
-  },
-  {
     id: "sparse-legacy",
     title: "Sparse profile: no height, legacy current_agency only",
     profile: {

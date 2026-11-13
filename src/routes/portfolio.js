@@ -305,7 +305,9 @@ async function isStatsPublic(profileId, { isDemo } = {}) {
 function publicAgeBand(profile) {
   const age = computeAge(profile?.date_of_birth ?? profile?.dob);
   if (age == null) return null;
-  return isMinorProfile(profile) ? "Under 18" : "18+";
+  // Never publish "Under 18" beside a child's photos (audit P0-2).
+  if (isMinorProfile(profile)) return null;
+  return "18+";
 }
 
 function isDatabaseError(error) {

@@ -168,6 +168,59 @@ describe("buildCanonicalStats — recency / stale flag", () => {
   });
 });
 
+describe("buildCanonicalStats — kids track (audit P0-1 / P0-2)", () => {
+  test("a minor never emits bust/waist/hips/chest/inseam/weight, even when stored", () => {
+    const stats = buildCanonicalStats(
+      {
+        date_of_birth: "2012-03-15",
+        stats_track: "womenswear",
+        height_cm: 160,
+        bust_cm: 78,
+        waist_cm: 58,
+        hips_cm: 82,
+        chest_cm: 80,
+        inseam_cm: 70,
+        weight_kg: 48,
+        dress_size: "8",
+        shoe_size: "5",
+        hair_color: "brown",
+        eye_color: "green",
+        guardian_consent_at: "2026-01-01T00:00:00.000Z",
+      },
+      { referenceDate: NOW },
+    );
+    expect(stats.kids).toBe(true);
+    expect(fieldKeys(stats)).toEqual(
+      expect.arrayContaining(["height", "clothing", "shoe", "hair", "eyes"]),
+    );
+    expect(fieldKeys(stats)).not.toEqual(
+      expect.arrayContaining(["bust", "waist", "hips", "chest", "inseam", "weight", "age"]),
+    );
+    expect(stats.bust).toBeNull();
+    expect(stats.chest).toBeNull();
+    expect(stats.waist).toBeNull();
+    expect(stats.hips).toBeNull();
+    expect(stats.inseam).toBeNull();
+    expect(stats.weight).toBeNull();
+  });
+
+  test("an adult still emits the body set", () => {
+    const stats = buildCanonicalStats(
+      {
+        date_of_birth: "1998-01-01",
+        stats_track: "womenswear",
+        height_cm: 178,
+        bust_cm: 86,
+        waist_cm: 61,
+        hips_cm: 89,
+      },
+      { referenceDate: NOW },
+    );
+    expect(stats.kids).toBe(false);
+    expect(fieldKeys(stats)).toEqual(expect.arrayContaining(["height", "bust", "waist", "hips"]));
+  });
+});
+
 describe("hasCoreMeasurements — readiness gate (audit P1-3)", () => {
   const base = { height_cm: 175, waist_cm: 61, hips_cm: 90 };
 
@@ -200,6 +253,21 @@ describe("hasCoreMeasurements — readiness gate (audit P1-3)", () => {
   test("missing height/waist/hips fails regardless of core", () => {
     expect(
       hasCoreMeasurements({ stats_track: "womenswear", bust_cm: 86 }),
+    ).toBe(false);
+  });
+
+  test("a minor is ready with height only", () => {
+    expect(
+      hasCoreMeasurements(
+        { date_of_birth: "2012-03-15", height_cm: 150, bust_cm: 78 },
+        { referenceDate: NOW },
+      ),
+    ).toBe(true);
+    expect(
+      hasCoreMeasurements(
+        { date_of_birth: "2012-03-15" },
+        { referenceDate: NOW },
+      ),
     ).toBe(false);
   });
 });

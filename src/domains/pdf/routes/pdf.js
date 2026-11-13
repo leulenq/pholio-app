@@ -43,7 +43,7 @@ const {
 const { requireRole } = require("../../auth/middleware/require-auth");
 const { recordProfileEvent } = require("../../talent/services/intel/capture");
 const knex = require("../../../shared/db/knex");
-const { minorPublicExposureAllowed } = require("../../../shared/lib/talent-age");
+const { minorPublicExposureAllowed, isMinorProfile } = require("../../../shared/lib/talent-age");
 const { buildCanonicalStats } = require("../../../shared/lib/stats-formatter");
 const QRCode = require("qrcode");
 const config = require("../../../config");
@@ -2325,7 +2325,7 @@ router.get("/pdf/:slug", async (req, res, next) => {
       machineReadable: {
         profile,
         images: data.images || [],
-        minor: Boolean(profile?.is_minor),
+        minor: isMinorProfile(profile),
       },
       seed: req.query.seed,
       layoutFamily: req.query.layoutFamily,
